@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
-import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminTeachers from "@/pages/admin/AdminTeachers";
 import AdminChildren from "@/pages/admin/AdminChildren";
 import AdminAgenda from "@/pages/admin/AdminAgenda";
+import AdminMessages from "@/pages/admin/AdminMessages";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -38,17 +38,15 @@ function DashboardContent() {
   // Admin or Teacher - show admin panel
   if (isAdmin || isTeacher) {
     return (
-      <AdminLayout>
-        <Routes>
-          <Route path="/" element={<AdminDashboard />} />
-          <Route path="/aprovacoes" element={<AdminApprovals />} />
-          <Route path="/professores" element={<AdminTeachers />} />
-          <Route path="/criancas" element={<AdminChildren />} />
-          <Route path="/agenda" element={<AdminAgenda />} />
-          <Route path="/mensagens" element={<div>Mensagens - Em breve</div>} />
-          <Route path="/config" element={<div>Configurações - Em breve</div>} />
-        </Routes>
-      </AdminLayout>
+      <Routes>
+        <Route path="/" element={<AdminDashboard />} />
+        <Route path="/aprovacoes" element={<AdminApprovals />} />
+        <Route path="/professores" element={<AdminTeachers />} />
+        <Route path="/criancas" element={<AdminChildren />} />
+        <Route path="/agenda" element={<AdminAgenda />} />
+        <Route path="/mensagens" element={<AdminMessages />} />
+        <Route path="/config" element={<div>Configurações - Em breve</div>} />
+      </Routes>
     );
   }
 
