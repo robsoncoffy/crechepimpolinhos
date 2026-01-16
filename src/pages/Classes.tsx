@@ -2,7 +2,10 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { Baby, BookOpen, Users, Clock, Sun, Moon } from "lucide-react";
+import { Baby, BookOpen, Users, Clock, Sun, Moon, ChevronRight, CheckCircle2, Star } from "lucide-react";
+import nurseryImage from "@/assets/nursery-room.jpg";
+import craftsImage from "@/assets/kids-crafts.jpg";
+import teacherImage from "@/assets/teacher-reading.jpg";
 
 const classes = [
   {
@@ -13,12 +16,22 @@ const classes = [
       "Ambiente acolhedor e seguro para os primeiros passos do desenvolvimento do seu bebê. Cuidado integral com foco em estimulação sensorial, motor e afetiva.",
     icon: Baby,
     color: "pimpo-blue",
+    bgColor: "bg-pimpo-blue",
+    lightBg: "bg-pimpo-blue-light",
+    image: nurseryImage,
     activities: [
       "Estimulação sensorial",
       "Desenvolvimento motor",
-      "Musicalização",
+      "Musicalização infantil",
       "Contação de histórias",
       "Brincadeiras lúdicas",
+      "Massagem relaxante",
+    ],
+    highlights: [
+      "Berços individuais e confortáveis",
+      "Fraldário completo e higienizado",
+      "Alimentação específica para a idade",
+      "Relatório diário detalhado",
     ],
   },
   {
@@ -29,12 +42,22 @@ const classes = [
       "Fase de descobertas e exploração! Atividades que estimulam a curiosidade, linguagem e socialização da criança em um ambiente preparado.",
     icon: BookOpen,
     color: "pimpo-red",
+    bgColor: "bg-pimpo-red",
+    lightBg: "bg-pimpo-red-light",
+    image: craftsImage,
     activities: [
       "Desenvolvimento da linguagem",
-      "Coordenação motora",
+      "Coordenação motora fina e grossa",
       "Atividades artísticas",
       "Brincadeiras ao ar livre",
       "Iniciação à autonomia",
+      "Projetos temáticos",
+    ],
+    highlights: [
+      "Salas coloridas e estimulantes",
+      "Brinquedos pedagógicos",
+      "Espaço para movimento livre",
+      "Professoras especializadas",
     ],
   },
   {
@@ -45,12 +68,22 @@ const classes = [
       "Preparação para a vida escolar com atividades pedagógicas estruturadas, desenvolvimento cognitivo avançado e formação de valores.",
     icon: Users,
     color: "pimpo-green",
+    bgColor: "bg-pimpo-green",
+    lightBg: "bg-pimpo-green-light",
+    image: teacherImage,
     activities: [
       "Pré-alfabetização",
-      "Raciocínio lógico",
-      "Inglês",
+      "Raciocínio lógico-matemático",
+      "Inglês básico",
       "Educação Física",
       "Projetos pedagógicos",
+      "Preparação para o Fundamental",
+    ],
+    highlights: [
+      "Material didático completo",
+      "Aulas de inglês semanais",
+      "Atividades extras incluídas",
+      "Formatura especial",
     ],
   },
 ];
@@ -61,18 +94,22 @@ const shifts = [
     hours: "7h às 12h",
     icon: Sun,
     description: "Ideal para famílias que precisam de cuidado durante a manhã.",
+    includes: ["Café da manhã", "Lanche", "Atividades pedagógicas", "Recreação"],
   },
   {
     title: "Meio Período Tarde",
     hours: "13h às 18h",
     icon: Moon,
     description: "Perfeito para quem precisa de acompanhamento no período vespertino.",
+    includes: ["Almoço", "Lanche da tarde", "Atividades pedagógicas", "Recreação"],
   },
   {
     title: "Período Integral",
     hours: "7h às 19h",
     icon: Clock,
     description: "Cobertura completa para pais que trabalham o dia todo.",
+    includes: ["Todas as refeições", "Soneca", "Atividades completas", "Atividades extras"],
+    featured: true,
   },
 ];
 
@@ -80,80 +117,146 @@ export default function Classes() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-pimpo-green-light to-pimpo-blue-light py-16 lg:py-20">
-        <div className="container text-center">
-          <h1 className="font-fredoka text-4xl lg:text-5xl font-bold text-foreground mb-4">
+      <section className="relative py-20 lg:py-28 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-pimpo-green-light via-background to-pimpo-blue-light" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-pimpo-yellow/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-pimpo-blue/20 rounded-full blur-3xl" />
+        
+        <div className="container relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+            <Users className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-primary">Educação por Faixa Etária</span>
+          </div>
+          <h1 className="font-fredoka text-5xl lg:text-6xl font-bold text-foreground mb-6">
             Nossas Turmas
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Oferecemos turmas para todas as idades, do berçário ao jardim, com
-            proposta pedagógica adequada a cada fase do desenvolvimento.
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            Oferecemos turmas organizadas por idade, com proposta pedagógica 
+            adequada a cada fase do desenvolvimento infantil.
           </p>
         </div>
       </section>
 
       {/* Classes */}
-      <section className="py-16 lg:py-24">
-        <div className="container">
-          <div className="space-y-12">
-            {classes.map((classItem, index) => (
-              <Card
-                key={classItem.id}
-                className={`overflow-hidden border-2 border-${classItem.color}/20 hover:border-${classItem.color}/40 transition-colors`}
-              >
-                <div className={`grid lg:grid-cols-3 ${index % 2 === 1 ? "lg:flex-row-reverse" : ""}`}>
-                  <div className={`bg-${classItem.color}-light p-8 flex items-center justify-center`}>
-                    <div className="text-center">
-                      <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full bg-${classItem.color}/20 mb-4`}>
-                        <classItem.icon className={`w-12 h-12 text-${classItem.color}`} />
+      <section className="py-20 lg:py-28">
+        <div className="container space-y-24">
+          {classes.map((classItem, index) => (
+            <div
+              key={classItem.id}
+              className={`grid lg:grid-cols-2 gap-12 items-center ${
+                index % 2 === 1 ? "lg:flex-row-reverse" : ""
+              }`}
+            >
+              {/* Image */}
+              <div className={`relative ${index % 2 === 1 ? "lg:order-2" : ""}`}>
+                <div className={`absolute -inset-4 ${classItem.lightBg} rounded-3xl -z-10`} />
+                <img
+                  src={classItem.image}
+                  alt={classItem.title}
+                  className="rounded-2xl shadow-2xl w-full h-80 lg:h-96 object-cover"
+                />
+                {/* Badge */}
+                <div className={`absolute -bottom-6 ${index % 2 === 1 ? "-left-6" : "-right-6"} ${classItem.bgColor} text-white p-4 rounded-2xl shadow-xl`}>
+                  <classItem.icon className="w-10 h-10" />
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className={`space-y-6 ${index % 2 === 1 ? "lg:order-1" : ""}`}>
+                <div className={`inline-flex items-center gap-2 ${classItem.bgColor} text-white px-4 py-2 rounded-full`}>
+                  <classItem.icon className="w-4 h-4" />
+                  <span className="font-semibold">{classItem.ageRange}</span>
+                </div>
+
+                <h2 className="font-fredoka text-4xl lg:text-5xl font-bold text-foreground">
+                  {classItem.title}
+                </h2>
+
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  {classItem.description}
+                </p>
+
+                {/* Activities */}
+                <div>
+                  <h4 className="font-semibold text-foreground mb-3">Atividades principais:</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {classItem.activities.map((activity) => (
+                      <div key={activity} className="flex items-center gap-2">
+                        <CheckCircle2 className={`w-4 h-4 text-${classItem.color} flex-shrink-0`} />
+                        <span className="text-sm">{activity}</span>
                       </div>
-                      <h3 className="font-fredoka text-3xl font-bold">{classItem.title}</h3>
-                      <p className={`text-${classItem.color} font-semibold mt-2`}>{classItem.ageRange}</p>
-                    </div>
-                  </div>
-                  <div className="lg:col-span-2 p-8">
-                    <p className="text-muted-foreground text-lg mb-6">{classItem.description}</p>
-                    <h4 className="font-fredoka text-lg font-bold mb-4">Atividades principais:</h4>
-                    <ul className="grid sm:grid-cols-2 gap-2">
-                      {classItem.activities.map((activity) => (
-                        <li key={activity} className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full bg-${classItem.color}`} />
-                          <span>{activity}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    ))}
                   </div>
                 </div>
-              </Card>
-            ))}
-          </div>
+
+                {/* Highlights */}
+                <div className={`${classItem.lightBg} p-6 rounded-xl`}>
+                  <h4 className="font-semibold text-foreground mb-3">Diferenciais:</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {classItem.highlights.map((highlight) => (
+                      <div key={highlight} className="flex items-center gap-2">
+                        <Star className={`w-4 h-4 text-${classItem.color} flex-shrink-0`} />
+                        <span className="text-sm">{highlight}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Shifts */}
-      <section className="py-16 lg:py-24 bg-card">
+      <section className="py-20 lg:py-28 bg-muted/30">
         <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground mb-4">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6">
+              <Clock className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-primary">Flexibilidade</span>
+            </div>
+            <h2 className="font-fredoka text-4xl lg:text-5xl font-bold text-foreground mb-4">
               Opções de Turno
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Flexibilidade para atender às necessidades da sua família.
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Escolha a opção que melhor se adapta à rotina da sua família.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8">
             {shifts.map((shift) => (
-              <Card key={shift.title} className="text-center hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mx-auto mb-2">
-                    <shift.icon className="w-7 h-7 text-primary" />
+              <Card
+                key={shift.title}
+                className={`relative overflow-hidden border-2 ${
+                  shift.featured
+                    ? "border-primary shadow-2xl scale-105"
+                    : "border-transparent shadow-xl"
+                }`}
+              >
+                {shift.featured && (
+                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1 text-sm font-semibold rounded-bl-lg">
+                    Mais Popular
                   </div>
-                  <CardTitle className="font-fredoka">{shift.title}</CardTitle>
+                )}
+                <CardHeader className="text-center pb-2">
+                  <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl ${
+                    shift.featured ? "bg-primary text-primary-foreground" : "bg-primary/10"
+                  } mx-auto mb-4`}>
+                    <shift.icon className={`w-8 h-8 ${shift.featured ? "" : "text-primary"}`} />
+                  </div>
+                  <CardTitle className="font-fredoka text-xl">{shift.title}</CardTitle>
+                  <p className="text-3xl font-bold text-primary">{shift.hours}</p>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-primary mb-2">{shift.hours}</p>
-                  <p className="text-muted-foreground text-sm">{shift.description}</p>
+                <CardContent className="space-y-4">
+                  <p className="text-muted-foreground text-center">{shift.description}</p>
+                  <div className="space-y-2">
+                    {shift.includes.map((item) => (
+                      <div key={item} className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-pimpo-green flex-shrink-0" />
+                        <span className="text-sm">{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -162,23 +265,33 @@ export default function Classes() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 lg:py-24 bg-primary text-primary-foreground">
-        <div className="container text-center">
-          <h2 className="font-fredoka text-3xl lg:text-4xl font-bold mb-4">
-            Matricule seu filho!
-          </h2>
-          <p className="text-lg opacity-90 max-w-2xl mx-auto mb-8">
-            Entre em contato conosco para conhecer nossa escola e garantir a vaga do seu pequeno.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" variant="secondary" asChild>
-              <Link to="/contato">Entrar em Contato</Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10" asChild>
-              <a href="https://wa.me/5551989965423" target="_blank" rel="noopener noreferrer">
-                WhatsApp
-              </a>
-            </Button>
+      <section className="py-20 lg:py-28 bg-primary text-primary-foreground">
+        <div className="container">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="font-fredoka text-4xl lg:text-5xl font-bold mb-6">
+              Pronto para matricular seu filho?
+            </h2>
+            <p className="text-xl opacity-90 mb-10">
+              Entre em contato conosco para conhecer nossa escola e garantir a vaga do seu pequeno.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button size="lg" variant="secondary" className="text-lg px-8" asChild>
+                <Link to="/contato">
+                  Entrar em Contato
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-lg px-8 border-white text-white hover:bg-white hover:text-primary"
+                asChild
+              >
+                <a href="https://wa.me/5551989965423" target="_blank" rel="noopener noreferrer">
+                  WhatsApp
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
