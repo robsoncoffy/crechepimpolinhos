@@ -283,6 +283,54 @@ export type Database = {
           },
         ]
       }
+      pre_enrollments: {
+        Row: {
+          child_birth_date: string
+          child_name: string
+          created_at: string
+          desired_class_type: Database["public"]["Enums"]["class_type"]
+          desired_shift_type: Database["public"]["Enums"]["shift_type"]
+          email: string
+          how_heard_about: string | null
+          id: string
+          notes: string | null
+          parent_name: string
+          phone: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          child_birth_date: string
+          child_name: string
+          created_at?: string
+          desired_class_type: Database["public"]["Enums"]["class_type"]
+          desired_shift_type: Database["public"]["Enums"]["shift_type"]
+          email: string
+          how_heard_about?: string | null
+          id?: string
+          notes?: string | null
+          parent_name: string
+          phone: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          child_birth_date?: string
+          child_name?: string
+          created_at?: string
+          desired_class_type?: Database["public"]["Enums"]["class_type"]
+          desired_shift_type?: Database["public"]["Enums"]["shift_type"]
+          email?: string
+          how_heard_about?: string | null
+          id?: string
+          notes?: string | null
+          parent_name?: string
+          phone?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

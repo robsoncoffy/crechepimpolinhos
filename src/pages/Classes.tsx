@@ -282,8 +282,8 @@ export default function Classes() {
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button size="lg" variant="secondary" className="text-lg px-8" asChild>
-                <Link to="/contato">
-                  Entrar em Contato
+                <Link to="/pre-matricula">
+                  Fazer Pré-Matrícula
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
