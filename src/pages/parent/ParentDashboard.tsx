@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +14,9 @@ import {
   LogOut,
   MessageSquare,
   Baby,
-  BookOpen,
   Calendar,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
-import { cn } from "@/lib/utils";
 
 interface Child {
   id: string;
@@ -324,13 +323,10 @@ export default function ParentDashboard() {
                     </TabsList>
 
                     <TabsContent value="agenda" className="mt-4">
-                      <div className="text-center py-8 text-muted-foreground">
-                        <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>A agenda digital estará disponível em breve!</p>
-                        <p className="text-sm">
-                          Aqui você poderá acompanhar as atividades diárias do seu filho.
-                        </p>
-                      </div>
+                      <ParentAgendaView
+                        childId={selectedChild.id}
+                        childName={selectedChild.full_name}
+                      />
                     </TabsContent>
 
                     <TabsContent value="chat" className="mt-4">
