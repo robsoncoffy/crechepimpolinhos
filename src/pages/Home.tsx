@@ -2,25 +2,7 @@ import { Link } from "react-router-dom";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Baby,
-  BookOpen,
-  Music,
-  Users,
-  Shield,
-  Heart,
-  CalendarDays,
-  MessageCircle,
-  ChevronRight,
-  Star,
-  Clock,
-  MapPin,
-  Phone,
-  CheckCircle2,
-  Sparkles,
-  Award,
-  Play,
-} from "lucide-react";
+import { Baby, BookOpen, Music, Users, Shield, Heart, CalendarDays, MessageCircle, ChevronRight, Star, Clock, MapPin, Phone, CheckCircle2, Sparkles, Award, Play } from "lucide-react";
 import heroImage from "@/assets/hero-children.jpg";
 import teacherImage from "@/assets/teacher-reading.jpg";
 import playgroundImage from "@/assets/playground.jpg";
@@ -28,106 +10,100 @@ import craftsImage from "@/assets/kids-crafts.jpg";
 import nurseryImage from "@/assets/nursery-room.jpg";
 import eatingImage from "@/assets/kids-eating.jpg";
 import logo from "@/assets/logo-pimpolinhos.png";
-
-const features = [
-  {
-    icon: Baby,
-    title: "Berçário",
-    description: "Cuidado especial para bebês de 0 a 1 ano com estimulação sensorial",
-    color: "bg-pimpo-blue",
-    lightColor: "bg-pimpo-blue-light",
-    image: nurseryImage,
-  },
-  {
-    icon: BookOpen,
-    title: "Maternal",
-    description: "Desenvolvimento integral para crianças de 1 a 3 anos",
-    color: "bg-pimpo-red",
-    lightColor: "bg-pimpo-red-light",
-    image: craftsImage,
-  },
-  {
-    icon: Users,
-    title: "Jardim",
-    description: "Preparação completa para crianças de 4 a 6 anos",
-    color: "bg-pimpo-green",
-    lightColor: "bg-pimpo-green-light",
-    image: teacherImage,
-  },
-];
-
-const benefits = [
-  {
-    icon: Shield,
-    title: "Segurança Total",
-    description: "Monitoramento 24h, controle de acesso e equipe treinada",
-  },
-  {
-    icon: Heart,
-    title: "Carinho e Afeto",
-    description: "Ambiente acolhedor que faz seu filho se sentir em casa",
-  },
-  {
-    icon: CalendarDays,
-    title: "Agenda Digital",
-    description: "Acompanhe cada momento do dia do seu filho em tempo real",
-  },
-  {
-    icon: MessageCircle,
-    title: "Comunicação Direta",
-    description: "Chat exclusivo com os professores da turma",
-  },
-];
-
-const activities = [
-  { name: "Educação Física", icon: "🏃" },
-  { name: "Inglês", icon: "🇬🇧" },
-  { name: "Ballet", icon: "🩰" },
-  { name: "Capoeira", icon: "🥋" },
-  { name: "Música", icon: "🎵" },
-  { name: "Artes", icon: "🎨" },
-];
-
-const testimonials = [
-  {
-    name: "Maria Silva",
-    role: "Mãe do Pedro, 3 anos",
-    content: "A Pimpolinhos transformou a vida do meu filho! A equipe é maravilhosa e a agenda digital me deixa tranquila durante o trabalho.",
-    avatar: "MS",
-  },
-  {
-    name: "João Santos",
-    role: "Pai da Ana, 2 anos",
-    content: "Escolhemos a Pimpolinhos pela estrutura e ficamos pelo carinho. Ana adora ir para a escolinha todos os dias!",
-    avatar: "JS",
-  },
-  {
-    name: "Carla Oliveira",
-    role: "Mãe do Lucas, 4 anos",
-    content: "O desenvolvimento do Lucas foi incrível! As atividades extras como inglês e música fazem toda diferença.",
-    avatar: "CO",
-  },
-];
-
-const stats = [
-  { value: "+10", label: "Anos de Experiência" },
-  { value: "+500", label: "Famílias Atendidas" },
-  { value: "3", label: "Turmas Especializadas" },
-  { value: "5★", label: "Avaliação dos Pais" },
-];
-
+const features = [{
+  icon: Baby,
+  title: "Berçário",
+  description: "Cuidado especial para bebês de 0 a 1 ano com estimulação sensorial",
+  color: "bg-pimpo-blue",
+  lightColor: "bg-pimpo-blue-light",
+  image: nurseryImage
+}, {
+  icon: BookOpen,
+  title: "Maternal",
+  description: "Desenvolvimento integral para crianças de 1 a 3 anos",
+  color: "bg-pimpo-red",
+  lightColor: "bg-pimpo-red-light",
+  image: craftsImage
+}, {
+  icon: Users,
+  title: "Jardim",
+  description: "Preparação completa para crianças de 4 a 6 anos",
+  color: "bg-pimpo-green",
+  lightColor: "bg-pimpo-green-light",
+  image: teacherImage
+}];
+const benefits = [{
+  icon: Shield,
+  title: "Segurança Total",
+  description: "Monitoramento 24h, controle de acesso e equipe treinada"
+}, {
+  icon: Heart,
+  title: "Carinho e Afeto",
+  description: "Ambiente acolhedor que faz seu filho se sentir em casa"
+}, {
+  icon: CalendarDays,
+  title: "Agenda Digital",
+  description: "Acompanhe cada momento do dia do seu filho em tempo real"
+}, {
+  icon: MessageCircle,
+  title: "Comunicação Direta",
+  description: "Chat exclusivo com os professores da turma"
+}];
+const activities = [{
+  name: "Educação Física",
+  icon: "🏃"
+}, {
+  name: "Inglês",
+  icon: "🇬🇧"
+}, {
+  name: "Ballet",
+  icon: "🩰"
+}, {
+  name: "Capoeira",
+  icon: "🥋"
+}, {
+  name: "Música",
+  icon: "🎵"
+}, {
+  name: "Artes",
+  icon: "🎨"
+}];
+const testimonials = [{
+  name: "Maria Silva",
+  role: "Mãe do Pedro, 3 anos",
+  content: "A Pimpolinhos transformou a vida do meu filho! A equipe é maravilhosa e a agenda digital me deixa tranquila durante o trabalho.",
+  avatar: "MS"
+}, {
+  name: "João Santos",
+  role: "Pai da Ana, 2 anos",
+  content: "Escolhemos a Pimpolinhos pela estrutura e ficamos pelo carinho. Ana adora ir para a escolinha todos os dias!",
+  avatar: "JS"
+}, {
+  name: "Carla Oliveira",
+  role: "Mãe do Lucas, 4 anos",
+  content: "O desenvolvimento do Lucas foi incrível! As atividades extras como inglês e música fazem toda diferença.",
+  avatar: "CO"
+}];
+const stats = [{
+  value: "+10",
+  label: "Anos de Experiência"
+}, {
+  value: "+500",
+  label: "Famílias Atendidas"
+}, {
+  value: "3",
+  label: "Turmas Especializadas"
+}, {
+  value: "5★",
+  label: "Avaliação dos Pais"
+}];
 export default function Home() {
-  return (
-    <PublicLayout>
+  return <PublicLayout>
       {/* Hero Section - Full Width with Overlay */}
       <section className="relative min-h-[90vh] flex items-center">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img
-            src={heroImage}
-            alt="Crianças felizes na Creche Pimpolinhos"
-            className="w-full h-full object-cover"
-          />
+          <img src={heroImage} alt="Crianças felizes na Creche Pimpolinhos" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-transparent" />
         </div>
 
@@ -135,7 +111,7 @@ export default function Home() {
         <div className="container relative z-10 py-20">
           <div className="max-w-2xl text-white">
             <div className="inline-flex items-center gap-2 bg-secondary/90 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
-              <Star className="w-4 h-4 text-pimpo-yellow fill-pimpo-yellow" />
+              <Star className="w-4 h-4 text-pimpo-yellow fill-pimpo-white" />
               <span className="font-semibold text-secondary-foreground">
                 A melhor creche de Canoas
               </span>
@@ -159,12 +135,7 @@ export default function Home() {
                   <ChevronRight className="w-5 h-5 ml-2" />
                 </Link>
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-lg px-8 py-6 bg-white/10 border-white text-white hover:bg-white hover:text-foreground"
-                asChild
-              >
+              <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-white/10 border-white text-white hover:bg-white hover:text-foreground" asChild>
                 <Link to="/contato">Agende uma Visita</Link>
               </Button>
             </div>
@@ -199,14 +170,12 @@ export default function Home() {
       <section className="bg-primary py-8">
         <div className="container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center text-primary-foreground">
+            {stats.map(stat => <div key={stat.label} className="text-center text-primary-foreground">
                 <p className="font-fredoka text-4xl lg:text-5xl font-bold mb-1">
                   {stat.value}
                 </p>
                 <p className="text-sm lg:text-base opacity-80">{stat.label}</p>
-              </div>
-            ))}
+              </div>)}
           </div>
         </div>
       </section>
@@ -218,26 +187,10 @@ export default function Home() {
             {/* Images Grid */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
-                <img
-                  src={teacherImage}
-                  alt="Professora lendo para crianças"
-                  className="rounded-2xl shadow-xl w-full h-48 object-cover"
-                />
-                <img
-                  src={craftsImage}
-                  alt="Crianças fazendo artes"
-                  className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8"
-                />
-                <img
-                  src={playgroundImage}
-                  alt="Playground"
-                  className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4"
-                />
-                <img
-                  src={eatingImage}
-                  alt="Crianças no refeitório"
-                  className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4"
-                />
+                <img src={teacherImage} alt="Professora lendo para crianças" className="rounded-2xl shadow-xl w-full h-48 object-cover" />
+                <img src={craftsImage} alt="Crianças fazendo artes" className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8" />
+                <img src={playgroundImage} alt="Playground" className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4" />
+                <img src={eatingImage} alt="Crianças no refeitório" className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4" />
               </div>
               {/* Floating Badge */}
               <div className="absolute -bottom-6 -right-6 bg-secondary p-6 rounded-2xl shadow-xl">
@@ -271,17 +224,10 @@ export default function Home() {
               </p>
 
               <ul className="space-y-4">
-                {[
-                  "Equipe qualificada e apaixonada por educação infantil",
-                  "Proposta pedagógica inovadora e lúdica",
-                  "Alimentação saudável e balanceada",
-                  "Acompanhamento individual do desenvolvimento",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
+                {["Equipe qualificada e apaixonada por educação infantil", "Proposta pedagógica inovadora e lúdica", "Alimentação saudável e balanceada", "Acompanhamento individual do desenvolvimento"].map(item => <li key={item} className="flex items-start gap-3">
                     <CheckCircle2 className="w-6 h-6 text-pimpo-green flex-shrink-0 mt-0.5" />
                     <span className="text-foreground">{item}</span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
 
               <Button size="lg" variant="outline" asChild>
@@ -313,17 +259,9 @@ export default function Home() {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {features.map((feature) => (
-              <Card
-                key={feature.title}
-                className="group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500"
-              >
+            {features.map(feature => <Card key={feature.title} className="group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500">
                 <div className="relative h-56 overflow-hidden">
-                  <img
-                    src={feature.image}
-                    alt={feature.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
+                  <img src={feature.image} alt={feature.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4">
                     <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${feature.color} mb-2`}>
@@ -336,16 +274,12 @@ export default function Home() {
                 </div>
                 <CardContent className="p-6">
                   <p className="text-muted-foreground mb-4">{feature.description}</p>
-                  <Link
-                    to="/turmas"
-                    className="inline-flex items-center text-primary font-semibold hover:underline"
-                  >
+                  <Link to="/turmas" className="inline-flex items-center text-primary font-semibold hover:underline">
                     Saiba mais
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
 
           <div className="text-center mt-12">
@@ -379,32 +313,18 @@ export default function Home() {
               </p>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {activities.map((activity) => (
-                  <div
-                    key={activity.name}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center hover:bg-white/20 transition-colors"
-                  >
+                {activities.map(activity => <div key={activity.name} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center hover:bg-white/20 transition-colors">
                     <span className="text-3xl mb-2 block">{activity.icon}</span>
                     <span className="font-semibold">{activity.name}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
             </div>
 
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img
-                  src={craftsImage}
-                  alt="Atividades na creche"
-                  className="w-full h-96 object-cover"
-                />
+                <img src={craftsImage} alt="Atividades na creche" className="w-full h-96 object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent flex items-end justify-center pb-8">
-                  <Button
-                    size="lg"
-                    variant="secondary"
-                    className="gap-2"
-                    asChild
-                  >
+                  <Button size="lg" variant="secondary" className="gap-2" asChild>
                     <Link to="/sobre">
                       <Play className="w-5 h-5" />
                       Conheça mais
@@ -490,11 +410,7 @@ export default function Home() {
               </p>
 
               <div className="space-y-4">
-                {benefits.map((benefit) => (
-                  <div
-                    key={benefit.title}
-                    className="flex items-start gap-4 p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
-                  >
+                {benefits.map(benefit => <div key={benefit.title} className="flex items-start gap-4 p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors">
                     <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                       <benefit.icon className="w-6 h-6 text-primary" />
                     </div>
@@ -502,8 +418,7 @@ export default function Home() {
                       <h4 className="font-semibold text-foreground">{benefit.title}</h4>
                       <p className="text-sm text-muted-foreground">{benefit.description}</p>
                     </div>
-                  </div>
-                ))}
+                  </div>)}
               </div>
 
               <Button size="lg" asChild>
@@ -534,13 +449,10 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial) => (
-              <Card key={testimonial.name} className="border-0 shadow-xl">
+            {testimonials.map(testimonial => <Card key={testimonial.name} className="border-0 shadow-xl">
                 <CardContent className="p-8">
                   <div className="flex items-center gap-1 text-pimpo-yellow mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-current" />
-                    ))}
+                    {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 fill-current" />)}
                   </div>
                   <p className="text-muted-foreground mb-6 leading-relaxed">
                     "{testimonial.content}"
@@ -555,8 +467,7 @@ export default function Home() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -564,11 +475,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 lg:py-28 relative overflow-hidden">
         <div className="absolute inset-0">
-          <img
-            src={playgroundImage}
-            alt="Playground"
-            className="w-full h-full object-cover"
-          />
+          <img src={playgroundImage} alt="Playground" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-primary/90" />
         </div>
 
@@ -581,25 +488,11 @@ export default function Home() {
             Estamos prontos para receber sua família!
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Button
-              size="lg"
-              variant="secondary"
-              className="text-lg px-8 py-6"
-              asChild
-            >
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-6" asChild>
               <Link to="/contato">Agendar Visita</Link>
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-primary"
-              asChild
-            >
-              <a
-                href="https://wa.me/5551989965423"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-primary" asChild>
+              <a href="https://wa.me/5551989965423" target="_blank" rel="noopener noreferrer">
                 <Phone className="w-5 h-5 mr-2" />
                 WhatsApp
               </a>
@@ -607,6 +500,5 @@ export default function Home() {
           </div>
         </div>
       </section>
-    </PublicLayout>
-  );
+    </PublicLayout>;
 }
