@@ -91,25 +91,26 @@ const classes = [
 const shifts = [
   {
     title: "Meio Período Manhã",
-    hours: "7h às 12h",
+    hours: "7h às 11h",
     icon: Sun,
-    description: "Ideal para famílias que precisam de cuidado durante a manhã.",
+    description: "4 horas de cuidado durante a manhã.",
     includes: ["Café da manhã", "Lanche", "Atividades pedagógicas", "Recreação"],
   },
   {
     title: "Meio Período Tarde",
-    hours: "13h às 18h",
+    hours: "15h às 19h",
     icon: Moon,
-    description: "Perfeito para quem precisa de acompanhamento no período vespertino.",
-    includes: ["Almoço", "Lanche da tarde", "Atividades pedagógicas", "Recreação"],
+    description: "4 horas de acompanhamento no período vespertino.",
+    includes: ["Lanche da tarde", "Atividades pedagógicas", "Recreação", "Jantar"],
   },
   {
     title: "Período Integral",
-    hours: "7h às 19h",
+    hours: "Até 8h diárias",
     icon: Clock,
-    description: "Cobertura completa para pais que trabalham o dia todo.",
+    description: "Permanência de até 8 horas. Horas adicionais são cobradas separadamente.",
     includes: ["Todas as refeições", "Soneca", "Atividades completas", "Atividades extras"],
     featured: true,
+    note: "Funcionamos das 7h às 19h",
   },
 ];
 
@@ -257,6 +258,11 @@ export default function Classes() {
                       </div>
                     ))}
                   </div>
+                  {shift.note && (
+                    <p className="text-xs text-center text-muted-foreground pt-2 border-t">
+                      {shift.note}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}
