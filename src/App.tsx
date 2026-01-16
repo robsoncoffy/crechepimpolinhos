@@ -11,6 +11,7 @@ import Structure from "./pages/Structure";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import PreEnrollment from "./pages/PreEnrollment";
 import AdminAgenda from "./pages/admin/AdminAgenda";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/turmas" element={<Classes />} />
           <Route path="/estrutura" element={<Structure />} />
           <Route path="/contato" element={<Contact />} />
+          <Route path="/pre-matricula" element={<PreEnrollment />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
