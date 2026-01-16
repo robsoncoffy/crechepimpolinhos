@@ -11,6 +11,7 @@ import Structure from "./pages/Structure";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import AdminAgenda from "./pages/admin/AdminAgenda";
 
 const queryClient = new QueryClient();
 

@@ -6,6 +6,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminTeachers from "@/pages/admin/AdminTeachers";
 import AdminChildren from "@/pages/admin/AdminChildren";
+import AdminAgenda from "@/pages/admin/AdminAgenda";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -43,7 +44,7 @@ function DashboardContent() {
           <Route path="/aprovacoes" element={<AdminApprovals />} />
           <Route path="/professores" element={<AdminTeachers />} />
           <Route path="/criancas" element={<AdminChildren />} />
-          <Route path="/agenda" element={<div>Agenda - Em breve</div>} />
+          <Route path="/agenda" element={<AdminAgenda />} />
           <Route path="/mensagens" element={<div>Mensagens - Em breve</div>} />
           <Route path="/config" element={<div>Configurações - Em breve</div>} />
         </Routes>
