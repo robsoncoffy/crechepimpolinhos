@@ -1,30 +1,17 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Clock, AlertCircle } from "lucide-react";
-import logo from "@/assets/logo-pimpolinhos.png";
+import { useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
+import { useAuth, AuthProvider } from "@/hooks/useAuth";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminApprovals from "@/pages/admin/AdminApprovals";
+import AdminTeachers from "@/pages/admin/AdminTeachers";
+import AdminChildren from "@/pages/admin/AdminChildren";
+import ParentDashboard from "@/pages/parent/ParentDashboard";
+import { Loader2 } from "lucide-react";
 
-export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+function DashboardContent() {
+  const { user, loading, isAdmin, isTeacher, isParent, isApproved } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -32,64 +19,55 @@ export default function Dashboard() {
     }
   }, [user, loading, navigate]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
 
+  if (!user) {
+    return null;
+  }
+
+  // Admin or Teacher - show admin panel
+  if (isAdmin || isTeacher) {
+    return (
+      <AdminLayout>
+        <Routes>
+          <Route path="/" element={<AdminDashboard />} />
+          <Route path="/aprovacoes" element={<AdminApprovals />} />
+          <Route path="/professores" element={<AdminTeachers />} />
+          <Route path="/criancas" element={<AdminChildren />} />
+          <Route path="/agenda" element={<div>Agenda - Em breve</div>} />
+          <Route path="/mensagens" element={<div>Mensagens - Em breve</div>} />
+          <Route path="/config" element={<div>Configurações - Em breve</div>} />
+        </Routes>
+      </AdminLayout>
+    );
+  }
+
+  // Parent - show parent panel
+  if (isParent) {
+    return <ParentDashboard />;
+  }
+
+  // Fallback
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card shadow-md">
-        <div className="container py-4 flex items-center justify-between">
-          <img src={logo} alt="Creche Pimpolinhos" className="h-12" />
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.email}</span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* Content */}
-      <main className="container py-8">
-        <h1 className="font-fredoka text-3xl font-bold mb-8">Bem-vindo ao Painel</h1>
-
-        <Card className="max-w-2xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-pimpo-yellow" />
-              Aguardando Aprovação
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-pimpo-yellow-light rounded-lg">
-              <AlertCircle className="w-5 h-5 text-pimpo-yellow mt-0.5" />
-              <div>
-                <p className="font-semibold">Seu cadastro está em análise</p>
-                <p className="text-sm text-muted-foreground">
-                  A escola precisa aprovar seu acesso e vincular seu filho à sua conta.
-                  Você receberá uma notificação quando o acesso for liberado.
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Enquanto isso, você pode entrar em contato com a escola pelo WhatsApp 
-              (51) 98996-5423 para agilizar o processo.
-            </p>
-          </CardContent>
-        </Card>
-      </main>
+    <div className="min-h-screen flex items-center justify-center">
+      <p>Acesso não autorizado</p>
     </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <AuthProvider>
+      <DashboardContent />
+    </AuthProvider>
   );
 }
