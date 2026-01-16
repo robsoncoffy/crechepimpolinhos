@@ -111,7 +111,7 @@ export default function Home() {
         <div className="container relative z-10 py-20">
           <div className="max-w-2xl text-white">
             <div className="inline-flex items-center gap-2 bg-secondary/90 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
-              <Star className="w-4 h-4 text-pimpo-yellow fill-pimpo-white" />
+              <Star className="w-4 h-4 text-white fill-white" />
               <span className="font-semibold text-secondary-foreground">
                 A melhor creche de Canoas
               </span>
