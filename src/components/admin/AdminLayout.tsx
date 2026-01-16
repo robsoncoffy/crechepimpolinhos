@@ -15,6 +15,7 @@ import {
   ClipboardList,
   ChevronRight,
   Settings,
+  TrendingUp,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const menuItems = [
   { icon: Users, label: "Professores", href: "/painel/professores" },
   { icon: Baby, label: "Crianças", href: "/painel/criancas" },
   { icon: ClipboardList, label: "Agenda", href: "/painel/agenda" },
+  { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
   { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
   { icon: Settings, label: "Configurações", href: "/painel/config" },
 ];
