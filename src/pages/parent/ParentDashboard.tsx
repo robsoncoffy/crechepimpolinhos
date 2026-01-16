@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
+import { GrowthChart } from "@/components/parent/GrowthChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import {
   MessageSquare,
   Baby,
   Calendar,
+  TrendingUp,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -31,12 +33,22 @@ interface UnreadCount {
   count: number;
 }
 
+interface MonthlyTracking {
+  id: string;
+  month: number;
+  year: number;
+  weight: number | null;
+  height: number | null;
+  observations: string | null;
+}
+
 export default function ParentDashboard() {
   const { user, profile, signOut, isApproved } = useAuth();
   const navigate = useNavigate();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [growthData, setGrowthData] = useState<Record<string, MonthlyTracking[]>>({});
   const [activeTab, setActiveTab] = useState("agenda");
 
   const handleLogout = async () => {
@@ -44,11 +56,11 @@ export default function ParentDashboard() {
     navigate("/");
   };
 
-  // Fetch children
+  // Fetch children and growth data
   useEffect(() => {
     if (!isApproved || !user) return;
 
-    const fetchChildren = async () => {
+    const fetchData = async () => {
       // First get the child IDs linked to this parent
       const { data: parentChildren } = await supabase
         .from("parent_children")
@@ -59,21 +71,32 @@ export default function ParentDashboard() {
 
       const childIds = parentChildren.map((pc) => pc.child_id);
 
-      // Then fetch the children details
-      const { data: childrenData } = await supabase
-        .from("children")
-        .select("*")
-        .in("id", childIds);
+      // Fetch children details and growth data in parallel
+      const [childrenRes, growthRes] = await Promise.all([
+        supabase.from("children").select("*").in("id", childIds),
+        supabase.from("monthly_tracking").select("*").in("child_id", childIds),
+      ]);
 
-      if (childrenData) {
-        setChildren(childrenData);
-        if (childrenData.length > 0) {
-          setSelectedChild(childrenData[0]);
+      if (childrenRes.data) {
+        setChildren(childrenRes.data);
+        if (childrenRes.data.length > 0) {
+          setSelectedChild(childrenRes.data[0]);
         }
+      }
+
+      if (growthRes.data) {
+        const grouped: Record<string, MonthlyTracking[]> = {};
+        growthRes.data.forEach((item) => {
+          if (!grouped[item.child_id]) {
+            grouped[item.child_id] = [];
+          }
+          grouped[item.child_id].push(item);
+        });
+        setGrowthData(grouped);
       }
     };
 
-    fetchChildren();
+    fetchData();
   }, [isApproved, user]);
 
   // Fetch unread message counts
@@ -300,10 +323,14 @@ export default function ParentDashboard() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="w-full grid grid-cols-2">
+                    <TabsList className="w-full grid grid-cols-3">
                       <TabsTrigger value="agenda" className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         <span className="hidden sm:inline">Agenda</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="crescimento" className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        <span className="hidden sm:inline">Crescimento</span>
                       </TabsTrigger>
                       <TabsTrigger
                         value="chat"
@@ -325,6 +352,13 @@ export default function ParentDashboard() {
                     <TabsContent value="agenda" className="mt-4">
                       <ParentAgendaView
                         childId={selectedChild.id}
+                        childName={selectedChild.full_name}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="crescimento" className="mt-4">
+                      <GrowthChart
+                        data={growthData[selectedChild.id] || []}
                         childName={selectedChild.full_name}
                       />
                     </TabsContent>
