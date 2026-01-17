@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Copy, Plus, Loader2, Users, Trash2, Check, X, Mail, Phone, Baby } from "lucide-react";
+import { Copy, Plus, Loader2, Users, Trash2, Check, X, Mail, Phone, Baby, Send } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -30,11 +30,13 @@ export default function AdminParentInvites() {
   const [invites, setInvites] = useState<ParentInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: "",
     phone: "",
     childName: "",
     notes: "",
+    sendEmail: true,
   });
 
   const fetchInvites = async () => {
@@ -72,7 +74,7 @@ export default function AdminParentInvites() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const { error } = await supabase.from("parent_invites").insert([{
+    const { data, error } = await supabase.from("parent_invites").insert([{
       invite_code: code,
       email: formData.email || null,
       phone: formData.phone || null,
@@ -80,17 +82,50 @@ export default function AdminParentInvites() {
       notes: formData.notes || null,
       expires_at: expiresAt.toISOString(),
       created_by: user.id,
-    }]);
+    }]).select().single();
 
     if (error) {
       console.error("Error creating invite:", error);
       toast.error("Erro ao criar convite");
-    } else {
-      toast.success(`Convite ${code} criado com sucesso!`);
-      setFormData({ email: "", phone: "", childName: "", notes: "" });
-      fetchInvites();
+      setCreating(false);
+      return;
     }
+
+    toast.success(`Convite ${code} criado com sucesso!`);
+    
+    // Send email if email is provided and sendEmail is checked
+    if (formData.email && formData.sendEmail) {
+      await sendInviteEmail(formData.email, code, formData.childName || undefined);
+    }
+
+    setFormData({ email: "", phone: "", childName: "", notes: "", sendEmail: true });
+    fetchInvites();
     setCreating(false);
+  };
+
+  const sendInviteEmail = async (email: string, inviteCode: string, childName?: string) => {
+    setSendingEmail(inviteCode);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("send-parent-invite-email", {
+        body: { email, inviteCode, childName },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao enviar email");
+      }
+
+      toast.success(`Email de convite enviado para ${email}!`);
+    } catch (error: any) {
+      console.error("Error sending invite email:", error);
+      toast.error("Erro ao enviar email de convite");
+    } finally {
+      setSendingEmail(null);
+    }
   };
 
   const deleteInvite = async (id: string) => {
@@ -137,7 +172,7 @@ export default function AdminParentInvites() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="childName">Nome da Criança (opcional)</Label>
               <div className="relative">
@@ -165,9 +200,6 @@ export default function AdminParentInvites() {
                 />
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone">Telefone (opcional)</Label>
               <div className="relative">
@@ -181,6 +213,9 @@ export default function AdminParentInvites() {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="notes">Observações (opcional)</Label>
               <Input
@@ -189,6 +224,19 @@ export default function AdminParentInvites() {
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
+            </div>
+            <div className="flex items-end">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="sendEmail"
+                  checked={formData.sendEmail}
+                  onCheckedChange={(checked) => setFormData({ ...formData, sendEmail: checked === true })}
+                  disabled={!formData.email}
+                />
+                <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
+                  Enviar convite por email automaticamente
+                </Label>
+              </div>
             </div>
           </div>
 
@@ -297,6 +345,21 @@ export default function AdminParentInvites() {
                     </div>
 
                     <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4">
+                      {status === "active" && invite.email && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => sendInviteEmail(invite.email!, invite.invite_code, invite.child_name || undefined)}
+                          disabled={sendingEmail === invite.invite_code}
+                        >
+                          {sendingEmail === invite.invite_code ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4 mr-1" />
+                          )}
+                          Enviar Email
+                        </Button>
+                      )}
                       {status === "active" && (
                         <Button
                           variant="outline"
@@ -304,7 +367,7 @@ export default function AdminParentInvites() {
                           onClick={() => copyToClipboard(invite.invite_code)}
                         >
                           <Copy className="w-4 h-4 mr-1" />
-                          Copiar Link
+                          Copiar
                         </Button>
                       )}
                       {status !== "used" && (
