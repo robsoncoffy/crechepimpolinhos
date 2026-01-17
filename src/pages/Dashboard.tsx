@@ -13,6 +13,7 @@ import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminGallery from "@/pages/admin/AdminGallery";
 import AdminEvents from "@/pages/admin/AdminEvents";
 import AdminEmployeeInvites from "@/pages/admin/AdminEmployeeInvites";
+import AdminAttendance from "@/pages/admin/AdminAttendance";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -57,6 +58,7 @@ function DashboardContent() {
           <Route path="/galeria" element={<AdminGallery />} />
           <Route path="/eventos" element={<AdminEvents />} />
           <Route path="/convites" element={<AdminEmployeeInvites />} />
+          <Route path="/chamada" element={<AdminAttendance />} />
           <Route path="/config" element={<AdminConfigPlaceholder />} />
         </Routes>
       </AdminLayout>
