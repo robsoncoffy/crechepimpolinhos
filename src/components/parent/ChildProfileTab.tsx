@@ -57,24 +57,34 @@ export function ChildProfileTab({ childId, childName, inviterName }: ChildProfil
         setChildDetails(childData);
       }
 
-      // Fetch registration ID
-      const { data: regData, error: regError } = await supabase
-        .from('child_registrations')
-        .select('id')
-        .eq('child_id', childId)
-        .maybeSingle();
-
-      if (!regError && regData && regData.id) {
-        setRegistrationId(regData.id);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Get first name from child name
+        const firstName = childName.split(' ')[0];
         
-        // Fetch authorized pickups from the dedicated table
-        const { data: pickupsData } = await supabase
-          .from('authorized_pickups')
-          .select('id, full_name, relationship, document_url')
-          .eq('registration_id', regData.id);
+        // Find the registration by parent_id and first_name match
+        const { data: regData } = await supabase
+          .from('child_registrations')
+          .select('id, first_name')
+          .eq('parent_id', user.id)
+          .ilike('first_name', firstName)
+          .limit(1);
 
-        if (pickupsData) {
-          setAuthorizedPickups(pickupsData);
+        if (regData && regData.length > 0) {
+          const registration = regData[0];
+          setRegistrationId(registration.id);
+          
+          // Fetch authorized pickups from the dedicated table
+          const { data: pickupsData } = await supabase
+            .from('authorized_pickups')
+            .select('id, full_name, relationship, document_url')
+            .eq('registration_id', registration.id);
+
+          if (pickupsData) {
+            setAuthorizedPickups(pickupsData);
+          }
         }
       }
 
@@ -82,7 +92,7 @@ export function ChildProfileTab({ childId, childName, inviterName }: ChildProfil
     };
 
     fetchChildData();
-  }, [childId]);
+  }, [childId, childName]);
 
   if (loading) {
     return (

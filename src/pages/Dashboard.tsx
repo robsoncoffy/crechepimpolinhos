@@ -9,6 +9,7 @@ import AdminChildren from "@/pages/admin/AdminChildren";
 import AdminAgenda from "@/pages/admin/AdminAgenda";
 import AdminMessages from "@/pages/admin/AdminMessages";
 import AdminGrowth from "@/pages/admin/AdminGrowth";
+import AdminMenu from "@/pages/admin/AdminMenu";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -49,6 +50,7 @@ function DashboardContent() {
           <Route path="/agenda" element={<AdminAgenda />} />
           <Route path="/mensagens" element={<AdminMessages />} />
           <Route path="/crescimento" element={<AdminGrowth />} />
+          <Route path="/cardapio" element={<AdminMenu />} />
           <Route path="/config" element={<AdminConfigPlaceholder />} />
         </Routes>
       </AdminLayout>
