@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -968,37 +968,41 @@ const ChildRegistration = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <RadioGroup
-                      defaultValue="private"
-                      onValueChange={(value) => {
-                        // Form will handle this through register
-                      }}
-                      className="grid gap-4"
-                    >
-                      <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                        <RadioGroupItem value="municipal" id="municipal" {...register("enrollmentType")} />
-                        <div className="flex-1">
-                          <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
-                            Vaga da Prefeitura
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            A criança possui vaga cedida pela prefeitura municipal.
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                        <RadioGroupItem value="private" id="private" {...register("enrollmentType")} />
-                        <div className="flex-1">
-                          <Label htmlFor="private" className="text-base font-medium cursor-pointer">
-                            Vaga Particular
-                          </Label>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Matrícula particular diretamente com a creche.
-                          </p>
-                        </div>
-                      </div>
-                    </RadioGroup>
+                    <Controller
+                      name="enrollmentType"
+                      control={control}
+                      render={({ field }) => (
+                        <RadioGroup
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          className="grid gap-4"
+                        >
+                          <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                            <RadioGroupItem value="municipal" id="municipal" />
+                            <div className="flex-1">
+                              <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
+                                Vaga da Prefeitura
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                A criança possui vaga cedida pela prefeitura municipal.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                            <RadioGroupItem value="private" id="private" />
+                            <div className="flex-1">
+                              <Label htmlFor="private" className="text-base font-medium cursor-pointer">
+                                Vaga Particular
+                              </Label>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                Matrícula particular diretamente com a creche.
+                              </p>
+                            </div>
+                          </div>
+                        </RadioGroup>
+                      )}
+                    />
                     {errors.enrollmentType && (
                       <p className="text-sm text-destructive">{errors.enrollmentType.message}</p>
                     )}
