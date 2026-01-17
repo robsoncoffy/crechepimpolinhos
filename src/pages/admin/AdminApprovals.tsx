@@ -241,7 +241,32 @@ export default function AdminApprovals() {
 
       if (regError) throw regError;
 
-      toast.success(`Cadastro de ${selectedRegistration.first_name} aprovado com sucesso!`);
+      // Send welcome email to parent
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.access_token) {
+          const response = await supabase.functions.invoke("send-welcome-email", {
+            body: {
+              parentId: selectedRegistration.parent_id,
+              parentName: selectedRegistration.parent_name || "Responsável",
+              childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+              classType: selectedClassType,
+              shiftType: selectedShiftType,
+            },
+          });
+          
+          if (response.error) {
+            console.error("Error sending welcome email:", response.error);
+            toast.warning("Cadastro aprovado, mas houve erro ao enviar e-mail de boas-vindas");
+          } else {
+            toast.success(`Cadastro de ${selectedRegistration.first_name} aprovado e e-mail de boas-vindas enviado!`);
+          }
+        }
+      } catch (emailError) {
+        console.error("Error sending welcome email:", emailError);
+        toast.warning("Cadastro aprovado, mas houve erro ao enviar e-mail de boas-vindas");
+      }
+
       setRegistrationDialogOpen(false);
       setSelectedRegistration(null);
       fetchData();
