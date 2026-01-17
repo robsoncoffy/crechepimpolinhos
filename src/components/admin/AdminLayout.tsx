@@ -11,6 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useLocation } from "react-router-dom";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -24,6 +25,10 @@ const routeLabels: Record<string, string> = {
   "/painel/agenda": "Agenda Digital",
   "/painel/crescimento": "Crescimento",
   "/painel/mensagens": "Mensagens",
+  "/painel/cardapio": "Cardápio",
+  "/painel/galeria": "Galeria",
+  "/painel/eventos": "Eventos",
+  "/painel/convites": "Convites de Funcionário",
   "/painel/config": "Configurações",
 };
 
@@ -58,6 +63,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 )}
               </BreadcrumbList>
             </Breadcrumb>
+            
+            {/* Notification Bell */}
+            <div className="ml-auto">
+              <NotificationBell />
+            </div>
           </header>
 
           {/* Main Content */}

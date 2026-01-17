@@ -12,6 +12,7 @@ import AdminGrowth from "@/pages/admin/AdminGrowth";
 import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminGallery from "@/pages/admin/AdminGallery";
 import AdminEvents from "@/pages/admin/AdminEvents";
+import AdminEmployeeInvites from "@/pages/admin/AdminEmployeeInvites";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -55,6 +56,7 @@ function DashboardContent() {
           <Route path="/cardapio" element={<AdminMenu />} />
           <Route path="/galeria" element={<AdminGallery />} />
           <Route path="/eventos" element={<AdminEvents />} />
+          <Route path="/convites" element={<AdminEmployeeInvites />} />
           <Route path="/config" element={<AdminConfigPlaceholder />} />
         </Routes>
       </AdminLayout>

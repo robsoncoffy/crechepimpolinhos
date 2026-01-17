@@ -23,15 +23,21 @@ interface Notification {
   created_at: string;
 }
 
-interface NotificationBellProps {
-  userId: string;
-}
-
-export function NotificationBell({ userId }: NotificationBellProps) {
+export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
 
   useEffect(() => {
     if (!userId) return;

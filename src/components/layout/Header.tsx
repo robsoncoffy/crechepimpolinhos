@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Phone, Instagram } from "lucide-react";
+import { Menu, X, Phone, Instagram, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -67,6 +67,12 @@ export function Header() {
 
           {/* Auth buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/instalar">
+                <Download className="w-4 h-4 mr-2" />
+                Instalar App
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/auth">Entrar</Link>
             </Button>
