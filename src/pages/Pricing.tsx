@@ -14,7 +14,7 @@ import {
   Sparkles,
   ArrowRight
 } from "lucide-react";
-import { PLANS, CLASS_NAMES, ENROLLMENT_FEE, GHL_WHATSAPP_LINK, formatCurrency } from "@/lib/pricing";
+import { PLANS, GHL_WHATSAPP_LINK } from "@/lib/pricing";
 
 const classCards = [
   {
@@ -162,26 +162,6 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Enrollment Fee */}
-      <section className="py-16">
-        <div className="container">
-          <Card className="max-w-2xl mx-auto bg-gradient-to-br from-secondary/50 to-background border-secondary">
-            <CardContent className="p-8 text-center">
-              <Badge className="mb-4">Taxa Única</Badge>
-              <h3 className="font-fredoka text-2xl font-bold text-foreground mb-2">
-                Taxa de Matrícula
-              </h3>
-              <p className="text-4xl font-bold text-primary mb-4">
-                {formatCurrency(ENROLLMENT_FEE)}
-              </p>
-              <p className="text-muted-foreground">
-                Taxa única cobrada no ato da matrícula. Inclui material didático inicial 
-                e uniforme básico.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
 
       {/* CTA Section */}
       <section className="py-20 bg-primary text-primary-foreground">
