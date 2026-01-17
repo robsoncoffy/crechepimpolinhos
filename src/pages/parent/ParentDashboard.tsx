@@ -12,6 +12,7 @@ import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
 import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
 import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
 import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
+import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -390,15 +391,14 @@ export default function ParentDashboard() {
             {/* Main Content Grid */}
             {selectedChild && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Today Widget - Left Column */}
-                <div className="lg:col-span-1">
+                {/* Left Column - Today + Announcements + Pickup */}
+                <div className="lg:col-span-1 space-y-4">
+                  <AnnouncementsWidget />
                   <TodayAtSchoolWidget childId={selectedChild.id} />
-                  <div className="mt-4">
-                    <PickupNotification 
-                      childId={selectedChild.id} 
-                      childName={selectedChild.full_name} 
-                    />
-                  </div>
+                  <PickupNotification 
+                    childId={selectedChild.id} 
+                    childName={selectedChild.full_name} 
+                  />
                 </div>
 
                 {/* Tabs - Right Column */}

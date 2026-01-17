@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          all_classes: boolean | null
+          class_type: Database["public"]["Enums"]["class_type"] | null
+          content: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          priority: string
+          starts_at: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: string
+          starts_at?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          priority?: string
+          starts_at?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           arrival_time: string | null
