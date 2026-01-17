@@ -454,11 +454,13 @@ export default function ParentDashboard() {
                         <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
                           <GrowthChart data={growthData[selectedChild.id] || []} childName={selectedChild.full_name} />
                         </TabsContent>
-                          />
-                        </TabsContent>
 
-                        <TabsContent value="cardapio" className="m-0 p-4 sm:p-6">
-                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
+                        <TabsContent value="perfil" className="m-0 p-4 sm:p-6">
+                          <ChildProfileTab 
+                            childId={selectedChild.id} 
+                            childName={selectedChild.full_name}
+                            inviterName={profile?.full_name || ""}
+                          />
                         </TabsContent>
 
                         <TabsContent value="chat" className="m-0">
