@@ -27,8 +27,10 @@ import {
   CheckCircle2,
   ArrowRight,
   Camera,
-  X
+  X,
+  UserPlus
 } from "lucide-react";
+import { InviteSecondGuardian } from "@/components/child/InviteSecondGuardian";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -75,6 +77,8 @@ const ChildRegistration = () => {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [registrationId, setRegistrationId] = useState<string | null>(null);
+  const [childFullName, setChildFullName] = useState<string>("");
   const [activeTab, setActiveTab] = useState("basic");
   
   // File states
@@ -296,6 +300,8 @@ const ChildRegistration = () => {
         }
       }
 
+      setRegistrationId(registration.id);
+      setChildFullName(`${data.firstName} ${data.lastName}`);
       setIsSuccess(true);
       toast({
         title: "Cadastro enviado!",
@@ -348,7 +354,7 @@ const ChildRegistration = () => {
     );
   }
 
-  if (isSuccess) {
+  if (isSuccess && registrationId) {
     return (
       <PublicLayout>
         <div className="min-h-screen py-20">
@@ -360,10 +366,26 @@ const ChildRegistration = () => {
                 </div>
                 <CardTitle className="text-2xl text-green-600">Cadastro Enviado!</CardTitle>
                 <CardDescription className="text-base">
-                  O cadastro do seu Pimpolho foi enviado com sucesso. Nossa equipe irá analisar as informações e entrar em contato em breve.
+                  O cadastro de <strong>{childFullName}</strong> foi enviado com sucesso. Nossa equipe irá analisar as informações e entrar em contato em breve.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Invite Second Guardian Section */}
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    <p className="font-medium text-foreground">Convidar outro responsável?</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Você pode convidar o pai, mãe ou outro responsável para também acompanhar {childFullName.split(' ')[0]}.
+                  </p>
+                  <InviteSecondGuardian 
+                    childRegistrationId={registrationId}
+                    childName={childFullName}
+                    inviterName={user?.user_metadata?.full_name || "Responsável"}
+                  />
+                </div>
+
                 <div className="bg-muted p-4 rounded-lg text-sm text-muted-foreground">
                   <p><strong>Próximos passos:</strong></p>
                   <ul className="list-disc list-inside mt-2 space-y-1 text-left">

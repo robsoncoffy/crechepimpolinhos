@@ -1,1 +1,4 @@
 project_id = "ksguxhmqctmepbddbhdz"
+
+[functions.send-guardian-invite]
+verify_jwt = false

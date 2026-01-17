@@ -14,14 +14,21 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import PreEnrollment from "./pages/PreEnrollment";
 import ChildRegistration from "./pages/ChildRegistration";
+import AcceptInvite from "./pages/AcceptInvite";
 import AdminAgenda from "./pages/admin/AdminAgenda";
 
 const queryClient = new QueryClient();
 
-// Wrapper to provide auth context for ChildRegistration
+// Wrapper to provide auth context for pages that need it
 const ChildRegistrationWithAuth = () => (
   <AuthProvider>
     <ChildRegistration />
+  </AuthProvider>
+);
+
+const AcceptInviteWithAuth = () => (
+  <AuthProvider>
+    <AcceptInvite />
   </AuthProvider>
 );
 
@@ -40,6 +47,7 @@ const App = () => (
           <Route path="/contato" element={<Contact />} />
           <Route path="/pre-matricula" element={<PreEnrollment />} />
           <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
+          <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
