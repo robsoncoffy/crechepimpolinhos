@@ -282,6 +282,50 @@ export type Database = {
           },
         ]
       }
+      gallery_photos: {
+        Row: {
+          child_id: string | null
+          class_type: Database["public"]["Enums"]["class_type"] | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          photo_url: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          child_id?: string | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          photo_url: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          child_id?: string | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          photo_url?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gallery_photos_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guardian_invitations: {
         Row: {
           accepted_at: string | null
@@ -568,6 +612,72 @@ export type Database = {
           status?: Database["public"]["Enums"]["approval_status"]
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string | null
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string | null
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string | null
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      school_events: {
+        Row: {
+          all_classes: boolean | null
+          class_type: Database["public"]["Enums"]["class_type"] | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_date: string
+          event_type?: string
+          id?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

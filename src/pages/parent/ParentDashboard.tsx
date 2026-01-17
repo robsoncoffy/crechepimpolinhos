@@ -10,6 +10,8 @@ import { QuickSummaryCards } from "@/components/parent/QuickSummaryCards";
 import { TodayAtSchoolWidget } from "@/components/parent/TodayAtSchoolWidget";
 import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
 import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
+import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
+import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,8 @@ import {
   UserPlus,
   User,
   UtensilsCrossed,
+  Camera,
+  CalendarDays,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -401,46 +405,29 @@ export default function ParentDashboard() {
                     <CardContent className="p-0">
                       <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="border-b bg-muted/30">
-                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
-                            <TabsTrigger
-                              value="agenda"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
-                            >
-                              <Calendar className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Agenda</span>
+                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4 sm:grid-cols-7">
+                            <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <Calendar className="w-4 h-4" />
                             </TabsTrigger>
-                            <TabsTrigger
-                              value="crescimento"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
-                            >
-                              <TrendingUp className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Crescimento</span>
+                            <TabsTrigger value="galeria" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <Camera className="w-4 h-4" />
                             </TabsTrigger>
-                            <TabsTrigger
-                              value="perfil"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
-                            >
-                              <User className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Perfil</span>
+                            <TabsTrigger value="calendario" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <CalendarDays className="w-4 h-4" />
                             </TabsTrigger>
-                            <TabsTrigger
-                              value="cardapio"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
-                            >
-                              <UtensilsCrossed className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Cardápio</span>
+                            <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <UtensilsCrossed className="w-4 h-4" />
                             </TabsTrigger>
-                            <TabsTrigger
-                              value="chat"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative text-xs sm:text-sm"
-                            >
-                              <MessageSquare className="w-4 h-4 sm:mr-2" />
-                              <span className="hidden sm:inline">Chat</span>
+                            <TabsTrigger value="crescimento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
+                              <TrendingUp className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="perfil" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
+                              <User className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative text-xs hidden sm:flex">
+                              <MessageSquare className="w-4 h-4" />
                               {unreadCounts[selectedChild.id] > 0 && (
-                                <Badge
-                                  variant="destructive"
-                                  className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                                >
+                                <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
                                   {unreadCounts[selectedChild.id]}
                                 </Badge>
                               )}
@@ -449,24 +436,24 @@ export default function ParentDashboard() {
                         </div>
 
                         <TabsContent value="agenda" className="m-0 p-4 sm:p-6">
-                          <ParentAgendaView
-                            childId={selectedChild.id}
-                            childName={selectedChild.full_name}
-                          />
+                          <ParentAgendaView childId={selectedChild.id} childName={selectedChild.full_name} />
+                        </TabsContent>
+
+                        <TabsContent value="galeria" className="m-0 p-4 sm:p-6">
+                          <PhotoGalleryTab childClassType={selectedChild.class_type} />
+                        </TabsContent>
+
+                        <TabsContent value="calendario" className="m-0 p-4 sm:p-6">
+                          <SchoolCalendarTab childClassType={selectedChild.class_type} />
+                        </TabsContent>
+
+                        <TabsContent value="cardapio" className="m-0 p-4 sm:p-6">
+                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
                         </TabsContent>
 
                         <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
-                          <GrowthChart
-                            data={growthData[selectedChild.id] || []}
-                            childName={selectedChild.full_name}
-                          />
+                          <GrowthChart data={growthData[selectedChild.id] || []} childName={selectedChild.full_name} />
                         </TabsContent>
-
-                        <TabsContent value="perfil" className="m-0 p-4 sm:p-6">
-                          <ChildProfileTab
-                            childId={selectedChild.id}
-                            childName={selectedChild.full_name}
-                            inviterName={profile?.full_name || "Responsável"}
                           />
                         </TabsContent>
 

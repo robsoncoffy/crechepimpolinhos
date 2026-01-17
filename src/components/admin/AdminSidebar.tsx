@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Home,
   UtensilsCrossed,
+  Camera,
+  CalendarDays,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -40,6 +42,8 @@ const menuItems = [
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
   { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
   { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio" },
+  { icon: Camera, label: "Galeria", href: "/painel/galeria" },
+  { icon: CalendarDays, label: "Eventos", href: "/painel/eventos" },
 ];
 
 const secondaryItems = [
