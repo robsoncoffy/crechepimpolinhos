@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { WeatherWidget } from "@/components/admin/WeatherWidget";
+import { PickupNotificationsWidget } from "@/components/admin/PickupNotificationsWidget";
 import {
   Users,
   Baby,
@@ -137,6 +139,14 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Weather and Pickup Notifications */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <WeatherWidget />
+        <div className="lg:col-span-2">
+          <PickupNotificationsWidget />
+        </div>
       </div>
 
       {/* Quick Actions */}

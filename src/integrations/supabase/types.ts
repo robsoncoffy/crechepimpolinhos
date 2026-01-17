@@ -446,6 +446,50 @@ export type Database = {
           },
         ]
       }
+      pickup_notifications: {
+        Row: {
+          child_id: string
+          created_at: string
+          delay_minutes: number | null
+          id: string
+          is_active: boolean
+          message: string | null
+          notification_type: string
+          parent_id: string
+          read_at: string | null
+        }
+        Insert: {
+          child_id: string
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          notification_type: string
+          parent_id: string
+          read_at?: string | null
+        }
+        Update: {
+          child_id?: string
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          message?: string | null
+          notification_type?: string
+          parent_id?: string
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_notifications_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pre_enrollments: {
         Row: {
           child_birth_date: string

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
 import { GrowthChart } from "@/components/parent/GrowthChart";
+import { PickupNotification } from "@/components/parent/PickupNotification";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -374,6 +375,12 @@ export default function ParentDashboard() {
                           {classTypeLabels[selectedChild.class_type]}
                         </Badge>
                       </div>
+                    </div>
+                    <div className="ml-auto">
+                      <PickupNotification 
+                        childId={selectedChild.id} 
+                        childName={selectedChild.full_name} 
+                      />
                     </div>
                   </div>
                 </CardHeader>
