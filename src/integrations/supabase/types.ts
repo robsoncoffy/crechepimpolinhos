@@ -706,6 +706,78 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          asaas_payment_id: string | null
+          bank_slip_url: string | null
+          child_id: string
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          invoice_url: string | null
+          parent_id: string
+          payment_date: string | null
+          payment_type: string | null
+          pix_code: string | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          asaas_payment_id?: string | null
+          bank_slip_url?: string | null
+          child_id: string
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          invoice_url?: string | null
+          parent_id: string
+          payment_date?: string | null
+          payment_type?: string | null
+          pix_code?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          asaas_payment_id?: string | null
+          bank_slip_url?: string | null
+          child_id?: string
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          invoice_url?: string | null
+          parent_id?: string
+          payment_date?: string | null
+          payment_type?: string | null
+          pix_code?: string | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           child_id: string
@@ -889,6 +961,30 @@ export type Database = {
           phone?: string | null
           used_at?: string | null
           used_by?: string | null
+        }
+        Relationships: []
+      }
+      payment_customers: {
+        Row: {
+          asaas_customer_id: string
+          created_at: string
+          id: string
+          parent_id: string
+          updated_at: string
+        }
+        Insert: {
+          asaas_customer_id: string
+          created_at?: string
+          id?: string
+          parent_id: string
+          updated_at?: string
+        }
+        Update: {
+          asaas_customer_id?: string
+          created_at?: string
+          id?: string
+          parent_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1082,6 +1178,50 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          asaas_subscription_id: string | null
+          billing_day: number
+          child_id: string
+          created_at: string
+          id: string
+          parent_id: string
+          status: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          asaas_subscription_id?: string | null
+          billing_day?: number
+          child_id: string
+          created_at?: string
+          id?: string
+          parent_id: string
+          status?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          asaas_subscription_id?: string | null
+          billing_day?: number
+          child_id?: string
+          created_at?: string
+          id?: string
+          parent_id?: string
+          status?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
