@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminTeachers from "@/pages/admin/AdminTeachers";
@@ -12,7 +13,7 @@ import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
 function DashboardContent() {
-  const { user, loading, isAdmin, isTeacher, isParent, isApproved } = useAuth();
+  const { user, loading, isAdmin, isTeacher, isParent } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,19 +37,21 @@ function DashboardContent() {
     return null;
   }
 
-  // Admin or Teacher - show admin panel
+  // Admin or Teacher - show admin panel with layout
   if (isAdmin || isTeacher) {
     return (
-      <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/aprovacoes" element={<AdminApprovals />} />
-        <Route path="/professores" element={<AdminTeachers />} />
-        <Route path="/criancas" element={<AdminChildren />} />
-        <Route path="/agenda" element={<AdminAgenda />} />
-        <Route path="/mensagens" element={<AdminMessages />} />
-        <Route path="/crescimento" element={<AdminGrowth />} />
-        <Route path="/config" element={<div>Configurações - Em breve</div>} />
-      </Routes>
+      <AdminLayout>
+        <Routes>
+          <Route path="/" element={<AdminDashboard />} />
+          <Route path="/aprovacoes" element={<AdminApprovals />} />
+          <Route path="/professores" element={<AdminTeachers />} />
+          <Route path="/criancas" element={<AdminChildren />} />
+          <Route path="/agenda" element={<AdminAgenda />} />
+          <Route path="/mensagens" element={<AdminMessages />} />
+          <Route path="/crescimento" element={<AdminGrowth />} />
+          <Route path="/config" element={<AdminConfigPlaceholder />} />
+        </Routes>
+      </AdminLayout>
     );
   }
 
@@ -61,6 +64,24 @@ function DashboardContent() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <p>Acesso não autorizado</p>
+    </div>
+  );
+}
+
+function AdminConfigPlaceholder() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground">
+          Configurações
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Configurações do sistema em desenvolvimento
+        </p>
+      </div>
+      <div className="flex items-center justify-center py-20 bg-muted/30 rounded-xl border-2 border-dashed">
+        <p className="text-muted-foreground">Em breve</p>
+      </div>
     </div>
   );
 }
