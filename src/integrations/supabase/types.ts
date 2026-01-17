@@ -201,6 +201,7 @@ export type Database = {
           medications: string | null
           parent_id: string
           photo_url: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"] | null
           private_doctors: string | null
           rg: string | null
           status: string
@@ -223,6 +224,7 @@ export type Database = {
           medications?: string | null
           parent_id: string
           photo_url?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
           rg?: string | null
           status?: string
@@ -245,6 +247,7 @@ export type Database = {
           medications?: string | null
           parent_id?: string
           photo_url?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
           rg?: string | null
           status?: string
@@ -266,6 +269,7 @@ export type Database = {
           pediatrician_name: string | null
           pediatrician_phone: string | null
           photo_url: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"] | null
           shift_type: Database["public"]["Enums"]["shift_type"]
           updated_at: string
         }
@@ -281,6 +285,7 @@ export type Database = {
           pediatrician_name?: string | null
           pediatrician_phone?: string | null
           photo_url?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           shift_type: Database["public"]["Enums"]["shift_type"]
           updated_at?: string
         }
@@ -296,6 +301,7 @@ export type Database = {
           pediatrician_name?: string | null
           pediatrician_phone?: string | null
           photo_url?: string | null
+          plan_type?: Database["public"]["Enums"]["plan_type"] | null
           shift_type?: Database["public"]["Enums"]["shift_type"]
           updated_at?: string
         }
@@ -1304,6 +1310,7 @@ export type Database = {
       class_type: "bercario" | "maternal" | "jardim"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
       meal_status: "tudo" | "quase_tudo" | "metade" | "pouco" | "nao_aceitou"
+      plan_type: "basico" | "intermediario" | "plus"
       shift_type: "manha" | "tarde" | "integral"
     }
     CompositeTypes: {
@@ -1437,6 +1444,7 @@ export const Constants = {
       class_type: ["bercario", "maternal", "jardim"],
       evacuation_status: ["normal", "pastosa", "liquida", "nao"],
       meal_status: ["tudo", "quase_tudo", "metade", "pouco", "nao_aceitou"],
+      plan_type: ["basico", "intermediario", "plus"],
       shift_type: ["manha", "tarde", "integral"],
     },
   },

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Baby, BookOpen, Music, Users, Shield, Heart, CalendarDays, MessageCircle, ChevronRight, Star, Clock, MapPin, Phone, CheckCircle2, Sparkles, Award, Play } from "lucide-react";
 import heroImage from "@/assets/hero-children.jpg";
 import teacherImage from "@/assets/teacher-reading.jpg";
@@ -284,8 +285,46 @@ export default function Home() {
 
           <div className="text-center mt-12">
             <Button size="lg" asChild>
-              <Link to="/turmas">
-                Ver todas as opções
+              <Link to="/planos">
+                Ver planos e valores
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Plans Preview Section */}
+      <section className="py-16 bg-secondary/30">
+        <div className="container">
+          <div className="text-center mb-10">
+            <h2 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground mb-3">
+              Planos Flexíveis
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Escolha o plano que melhor se adapta à rotina da sua família
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {[
+              { name: "Básico", desc: "Meio período (4h)", highlight: false },
+              { name: "Intermediário", desc: "Integral (até 8h)", highlight: true },
+              { name: "Plus+", desc: "Integral estendido (até 10h)", highlight: false },
+            ].map((plan) => (
+              <Card key={plan.name} className={`text-center ${plan.highlight ? 'border-primary shadow-lg' : ''}`}>
+                <CardContent className="pt-6 pb-4">
+                  {plan.highlight && <Badge className="mb-2">Mais Popular</Badge>}
+                  <h3 className="font-fredoka text-xl font-bold mb-1">{plan.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{plan.desc}</p>
+                  <p className="text-2xl font-bold text-primary">Consultar</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Button variant="outline" asChild>
+              <Link to="/planos">
+                Ver detalhes dos planos
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>

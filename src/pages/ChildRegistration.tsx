@@ -57,6 +57,9 @@ const registrationSchema = z.object({
   enrollmentType: z.enum(["municipal", "private"], {
     required_error: "Selecione o tipo de vaga",
   }),
+  planType: z.enum(["basico", "intermediario", "plus"], {
+    required_error: "Selecione o plano desejado",
+  }).optional(),
   authorizedPickups: z.array(z.object({
     fullName: z.string().min(2, "Nome completo é obrigatório"),
     relationship: z.string().min(2, "Grau de parentesco é obrigatório"),
@@ -101,9 +104,12 @@ const ChildRegistration = () => {
     resolver: zodResolver(registrationSchema),
     defaultValues: {
       enrollmentType: "private",
+      planType: undefined,
       authorizedPickups: [],
     },
   });
+
+  const selectedEnrollmentType = watch("enrollmentType");
 
   const fetchAddressByCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -303,8 +309,9 @@ const ChildRegistration = () => {
           continuous_doctors: data.continuousDoctors || null,
           private_doctors: data.privateDoctors || null,
           enrollment_type: data.enrollmentType,
+          plan_type: data.enrollmentType === 'private' ? data.planType : null,
           photo_url: photoUrl,
-        })
+        } as any)
         .select()
         .single();
 
@@ -1004,57 +1011,147 @@ const ChildRegistration = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Building2 className="h-5 w-5 text-primary" />
-                      Tipo de Vaga
+                      Tipo de Vaga e Plano
                     </CardTitle>
                     <CardDescription>
-                      Informe a origem da vaga da criança
+                      Informe a origem da vaga e o plano desejado
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <Controller
-                      name="enrollmentType"
-                      control={control}
-                      render={({ field }) => (
-                        <RadioGroup
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          className="grid gap-4"
-                        >
-                          <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                            <RadioGroupItem value="municipal" id="municipal" />
-                            <div className="flex-1">
-                              <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
-                                Vaga da Prefeitura
-                              </Label>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                A criança possui vaga cedida pela prefeitura municipal.
-                              </p>
+                    {/* Enrollment Type */}
+                    <div className="space-y-4">
+                      <Label className="text-base font-medium">Tipo de Vaga *</Label>
+                      <Controller
+                        name="enrollmentType"
+                        control={control}
+                        render={({ field }) => (
+                          <RadioGroup
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (value === "municipal") {
+                                setValue("planType", undefined);
+                              }
+                            }}
+                            className="grid gap-4"
+                          >
+                            <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                              <RadioGroupItem value="municipal" id="municipal" />
+                              <div className="flex-1">
+                                <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
+                                  Vaga da Prefeitura
+                                </Label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  A criança possui vaga cedida pela prefeitura municipal.
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                            <RadioGroupItem value="private" id="private" />
-                            <div className="flex-1">
-                              <Label htmlFor="private" className="text-base font-medium cursor-pointer">
-                                Vaga Particular
-                              </Label>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                Matrícula particular diretamente com a creche.
-                              </p>
+                            
+                            <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                              <RadioGroupItem value="private" id="private" />
+                              <div className="flex-1">
+                                <Label htmlFor="private" className="text-base font-medium cursor-pointer">
+                                  Vaga Particular
+                                </Label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Matrícula particular diretamente com a creche.
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        </RadioGroup>
+                          </RadioGroup>
+                        )}
+                      />
+                      {errors.enrollmentType && (
+                        <p className="text-sm text-destructive">{errors.enrollmentType.message}</p>
                       )}
-                    />
-                    {errors.enrollmentType && (
-                      <p className="text-sm text-destructive">{errors.enrollmentType.message}</p>
+                    </div>
+
+                    {/* Plan Selection - Only for Private */}
+                    {selectedEnrollmentType === "private" && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <Label className="text-base font-medium">Plano Desejado *</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Selecione o plano que melhor atende às necessidades da sua família.
+                        </p>
+                        <Controller
+                          name="planType"
+                          control={control}
+                          render={({ field }) => (
+                            <RadioGroup
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              className="grid gap-4"
+                            >
+                              {/* Plano Básico */}
+                              <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'basico' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                <RadioGroupItem value="basico" id="basico" />
+                                <div className="flex-1">
+                                  <Label htmlFor="basico" className="text-base font-medium cursor-pointer">
+                                    Plano Básico
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Meio período - 4 horas diárias (Manhã ou Tarde)
+                                  </p>
+                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                    <li>• Manhã (7h às 11h) ou Tarde (15h às 19h)</li>
+                                    <li>• 2 refeições incluídas</li>
+                                    <li>• Atividades pedagógicas e recreação</li>
+                                  </ul>
+                                </div>
+                              </div>
+
+                              {/* Plano Intermediário */}
+                              <div className={`relative flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'intermediario' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+                                  Popular
+                                </div>
+                                <RadioGroupItem value="intermediario" id="intermediario" />
+                                <div className="flex-1">
+                                  <Label htmlFor="intermediario" className="text-base font-medium cursor-pointer">
+                                    Plano Intermediário
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Período integral - até 8 horas diárias
+                                  </p>
+                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                    <li>• Funcionamento das 7h às 19h</li>
+                                    <li>• Todas as refeições incluídas</li>
+                                    <li>• Atividades extras (Ballet, Capoeira, Música)</li>
+                                  </ul>
+                                </div>
+                              </div>
+
+                              {/* Plano Plus+ */}
+                              <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'plus' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                <RadioGroupItem value="plus" id="plus" />
+                                <div className="flex-1">
+                                  <Label htmlFor="plus" className="text-base font-medium cursor-pointer">
+                                    Plano Plus+
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Integral estendido - até 10 horas diárias
+                                  </p>
+                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                    <li>• Tudo do Plano Intermediário</li>
+                                    <li>• Flexibilidade total de horário</li>
+                                    <li>• Acompanhamento pedagógico exclusivo</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            </RadioGroup>
+                          )}
+                        />
+                        {errors.planType && (
+                          <p className="text-sm text-destructive">{errors.planType.message}</p>
+                        )}
+                      </div>
                     )}
 
                     <div className="flex justify-between pt-4">
                       <Button type="button" variant="outline" onClick={() => setActiveTab("authorized")}>
                         Anterior
                       </Button>
-                      <Button type="submit" disabled={isSubmitting} className="min-w-[160px]">
+                      <Button type="submit" disabled={isSubmitting || (selectedEnrollmentType === "private" && !watch("planType"))} className="min-w-[160px]">
                         {isSubmitting ? (
                           <span className="flex items-center">
                             <span className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-background mr-2"></span>

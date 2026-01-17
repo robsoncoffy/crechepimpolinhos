@@ -10,6 +10,7 @@ import About from "./pages/About";
 import Classes from "./pages/Classes";
 import Structure from "./pages/Structure";
 import Contact from "./pages/Contact";
+import Pricing from "./pages/Pricing";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import PreEnrollment from "./pages/PreEnrollment";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/turmas" element={<Classes />} />
           <Route path="/estrutura" element={<Structure />} />
           <Route path="/contato" element={<Contact />} />
+          <Route path="/planos" element={<Pricing />} />
           <Route path="/pre-matricula" element={<PreEnrollment />} />
           <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
           <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />

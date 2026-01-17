@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,15 +45,19 @@ import {
   FileText,
   Repeat,
   BarChart3,
+  Lightbulb,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
+import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
   id: string;
   full_name: string;
   class_type: string;
+  shift_type: string;
+  plan_type: string | null;
 }
 
 interface Parent {
@@ -131,7 +135,7 @@ export default function AdminPayments() {
         parent_id,
         child_id,
         profiles!parent_children_parent_id_fkey (id, full_name, phone),
-        children!parent_children_child_id_fkey (id, full_name, class_type)
+        children!parent_children_child_id_fkey (id, full_name, class_type, shift_type, plan_type)
       `) as any;
 
     if (pcData) {
@@ -297,6 +301,38 @@ export default function AdminPayments() {
     setDialogType(type);
     setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "", installmentCount: "1" });
     setDialogOpen(true);
+  };
+
+  // Get suggested price based on selected child's class and plan
+  const suggestedPrice = useMemo(() => {
+    if (!formData.parentChildId) return null;
+    
+    const selected = parentChildren.find(
+      pc => `${pc.parent_id}-${pc.child_id}` === formData.parentChildId
+    );
+    
+    if (!selected) return null;
+    
+    const classType = selected.children.class_type as ClassType;
+    const planType = selected.children.plan_type as PlanType | null;
+    
+    if (!classType || !planType) return null;
+    
+    const price = getPrice(classType, planType);
+    return {
+      price,
+      classType,
+      planType,
+      className: CLASS_NAMES[classType],
+      planName: PLAN_NAMES[planType],
+    };
+  }, [formData.parentChildId, parentChildren]);
+
+  const applySuggestedPrice = () => {
+    if (suggestedPrice) {
+      setFormData({ ...formData, value: suggestedPrice.price.toString() });
+      toast.success(`Valor de ${formatCurrency(suggestedPrice.price)} aplicado!`);
+    }
   };
 
   // Calculate stats
@@ -578,16 +614,36 @@ export default function AdminPayments() {
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="value">Valor (R$) *</Label>
-              <Input
-                id="value"
-                type="number"
-                step="0.01"
-                placeholder="0,00"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="value"
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={formData.value}
+                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                  className="flex-1"
+                />
+                {suggestedPrice && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={applySuggestedPrice}
+                    title={`Aplicar ${formatCurrency(suggestedPrice.price)}`}
+                  >
+                    <Lightbulb className="w-4 h-4 text-yellow-500" />
+                  </Button>
+                )}
+              </div>
+              {suggestedPrice && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Lightbulb className="w-3 h-3 text-yellow-500" />
+                  Sugestão: {formatCurrency(suggestedPrice.price)} ({suggestedPrice.className} - {suggestedPrice.planName})
+                </p>
+              )}
             </div>
 
             {dialogType === "invoice" ? (
