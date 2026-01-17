@@ -282,6 +282,62 @@ export type Database = {
           },
         ]
       }
+      guardian_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          child_registration_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          invited_by: string
+          invited_email: string
+          invited_name: string
+          relationship: string
+          status: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          child_registration_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          invited_email: string
+          invited_name: string
+          relationship?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          child_registration_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          invited_email?: string
+          invited_name?: string
+          relationship?: string
+          status?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guardian_invitations_child_registration_id_fkey"
+            columns: ["child_registration_id"]
+            isOneToOne: false
+            referencedRelation: "child_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           child_id: string
