@@ -589,6 +589,45 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_menus: {
+        Row: {
+          breakfast: string | null
+          created_at: string | null
+          day_of_week: number
+          dinner: string | null
+          id: string
+          lunch: string | null
+          notes: string | null
+          snack: string | null
+          updated_at: string | null
+          week_start: string
+        }
+        Insert: {
+          breakfast?: string | null
+          created_at?: string | null
+          day_of_week: number
+          dinner?: string | null
+          id?: string
+          lunch?: string | null
+          notes?: string | null
+          snack?: string | null
+          updated_at?: string | null
+          week_start: string
+        }
+        Update: {
+          breakfast?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          dinner?: string | null
+          id?: string
+          lunch?: string | null
+          notes?: string | null
+          snack?: string | null
+          updated_at?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
