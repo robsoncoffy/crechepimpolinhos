@@ -765,6 +765,48 @@ export type Database = {
           },
         ]
       }
+      parent_invites: {
+        Row: {
+          child_name: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          expires_at: string | null
+          id: string
+          invite_code: string
+          notes: string | null
+          phone: string | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          child_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_code: string
+          notes?: string | null
+          phone?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          child_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_code?: string
+          notes?: string | null
+          phone?: string | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       pickup_notifications: {
         Row: {
           child_id: string

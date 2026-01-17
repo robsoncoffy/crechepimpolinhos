@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, CheckCircle, XCircle } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -19,6 +19,7 @@ const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   phone: z.string().optional(),
   confirmPassword: z.string(),
+  inviteCode: z.string().min(1, "Código de convite é obrigatório"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
@@ -30,13 +31,16 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+  const [inviteStatus, setInviteStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [inviteData, setInviteData] = useState<{ child_name?: string } | null>(null);
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     fullName: "",
     phone: "",
+    inviteCode: searchParams.get("invite") || "",
   });
 
   const navigate = useNavigate();
@@ -59,9 +63,58 @@ export default function Auth() {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Validate invite code on load if present
+  useEffect(() => {
+    if (formData.inviteCode && isSignUp) {
+      validateInviteCode(formData.inviteCode);
+    }
+  }, []);
+
+  const validateInviteCode = async (code: string) => {
+    if (!code || code.length < 4) {
+      setInviteStatus("idle");
+      setInviteData(null);
+      return;
+    }
+
+    setInviteStatus("checking");
+
+    const { data, error } = await supabase
+      .from("parent_invites")
+      .select("id, child_name, expires_at, used_by")
+      .eq("invite_code", code.toUpperCase())
+      .maybeSingle();
+
+    if (error || !data) {
+      setInviteStatus("invalid");
+      setInviteData(null);
+      return;
+    }
+
+    if (data.used_by) {
+      setInviteStatus("invalid");
+      setInviteData(null);
+      return;
+    }
+
+    if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      setInviteStatus("invalid");
+      setInviteData(null);
+      return;
+    }
+
+    setInviteStatus("valid");
+    setInviteData({ child_name: data.child_name || undefined });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    setErrors({ ...errors, [name]: "" });
+
+    if (name === "inviteCode") {
+      validateInviteCode(value);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,7 +137,14 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await supabase.auth.signUp({
+        // Validate invite code is valid
+        if (inviteStatus !== "valid") {
+          setErrors({ inviteCode: "Código de convite inválido ou expirado" });
+          setIsLoading(false);
+          return;
+        }
+
+        const { data: authData, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
@@ -110,13 +170,26 @@ export default function Auth() {
               variant: "destructive",
             });
           }
-        } else {
-          toast({
-            title: "Cadastro realizado!",
-            description: "Sua conta foi criada. Aguarde a aprovação da escola para acessar a agenda.",
-          });
-          navigate("/painel");
+          setIsLoading(false);
+          return;
         }
+
+        // Mark invite as used
+        if (authData.user) {
+          await supabase
+            .from("parent_invites")
+            .update({
+              used_by: authData.user.id,
+              used_at: new Date().toISOString(),
+            })
+            .eq("invite_code", formData.inviteCode.toUpperCase());
+        }
+
+        toast({
+          title: "Cadastro realizado!",
+          description: "Sua conta foi criada. Aguarde a aprovação da escola para acessar a agenda.",
+        });
+        navigate("/painel");
       } else {
         const result = loginSchema.safeParse(formData);
         if (!result.success) {
@@ -197,6 +270,61 @@ export default function Auth() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && (
                 <>
+                  {/* Invite Code Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="inviteCode" className="flex items-center gap-2">
+                      <KeyRound className="w-4 h-4" />
+                      Código de Convite
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="inviteCode"
+                        name="inviteCode"
+                        type="text"
+                        placeholder="PAI-XXXXXX"
+                        value={formData.inviteCode}
+                        onChange={handleChange}
+                        className={`uppercase ${
+                          errors.inviteCode ? "border-destructive" : 
+                          inviteStatus === "valid" ? "border-green-500" :
+                          inviteStatus === "invalid" ? "border-destructive" : ""
+                        } pr-10`}
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {inviteStatus === "checking" && (
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        )}
+                        {inviteStatus === "valid" && (
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                        )}
+                        {inviteStatus === "invalid" && (
+                          <XCircle className="w-4 h-4 text-destructive" />
+                        )}
+                      </div>
+                    </div>
+                    {inviteStatus === "valid" && inviteData?.child_name && (
+                      <p className="text-sm text-green-600">
+                        ✓ Convite válido para responsável de: {inviteData.child_name}
+                      </p>
+                    )}
+                    {inviteStatus === "valid" && !inviteData?.child_name && (
+                      <p className="text-sm text-green-600">
+                        ✓ Código de convite válido
+                      </p>
+                    )}
+                    {inviteStatus === "invalid" && (
+                      <p className="text-sm text-destructive">
+                        Código inválido, expirado ou já utilizado
+                      </p>
+                    )}
+                    {errors.inviteCode && (
+                      <p className="text-sm text-destructive">{errors.inviteCode}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Solicite um código de convite na secretaria da escola
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Nome Completo</Label>
                     <Input
@@ -286,7 +414,12 @@ export default function Auth() {
                 </div>
               )}
 
-              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                size="lg" 
+                disabled={isLoading || (isSignUp && inviteStatus !== "valid")}
+              >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
