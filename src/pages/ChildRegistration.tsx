@@ -38,8 +38,13 @@ const registrationSchema = z.object({
   firstName: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   lastName: z.string().min(2, "Sobrenome deve ter pelo menos 2 caracteres"),
   birthDate: z.string().min(1, "Data de nascimento é obrigatória"),
-  address: z.string().min(5, "Endereço deve ter pelo menos 5 caracteres"),
+  street: z.string().min(3, "Rua/Avenida é obrigatória"),
+  number: z.string().min(1, "Número é obrigatório"),
+  complement: z.string().optional(),
+  neighborhood: z.string().min(2, "Bairro é obrigatório"),
   city: z.string().min(2, "Cidade é obrigatória"),
+  state: z.string().min(2, "Estado é obrigatório"),
+  zipCode: z.string().min(8, "CEP é obrigatório"),
   cpf: z.string().optional(),
   rg: z.string().optional(),
   susCard: z.string().optional(),
@@ -237,6 +242,9 @@ const ChildRegistration = () => {
         birthCertificateUrl = await uploadFile(birthCertificateFile, 'birth-certificates');
       }
 
+      // Compose full address from fields
+      const fullAddress = `${data.street}, ${data.number}${data.complement ? `, ${data.complement}` : ''} - ${data.neighborhood}, ${data.city}/${data.state} - CEP: ${data.zipCode}`;
+
       // Insert child registration
       const { data: registration, error: regError } = await supabase
         .from('child_registrations')
@@ -245,7 +253,7 @@ const ChildRegistration = () => {
           first_name: data.firstName,
           last_name: data.lastName,
           birth_date: data.birthDate,
-          address: data.address,
+          address: fullAddress,
           city: data.city,
           cpf: data.cpf || null,
           rg: data.rg || null,
@@ -541,30 +549,93 @@ const ChildRegistration = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Endereço Completo *</Label>
-                      <Input
-                        id="address"
-                        placeholder="Rua, número, complemento, bairro"
-                        {...register("address")}
-                        className={errors.address ? "border-destructive" : ""}
-                      />
-                      {errors.address && (
-                        <p className="text-sm text-destructive">{errors.address.message}</p>
-                      )}
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2 space-y-2">
+                        <Label htmlFor="street">Rua/Avenida *</Label>
+                        <Input
+                          id="street"
+                          placeholder="Ex: Av. Inconfidência"
+                          {...register("street")}
+                          className={errors.street ? "border-destructive" : ""}
+                        />
+                        {errors.street && (
+                          <p className="text-sm text-destructive">{errors.street.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="number">Número *</Label>
+                        <Input
+                          id="number"
+                          placeholder="123"
+                          {...register("number")}
+                          className={errors.number ? "border-destructive" : ""}
+                        />
+                        {errors.number && (
+                          <p className="text-sm text-destructive">{errors.number.message}</p>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="city">Cidade *</Label>
-                      <Input
-                        id="city"
-                        placeholder="Nome da cidade"
-                        {...register("city")}
-                        className={errors.city ? "border-destructive" : ""}
-                      />
-                      {errors.city && (
-                        <p className="text-sm text-destructive">{errors.city.message}</p>
-                      )}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="complement">Complemento</Label>
+                        <Input
+                          id="complement"
+                          placeholder="Apto, bloco, casa (opcional)"
+                          {...register("complement")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="neighborhood">Bairro *</Label>
+                        <Input
+                          id="neighborhood"
+                          placeholder="Nome do bairro"
+                          {...register("neighborhood")}
+                          className={errors.neighborhood ? "border-destructive" : ""}
+                        />
+                        {errors.neighborhood && (
+                          <p className="text-sm text-destructive">{errors.neighborhood.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">CEP *</Label>
+                        <Input
+                          id="zipCode"
+                          placeholder="00000-000"
+                          {...register("zipCode")}
+                          className={errors.zipCode ? "border-destructive" : ""}
+                        />
+                        {errors.zipCode && (
+                          <p className="text-sm text-destructive">{errors.zipCode.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="city">Cidade *</Label>
+                        <Input
+                          id="city"
+                          placeholder="Nome da cidade"
+                          {...register("city")}
+                          className={errors.city ? "border-destructive" : ""}
+                        />
+                        {errors.city && (
+                          <p className="text-sm text-destructive">{errors.city.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="state">Estado *</Label>
+                        <Input
+                          id="state"
+                          placeholder="RS"
+                          {...register("state")}
+                          className={errors.state ? "border-destructive" : ""}
+                        />
+                        {errors.state && (
+                          <p className="text-sm text-destructive">{errors.state.message}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex justify-between">
