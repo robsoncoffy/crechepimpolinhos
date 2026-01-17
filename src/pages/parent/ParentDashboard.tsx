@@ -14,6 +14,7 @@ import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
 import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
 import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { PaymentsTab } from "@/components/parent/PaymentsTab";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ import {
   UtensilsCrossed,
   Camera,
   CalendarDays,
+  CreditCard,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -407,7 +409,7 @@ export default function ParentDashboard() {
                     <CardContent className="p-0">
                       <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="border-b bg-muted/30">
-                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4 sm:grid-cols-7">
+                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5 sm:grid-cols-8">
                             <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <Calendar className="w-4 h-4" />
                             </TabsTrigger>
@@ -419,6 +421,9 @@ export default function ParentDashboard() {
                             </TabsTrigger>
                             <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <UtensilsCrossed className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="pagamentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <CreditCard className="w-4 h-4" />
                             </TabsTrigger>
                             <TabsTrigger value="crescimento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
                               <TrendingUp className="w-4 h-4" />
@@ -451,6 +456,10 @@ export default function ParentDashboard() {
 
                         <TabsContent value="cardapio" className="m-0 p-4 sm:p-6">
                           <WeeklyMenuTab childAllergies={selectedChild.allergies} />
+                        </TabsContent>
+
+                        <TabsContent value="pagamentos" className="m-0 p-4 sm:p-6">
+                          <PaymentsTab childId={selectedChild.id} />
                         </TabsContent>
 
                         <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
