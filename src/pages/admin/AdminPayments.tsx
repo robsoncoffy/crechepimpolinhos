@@ -118,6 +118,7 @@ export default function AdminPayments() {
     dueDate: "",
     billingDay: "10",
     description: "",
+    installmentCount: "1",
   });
 
   const fetchData = async () => {
@@ -219,6 +220,7 @@ export default function AdminPayments() {
       );
 
       // Create invoice
+      const installmentCount = parseInt(formData.installmentCount);
       const { data, error } = await supabase.functions.invoke("asaas-payments", {
         body: {
           action: "create_invoice",
@@ -227,14 +229,15 @@ export default function AdminPayments() {
           value: parseFloat(formData.value),
           dueDate: formData.dueDate,
           description: formData.description || `Mensalidade - ${selected.children.full_name}`,
+          installmentCount: installmentCount > 1 ? installmentCount : undefined,
         },
       });
 
       if (error) throw error;
 
-      toast.success("Cobrança criada com sucesso!");
+      toast.success(installmentCount > 1 ? `Parcelamento de ${installmentCount}x criado com sucesso!` : "Cobrança criada com sucesso!");
       setDialogOpen(false);
-      setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "" });
+      setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "", installmentCount: "1" });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar cobrança");
@@ -281,7 +284,7 @@ export default function AdminPayments() {
 
       toast.success("Assinatura criada com sucesso!");
       setDialogOpen(false);
-      setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "" });
+      setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "", installmentCount: "1" });
       fetchData();
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar assinatura");
@@ -292,7 +295,7 @@ export default function AdminPayments() {
 
   const openDialog = (type: "invoice" | "subscription") => {
     setDialogType(type);
-    setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "" });
+    setFormData({ parentChildId: "", value: "", dueDate: "", billingDay: "10", description: "", installmentCount: "1" });
     setDialogOpen(true);
   };
 
@@ -588,15 +591,42 @@ export default function AdminPayments() {
             </div>
 
             {dialogType === "invoice" ? (
-              <div>
-                <Label htmlFor="dueDate">Data de Vencimento *</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="dueDate">Data de Vencimento *</Label>
+                  <Input
+                    id="dueDate"
+                    type="date"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <Label>Parcelamento</Label>
+                  <Select
+                    value={formData.installmentCount}
+                    onValueChange={(v) => setFormData({ ...formData, installmentCount: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">À vista (1x)</SelectItem>
+                      {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                        <SelectItem key={n} value={n.toString()}>
+                          {n}x de R$ {formData.value ? (parseFloat(formData.value) / n).toFixed(2) : "0,00"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {parseInt(formData.installmentCount) > 1 && formData.value && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Total: R$ {parseFloat(formData.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em {formData.installmentCount}x de R$ {(parseFloat(formData.value) / parseInt(formData.installmentCount)).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
               <div>
                 <Label>Dia do Vencimento</Label>

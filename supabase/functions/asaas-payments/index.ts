@@ -184,7 +184,7 @@ serve(async (req) => {
           });
         }
 
-        const { parentId, childId, value, dueDate, description } = payload;
+        const { parentId, childId, value, dueDate, description, installmentCount } = payload;
 
         // Get customer ID
         const { data: customer } = await supabase
@@ -200,36 +200,84 @@ serve(async (req) => {
           });
         }
 
-        // Create payment in Asaas
-        const payment = await asaasRequest("/payments", "POST", {
+        // Build payment request
+        const paymentRequest: any = {
           customer: customer.asaas_customer_id,
           billingType: "UNDEFINED",
           value,
           dueDate,
           description: description || "Cobrança avulsa",
           externalReference: childId,
-        });
+        };
+
+        // Add installment info if more than 1
+        if (installmentCount && installmentCount > 1) {
+          paymentRequest.installmentCount = installmentCount;
+          paymentRequest.installmentValue = value / installmentCount;
+          console.log(`Creating installment payment: ${installmentCount}x of R$ ${paymentRequest.installmentValue}`);
+        }
+
+        // Create payment in Asaas
+        const payment = await asaasRequest("/payments", "POST", paymentRequest);
+        console.log("Asaas payment created:", payment.id, payment.installment ? `(installment ${payment.installment})` : "");
 
         // Get payment details with pix code
-        const paymentDetails = await asaasRequest(`/payments/${payment.id}/pixQrCode`, "GET");
+        let pixCode = null;
+        try {
+          const paymentDetails = await asaasRequest(`/payments/${payment.id}/pixQrCode`, "GET");
+          pixCode = paymentDetails.payload;
+        } catch (e) {
+          console.log("Could not get initial PIX code:", e);
+        }
 
-        // Save to database
+        // Save first invoice to database
         const { data: invoice } = await supabase.from("invoices").insert({
           child_id: childId,
           parent_id: parentId,
           asaas_payment_id: payment.id,
-          description: description || "Cobrança avulsa",
-          value,
+          description: installmentCount > 1 
+            ? `${description || "Cobrança parcelada"} (1/${installmentCount})`
+            : (description || "Cobrança avulsa"),
+          value: installmentCount > 1 ? value / installmentCount : value,
           due_date: dueDate,
           status: "pending",
           invoice_url: payment.invoiceUrl,
-          pix_code: paymentDetails.payload,
+          pix_code: pixCode,
           bank_slip_url: payment.bankSlipUrl,
         }).select().single();
 
+        // If installment, fetch and save remaining installments
+        if (installmentCount && installmentCount > 1 && payment.installment) {
+          console.log(`Fetching remaining installments for installment group...`);
+          
+          // Get all payments for this installment
+          const installmentPayments = await asaasRequest(`/payments?installment=${payment.installment}`, "GET");
+          
+          if (installmentPayments.data && installmentPayments.data.length > 1) {
+            // Save remaining installments (skip the first one we already saved)
+            for (let i = 1; i < installmentPayments.data.length; i++) {
+              const installmentPayment = installmentPayments.data[i];
+              
+              await supabase.from("invoices").insert({
+                child_id: childId,
+                parent_id: parentId,
+                asaas_payment_id: installmentPayment.id,
+                description: `${description || "Cobrança parcelada"} (${i + 1}/${installmentCount})`,
+                value: installmentPayment.value,
+                due_date: installmentPayment.dueDate,
+                status: "pending",
+                invoice_url: installmentPayment.invoiceUrl,
+                bank_slip_url: installmentPayment.bankSlipUrl,
+              });
+            }
+            console.log(`Saved ${installmentPayments.data.length} installment invoices`);
+          }
+        }
+
         return new Response(JSON.stringify({ 
           success: true, 
-          invoice 
+          invoice,
+          installmentCount: installmentCount || 1,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
