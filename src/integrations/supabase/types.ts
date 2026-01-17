@@ -282,6 +282,198 @@ export type Database = {
           },
         ]
       }
+      employee_invites: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          invite_code: string
+          is_used: boolean | null
+          role: Database["public"]["Enums"]["app_role"]
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_code: string
+          is_used?: boolean | null
+          role?: Database["public"]["Enums"]["app_role"]
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          invite_code?: string
+          is_used?: boolean | null
+          role?: Database["public"]["Enums"]["app_role"]
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
+      employee_profiles: {
+        Row: {
+          bank_account: string | null
+          bank_account_type: string | null
+          bank_agency: string | null
+          bank_name: string | null
+          birth_date: string
+          city: string | null
+          complement: string | null
+          cpf: string
+          created_at: string | null
+          ctps_number: string | null
+          ctps_series: string | null
+          ctps_state: string | null
+          disability_description: string | null
+          documents_url: string | null
+          education_level: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          father_name: string | null
+          full_name: string
+          gender: string | null
+          has_disability: boolean | null
+          hire_date: string | null
+          id: string
+          job_title: string | null
+          marital_status: string | null
+          military_certificate: string | null
+          mother_name: string | null
+          nationality: string | null
+          neighborhood: string | null
+          phone: string | null
+          photo_url: string | null
+          pis_pasep: string | null
+          pix_key: string | null
+          place_of_birth: string | null
+          rg: string | null
+          rg_issue_date: string | null
+          rg_issuer: string | null
+          salary: number | null
+          specialization: string | null
+          state: string | null
+          street: string | null
+          street_number: string | null
+          updated_at: string | null
+          user_id: string
+          voter_section: string | null
+          voter_title: string | null
+          voter_zone: string | null
+          work_shift: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          birth_date: string
+          city?: string | null
+          complement?: string | null
+          cpf: string
+          created_at?: string | null
+          ctps_number?: string | null
+          ctps_series?: string | null
+          ctps_state?: string | null
+          disability_description?: string | null
+          documents_url?: string | null
+          education_level?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          father_name?: string | null
+          full_name: string
+          gender?: string | null
+          has_disability?: boolean | null
+          hire_date?: string | null
+          id?: string
+          job_title?: string | null
+          marital_status?: string | null
+          military_certificate?: string | null
+          mother_name?: string | null
+          nationality?: string | null
+          neighborhood?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          pis_pasep?: string | null
+          pix_key?: string | null
+          place_of_birth?: string | null
+          rg?: string | null
+          rg_issue_date?: string | null
+          rg_issuer?: string | null
+          salary?: number | null
+          specialization?: string | null
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
+          updated_at?: string | null
+          user_id: string
+          voter_section?: string | null
+          voter_title?: string | null
+          voter_zone?: string | null
+          work_shift?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          bank_account?: string | null
+          bank_account_type?: string | null
+          bank_agency?: string | null
+          bank_name?: string | null
+          birth_date?: string
+          city?: string | null
+          complement?: string | null
+          cpf?: string
+          created_at?: string | null
+          ctps_number?: string | null
+          ctps_series?: string | null
+          ctps_state?: string | null
+          disability_description?: string | null
+          documents_url?: string | null
+          education_level?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          father_name?: string | null
+          full_name?: string
+          gender?: string | null
+          has_disability?: boolean | null
+          hire_date?: string | null
+          id?: string
+          job_title?: string | null
+          marital_status?: string | null
+          military_certificate?: string | null
+          mother_name?: string | null
+          nationality?: string | null
+          neighborhood?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          pis_pasep?: string | null
+          pix_key?: string | null
+          place_of_birth?: string | null
+          rg?: string | null
+          rg_issue_date?: string | null
+          rg_issuer?: string | null
+          salary?: number | null
+          specialization?: string | null
+          state?: string | null
+          street?: string | null
+          street_number?: string | null
+          updated_at?: string | null
+          user_id?: string
+          voter_section?: string | null
+          voter_title?: string | null
+          voter_zone?: string | null
+          work_shift?: string | null
+          zip_code?: string | null
+        }
+        Relationships: []
+      }
       gallery_photos: {
         Row: {
           child_id: string | null
@@ -460,6 +652,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string
+          read_at: string | null
+          title: string
+          type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message: string
+          read_at?: string | null
+          title: string
+          type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string
+          read_at?: string | null
+          title?: string
+          type?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       parent_children: {
         Row: {
