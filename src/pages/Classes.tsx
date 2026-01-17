@@ -91,26 +91,26 @@ const classes = [
 const shifts = [
   {
     title: "Meio Período Manhã",
-    hours: "7h às 11h",
+    hours: "4 horas",
     icon: Sun,
-    description: "4 horas de cuidado durante a manhã.",
+    description: "Horário flexível de 4 horas no período da manhã. Ex: 7h-11h, 8h-12h ou 7:30-11:30.",
     includes: ["Café da manhã", "Lanche", "Atividades pedagógicas", "Recreação"],
   },
   {
     title: "Meio Período Tarde",
-    hours: "15h às 19h",
+    hours: "4 horas",
     icon: Moon,
-    description: "4 horas de acompanhamento no período vespertino.",
+    description: "Horário flexível de 4 horas no período da tarde. Ex: 15h-19h, 14h-18h ou 13:30-17:30.",
     includes: ["Lanche da tarde", "Atividades pedagógicas", "Recreação", "Jantar"],
   },
   {
     title: "Período Integral",
-    hours: "Até 8h diárias",
+    hours: "8 horas",
     icon: Clock,
-    description: "Permanência de até 8 horas. Horas adicionais são cobradas separadamente.",
+    description: "Permanência de 8 horas com horário flexível. Ex: 7h-16h, 8h-17h, 9h-18h ou 10h-19h. Hora extra disponível.",
     includes: ["Todas as refeições", "Soneca", "Atividades completas", "Atividades extras"],
     featured: true,
-    note: "Funcionamos das 7h às 19h",
+    note: "Funcionamos das 7h às 19h • Hora extra cobrada separadamente",
   },
 ];
 
