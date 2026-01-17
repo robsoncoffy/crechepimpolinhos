@@ -1,15 +1,13 @@
 import { Link } from "react-router-dom";
 import { Phone, Mail, MapPin, Instagram, Clock } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
-
 export function Footer() {
-  return (
-    <footer className="bg-primary text-primary-foreground">
+  return <footer className="bg-primary text-primary-foreground">
       <div className="container py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Logo e descrição */}
           <div className="space-y-4">
-            <img src={logo} alt="Creche Pimpolinhos" className="h-16 w-auto bg-white rounded-lg p-2" />
+            <img alt="Creche Pimpolinhos" className="h-16 w-auto bg-white rounded-lg p-2" src="/lovable-uploads/fae47659-1869-4fc2-b5ac-1573ffbc1bae.png" />
             <p className="text-primary-foreground/90">
               Colorindo a infância com cuidado e alegria! Educação infantil de qualidade em Canoas/RS.
             </p>
@@ -51,12 +49,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Instagram className="w-5 h-5 flex-shrink-0" />
-                <a
-                  href="https://instagram.com/crechepimpolinhos"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline"
-                >
+                <a href="https://instagram.com/crechepimpolinhos" target="_blank" rel="noopener noreferrer" className="hover:underline">
                   @crechepimpolinhos
                 </a>
               </li>
@@ -83,6 +76,5 @@ export function Footer() {
           <p>© {new Date().getFullYear()} Creche Infantil Pimpolinhos. Todos os direitos reservados.</p>
         </div>
       </div>
-    </footer>
-  );
+    </footer>;
 }
