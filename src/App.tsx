@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import About from "./pages/About";
@@ -16,6 +17,13 @@ import ChildRegistration from "./pages/ChildRegistration";
 import AdminAgenda from "./pages/admin/AdminAgenda";
 
 const queryClient = new QueryClient();
+
+// Wrapper to provide auth context for ChildRegistration
+const ChildRegistrationWithAuth = () => (
+  <AuthProvider>
+    <ChildRegistration />
+  </AuthProvider>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -31,7 +39,7 @@ const App = () => (
           <Route path="/estrutura" element={<Structure />} />
           <Route path="/contato" element={<Contact />} />
           <Route path="/pre-matricula" element={<PreEnrollment />} />
-          <Route path="/cadastro-pimpolho" element={<ChildRegistration />} />
+          <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
