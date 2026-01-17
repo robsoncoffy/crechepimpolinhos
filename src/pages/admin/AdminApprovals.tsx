@@ -55,6 +55,8 @@ export default function AdminApprovals() {
   const [registrationDialogOpen, setRegistrationDialogOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<PendingChildRegistration | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedClassType, setSelectedClassType] = useState<"bercario" | "maternal" | "jardim">("bercario");
+  const [selectedShiftType, setSelectedShiftType] = useState<"manha" | "tarde" | "integral">("integral");
 
   useEffect(() => {
     fetchData();
@@ -183,6 +185,18 @@ export default function AdminApprovals() {
   function openRegistrationDialog(registration: PendingChildRegistration) {
     setSelectedRegistration(registration);
     setRelationship("responsável");
+    // Auto-suggest class based on birth date
+    const birthDate = new Date(registration.birth_date);
+    const today = new Date();
+    const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+    if (ageInMonths < 12) {
+      setSelectedClassType("bercario");
+    } else if (ageInMonths < 36) {
+      setSelectedClassType("maternal");
+    } else {
+      setSelectedClassType("jardim");
+    }
+    setSelectedShiftType("integral");
     setRegistrationDialogOpen(true);
   }
 
@@ -197,8 +211,8 @@ export default function AdminApprovals() {
         .insert({
           full_name: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
           birth_date: selectedRegistration.birth_date,
-          class_type: "bercario" as const, // Default, can be changed later
-          shift_type: "integral" as const, // Default, can be changed later
+          class_type: selectedClassType,
+          shift_type: selectedShiftType,
           photo_url: selectedRegistration.photo_url,
           allergies: selectedRegistration.allergies,
           medical_info: selectedRegistration.medications,
@@ -620,6 +634,35 @@ export default function AdminApprovals() {
                   <p className="text-blue-800">{selectedRegistration.medications}</p>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Turma *</label>
+                  <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "jardim")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bercario">Berçário (0-1 ano)</SelectItem>
+                      <SelectItem value="maternal">Maternal (1-3 anos)</SelectItem>
+                      <SelectItem value="jardim">Jardim (4-6 anos)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Turno *</label>
+                  <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manha">Manhã (7h - 11h)</SelectItem>
+                      <SelectItem value="tarde">Tarde (15h - 19h)</SelectItem>
+                      <SelectItem value="integral">Integral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Relacionamento do Responsável</label>
