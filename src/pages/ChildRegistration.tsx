@@ -88,12 +88,15 @@ const ChildRegistration = () => {
   const [birthCertificatePreview, setBirthCertificatePreview] = useState<string | null>(null);
   const [authorizedPickupFiles, setAuthorizedPickupFiles] = useState<AuthorizedPickupFile[]>([]);
 
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -101,6 +104,38 @@ const ChildRegistration = () => {
       authorizedPickups: [],
     },
   });
+
+  const fetchAddressByCep = async (cep: string) => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setValue("street", data.logradouro || "");
+        setValue("neighborhood", data.bairro || "");
+        setValue("city", data.localidade || "");
+        setValue("state", data.uf || "");
+        toast({
+          title: "Endereço encontrado!",
+          description: "Os campos foram preenchidos automaticamente.",
+        });
+      } else {
+        toast({
+          title: "CEP não encontrado",
+          description: "Verifique o CEP e tente novamente.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -624,12 +659,20 @@ const ChildRegistration = () => {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="zipCode">CEP *</Label>
-                        <Input
-                          id="zipCode"
-                          placeholder="00000-000"
-                          {...register("zipCode")}
-                          className={errors.zipCode ? "border-destructive" : ""}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="zipCode"
+                            placeholder="00000-000"
+                            {...register("zipCode")}
+                            className={errors.zipCode ? "border-destructive" : ""}
+                            onBlur={(e) => fetchAddressByCep(e.target.value)}
+                          />
+                          {isLoadingCep && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+                            </div>
+                          )}
+                        </div>
                         {errors.zipCode && (
                           <p className="text-sm text-destructive">{errors.zipCode.message}</p>
                         )}
