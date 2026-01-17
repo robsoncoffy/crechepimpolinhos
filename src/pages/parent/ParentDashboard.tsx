@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Home,
   ChevronRight,
+  UserPlus,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -268,6 +269,12 @@ export default function ParentDashboard() {
                 Site
               </Link>
             </Button>
+            <Button variant="default" size="sm" asChild className="gap-1.5">
+              <Link to="/cadastro-pimpolho">
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Adicionar Pimpolho</span>
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleLogout}>
               <LogOut className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Sair</span>
@@ -294,9 +301,15 @@ export default function ParentDashboard() {
                 <Baby className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Nenhum filho vinculado</h3>
-              <p className="text-muted-foreground max-w-sm mx-auto">
-                Entre em contato com a escola para vincular seu filho à sua conta.
+              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
+                Cadastre seu filho para que a escola possa aprovar e vincular à sua conta.
               </p>
+              <Button asChild size="lg" className="gap-2">
+                <Link to="/cadastro-pimpolho">
+                  <UserPlus className="w-5 h-5" />
+                  Adicionar Pimpolho
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         ) : (
