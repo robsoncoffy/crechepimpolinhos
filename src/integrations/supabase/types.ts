@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      authorized_pickups: {
+        Row: {
+          created_at: string
+          document_url: string | null
+          full_name: string
+          id: string
+          is_approved: boolean | null
+          registration_id: string
+          relationship: string
+        }
+        Insert: {
+          created_at?: string
+          document_url?: string | null
+          full_name: string
+          id?: string
+          is_approved?: boolean | null
+          registration_id: string
+          relationship: string
+        }
+        Update: {
+          created_at?: string
+          document_url?: string | null
+          full_name?: string
+          id?: string
+          is_approved?: boolean | null
+          registration_id?: string
+          relationship?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorized_pickups_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "child_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_registrations: {
+        Row: {
+          address: string
+          allergies: string | null
+          birth_certificate_url: string | null
+          birth_date: string
+          city: string
+          continuous_doctors: string | null
+          cpf: string | null
+          created_at: string
+          enrollment_type: string
+          first_name: string
+          id: string
+          last_name: string
+          medications: string | null
+          parent_id: string
+          photo_url: string | null
+          private_doctors: string | null
+          rg: string | null
+          status: string
+          sus_card: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          allergies?: string | null
+          birth_certificate_url?: string | null
+          birth_date: string
+          city: string
+          continuous_doctors?: string | null
+          cpf?: string | null
+          created_at?: string
+          enrollment_type: string
+          first_name: string
+          id?: string
+          last_name: string
+          medications?: string | null
+          parent_id: string
+          photo_url?: string | null
+          private_doctors?: string | null
+          rg?: string | null
+          status?: string
+          sus_card?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          allergies?: string | null
+          birth_certificate_url?: string | null
+          birth_date?: string
+          city?: string
+          continuous_doctors?: string | null
+          cpf?: string | null
+          created_at?: string
+          enrollment_type?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          medications?: string | null
+          parent_id?: string
+          photo_url?: string | null
+          private_doctors?: string | null
+          rg?: string | null
+          status?: string
+          sus_card?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       children: {
         Row: {
           allergies: string | null
