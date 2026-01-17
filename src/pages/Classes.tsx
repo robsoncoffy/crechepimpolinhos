@@ -290,7 +290,7 @@ export default function Classes() {
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg px-8 border-white text-white hover:bg-white hover:text-primary"
+                className="text-lg px-8 bg-transparent border-white text-white hover:bg-white hover:text-primary"
                 asChild
               >
                 <a href="https://wa.me/5551989965423" target="_blank" rel="noopener noreferrer">
