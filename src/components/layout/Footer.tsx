@@ -30,6 +30,12 @@ export function Footer() {
                 <Link to="/estrutura" className="hover:underline">Estrutura</Link>
               </li>
               <li>
+                <Link to="/planos" className="hover:underline">Planos</Link>
+              </li>
+              <li>
+                <Link to="/pre-matricula" className="hover:underline">Pré-Matrícula</Link>
+              </li>
+              <li>
                 <Link to="/contato" className="hover:underline">Contato</Link>
               </li>
             </ul>

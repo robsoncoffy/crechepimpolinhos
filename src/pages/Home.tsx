@@ -530,7 +530,7 @@ export default function Home() {
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6" asChild>
               <Link to="/contato">Agendar Visita</Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-white text-white hover:bg-white hover:text-primary" asChild>
+            <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white hover:text-primary" asChild>
               <a href="https://wa.me/5551989965423" target="_blank" rel="noopener noreferrer">
                 <Phone className="w-5 h-5 mr-2" />
                 WhatsApp

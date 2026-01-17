@@ -16,6 +16,9 @@ const navigation = [{
   name: "Estrutura",
   href: "/estrutura"
 }, {
+  name: "Planos",
+  href: "/planos"
+}, {
   name: "Pré-Matrícula",
   href: "/pre-matricula"
 }, {
