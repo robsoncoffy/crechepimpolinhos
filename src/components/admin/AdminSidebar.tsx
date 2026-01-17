@@ -35,6 +35,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+import { Megaphone } from "lucide-react";
+
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/painel" },
   { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true },
@@ -44,6 +46,7 @@ const menuItems = [
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda" },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
   { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
+  { icon: Megaphone, label: "Avisos", href: "/painel/avisos" },
   { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio" },
   { icon: Camera, label: "Galeria", href: "/painel/galeria" },
   { icon: CalendarDays, label: "Eventos", href: "/painel/eventos" },
