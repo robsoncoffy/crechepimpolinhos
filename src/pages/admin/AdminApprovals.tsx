@@ -65,35 +65,51 @@ export default function AdminApprovals() {
       const [profilesRes, childrenRes, registrationsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("status", "pending"),
         supabase.from("children").select("*").order("full_name"),
-        supabase.from("child_registrations").select("*").eq("status", "pending").order("created_at", { ascending: false }),
+        supabase
+          .from("child_registrations")
+          .select("*")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false }),
       ]);
 
-      if (profilesRes.data) {
-        setPendingParents(profilesRes.data);
-      }
-      if (childrenRes.data) {
-        setChildren(childrenRes.data);
-      }
-      if (registrationsRes.data) {
-        // Fetch parent names for registrations
-        const parentIds = [...new Set(registrationsRes.data.map(r => r.parent_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, full_name")
-          .in("user_id", parentIds);
+      if (profilesRes.error) throw profilesRes.error;
+      if (childrenRes.error) throw childrenRes.error;
+      if (registrationsRes.error) throw registrationsRes.error;
 
-        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
-        
-        const registrationsWithParent = registrationsRes.data.map(reg => ({
-          ...reg,
-          parent_name: profileMap.get(reg.parent_id) || "Responsável"
-        }));
-        
-        setPendingRegistrations(registrationsWithParent);
+      setPendingParents(profilesRes.data || []);
+      setChildren(childrenRes.data || []);
+
+      const regs = registrationsRes.data || [];
+      if (regs.length === 0) {
+        setPendingRegistrations([]);
+        return;
       }
+
+      // Fetch parent names for registrations
+      const parentIds = [...new Set(regs.map((r) => r.parent_id))];
+      const profilesLookupRes = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", parentIds);
+
+      if (profilesLookupRes.error) throw profilesLookupRes.error;
+
+      const profileMap = new Map(
+        (profilesLookupRes.data || []).map((p) => [p.user_id, p.full_name])
+      );
+
+      const registrationsWithParent = regs.map((reg) => ({
+        ...reg,
+        parent_name: profileMap.get(reg.parent_id) || "Responsável",
+      }));
+
+      setPendingRegistrations(registrationsWithParent);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Erro ao carregar dados");
+      setPendingParents([]);
+      setChildren([]);
+      setPendingRegistrations([]);
     } finally {
       setLoading(false);
     }
