@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
+import { ChildAnnouncementsSection } from "./ChildAnnouncementsSection";
 
 type DailyRecord = Database["public"]["Tables"]["daily_records"]["Row"];
 type MealStatus = Database["public"]["Enums"]["meal_status"];
@@ -154,6 +155,9 @@ export function ParentAgendaView({ childId, childName }: ParentAgendaViewProps) 
 
   return (
     <div className="space-y-4">
+      {/* Child-specific Announcements */}
+      <ChildAnnouncementsSection childId={childId} childName={childName} />
+
       {/* Date Navigation */}
       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
         <Button variant="ghost" size="icon" onClick={handlePreviousDay}>
