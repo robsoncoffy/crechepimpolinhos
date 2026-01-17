@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance: {
+        Row: {
+          arrival_time: string | null
+          child_id: string
+          created_at: string
+          date: string
+          departure_time: string | null
+          id: string
+          notes: string | null
+          recorded_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_time?: string | null
+          child_id: string
+          created_at?: string
+          date?: string
+          departure_time?: string | null
+          id?: string
+          notes?: string | null
+          recorded_by?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_time?: string | null
+          child_id?: string
+          created_at?: string
+          date?: string
+          departure_time?: string | null
+          id?: string
+          notes?: string | null
+          recorded_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       authorized_pickups: {
         Row: {
           created_at: string

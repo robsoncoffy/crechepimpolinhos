@@ -15,6 +15,7 @@ import {
   Camera,
   CalendarDays,
   Ticket,
+  ClipboardCheck,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -39,6 +40,7 @@ const menuItems = [
   { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true },
   { icon: Users, label: "Professores", href: "/painel/professores" },
   { icon: Baby, label: "Crianças", href: "/painel/criancas" },
+  { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada" },
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda" },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
   { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
