@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell } from "lucide-react";
+import { Bell, Calendar, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Info, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -22,6 +22,58 @@ interface Notification {
   link: string | null;
   created_at: string;
 }
+
+interface NotificationTypeConfig {
+  icon: LucideIcon;
+  bgColor: string;
+  borderColor: string;
+  iconColor: string;
+}
+
+const notificationTypeConfig: Record<string, NotificationTypeConfig> = {
+  agenda: {
+    icon: ClipboardList,
+    bgColor: "bg-pimpo-blue/10",
+    borderColor: "border-l-pimpo-blue",
+    iconColor: "text-pimpo-blue",
+  },
+  message: {
+    icon: MessageSquare,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
+  },
+  success: {
+    icon: CheckCircle,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
+  },
+  warning: {
+    icon: AlertTriangle,
+    bgColor: "bg-pimpo-yellow/10",
+    borderColor: "border-l-pimpo-yellow",
+    iconColor: "text-pimpo-yellow",
+  },
+  error: {
+    icon: AlertTriangle,
+    bgColor: "bg-pimpo-red/10",
+    borderColor: "border-l-pimpo-red",
+    iconColor: "text-pimpo-red",
+  },
+  event: {
+    icon: Calendar,
+    bgColor: "bg-pimpo-purple/10",
+    borderColor: "border-l-pimpo-purple",
+    iconColor: "text-pimpo-purple",
+  },
+  info: {
+    icon: Info,
+    bgColor: "bg-pimpo-blue/10",
+    borderColor: "border-l-pimpo-blue",
+    iconColor: "text-pimpo-blue",
+  },
+};
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -117,17 +169,8 @@ export function NotificationBell() {
     }
   };
 
-  const getTypeStyles = (type: string) => {
-    switch (type) {
-      case "success":
-        return "bg-pimpo-green/10 border-l-pimpo-green";
-      case "warning":
-        return "bg-pimpo-yellow/10 border-l-pimpo-yellow";
-      case "error":
-        return "bg-pimpo-red/10 border-l-pimpo-red";
-      default:
-        return "bg-pimpo-blue/10 border-l-pimpo-blue";
-    }
+  const getTypeConfig = (type: string): NotificationTypeConfig => {
+    return notificationTypeConfig[type] || notificationTypeConfig.info;
   };
 
   return (
@@ -167,39 +210,45 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`w-full text-left p-4 hover:bg-muted/50 transition-colors border-l-4 ${getTypeStyles(
-                    notification.type
-                  )} ${!notification.is_read ? "bg-muted/30" : ""}`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-medium truncate ${
-                          !notification.is_read ? "text-foreground" : "text-muted-foreground"
-                        }`}
-                      >
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground/60 mt-1">
-                        {formatDistanceToNow(new Date(notification.created_at), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </p>
+              {notifications.map((notification) => {
+                const config = getTypeConfig(notification.type);
+                const IconComponent = config.icon;
+                
+                return (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`w-full text-left p-4 hover:bg-muted/50 transition-colors border-l-4 ${config.bgColor} ${config.borderColor} ${!notification.is_read ? "bg-muted/30" : ""}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 mt-0.5 ${config.iconColor}`}>
+                        <IconComponent className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-medium truncate ${
+                            !notification.is_read ? "text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </p>
+                      </div>
+                      {!notification.is_read && (
+                        <div className="w-2 h-2 bg-pimpo-blue rounded-full mt-1.5 flex-shrink-0 animate-pulse" />
+                      )}
                     </div>
-                    {!notification.is_read && (
-                      <div className="w-2 h-2 bg-pimpo-blue rounded-full mt-1.5 flex-shrink-0" />
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </ScrollArea>
