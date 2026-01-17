@@ -35,17 +35,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [childrenRes, teachersRes, pendingRes, recordsRes] = await Promise.all([
+        const [childrenRes, teachersRes, pendingProfilesRes, pendingRegsRes, recordsRes] = await Promise.all([
           supabase.from("children").select("id", { count: "exact", head: true }),
           supabase.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "teacher"),
           supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending"),
+          supabase.from("child_registrations").select("id", { count: "exact", head: true }).eq("status", "pending"),
           supabase.from("daily_records").select("id", { count: "exact", head: true }).eq("record_date", new Date().toISOString().split("T")[0]),
         ]);
 
         setStats({
           totalChildren: childrenRes.count || 0,
           totalTeachers: teachersRes.count || 0,
-          pendingApprovals: pendingRes.count || 0,
+          pendingApprovals: (pendingProfilesRes.count || 0) + (pendingRegsRes.count || 0),
           todayRecords: recordsRes.count || 0,
         });
       } catch (error) {
