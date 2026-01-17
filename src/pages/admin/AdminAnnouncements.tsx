@@ -51,6 +51,13 @@ interface Announcement {
   starts_at: string | null;
   expires_at: string | null;
   created_at: string;
+  child_id: string | null;
+}
+
+interface Child {
+  id: string;
+  full_name: string;
+  class_type: string;
 }
 
 const priorityConfig = {
@@ -69,6 +76,7 @@ const classLabels: Record<string, string> = {
 export default function AdminAnnouncements() {
   const { user } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -80,6 +88,8 @@ export default function AdminAnnouncements() {
     allClasses: true,
     classType: "",
     expiresAt: "",
+    targetType: "general" as "general" | "class" | "child",
+    childId: "",
   });
 
   const fetchAnnouncements = async () => {
@@ -94,8 +104,20 @@ export default function AdminAnnouncements() {
     setLoading(false);
   };
 
+  const fetchChildren = async () => {
+    const { data, error } = await supabase
+      .from("children")
+      .select("id, full_name, class_type")
+      .order("full_name");
+
+    if (!error && data) {
+      setChildren(data as Child[]);
+    }
+  };
+
   useEffect(() => {
     fetchAnnouncements();
+    fetchChildren();
   }, []);
 
   const resetForm = () => {
@@ -106,11 +128,20 @@ export default function AdminAnnouncements() {
       allClasses: true,
       classType: "",
       expiresAt: "",
+      targetType: "general",
+      childId: "",
     });
     setEditingId(null);
   };
 
   const openEditDialog = (announcement: Announcement) => {
+    let targetType: "general" | "class" | "child" = "general";
+    if (announcement.child_id) {
+      targetType = "child";
+    } else if (!announcement.all_classes && announcement.class_type) {
+      targetType = "class";
+    }
+
     setFormData({
       title: announcement.title,
       content: announcement.content,
@@ -120,6 +151,8 @@ export default function AdminAnnouncements() {
       expiresAt: announcement.expires_at
         ? format(new Date(announcement.expires_at), "yyyy-MM-dd'T'HH:mm")
         : "",
+      targetType,
+      childId: announcement.child_id || "",
     });
     setEditingId(announcement.id);
     setDialogOpen(true);
@@ -133,16 +166,26 @@ export default function AdminAnnouncements() {
 
     setSaving(true);
 
-    const classType = formData.allClasses 
-      ? null 
-      : (formData.classType as "bercario" | "maternal" | "jardim" | null) || null;
+    // Determine target type
+    let allClasses = true;
+    let classType: "bercario" | "maternal" | "jardim" | null = null;
+    let childId: string | null = null;
+
+    if (formData.targetType === "class") {
+      allClasses = false;
+      classType = formData.classType as "bercario" | "maternal" | "jardim" || null;
+    } else if (formData.targetType === "child") {
+      allClasses = false;
+      childId = formData.childId || null;
+    }
 
     const announcementData = {
       title: formData.title.trim(),
       content: formData.content.trim(),
       priority: formData.priority,
-      all_classes: formData.allClasses,
+      all_classes: allClasses,
       class_type: classType,
+      child_id: childId,
       expires_at: formData.expiresAt ? new Date(formData.expiresAt).toISOString() : null,
       created_by: user.id,
     };
@@ -289,19 +332,32 @@ export default function AdminAnnouncements() {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Todas as turmas</Label>
-                  <Switch
-                    checked={formData.allClasses}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, allClasses: checked, classType: "" })
-                    }
-                  />
+                <div>
+                  <Label>Destinatário</Label>
+                  <Select
+                    value={formData.targetType}
+                    onValueChange={(v) => setFormData({ 
+                      ...formData, 
+                      targetType: v as "general" | "class" | "child",
+                      classType: "",
+                      childId: "",
+                      allClasses: v === "general"
+                    })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">🌐 Todas as turmas</SelectItem>
+                      <SelectItem value="class">🏫 Turma específica</SelectItem>
+                      <SelectItem value="child">👶 Criança individual</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {!formData.allClasses && (
+                {formData.targetType === "class" && (
                   <div>
-                    <Label>Turma específica</Label>
+                    <Label>Turma</Label>
                     <Select
                       value={formData.classType}
                       onValueChange={(v) => setFormData({ ...formData, classType: v })}
@@ -313,6 +369,27 @@ export default function AdminAnnouncements() {
                         <SelectItem value="bercario">Berçário</SelectItem>
                         <SelectItem value="maternal">Maternal</SelectItem>
                         <SelectItem value="jardim">Jardim</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formData.targetType === "child" && (
+                  <div>
+                    <Label>Criança</Label>
+                    <Select
+                      value={formData.childId}
+                      onValueChange={(v) => setFormData({ ...formData, childId: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a criança" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {children.map((child) => (
+                          <SelectItem key={child.id} value={child.id}>
+                            {child.full_name} ({classLabels[child.class_type]})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -391,7 +468,11 @@ export default function AdminAnnouncements() {
                             <PriorityIcon className="w-3 h-3 mr-1" />
                             {config.label}
                           </Badge>
-                          {announcement.all_classes ? (
+                          {announcement.child_id ? (
+                            <Badge variant="secondary" className="bg-pimpo-blue/20 text-pimpo-blue border-pimpo-blue/30">
+                              👶 {children.find(c => c.id === announcement.child_id)?.full_name || "Criança"}
+                            </Badge>
+                          ) : announcement.all_classes ? (
                             <Badge variant="outline">Todas as turmas</Badge>
                           ) : announcement.class_type ? (
                             <Badge variant="secondary">

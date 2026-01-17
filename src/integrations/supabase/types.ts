@@ -14,9 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           all_classes: boolean | null
+          child_id: string | null
           class_type: Database["public"]["Enums"]["class_type"] | null
           content: string
           created_at: string | null
@@ -31,6 +61,7 @@ export type Database = {
         }
         Insert: {
           all_classes?: boolean | null
+          child_id?: string | null
           class_type?: Database["public"]["Enums"]["class_type"] | null
           content: string
           created_at?: string | null
@@ -45,6 +76,7 @@ export type Database = {
         }
         Update: {
           all_classes?: boolean | null
+          child_id?: string | null
           class_type?: Database["public"]["Enums"]["class_type"] | null
           content?: string
           created_at?: string | null
@@ -57,7 +89,15 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "announcements_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance: {
         Row: {
