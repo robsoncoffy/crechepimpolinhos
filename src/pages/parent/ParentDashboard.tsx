@@ -12,6 +12,7 @@ import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
 import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
 import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
 import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -276,6 +277,7 @@ export default function ParentDashboard() {
               </Avatar>
               <span>{profile?.full_name}</span>
             </div>
+            <NotificationBell />
             <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
               <Link to="/">
                 <Home className="w-4 h-4 mr-2" />

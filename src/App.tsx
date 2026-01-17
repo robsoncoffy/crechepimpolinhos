@@ -15,7 +15,8 @@ import NotFound from "./pages/NotFound";
 import PreEnrollment from "./pages/PreEnrollment";
 import ChildRegistration from "./pages/ChildRegistration";
 import AcceptInvite from "./pages/AcceptInvite";
-import AdminAgenda from "./pages/admin/AdminAgenda";
+import EmployeeRegistration from "./pages/EmployeeRegistration";
+import Install from "./pages/Install";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,8 @@ const App = () => (
           <Route path="/pre-matricula" element={<PreEnrollment />} />
           <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
           <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
+          <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
+          <Route path="/instalar" element={<Install />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

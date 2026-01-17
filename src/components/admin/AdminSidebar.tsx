@@ -14,6 +14,7 @@ import {
   UtensilsCrossed,
   Camera,
   CalendarDays,
+  Ticket,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -47,6 +48,7 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites" },
   { icon: Settings, label: "Configurações", href: "/painel/config" },
 ];
 
