@@ -2,3 +2,15 @@ project_id = "ksguxhmqctmepbddbhdz"
 
 [functions.send-guardian-invite]
 verify_jwt = false
+
+[functions.send-parent-invite-email]
+verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.asaas-payments]
+verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
