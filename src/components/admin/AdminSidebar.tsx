@@ -50,6 +50,7 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais" },
   { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites" },
   { icon: Settings, label: "Configurações", href: "/painel/config" },
 ];
