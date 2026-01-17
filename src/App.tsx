@@ -12,6 +12,7 @@ import Structure from "./pages/Structure";
 import Contact from "./pages/Contact";
 import Pricing from "./pages/Pricing";
 import Dashboard from "./pages/Dashboard";
+import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 import PreEnrollment from "./pages/PreEnrollment";
 import ChildRegistration from "./pages/ChildRegistration";
@@ -53,6 +54,7 @@ const App = () => (
           <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
           <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
           <Route path="/instalar" element={<Install />} />
+          <Route path="/demo" element={<Demo />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
