@@ -44,9 +44,11 @@ import {
   XCircle,
   FileText,
   Repeat,
+  BarChart3,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 
 interface Child {
   id: string;
@@ -419,6 +421,10 @@ export default function AdminPayments() {
             <Repeat className="w-4 h-4" />
             Assinaturas
           </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Relatórios
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="mt-4">
@@ -534,6 +540,10 @@ export default function AdminPayments() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="reports" className="mt-4">
+          <FinancialReportsTab invoices={invoices} />
         </TabsContent>
       </Tabs>
 
