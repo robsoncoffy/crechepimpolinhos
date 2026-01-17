@@ -6,6 +6,10 @@ import { ChatWindow } from "@/components/chat/ChatWindow";
 import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
 import { GrowthChart } from "@/components/parent/GrowthChart";
 import { PickupNotification } from "@/components/parent/PickupNotification";
+import { QuickSummaryCards } from "@/components/parent/QuickSummaryCards";
+import { TodayAtSchoolWidget } from "@/components/parent/TodayAtSchoolWidget";
+import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
+import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +26,8 @@ import {
   Home,
   ChevronRight,
   UserPlus,
+  User,
+  UtensilsCrossed,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -31,6 +37,8 @@ interface Child {
   class_type: string;
   photo_url: string | null;
   birth_date: string;
+  shift_type?: string | null;
+  allergies?: string | null;
 }
 
 interface MonthlyTracking {
@@ -71,7 +79,7 @@ export default function ParentDashboard() {
       const childIds = parentChildren.map((pc) => pc.child_id);
 
       const [childrenRes, growthRes] = await Promise.all([
-        supabase.from("children").select("*").in("id", childIds),
+        supabase.from("children").select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies").in("id", childIds),
         supabase.from("monthly_tracking").select("*").in("child_id", childIds),
       ]);
 
@@ -285,7 +293,7 @@ export default function ParentDashboard() {
       </header>
 
       {/* Content */}
-      <main className="container py-6 max-w-4xl">
+      <main className="container py-6 max-w-5xl">
         <div className="mb-6">
           <h1 className="font-fredoka text-2xl sm:text-3xl font-bold">
             Olá, {profile?.full_name?.split(" ")[0]}! 👋
@@ -357,95 +365,129 @@ export default function ParentDashboard() {
               </div>
             )}
 
-            {/* Main Content */}
+            {/* Quick Summary Cards */}
             {selectedChild && (
-              <Card className="shadow-lg overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b pb-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-14 w-14 ring-2 ring-primary/20">
-                      <AvatarImage src={selectedChild.photo_url || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-fredoka text-xl">
-                        {selectedChild.full_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-xl">{selectedChild.full_name}</CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {classTypeLabels[selectedChild.class_type]}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="ml-auto">
-                      <PickupNotification 
-                        childId={selectedChild.id} 
-                        childName={selectedChild.full_name} 
-                      />
-                    </div>
+              <QuickSummaryCards
+                child={{
+                  id: selectedChild.id,
+                  name: selectedChild.full_name,
+                  class_type: selectedChild.class_type,
+                  photo_url: selectedChild.photo_url,
+                  birth_date: selectedChild.birth_date,
+                  shift: selectedChild.shift_type,
+                }}
+                unreadCount={unreadCounts[selectedChild.id] || 0}
+                onChatClick={() => setActiveTab("chat")}
+              />
+            )}
+
+            {/* Main Content Grid */}
+            {selectedChild && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Today Widget - Left Column */}
+                <div className="lg:col-span-1">
+                  <TodayAtSchoolWidget childId={selectedChild.id} />
+                  <div className="mt-4">
+                    <PickupNotification 
+                      childId={selectedChild.id} 
+                      childName={selectedChild.full_name} 
+                    />
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <div className="border-b bg-muted/30">
-                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-3">
-                        <TabsTrigger
-                          value="agenda"
-                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3"
-                        >
-                          <Calendar className="w-4 h-4 mr-2" />
-                          Agenda
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="crescimento"
-                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3"
-                        >
-                          <TrendingUp className="w-4 h-4 mr-2" />
-                          Crescimento
-                        </TabsTrigger>
-                        <TabsTrigger
-                          value="chat"
-                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative"
-                        >
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Mensagens
-                          {unreadCounts[selectedChild.id] > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                </div>
+
+                {/* Tabs - Right Column */}
+                <div className="lg:col-span-2">
+                  <Card className="shadow-lg overflow-hidden">
+                    <CardContent className="p-0">
+                      <Tabs value={activeTab} onValueChange={setActiveTab}>
+                        <div className="border-b bg-muted/30">
+                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+                            <TabsTrigger
+                              value="agenda"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
                             >
-                              {unreadCounts[selectedChild.id]}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                      </TabsList>
-                    </div>
+                              <Calendar className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Agenda</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="crescimento"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
+                            >
+                              <TrendingUp className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Crescimento</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="perfil"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
+                            >
+                              <User className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Perfil</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="cardapio"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs sm:text-sm"
+                            >
+                              <UtensilsCrossed className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Cardápio</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="chat"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative text-xs sm:text-sm"
+                            >
+                              <MessageSquare className="w-4 h-4 sm:mr-2" />
+                              <span className="hidden sm:inline">Chat</span>
+                              {unreadCounts[selectedChild.id] > 0 && (
+                                <Badge
+                                  variant="destructive"
+                                  className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                                >
+                                  {unreadCounts[selectedChild.id]}
+                                </Badge>
+                              )}
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
 
-                    <TabsContent value="agenda" className="m-0 p-4 sm:p-6">
-                      <ParentAgendaView
-                        childId={selectedChild.id}
-                        childName={selectedChild.full_name}
-                      />
-                    </TabsContent>
+                        <TabsContent value="agenda" className="m-0 p-4 sm:p-6">
+                          <ParentAgendaView
+                            childId={selectedChild.id}
+                            childName={selectedChild.full_name}
+                          />
+                        </TabsContent>
 
-                    <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
-                      <GrowthChart
-                        data={growthData[selectedChild.id] || []}
-                        childName={selectedChild.full_name}
-                      />
-                    </TabsContent>
+                        <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
+                          <GrowthChart
+                            data={growthData[selectedChild.id] || []}
+                            childName={selectedChild.full_name}
+                          />
+                        </TabsContent>
 
-                    <TabsContent value="chat" className="m-0">
-                      <div className="h-[500px]">
-                        <ChatWindow
-                          key={selectedChild.id}
-                          childId={selectedChild.id}
-                          childName={selectedChild.full_name}
-                        />
-                      </div>
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
+                        <TabsContent value="perfil" className="m-0 p-4 sm:p-6">
+                          <ChildProfileTab
+                            childId={selectedChild.id}
+                            childName={selectedChild.full_name}
+                            inviterName={profile?.full_name || "Responsável"}
+                          />
+                        </TabsContent>
+
+                        <TabsContent value="cardapio" className="m-0 p-4 sm:p-6">
+                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
+                        </TabsContent>
+
+                        <TabsContent value="chat" className="m-0">
+                          <div className="h-[500px]">
+                            <ChatWindow
+                              key={selectedChild.id}
+                              childId={selectedChild.id}
+                              childName={selectedChild.full_name}
+                            />
+                          </div>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             )}
           </div>
         )}
