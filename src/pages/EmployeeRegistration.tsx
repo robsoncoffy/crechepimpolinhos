@@ -239,10 +239,10 @@ export default function EmployeeRegistration() {
 
       if (profileError) throw profileError;
 
-      // 3. Assign role
+      // 3. Assign role - use the exact role from the invite
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: authData.user.id,
-        role: inviteRole as "admin" | "teacher" | "parent",
+        role: inviteRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       });
 
       if (roleError) throw roleError;
