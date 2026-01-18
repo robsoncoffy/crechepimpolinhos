@@ -13,15 +13,19 @@ interface ContractRequest {
   childId: string;
   registrationId: string;
   parentId: string;
-  parentEmail?: string; // Optional - will be fetched if not provided
-  parentName: string;
-  parentCpf?: string;
   childName: string;
   birthDate: string;
   classType: string;
   shiftType: string;
   planType?: string;
 }
+
+// Dados fixos da empresa
+const COMPANY_DATA = {
+  name: "ESCOLA DE ENSINO INFANTIL PIMPOLINHOS LTDA",
+  cnpj: "60.141.634/0001-96",
+  address: "Rua Coronel Camisao, nº 495, Bairro Harmonia, Canoas/RS, CEP 92310-410",
+};
 
 const classTypeLabels: Record<string, string> = {
   bercario: "Berçário",
@@ -61,13 +65,10 @@ serve(async (req) => {
     const body: ContractRequest = await req.json();
     console.log("Received contract request:", JSON.stringify(body, null, 2));
 
-    let {
+    const {
       childId,
       registrationId,
       parentId,
-      parentEmail,
-      parentName,
-      parentCpf,
       childName,
       birthDate,
       classType,
@@ -76,23 +77,40 @@ serve(async (req) => {
     } = body;
 
     // Validate required fields
-    if (!childId || !parentId || !parentName || !childName) {
-      throw new Error("Missing required fields: childId, parentId, parentName, childName");
+    if (!childId || !parentId || !childName) {
+      throw new Error("Missing required fields: childId, parentId, childName");
     }
 
-    // Fetch parent email if not provided
-    if (!parentEmail) {
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(parentId);
-      if (userError) {
-        console.error("Error fetching user:", userError);
-        throw new Error("Failed to fetch parent email");
-      }
-      parentEmail = userData?.user?.email;
-      if (!parentEmail) {
-        throw new Error("Parent email not found");
-      }
-      console.log("Fetched parent email:", parentEmail);
+    // Fetch parent email from auth
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(parentId);
+    if (userError) {
+      console.error("Error fetching user:", userError);
+      throw new Error("Failed to fetch parent data");
     }
+    const parentEmail = userData?.user?.email;
+    if (!parentEmail) {
+      throw new Error("Parent email not found");
+    }
+    console.log("Fetched parent email:", parentEmail);
+
+    // Fetch parent profile data (name, CPF, RG, phone)
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, cpf, rg, phone')
+      .eq('user_id', parentId)
+      .single();
+
+    if (profileError) {
+      console.error("Error fetching profile:", profileError);
+      throw new Error("Failed to fetch parent profile");
+    }
+
+    const parentName = profileData?.full_name || 'Responsável';
+    const parentCpf = profileData?.cpf || '';
+    const parentRg = profileData?.rg || '';
+    const parentPhone = profileData?.phone || '';
+
+    console.log("Fetched parent profile:", { parentName, parentCpf: parentCpf ? 'exists' : 'missing', parentRg: parentRg ? 'exists' : 'missing' });
 
     // Format date
     const formattedBirthDate = new Date(birthDate).toLocaleDateString('pt-BR');
@@ -139,15 +157,15 @@ serve(async (req) => {
     const contractContent = `
 CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS E CUIDADOS INFANTIS
 
-CRECHE ESCOLA PIMPOLINHOS
+ESCOLA DE ENSINO INFANTIL PIMPOLINHOS
 
 Pelo presente instrumento particular de Contrato de Prestação de Serviços Educacionais e Cuidados Infantis, de um lado:
 
 CLÁUSULA 1 – DAS PARTES CONTRATANTES
 
-CONTRATADA: CRECHE ESCOLA PIMPOLINHOS, pessoa jurídica de direito privado, inscrita no CNPJ sob nº XX.XXX.XXX/XXXX-XX, com sede na Rua XXXXX, nº XXX, Bairro XXXXX, Canoas/RS, CEP XXXXX-XXX, neste ato representada por sua proprietária/diretora, doravante denominada simplesmente CONTRATADA.
+CONTRATADA: ${COMPANY_DATA.name}, pessoa jurídica de direito privado, inscrita no CNPJ sob nº ${COMPANY_DATA.cnpj}, com sede na ${COMPANY_DATA.address}, neste ato representada por sua proprietária/diretora, doravante denominada simplesmente CONTRATADA.
 
-CONTRATANTE: ${parentName}${parentCpf ? `, inscrito(a) no CPF sob nº ${parentCpf}` : ''}, residente e domiciliado(a) em ${address || 'Canoas/RS'}, e-mail: ${parentEmail}, doravante denominado(a) simplesmente CONTRATANTE (responsável legal pelo aluno).
+CONTRATANTE: ${parentName}, inscrito(a) no CPF sob nº ${parentCpf || 'não informado'}${parentRg ? `, RG nº ${parentRg}` : ''}, residente e domiciliado(a) em ${address || 'Canoas/RS'}, telefone: ${parentPhone || 'não informado'}, e-mail: ${parentEmail}, doravante denominado(a) simplesmente CONTRATANTE (responsável legal pelo aluno).
 
 ALUNO(A): ${childName}, nascido(a) em ${formattedBirthDate}.
 
@@ -283,11 +301,13 @@ Canoas/RS, ${currentDate}.
 _____________________________________________
 CONTRATANTE (Responsável Legal)
 ${parentName}
+CPF: ${parentCpf || 'não informado'}
 
 
 _____________________________________________
 CONTRATADA
-CRECHE ESCOLA PIMPOLINHOS
+${COMPANY_DATA.name}
+CNPJ: ${COMPANY_DATA.cnpj}
     `.trim();
 
     // Step 1: Create document in ZapSign

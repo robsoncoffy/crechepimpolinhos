@@ -1303,30 +1303,36 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cpf: string | null
           created_at: string
           full_name: string
           id: string
           phone: string | null
+          rg: string | null
           status: Database["public"]["Enums"]["approval_status"]
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name: string
           id?: string
           phone?: string | null
+          rg?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          cpf?: string | null
           created_at?: string
           full_name?: string
           id?: string
           phone?: string | null
+          rg?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           updated_at?: string
           user_id?: string

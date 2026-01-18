@@ -165,7 +165,6 @@ export default function AdminContracts() {
           childId: contract.child_id,
           registrationId: contract.registration_id,
           parentId: contract.parent_id,
-          parentName: contract.parent_name || "Responsável",
           childName: contract.child_name,
           birthDate: new Date().toISOString(), // Will be fetched from child record
           classType: contract.class_type || "bercario",
