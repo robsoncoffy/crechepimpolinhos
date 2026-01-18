@@ -21,6 +21,7 @@ import {
   Check
 } from "lucide-react";
 import { toast } from "sonner";
+import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
 
 interface MenuItem {
   id?: string;
@@ -165,33 +166,44 @@ export default function AdminMenu() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <UtensilsCrossed className="w-7 h-7 text-pimpo-yellow" />
-            Cardápio Semanal
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gerencie o cardápio que será exibido para os pais
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <UtensilsCrossed className="w-7 h-7 text-pimpo-yellow" />
+              Cardápio Semanal
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Gerencie o cardápio que será exibido para os pais
+            </p>
+          </div>
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || loading}
+            className="bg-pimpo-green hover:bg-pimpo-green/90"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Salvar Cardápio
+              </>
+            )}
+          </Button>
         </div>
-        <Button 
-          onClick={handleSave} 
-          disabled={saving || loading}
-          className="bg-pimpo-green hover:bg-pimpo-green/90"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              Salvar Cardápio
-            </>
-          )}
-        </Button>
+        
+        {/* PDF Export Buttons */}
+        <div className="flex justify-end">
+          <MenuPdfExport 
+            menuItems={menuItems} 
+            weekStart={weekStart} 
+            disabled={loading || menuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
+          />
+        </div>
       </div>
 
       {/* Week Navigation */}
