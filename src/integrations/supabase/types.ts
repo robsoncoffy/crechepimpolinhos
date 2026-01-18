@@ -349,6 +349,7 @@ export type Database = {
           id: string
           lunch: Database["public"]["Enums"]["meal_status"] | null
           medicine_notes: string | null
+          mood: Database["public"]["Enums"]["mood_status"] | null
           parent_notes: string | null
           record_date: string
           school_notes: string | null
@@ -373,6 +374,7 @@ export type Database = {
           id?: string
           lunch?: Database["public"]["Enums"]["meal_status"] | null
           medicine_notes?: string | null
+          mood?: Database["public"]["Enums"]["mood_status"] | null
           parent_notes?: string | null
           record_date?: string
           school_notes?: string | null
@@ -397,6 +399,7 @@ export type Database = {
           id?: string
           lunch?: Database["public"]["Enums"]["meal_status"] | null
           medicine_notes?: string | null
+          mood?: Database["public"]["Enums"]["mood_status"] | null
           parent_notes?: string | null
           record_date?: string
           school_notes?: string | null
@@ -1310,6 +1313,7 @@ export type Database = {
       class_type: "bercario" | "maternal" | "jardim"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
       meal_status: "tudo" | "quase_tudo" | "metade" | "pouco" | "nao_aceitou"
+      mood_status: "feliz" | "calmo" | "agitado" | "choroso" | "sonolento"
       plan_type: "basico" | "intermediario" | "plus"
       shift_type: "manha" | "tarde" | "integral"
     }
@@ -1444,6 +1448,7 @@ export const Constants = {
       class_type: ["bercario", "maternal", "jardim"],
       evacuation_status: ["normal", "pastosa", "liquida", "nao"],
       meal_status: ["tudo", "quase_tudo", "metade", "pouco", "nao_aceitou"],
+      mood_status: ["feliz", "calmo", "agitado", "choroso", "sonolento"],
       plan_type: ["basico", "intermediario", "plus"],
       shift_type: ["manha", "tarde", "integral"],
     },

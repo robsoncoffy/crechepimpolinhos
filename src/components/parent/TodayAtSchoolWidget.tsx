@@ -13,7 +13,9 @@ import {
   AlertTriangle,
   Loader2,
   Sun,
-  Droplets
+  Droplets,
+  Smile,
+  MessageSquare
 } from "lucide-react";
 
 interface TodayAtSchoolWidgetProps {
@@ -31,6 +33,7 @@ interface DailyRecord {
   slept_afternoon: boolean | null;
   urinated: boolean | null;
   evacuated: string | null;
+  mood: string | null;
   had_fever: boolean | null;
   temperature: number | null;
   took_medicine: boolean | null;
@@ -38,6 +41,21 @@ interface DailyRecord {
   school_notes: string | null;
   activities: string | null;
 }
+
+const moodLabels: Record<string, { label: string; emoji: string }> = {
+  feliz: { label: "Feliz", emoji: "😄" },
+  calmo: { label: "Calmo", emoji: "😊" },
+  agitado: { label: "Agitado", emoji: "🤪" },
+  choroso: { label: "Choroso", emoji: "😢" },
+  sonolento: { label: "Sonolento", emoji: "😴" },
+};
+
+const evacuationLabels: Record<string, string> = {
+  nao: "Não evacuou",
+  normal: "Normal",
+  pastosa: "Pastosa",
+  liquida: "Líquida",
+};
 
 export function TodayAtSchoolWidget({ childId }: TodayAtSchoolWidgetProps) {
   const [record, setRecord] = useState<DailyRecord | null>(null);
@@ -49,7 +67,7 @@ export function TodayAtSchoolWidget({ childId }: TodayAtSchoolWidgetProps) {
       
       const { data, error } = await supabase
         .from('daily_records')
-        .select('id, record_date, breakfast, lunch, snack, dinner, slept_morning, slept_afternoon, urinated, evacuated, had_fever, temperature, took_medicine, medicine_notes, school_notes, activities')
+        .select('id, record_date, breakfast, lunch, snack, dinner, slept_morning, slept_afternoon, urinated, evacuated, mood, had_fever, temperature, took_medicine, medicine_notes, school_notes, activities')
         .eq('child_id', childId)
         .eq('record_date', today)
         .maybeSingle();
@@ -251,14 +269,28 @@ export function TodayAtSchoolWidget({ childId }: TodayAtSchoolWidgetProps) {
                 <span className="text-xs">Xixi: {record.urinated ? 'Sim' : 'Não'}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <span className={record.evacuated ? 'text-pimpo-green' : 'text-muted-foreground'}>
+                <span className={record.evacuated && record.evacuated !== 'nao' ? 'text-pimpo-green' : 'text-muted-foreground'}>
                   💩
                 </span>
-                <span className="text-xs">Cocô: {record.evacuated || 'Não'}</span>
+                <span className="text-xs">Cocô: {record.evacuated ? evacuationLabels[record.evacuated] || record.evacuated : 'Não registrado'}</span>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Humor do Dia */}
+        {record.mood && moodLabels[record.mood] && (
+          <div className="bg-background/60 rounded-lg p-3">
+            <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1">
+              <Smile className="w-3.5 h-3.5" />
+              HUMOR DO DIA
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{moodLabels[record.mood].emoji}</span>
+              <span className="text-sm font-medium">{moodLabels[record.mood].label}</span>
+            </div>
+          </div>
+        )}
 
         {/* Atividades */}
         {record.activities && (
@@ -268,11 +300,14 @@ export function TodayAtSchoolWidget({ childId }: TodayAtSchoolWidgetProps) {
           </div>
         )}
 
-        {/* Observações */}
+        {/* Bilhetinho da Escola */}
         {record.school_notes && (
-          <div className="bg-background/60 rounded-lg p-3">
-            <p className="text-xs font-semibold text-muted-foreground mb-1">📝 Observações</p>
-            <p className="text-sm text-foreground">{record.school_notes}</p>
+          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+            <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1">
+              <MessageSquare className="w-3.5 h-3.5" />
+              Bilhetinho da Escola
+            </p>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{record.school_notes}</p>
           </div>
         )}
       </CardContent>

@@ -41,6 +41,8 @@ import {
   FileText,
   Save,
   Users,
+  Smile,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -68,6 +70,16 @@ const evacuationOptions: { value: EvacuationStatus; label: string; color: string
   { value: "normal", label: "Normal", color: "bg-pimpo-green" },
   { value: "pastosa", label: "Pastosa", color: "bg-pimpo-yellow" },
   { value: "liquida", label: "Líquida", color: "bg-destructive" },
+];
+
+type MoodStatus = "feliz" | "calmo" | "agitado" | "choroso" | "sonolento";
+
+const moodOptions: { value: MoodStatus; label: string; emoji: string; color: string }[] = [
+  { value: "feliz", label: "Feliz", emoji: "😄", color: "bg-pimpo-green" },
+  { value: "calmo", label: "Calmo", emoji: "😊", color: "bg-pimpo-blue" },
+  { value: "agitado", label: "Agitado", emoji: "🤪", color: "bg-pimpo-yellow" },
+  { value: "choroso", label: "Choroso", emoji: "😢", color: "bg-pimpo-red/70" },
+  { value: "sonolento", label: "Sonolento", emoji: "😴", color: "bg-muted" },
 ];
 
 const classLabels: Record<ClassType, string> = {
@@ -156,6 +168,7 @@ interface AgendaFormData {
   sleep_notes: string;
   urinated: boolean;
   evacuated: EvacuationStatus | null;
+  mood: MoodStatus | null;
   had_fever: boolean;
   temperature: string;
   took_medicine: boolean;
@@ -174,6 +187,7 @@ const defaultFormData: AgendaFormData = {
   sleep_notes: "",
   urinated: false,
   evacuated: null,
+  mood: null,
   had_fever: false,
   temperature: "",
   took_medicine: false,
@@ -213,6 +227,7 @@ function AgendaDialog({
         sleep_notes: record.sleep_notes || "",
         urinated: record.urinated || false,
         evacuated: record.evacuated,
+        mood: (record as any).mood || null,
         had_fever: record.had_fever || false,
         temperature: record.temperature?.toString() || "",
         took_medicine: record.took_medicine || false,
@@ -241,6 +256,7 @@ function AgendaDialog({
         sleep_notes: formData.sleep_notes || null,
         urinated: formData.urinated,
         evacuated: formData.evacuated,
+        mood: formData.mood,
         had_fever: formData.had_fever,
         temperature: formData.temperature ? parseFloat(formData.temperature) : null,
         took_medicine: formData.took_medicine,
@@ -484,43 +500,79 @@ function AgendaDialog({
               </CardContent>
             </Card>
 
-            {/* Atividades e Observações */}
+            {/* Humor do Dia */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Smile className="w-4 h-4 text-pimpo-yellow" />
+                  Humor do Dia
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex gap-2 flex-wrap">
+                  {moodOptions.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      size="sm"
+                      variant={formData.mood === opt.value ? "default" : "outline"}
+                      className={cn(
+                        "text-xs h-8 px-3 gap-1",
+                        formData.mood === opt.value && opt.color,
+                        formData.mood === opt.value && "text-white border-0"
+                      )}
+                      onClick={() => setFormData((p) => ({ ...p, mood: opt.value }))}
+                    >
+                      <span>{opt.emoji}</span>
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Atividades */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <FileText className="w-4 h-4 text-muted-foreground" />
-                  Atividades e Observações
+                  Atividades do Dia
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Atividades realizadas
-                  </Label>
-                  <Textarea
-                    placeholder="Ex: Pintura com guache, brincadeiras no parque..."
-                    value={formData.activities}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, activities: e.target.value }))
-                    }
-                    className="mt-1 resize-none"
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Observações gerais
-                  </Label>
-                  <Textarea
-                    placeholder="Outras informações importantes para os pais..."
-                    value={formData.school_notes}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, school_notes: e.target.value }))
-                    }
-                    className="mt-1 resize-none"
-                    rows={2}
-                  />
-                </div>
+              <CardContent>
+                <Textarea
+                  placeholder="Ex: Pintura com guache, brincadeiras no parque, contação de histórias..."
+                  value={formData.activities}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, activities: e.target.value }))
+                  }
+                  className="resize-none"
+                  rows={3}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Bilhetinho da Escola */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-primary">
+                  <MessageSquare className="w-4 h-4" />
+                  Bilhetinho da Escola
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Escreva uma mensagem personalizada sobre como foi o dia desta criança.
+                </p>
+                <Textarea
+                  placeholder="Ex: Hoje a Maria estava muito animada! Participou de todas as atividades e brincou bastante com os coleguinhas. Comeu bem no almoço e dormiu tranquila à tarde. Um dia muito especial! 💕"
+                  value={formData.school_notes}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, school_notes: e.target.value }))
+                  }
+                  className="resize-none border-primary/30"
+                  rows={4}
+                />
               </CardContent>
             </Card>
           </div>
