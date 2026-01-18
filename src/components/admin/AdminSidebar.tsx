@@ -155,10 +155,12 @@ export function AdminSidebar() {
           </div>
         </SidebarGroup>
 
-        {/* Role View Switcher */}
-        <SidebarGroup className="border-b border-sidebar-border pb-4">
-          <RoleViewSwitcher isCollapsed={isCollapsed} />
-        </SidebarGroup>
+        {/* Role View Switcher - Only for admins */}
+        {isAdmin && (
+          <SidebarGroup className="border-b border-sidebar-border pb-4">
+            <RoleViewSwitcher isCollapsed={isCollapsed} />
+          </SidebarGroup>
+        )}
 
         {/* Main Navigation */}
         <SidebarGroup>
