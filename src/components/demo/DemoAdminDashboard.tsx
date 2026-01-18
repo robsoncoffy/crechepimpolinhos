@@ -153,7 +153,7 @@ export function DemoAdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex relative">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block w-64 bg-card">
         <Sidebar />
