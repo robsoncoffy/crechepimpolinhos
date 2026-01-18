@@ -17,7 +17,6 @@ import {
   CalendarDays,
   Ticket,
   ClipboardCheck,
-  CreditCard,
   FileSignature,
   Megaphone,
   MessagesSquare,
@@ -39,11 +38,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { RoleViewSwitcher } from "./RoleViewSwitcher";
+
 
 // Menu items with role restrictions
 // roles: which roles can see this item (empty = all staff)
-import { Clock } from "lucide-react";
 
 import { GraduationCap } from "lucide-react";
 
@@ -53,14 +51,12 @@ const menuItems = [
   { icon: Users, label: "Professores", href: "/painel/professores", roles: ["admin"] },
   { icon: Baby, label: "Crianças", href: "/painel/criancas", roles: ["admin", "teacher", "pedagogue", "auxiliar"] },
   { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada", roles: ["admin", "teacher", "auxiliar"] },
-  { icon: Clock, label: "Ponto Eletrônico", href: "/painel/ponto", roles: ["admin"] },
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento", roles: ["admin", "teacher", "pedagogue"] },
   { icon: GraduationCap, label: "Avaliações Plus+", href: "/painel/avaliacoes", roles: ["admin", "pedagogue"] },
   { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "nutritionist"] },
   { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe", roles: [] },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos", roles: ["admin", "teacher"] },
-  { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
   { icon: FileSignature, label: "Contratos", href: "/painel/contratos", roles: ["admin"] },
   { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio", roles: ["admin", "nutritionist", "cook"] },
   { icon: Camera, label: "Galeria", href: "/painel/galeria", roles: ["admin", "teacher"] },
@@ -163,12 +159,6 @@ export function AdminSidebar() {
           </div>
         </SidebarGroup>
 
-        {/* Role View Switcher - Only for admins */}
-        {isAdmin && (
-          <SidebarGroup className="border-b border-sidebar-border pb-4">
-            <RoleViewSwitcher isCollapsed={isCollapsed} />
-          </SidebarGroup>
-        )}
 
         {/* Main Navigation */}
         <SidebarGroup>
