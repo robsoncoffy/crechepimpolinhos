@@ -22,8 +22,13 @@ import {
   Utensils,
   Baby,
   Sparkles,
+  Smile,
+  FileText,
+  Droplets,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoWeatherWidget } from "./DemoWeatherWidget";
+import { DemoPickupNotification } from "./DemoPickupNotification";
 
 // Mock data for demo
 const mockChild = {
@@ -150,10 +155,16 @@ export function DemoParentDashboard() {
             </Card>
           </div>
 
+          {/* Pickup Button - Prominent */}
+          <DemoPickupNotification childName={mockChild.full_name} />
+
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-1 space-y-4">
+              {/* Weather Widget */}
+              <DemoWeatherWidget pickupTime="17:00" />
+
               {/* Announcements */}
               <Card className="border-l-4 border-l-pimpo-yellow">
                 <CardHeader className="pb-2">
@@ -207,6 +218,30 @@ export function DemoParentDashboard() {
                       </span>
                       <Badge variant="secondary">1h30</Badge>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm flex items-center gap-2">
+                        <Droplets className="w-4 h-4 text-pimpo-blue" />
+                        Higiene
+                      </span>
+                      <Badge variant="secondary">Normal</Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm flex items-center gap-2">
+                        <Smile className="w-4 h-4 text-pimpo-yellow" />
+                        Humor
+                      </span>
+                      <Badge variant="secondary">😊 Feliz</Badge>
+                    </div>
+                  </div>
+                  {/* School Note */}
+                  <div className="mt-4 pt-3 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-pimpo-green" />
+                      <span className="text-sm font-medium">Bilhetinho da Escola</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground bg-pimpo-green/5 p-3 rounded-lg border border-pimpo-green/20">
+                      "Hoje a Maria participou das atividades de pintura com muita animação! Brincou bastante no parquinho. 🎨"
+                    </p>
                   </div>
                 </CardContent>
               </Card>
