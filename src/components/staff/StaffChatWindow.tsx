@@ -6,10 +6,14 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Users, MessageCircle, Hash } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Send, Users, MessageCircle, Hash, Plus, Trash2, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
+import { toast } from "sonner";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -30,6 +34,9 @@ interface StaffChatRoom {
   name: string;
   description: string | null;
   is_general: boolean;
+  is_private: boolean;
+  participant_1: string | null;
+  participant_2: string | null;
 }
 
 interface StaffMember {
@@ -60,29 +67,40 @@ const roleColors: Record<AppRole, string> = {
 };
 
 export function StaffChatWindow() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const [rooms, setRooms] = useState<StaffChatRoom[]>([]);
+  const [privateRooms, setPrivateRooms] = useState<StaffChatRoom[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<StaffChatRoom | null>(null);
   const [messages, setMessages] = useState<StaffMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<"groups" | "contacts">("groups");
+  const [activeTab, setActiveTab] = useState<"groups" | "private" | "contacts">("groups");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch chat rooms and staff members
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch rooms
+      // Fetch all rooms
       const { data: roomsData } = await supabase
         .from("staff_chat_rooms")
         .select("*")
-        .order("is_general", { ascending: false });
+        .order("is_general", { ascending: false })
+        .order("created_at", { ascending: true });
 
-      if (roomsData && roomsData.length > 0) {
-        setRooms(roomsData);
-        setSelectedRoom(roomsData[0]);
+      if (roomsData) {
+        const groupRooms = roomsData.filter(r => !r.is_private);
+        const privateChats = roomsData.filter(r => r.is_private);
+        setRooms(groupRooms);
+        setPrivateRooms(privateChats);
+        if (groupRooms.length > 0) {
+          setSelectedRoom(groupRooms[0]);
+        }
       }
 
       // Fetch staff members (non-parent roles)
@@ -106,7 +124,7 @@ export function StaffChatWindow() {
               ...p,
               role: userRole?.role || "teacher"
             };
-          }).filter(s => s.user_id !== user?.id); // Exclude current user
+          });
 
           setStaffMembers(staffWithRoles);
         }
@@ -130,7 +148,6 @@ export function StaffChatWindow() {
         .order("created_at", { ascending: true });
 
       if (messagesData) {
-        // Fetch sender profiles separately
         const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
         const { data: profiles } = await supabase
           .from("profiles")
@@ -150,7 +167,6 @@ export function StaffChatWindow() {
 
     fetchMessages();
 
-    // Subscribe to realtime updates
     const channel = supabase
       .channel(`staff-chat-${selectedRoom.id}`)
       .on(
@@ -164,7 +180,6 @@ export function StaffChatWindow() {
         async (payload) => {
           const newMsg = payload.new as StaffMessage;
           
-          // Fetch sender profile
           const { data: senderProfile } = await supabase
             .from("profiles")
             .select("user_id, full_name, avatar_url")
@@ -184,7 +199,6 @@ export function StaffChatWindow() {
     };
   }, [selectedRoom]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -226,6 +240,99 @@ export function StaffChatWindow() {
       .slice(0, 2);
   };
 
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return;
+
+    setCreatingGroup(true);
+    try {
+      const { data, error } = await supabase.from("staff_chat_rooms").insert({
+        name: newGroupName.trim(),
+        description: newGroupDescription.trim() || null,
+        is_general: false,
+        is_private: false,
+        created_by: user?.id
+      }).select().single();
+
+      if (error) throw error;
+
+      setRooms(prev => [...prev, data]);
+      setNewGroupName("");
+      setNewGroupDescription("");
+      setShowCreateDialog(false);
+      toast.success("Grupo criado com sucesso!");
+    } catch (error) {
+      console.error("Error creating group:", error);
+      toast.error("Erro ao criar grupo");
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const deleteGroup = async (roomId: string) => {
+    try {
+      const { error } = await supabase.from("staff_chat_rooms").delete().eq("id", roomId);
+      if (error) throw error;
+
+      setRooms(prev => prev.filter(r => r.id !== roomId));
+      if (selectedRoom?.id === roomId) {
+        setSelectedRoom(rooms.find(r => r.is_general) || null);
+      }
+      toast.success("Grupo excluído");
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      toast.error("Erro ao excluir grupo");
+    }
+  };
+
+  const startPrivateChat = async (member: StaffMember) => {
+    // Check if private chat already exists
+    const existingChat = privateRooms.find(r => 
+      (r.participant_1 === user?.id && r.participant_2 === member.user_id) ||
+      (r.participant_1 === member.user_id && r.participant_2 === user?.id)
+    );
+
+    if (existingChat) {
+      setSelectedRoom(existingChat);
+      setActiveTab("private");
+      return;
+    }
+
+    // Create new private chat
+    try {
+      const { data, error } = await supabase.from("staff_chat_rooms").insert({
+        name: member.full_name,
+        description: null,
+        is_general: false,
+        is_private: true,
+        participant_1: user?.id,
+        participant_2: member.user_id,
+        created_by: user?.id
+      }).select().single();
+
+      if (error) throw error;
+
+      setPrivateRooms(prev => [...prev, data]);
+      setSelectedRoom(data);
+      setActiveTab("private");
+      toast.success(`Chat com ${member.full_name.split(" ")[0]} iniciado`);
+    } catch (error) {
+      console.error("Error creating private chat:", error);
+      toast.error("Erro ao iniciar conversa");
+    }
+  };
+
+  const getPrivateChatName = (room: StaffChatRoom) => {
+    const otherUserId = room.participant_1 === user?.id ? room.participant_2 : room.participant_1;
+    const otherUser = staffMembers.find(m => m.user_id === otherUserId);
+    return otherUser?.full_name || room.name;
+  };
+
+  const getPrivateChatAvatar = (room: StaffChatRoom) => {
+    const otherUserId = room.participant_1 === user?.id ? room.participant_2 : room.participant_1;
+    const otherUser = staffMembers.find(m => m.user_id === otherUserId);
+    return otherUser?.avatar_url || null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -242,24 +349,40 @@ export function StaffChatWindow() {
         <div className="flex border-b">
           <button
             onClick={() => setActiveTab("groups")}
-            className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 px-3 py-3 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
               activeTab === "groups"
                 ? "bg-background border-b-2 border-primary text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Hash className="h-4 w-4" />
+            <Hash className="h-3.5 w-3.5" />
             Grupos
           </button>
           <button
+            onClick={() => setActiveTab("private")}
+            className={`flex-1 px-3 py-3 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+              activeTab === "private"
+                ? "bg-background border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            Privado
+            {privateRooms.length > 0 && (
+              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                {privateRooms.length}
+              </Badge>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab("contacts")}
-            className={`flex-1 px-4 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            className={`flex-1 px-3 py-3 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
               activeTab === "contacts"
                 ? "bg-background border-b-2 border-primary text-primary"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-3.5 w-3.5" />
             Contatos
           </button>
         </div>
@@ -267,15 +390,59 @@ export function StaffChatWindow() {
         <ScrollArea className="flex-1">
           {activeTab === "groups" ? (
             <div className="p-2 space-y-1">
+              {isAdmin && (
+                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                  <DialogTrigger asChild>
+                    <button className="w-full text-left px-3 py-2 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50 transition-colors flex items-center gap-2 text-muted-foreground hover:text-foreground">
+                      <Plus className="h-4 w-4" />
+                      <span className="text-sm">Novo Grupo</span>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Novo Grupo</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="group-name">Nome do Grupo</Label>
+                        <Input
+                          id="group-name"
+                          placeholder="Ex: Cozinha, Professoras..."
+                          value={newGroupName}
+                          onChange={(e) => setNewGroupName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="group-desc">Descrição (opcional)</Label>
+                        <Textarea
+                          id="group-desc"
+                          placeholder="Descreva o propósito do grupo..."
+                          value={newGroupDescription}
+                          onChange={(e) => setNewGroupDescription(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                      <Button 
+                        onClick={createGroup} 
+                        disabled={!newGroupName.trim() || creatingGroup}
+                        className="w-full"
+                      >
+                        {creatingGroup ? "Criando..." : "Criar Grupo"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+              
               {rooms.map((room) => (
-                <button
+                <div
                   key={room.id}
-                  onClick={() => setSelectedRoom(room)}
-                  className={`w-full text-left px-3 py-3 rounded-lg transition-colors flex items-center gap-3 ${
+                  className={`group w-full text-left px-3 py-3 rounded-lg transition-colors flex items-center gap-3 cursor-pointer ${
                     selectedRoom?.id === room.id
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted"
                   }`}
+                  onClick={() => setSelectedRoom(room)}
                 >
                   <div className={`p-2 rounded-full ${
                     selectedRoom?.id === room.id ? "bg-primary-foreground/20" : "bg-muted"
@@ -299,36 +466,88 @@ export function StaffChatWindow() {
                       Geral
                     </Badge>
                   )}
-                </button>
+                  {isAdmin && !room.is_general && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteGroup(room.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded transition-opacity"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </button>
+                  )}
+                </div>
               ))}
+            </div>
+          ) : activeTab === "private" ? (
+            <div className="p-2 space-y-1">
+              {privateRooms.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma conversa privada</p>
+                  <p className="text-xs mt-1">Clique em um contato para iniciar</p>
+                </div>
+              ) : (
+                privateRooms.map((room) => (
+                  <button
+                    key={room.id}
+                    onClick={() => setSelectedRoom(room)}
+                    className={`w-full text-left px-3 py-3 rounded-lg transition-colors flex items-center gap-3 ${
+                      selectedRoom?.id === room.id
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={getPrivateChatAvatar(room) || undefined} />
+                      <AvatarFallback className={`text-sm ${
+                        selectedRoom?.id === room.id 
+                          ? "bg-primary-foreground/20 text-primary-foreground" 
+                          : "bg-primary/10 text-primary"
+                      }`}>
+                        {getInitials(getPrivateChatName(room))}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{getPrivateChatName(room)}</p>
+                      <p className="text-xs opacity-70">Conversa privada</p>
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           ) : (
             <div className="p-2 space-y-1">
-              {staffMembers.length === 0 ? (
+              {staffMembers.filter(m => m.user_id !== user?.id).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground text-sm">
                   <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>Nenhum contato encontrado</p>
                 </div>
               ) : (
-                staffMembers.map((member) => (
-                  <div
-                    key={member.user_id}
-                    className="w-full text-left px-3 py-3 rounded-lg hover:bg-muted transition-colors flex items-center gap-3"
-                  >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={member.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {getInitials(member.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{member.full_name}</p>
-                      <Badge className={`text-[10px] ${roleColors[member.role]}`}>
-                        {roleLabels[member.role]}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
+                staffMembers
+                  .filter(m => m.user_id !== user?.id)
+                  .map((member) => (
+                    <button
+                      key={member.user_id}
+                      onClick={() => startPrivateChat(member)}
+                      className="w-full text-left px-3 py-3 rounded-lg hover:bg-muted transition-colors flex items-center gap-3"
+                    >
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={member.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                          {getInitials(member.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{member.full_name}</p>
+                        <Badge className={`text-[10px] ${roleColors[member.role]}`}>
+                          {roleLabels[member.role]}
+                        </Badge>
+                      </div>
+                      <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))
               )}
             </div>
           )}
@@ -358,17 +577,31 @@ export function StaffChatWindow() {
           <>
             {/* Room header */}
             <div className="p-4 border-b bg-muted/20 flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                {selectedRoom.is_general ? (
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                ) : (
-                  <Hash className="h-5 w-5 text-primary" />
-                )}
-              </div>
+              {selectedRoom.is_private ? (
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={getPrivateChatAvatar(selectedRoom) || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {getInitials(getPrivateChatName(selectedRoom))}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="p-2 rounded-full bg-primary/10">
+                  {selectedRoom.is_general ? (
+                    <MessageCircle className="h-5 w-5 text-primary" />
+                  ) : (
+                    <Hash className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+              )}
               <div>
-                <h3 className="font-semibold">{selectedRoom.name}</h3>
+                <h3 className="font-semibold">
+                  {selectedRoom.is_private ? getPrivateChatName(selectedRoom) : selectedRoom.name}
+                </h3>
                 {selectedRoom.description && (
                   <p className="text-sm text-muted-foreground">{selectedRoom.description}</p>
+                )}
+                {selectedRoom.is_private && (
+                  <p className="text-xs text-muted-foreground">Conversa privada</p>
                 )}
               </div>
             </div>
@@ -443,7 +676,7 @@ export function StaffChatWindow() {
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>Selecione um grupo para começar</p>
+              <p>Selecione uma conversa para começar</p>
             </div>
           </div>
         )}
