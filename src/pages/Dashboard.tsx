@@ -19,11 +19,30 @@ import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminContracts from "@/pages/admin/AdminContracts";
 import AdminStaffChat from "@/pages/admin/AdminStaffChat";
+import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
+import CookDashboard from "@/pages/admin/CookDashboard";
+import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
+import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
+// Component to select the right dashboard based on role
+function RoleBasedDashboard() {
+  const { isAdmin, isTeacher, isNutritionist, isCook, isPedagogue, isAuxiliar } = useAuth();
+
+  // Priority order: Admin > Teacher > Nutritionist > Cook > Pedagogue > Auxiliar
+  if (isAdmin) return <AdminDashboard />;
+  if (isTeacher) return <AdminDashboard />;
+  if (isNutritionist) return <NutritionistDashboard />;
+  if (isCook) return <CookDashboard />;
+  if (isPedagogue) return <PedagogueDashboard />;
+  if (isAuxiliar) return <AuxiliarDashboard />;
+  
+  return <AdminDashboard />;
+}
+
 function DashboardContent() {
-  const { user, loading, isAdmin, isTeacher, isParent, isStaff } = useAuth();
+  const { user, loading, isParent, isStaff } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,7 +71,7 @@ function DashboardContent() {
     return (
       <AdminLayout>
         <Routes>
-          <Route path="/" element={<AdminDashboard />} />
+          <Route path="/" element={<RoleBasedDashboard />} />
           <Route path="/aprovacoes" element={<AdminApprovals />} />
           <Route path="/professores" element={<AdminTeachers />} />
           <Route path="/criancas" element={<AdminChildren />} />
