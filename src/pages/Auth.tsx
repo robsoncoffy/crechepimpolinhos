@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, CheckCircle, XCircle } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { formatCPF, formatPhone, validateCPF, unformatCPF } from "@/lib/formatters";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -17,9 +18,9 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-  cpf: z.string().min(11, "CPF inválido").max(14, "CPF inválido"),
+  cpf: z.string().refine((val) => validateCPF(val), { message: "CPF inválido" }),
   rg: z.string().optional(),
-  phone: z.string().min(10, "Telefone é obrigatório"),
+  phone: z.string().min(14, "Telefone inválido"),
   confirmPassword: z.string(),
   inviteCode: z.string().min(1, "Código de convite é obrigatório"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -133,7 +134,16 @@ export default function Auth() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    
+    // Apply formatting masks
+    let formattedValue = value;
+    if (name === "cpf") {
+      formattedValue = formatCPF(value);
+    } else if (name === "phone") {
+      formattedValue = formatPhone(value);
+    }
+    
+    setFormData({ ...formData, [name]: formattedValue });
     setErrors({ ...errors, [name]: "" });
 
     if (name === "inviteCode") {
@@ -175,7 +185,7 @@ export default function Auth() {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: formData.fullName,
-              cpf: formData.cpf.replace(/\D/g, ''),
+              cpf: unformatCPF(formData.cpf),
               rg: formData.rg || null,
               phone: formData.phone,
             },

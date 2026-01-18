@@ -28,8 +28,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { ContractPreviewDialog } from "@/components/admin/ContractPreviewDialog";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -57,6 +58,12 @@ export default function AdminApprovals() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedClassType, setSelectedClassType] = useState<"bercario" | "maternal" | "jardim">("bercario");
   const [selectedShiftType, setSelectedShiftType] = useState<"manha" | "tarde" | "integral">("integral");
+  const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
+  const [contractData, setContractData] = useState<any>(null);
+  const [pendingApprovalData, setPendingApprovalData] = useState<{
+    registration: PendingChildRegistration;
+    newChild: Child;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -264,41 +271,93 @@ export default function AdminApprovals() {
         console.error("Error sending welcome email:", emailError);
       }
 
-      // Send enrollment contract via ZapSign
-      try {
-        const contractResponse = await supabase.functions.invoke("zapsign-send-contract", {
-          body: {
-            childId: newChild.id,
-            registrationId: selectedRegistration.id,
-            parentId: selectedRegistration.parent_id,
-            childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
-            birthDate: selectedRegistration.birth_date,
-            classType: selectedClassType,
-            shiftType: selectedShiftType,
-            planType: selectedRegistration.plan_type,
-          },
-        });
+      // Fetch parent profile for contract preview
+      const { data: parentProfile } = await supabase
+        .from("profiles")
+        .select("full_name, cpf, rg, phone")
+        .eq("user_id", selectedRegistration.parent_id)
+        .single();
 
-        if (contractResponse.error) {
-          console.error("Error sending contract:", contractResponse.error);
-          toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato. Verifique a configuração do ZapSign.");
-        } else {
-          toast.success(`Cadastro de ${selectedRegistration.first_name} aprovado! E-mail de boas-vindas e contrato enviados.`);
-        }
-      } catch (contractError) {
-        console.error("Error sending contract:", contractError);
-        toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato.");
+      // Fetch parent email
+      const { data: userData } = await supabase.auth.admin.getUserById(selectedRegistration.parent_id);
+      const parentEmail = userData?.user?.email || '';
+
+      // Fetch emergency contact
+      let emergencyContact = '';
+      const { data: pickupData } = await supabase
+        .from("authorized_pickups")
+        .select("full_name, relationship")
+        .eq("registration_id", selectedRegistration.id)
+        .limit(1)
+        .maybeSingle();
+      
+      if (pickupData) {
+        emergencyContact = `${pickupData.full_name} (${pickupData.relationship})`;
       }
 
+      // Prepare contract data for preview
+      const contractPreviewData = {
+        parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
+        parentCpf: parentProfile?.cpf || '',
+        parentRg: parentProfile?.rg || '',
+        parentPhone: parentProfile?.phone || '',
+        parentEmail: parentEmail,
+        address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
+        childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+        birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
+        classType: selectedClassType,
+        shiftType: selectedShiftType,
+        planType: selectedRegistration.plan_type || undefined,
+        emergencyContact: emergencyContact,
+      };
+
+      // Store pending data and show contract preview
+      setPendingApprovalData({ registration: selectedRegistration, newChild });
+      setContractData(contractPreviewData);
       setRegistrationDialogOpen(false);
-      setSelectedRegistration(null);
-      fetchData();
+      setContractPreviewOpen(true);
+      
     } catch (error) {
       console.error("Error approving registration:", error);
       toast.error("Erro ao aprovar cadastro da criança");
     } finally {
       setActionLoading(false);
     }
+  }
+
+  async function sendContractAfterPreview() {
+    if (!pendingApprovalData) return;
+
+    const { registration, newChild } = pendingApprovalData;
+
+    try {
+      const contractResponse = await supabase.functions.invoke("zapsign-send-contract", {
+        body: {
+          childId: newChild.id,
+          registrationId: registration.id,
+          parentId: registration.parent_id,
+          childName: `${registration.first_name} ${registration.last_name}`,
+          birthDate: registration.birth_date,
+          classType: selectedClassType,
+          shiftType: selectedShiftType,
+          planType: registration.plan_type,
+        },
+      });
+
+      if (contractResponse.error) {
+        console.error("Error sending contract:", contractResponse.error);
+        toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato. Verifique a configuração do ZapSign.");
+      } else {
+        toast.success(`Cadastro de ${registration.first_name} aprovado! E-mail de boas-vindas e contrato enviados.`);
+      }
+    } catch (contractError) {
+      console.error("Error sending contract:", contractError);
+      toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato.");
+    }
+
+    setPendingApprovalData(null);
+    setSelectedRegistration(null);
+    fetchData();
   }
 
   async function handleRejectRegistration(registration: PendingChildRegistration) {
@@ -737,11 +796,22 @@ export default function AdminApprovals() {
             </Button>
             <Button onClick={handleApproveRegistration} disabled={actionLoading}>
               {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Aprovar Cadastro
+              <FileText className="w-4 h-4 mr-2" />
+              Aprovar e Visualizar Contrato
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Contract Preview Dialog */}
+      {contractData && (
+        <ContractPreviewDialog
+          open={contractPreviewOpen}
+          onOpenChange={setContractPreviewOpen}
+          contractData={contractData}
+          onConfirmSend={sendContractAfterPreview}
+        />
+      )}
     </div>
   );
 }
