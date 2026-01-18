@@ -1,0 +1,199 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface ZapSignWebhookPayload {
+  event_type: string;
+  doc_token: string;
+  signer_token?: string;
+  signed_at?: string;
+  refused_at?: string;
+  signer?: {
+    name: string;
+    email: string;
+    status: string;
+  };
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const payload: ZapSignWebhookPayload = await req.json();
+    console.log("Received ZapSign webhook:", JSON.stringify(payload, null, 2));
+
+    const { event_type, doc_token, signer_token, signed_at, refused_at } = payload;
+
+    if (!doc_token) {
+      console.error("Missing doc_token in webhook payload");
+      return new Response(
+        JSON.stringify({ error: 'Missing doc_token' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Find the contract by doc_token
+    const { data: contract, error: findError } = await supabase
+      .from('enrollment_contracts')
+      .select('*')
+      .eq('zapsign_doc_token', doc_token)
+      .single();
+
+    if (findError || !contract) {
+      console.error("Contract not found for doc_token:", doc_token, findError);
+      return new Response(
+        JSON.stringify({ error: 'Contract not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log("Found contract:", contract.id);
+
+    let newStatus: string;
+    let updateData: Record<string, unknown> = {};
+    let notificationTitle: string;
+    let notificationMessage: string;
+    let notificationType: string;
+
+    // Process different event types
+    switch (event_type) {
+      case 'doc_signed':
+      case 'signer_signed':
+        newStatus = 'signed';
+        updateData = {
+          status: 'signed',
+          signed_at: signed_at || new Date().toISOString(),
+        };
+        notificationTitle = '✅ Contrato Assinado!';
+        notificationMessage = `O contrato de matrícula de ${contract.child_name} foi assinado com sucesso.`;
+        notificationType = 'contract_signed';
+        break;
+
+      case 'doc_refused':
+      case 'signer_refused':
+        newStatus = 'refused';
+        updateData = {
+          status: 'refused',
+        };
+        notificationTitle = '❌ Contrato Recusado';
+        notificationMessage = `O contrato de matrícula de ${contract.child_name} foi recusado.`;
+        notificationType = 'contract_refused';
+        break;
+
+      case 'doc_expired':
+        newStatus = 'expired';
+        updateData = {
+          status: 'expired',
+        };
+        notificationTitle = '⏰ Contrato Expirado';
+        notificationMessage = `O contrato de matrícula de ${contract.child_name} expirou sem assinatura.`;
+        notificationType = 'contract_expired';
+        break;
+
+      default:
+        console.log("Unhandled event type:", event_type);
+        return new Response(
+          JSON.stringify({ message: 'Event type not handled', event_type }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+    }
+
+    // Update contract status
+    const { error: updateError } = await supabase
+      .from('enrollment_contracts')
+      .update(updateData)
+      .eq('id', contract.id);
+
+    if (updateError) {
+      console.error("Failed to update contract:", updateError);
+      throw new Error(`Failed to update contract: ${updateError.message}`);
+    }
+
+    console.log(`Contract ${contract.id} updated to status: ${newStatus}`);
+
+    // Notify parent
+    const { error: parentNotifError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: contract.parent_id,
+        title: notificationTitle,
+        message: notificationMessage,
+        type: notificationType,
+      });
+
+    if (parentNotifError) {
+      console.warn("Failed to notify parent:", parentNotifError);
+    }
+
+    // Notify all admins
+    const { data: admins } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'admin');
+
+    if (admins && admins.length > 0) {
+      const adminNotifications = admins.map(admin => ({
+        user_id: admin.user_id,
+        title: notificationTitle,
+        message: notificationMessage,
+        type: notificationType,
+        link: '/admin/contratos',
+      }));
+
+      const { error: adminNotifError } = await supabase
+        .from('notifications')
+        .insert(adminNotifications);
+
+      if (adminNotifError) {
+        console.warn("Failed to notify admins:", adminNotifError);
+      }
+    }
+
+    console.log("Webhook processed successfully");
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Contract status updated to ${newStatus}`,
+        contractId: contract.id,
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+
+  } catch (error: unknown) {
+    console.error("Error processing webhook:", error);
+    const errorMessage = error instanceof Error ? error.message : "Internal server error";
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: errorMessage,
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+});

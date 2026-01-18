@@ -624,6 +624,78 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollment_contracts: {
+        Row: {
+          child_id: string | null
+          child_name: string
+          class_type: string | null
+          created_at: string | null
+          id: string
+          parent_id: string
+          plan_type: string | null
+          registration_id: string | null
+          sent_at: string | null
+          shift_type: string | null
+          signed_at: string | null
+          status: string | null
+          updated_at: string | null
+          zapsign_doc_token: string | null
+          zapsign_doc_url: string | null
+          zapsign_signer_token: string | null
+        }
+        Insert: {
+          child_id?: string | null
+          child_name: string
+          class_type?: string | null
+          created_at?: string | null
+          id?: string
+          parent_id: string
+          plan_type?: string | null
+          registration_id?: string | null
+          sent_at?: string | null
+          shift_type?: string | null
+          signed_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          zapsign_doc_token?: string | null
+          zapsign_doc_url?: string | null
+          zapsign_signer_token?: string | null
+        }
+        Update: {
+          child_id?: string | null
+          child_name?: string
+          class_type?: string | null
+          created_at?: string | null
+          id?: string
+          parent_id?: string
+          plan_type?: string | null
+          registration_id?: string | null
+          sent_at?: string | null
+          shift_type?: string | null
+          signed_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          zapsign_doc_token?: string | null
+          zapsign_doc_url?: string | null
+          zapsign_signer_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_contracts_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_contracts_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "child_registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery_photos: {
         Row: {
           child_id: string | null

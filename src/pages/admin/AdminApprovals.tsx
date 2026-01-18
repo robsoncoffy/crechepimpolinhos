@@ -216,6 +216,7 @@ export default function AdminApprovals() {
           photo_url: selectedRegistration.photo_url,
           allergies: selectedRegistration.allergies,
           medical_info: selectedRegistration.medications,
+          plan_type: selectedRegistration.plan_type,
         })
         .select()
         .single();
@@ -257,14 +258,37 @@ export default function AdminApprovals() {
           
           if (response.error) {
             console.error("Error sending welcome email:", response.error);
-            toast.warning("Cadastro aprovado, mas houve erro ao enviar e-mail de boas-vindas");
-          } else {
-            toast.success(`Cadastro de ${selectedRegistration.first_name} aprovado e e-mail de boas-vindas enviado!`);
           }
         }
       } catch (emailError) {
         console.error("Error sending welcome email:", emailError);
-        toast.warning("Cadastro aprovado, mas houve erro ao enviar e-mail de boas-vindas");
+      }
+
+      // Send enrollment contract via ZapSign
+      try {
+        const contractResponse = await supabase.functions.invoke("zapsign-send-contract", {
+          body: {
+            childId: newChild.id,
+            registrationId: selectedRegistration.id,
+            parentId: selectedRegistration.parent_id,
+            parentName: selectedRegistration.parent_name || "Responsável",
+            childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+            birthDate: selectedRegistration.birth_date,
+            classType: selectedClassType,
+            shiftType: selectedShiftType,
+            planType: selectedRegistration.plan_type,
+          },
+        });
+
+        if (contractResponse.error) {
+          console.error("Error sending contract:", contractResponse.error);
+          toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato. Verifique a configuração do ZapSign.");
+        } else {
+          toast.success(`Cadastro de ${selectedRegistration.first_name} aprovado! E-mail de boas-vindas e contrato enviados.`);
+        }
+      } catch (contractError) {
+        console.error("Error sending contract:", contractError);
+        toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato.");
       }
 
       setRegistrationDialogOpen(false);
