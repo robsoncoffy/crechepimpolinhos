@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DemoModeToggle, DemoRole } from "@/components/demo/DemoModeToggle";
 import { DemoParentDashboard } from "@/components/demo/DemoParentDashboard";
 import { DemoTeacherDashboard } from "@/components/demo/DemoTeacherDashboard";
@@ -8,7 +9,24 @@ import { DemoNutritionistDashboard } from "@/components/demo/DemoNutritionistDas
 import { DemoPedagogueDashboard } from "@/components/demo/DemoPedagogueDashboard";
 
 export default function Demo() {
-  const [currentRole, setCurrentRole] = useState<DemoRole>("parent");
+  const [searchParams] = useSearchParams();
+  const roleFromUrl = searchParams.get("role") as DemoRole | null;
+  
+  // Initialize with URL param or default to "parent"
+  const [currentRole, setCurrentRole] = useState<DemoRole>(
+    roleFromUrl && ["admin", "teacher", "parent", "cook", "nutritionist", "pedagogue"].includes(roleFromUrl)
+      ? roleFromUrl
+      : "admin"
+  );
+
+  // Sync state when URL changes
+  useEffect(() => {
+    if (roleFromUrl && ["admin", "teacher", "parent", "cook", "nutritionist", "pedagogue"].includes(roleFromUrl)) {
+      setCurrentRole(roleFromUrl);
+    } else if (!roleFromUrl) {
+      setCurrentRole("admin");
+    }
+  }, [roleFromUrl]);
 
   return (
     <>
