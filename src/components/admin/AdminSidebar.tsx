@@ -17,6 +17,7 @@ import {
   Ticket,
   ClipboardCheck,
   CreditCard,
+  FileSignature,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -49,6 +50,7 @@ const menuItems = [
   { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos" },
   { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro" },
+  { icon: FileSignature, label: "Contratos", href: "/painel/contratos" },
   { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio" },
   { icon: Camera, label: "Galeria", href: "/painel/galeria" },
   { icon: CalendarDays, label: "Eventos", href: "/painel/eventos" },

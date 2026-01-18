@@ -17,6 +17,7 @@ import AdminAttendance from "@/pages/admin/AdminAttendance";
 import AdminParentInvites from "@/pages/admin/AdminParentInvites";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminPayments from "@/pages/admin/AdminPayments";
+import AdminContracts from "@/pages/admin/AdminContracts";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -64,6 +65,7 @@ function DashboardContent() {
           <Route path="/convites-pais" element={<AdminParentInvites />} />
           <Route path="/avisos" element={<AdminAnnouncements />} />
           <Route path="/financeiro" element={<AdminPayments />} />
+          <Route path="/contratos" element={<AdminContracts />} />
           <Route path="/chamada" element={<AdminAttendance />} />
           <Route path="/config" element={<AdminConfigPlaceholder />} />
         </Routes>
