@@ -79,32 +79,52 @@ export default function Auth() {
 
     setInviteStatus("checking");
 
-    const { data, error } = await supabase
+    // First check parent_invites
+    const { data: parentData, error: parentError } = await supabase
       .from("parent_invites")
       .select("id, child_name, expires_at, used_by")
       .eq("invite_code", code.toUpperCase())
       .maybeSingle();
 
-    if (error || !data) {
-      setInviteStatus("invalid");
-      setInviteData(null);
+    if (!parentError && parentData) {
+      if (parentData.used_by) {
+        setInviteStatus("invalid");
+        setInviteData(null);
+        return;
+      }
+
+      if (parentData.expires_at && new Date(parentData.expires_at) < new Date()) {
+        setInviteStatus("invalid");
+        setInviteData(null);
+        return;
+      }
+
+      setInviteStatus("valid");
+      setInviteData({ child_name: parentData.child_name || undefined });
       return;
     }
 
-    if (data.used_by) {
-      setInviteStatus("invalid");
-      setInviteData(null);
-      return;
+    // Check if it's an employee invite - redirect them to the correct page
+    const { data: employeeData } = await supabase
+      .from("employee_invites")
+      .select("id, role, expires_at, is_used")
+      .eq("invite_code", code.toUpperCase())
+      .maybeSingle();
+
+    if (employeeData) {
+      if (!employeeData.is_used && new Date(employeeData.expires_at) > new Date()) {
+        // Valid employee invite - redirect to employee registration
+        toast({
+          title: "Convite de Funcionário Detectado",
+          description: "Você será redirecionado para a página de cadastro de funcionários.",
+        });
+        navigate(`/cadastro-funcionario?code=${code.toUpperCase()}`);
+        return;
+      }
     }
 
-    if (data.expires_at && new Date(data.expires_at) < new Date()) {
-      setInviteStatus("invalid");
-      setInviteData(null);
-      return;
-    }
-
-    setInviteStatus("valid");
-    setInviteData({ child_name: data.child_name || undefined });
+    setInviteStatus("invalid");
+    setInviteData(null);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
