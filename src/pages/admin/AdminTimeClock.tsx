@@ -50,8 +50,11 @@ import {
   Copy,
   ExternalLink,
   AlertCircle,
+  Download,
+  Printer,
+  FileText,
 } from "lucide-react";
-import { format, startOfDay, endOfDay, parseISO, differenceInMinutes } from "date-fns";
+import { format, startOfDay, endOfDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface TimeClockRecord {
@@ -110,6 +113,10 @@ export default function AdminTimeClock() {
   const [setupTasks, setSetupTasks] = useState<SetupTask[]>([]);
   const [config, setConfig] = useState<TimeClockConfig | null>(null);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
+  const [reportData, setReportData] = useState<TimeClockRecord[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualFormLoading, setManualFormLoading] = useState(false);
   const [employees, setEmployees] = useState<{ id: string; user_id: string; full_name: string; job_title: string | null }[]>([]);
@@ -271,6 +278,252 @@ export default function AdminTimeClock() {
       setEmployees((data as { id: string; user_id: string; full_name: string; job_title: string | null }[]) || []);
     } catch (error) {
       console.error("Error fetching employees:", error);
+    }
+  }
+
+  async function fetchReportData() {
+    setReportLoading(true);
+    try {
+      const monthDate = parseISO(selectedMonth + "-01");
+      const start = startOfMonth(monthDate);
+      const end = endOfMonth(monthDate);
+
+      let query = supabase
+        .from("employee_time_clock")
+        .select(`
+          *,
+          employee_profiles (
+            full_name,
+            job_title
+          )
+        `)
+        .gte("timestamp", start.toISOString())
+        .lte("timestamp", end.toISOString())
+        .order("timestamp", { ascending: true });
+
+      if (selectedEmployee !== "all") {
+        query = query.eq("employee_id", selectedEmployee);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setReportData((data as TimeClockRecord[]) || []);
+    } catch (error) {
+      console.error("Error fetching report data:", error);
+      toast.error("Erro ao carregar relatório");
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  interface DailyRecord {
+    date: Date;
+    entry: string | null;
+    breakStart: string | null;
+    breakEnd: string | null;
+    exit: string | null;
+    totalMinutes: number;
+    overtime: number;
+  }
+
+  function calculateEmployeeMonthlyData(employeeId: string): DailyRecord[] {
+    const monthDate = parseISO(selectedMonth + "-01");
+    const days = eachDayOfInterval({
+      start: startOfMonth(monthDate),
+      end: endOfMonth(monthDate),
+    });
+
+    const employeeRecords = reportData.filter((r) => r.employee_id === employeeId);
+    const workMinutesPerDay = config
+      ? differenceInMinutes(
+          parseISO(`2000-01-01T${config.work_end_time}`),
+          parseISO(`2000-01-01T${config.work_start_time}`)
+        ) - (config.break_duration_minutes || 60)
+      : 8 * 60 - 60; // Default 8h - 1h break
+
+    return days.map((day) => {
+      const dayRecords = employeeRecords.filter((r) =>
+        isSameDay(parseISO(r.timestamp), day)
+      );
+
+      const entry = dayRecords.find((r) => r.clock_type === "entry");
+      const breakStart = dayRecords.find((r) => r.clock_type === "break_start");
+      const breakEnd = dayRecords.find((r) => r.clock_type === "break_end");
+      const exit = dayRecords.find((r) => r.clock_type === "exit");
+
+      let totalMinutes = 0;
+      if (entry && exit) {
+        totalMinutes = differenceInMinutes(parseISO(exit.timestamp), parseISO(entry.timestamp));
+        // Subtract break time if recorded
+        if (breakStart && breakEnd) {
+          totalMinutes -= differenceInMinutes(parseISO(breakEnd.timestamp), parseISO(breakStart.timestamp));
+        } else if (config) {
+          totalMinutes -= config.break_duration_minutes || 60;
+        }
+      }
+
+      const overtime = Math.max(0, totalMinutes - workMinutesPerDay);
+
+      return {
+        date: day,
+        entry: entry ? format(parseISO(entry.timestamp), "HH:mm") : null,
+        breakStart: breakStart ? format(parseISO(breakStart.timestamp), "HH:mm") : null,
+        breakEnd: breakEnd ? format(parseISO(breakEnd.timestamp), "HH:mm") : null,
+        exit: exit ? format(parseISO(exit.timestamp), "HH:mm") : null,
+        totalMinutes,
+        overtime,
+      };
+    });
+  }
+
+  function formatMinutesToHours(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h${mins.toString().padStart(2, "0")}min`;
+  }
+
+  function exportToCSV() {
+    if (employees.length === 0) {
+      toast.error("Nenhum funcionário para exportar");
+      return;
+    }
+
+    const targetEmployees = selectedEmployee === "all" 
+      ? employees 
+      : employees.filter((e) => e.id === selectedEmployee);
+
+    let csv = "FOLHA DE PONTO - CRECHE PIMPOLINHOS\n";
+    csv += `Período: ${format(parseISO(selectedMonth + "-01"), "MMMM 'de' yyyy", { locale: ptBR })}\n\n`;
+
+    targetEmployees.forEach((emp) => {
+      const monthlyData = calculateEmployeeMonthlyData(emp.id);
+      const totalWorked = monthlyData.reduce((acc, d) => acc + d.totalMinutes, 0);
+      const totalOvertime = monthlyData.reduce((acc, d) => acc + d.overtime, 0);
+
+      csv += `Funcionário: ${emp.full_name}\n`;
+      csv += `Função: ${emp.job_title || "Não informado"}\n\n`;
+      csv += "Data;Dia;Entrada;Início Intervalo;Fim Intervalo;Saída;Horas Trabalhadas;Hora Extra\n";
+
+      monthlyData.forEach((day) => {
+        const dayName = format(day.date, "EEE", { locale: ptBR });
+        csv += `${format(day.date, "dd/MM/yyyy")};`;
+        csv += `${dayName};`;
+        csv += `${day.entry || "-"};`;
+        csv += `${day.breakStart || "-"};`;
+        csv += `${day.breakEnd || "-"};`;
+        csv += `${day.exit || "-"};`;
+        csv += `${day.totalMinutes > 0 ? formatMinutesToHours(day.totalMinutes) : "-"};`;
+        csv += `${day.overtime > 0 ? formatMinutesToHours(day.overtime) : "-"}\n`;
+      });
+
+      csv += `\nTotal de Horas Trabalhadas: ${formatMinutesToHours(totalWorked)}\n`;
+      csv += `Total de Horas Extras: ${formatMinutesToHours(totalOvertime)}\n`;
+      csv += "\n---\n\n";
+    });
+
+    csv += `\nRelatório gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}\n`;
+
+    // Download
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `folha-ponto-${selectedMonth}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    toast.success("Relatório exportado com sucesso!");
+  }
+
+  function printTimeSheet() {
+    if (selectedEmployee === "all") {
+      toast.error("Selecione um funcionário para imprimir");
+      return;
+    }
+
+    const emp = employees.find((e) => e.id === selectedEmployee);
+    if (!emp) return;
+
+    const monthlyData = calculateEmployeeMonthlyData(selectedEmployee);
+    const totalWorked = monthlyData.reduce((acc, d) => acc + d.totalMinutes, 0);
+    const totalOvertime = monthlyData.reduce((acc, d) => acc + d.overtime, 0);
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Folha de Ponto - ${emp.full_name}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { text-align: center; font-size: 18px; margin-bottom: 5px; }
+          h2 { text-align: center; font-size: 14px; color: #666; margin-top: 0; }
+          .info { margin: 20px 0; }
+          .info p { margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; }
+          th, td { border: 1px solid #333; padding: 4px 6px; text-align: center; }
+          th { background: #f0f0f0; font-weight: bold; }
+          .totals { margin-top: 20px; }
+          .signature { margin-top: 60px; display: flex; justify-content: space-between; }
+          .signature-line { width: 200px; border-top: 1px solid #333; text-align: center; padding-top: 5px; }
+          @media print { body { padding: 10px; } }
+        </style>
+      </head>
+      <body>
+        <h1>FOLHA DE PONTO</h1>
+        <h2>Creche Pimpolinhos - ${format(parseISO(selectedMonth + "-01"), "MMMM 'de' yyyy", { locale: ptBR })}</h2>
+        
+        <div class="info">
+          <p><strong>Funcionário:</strong> ${emp.full_name}</p>
+          <p><strong>Função:</strong> ${emp.job_title || "Não informado"}</p>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Dia</th>
+              <th>Entrada</th>
+              <th>Início Int.</th>
+              <th>Fim Int.</th>
+              <th>Saída</th>
+              <th>Horas</th>
+              <th>H. Extra</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${monthlyData.map((day) => `
+              <tr>
+                <td>${format(day.date, "dd/MM")}</td>
+                <td>${format(day.date, "EEE", { locale: ptBR })}</td>
+                <td>${day.entry || "-"}</td>
+                <td>${day.breakStart || "-"}</td>
+                <td>${day.breakEnd || "-"}</td>
+                <td>${day.exit || "-"}</td>
+                <td>${day.totalMinutes > 0 ? formatMinutesToHours(day.totalMinutes) : "-"}</td>
+                <td>${day.overtime > 0 ? formatMinutesToHours(day.overtime) : "-"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        
+        <div class="totals">
+          <p><strong>Total de Horas Trabalhadas:</strong> ${formatMinutesToHours(totalWorked)}</p>
+          <p><strong>Total de Horas Extras:</strong> ${formatMinutesToHours(totalOvertime)}</p>
+        </div>
+        
+        <div class="signature">
+          <div class="signature-line">Funcionário</div>
+          <div class="signature-line">Responsável RH</div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
     }
   }
 
@@ -710,35 +963,177 @@ export default function AdminTimeClock() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5" />
-                Relatórios
+                <FileText className="w-5 h-5" />
+                Folha de Ponto para Contador
               </CardTitle>
               <CardDescription>
-                Visualize e exporte relatórios de frequência
+                Gere relatórios no formato tradicional de folha de ponto
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex-1">
-                  <Label>Data</Label>
+            <CardContent className="space-y-6">
+              {/* Filters */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Mês/Ano</Label>
                   <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" className="mt-6">
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Exportar CSV
-                </Button>
+                <div className="space-y-2">
+                  <Label>Funcionário</Label>
+                  <Select
+                    value={selectedEmployee}
+                    onValueChange={setSelectedEmployee}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Funcionários</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={fetchReportData} disabled={reportLoading} className="w-full">
+                    {reportLoading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    )}
+                    Gerar Relatório
+                  </Button>
+                </div>
               </div>
 
-              <div className="text-center py-12 bg-muted/30 rounded-xl border-2 border-dashed">
-                <Calendar className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-                <p className="text-muted-foreground">
-                  Selecione uma data para visualizar os registros
-                </p>
-              </div>
+              {/* Export Buttons */}
+              {reportData.length > 0 && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={exportToCSV}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Exportar CSV
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={printTimeSheet}
+                    disabled={selectedEmployee === "all"}
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Imprimir Folha
+                  </Button>
+                </div>
+              )}
+
+              {/* Report Preview */}
+              {reportData.length === 0 ? (
+                <div className="text-center py-12 bg-muted/30 rounded-xl border-2 border-dashed">
+                  <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    Selecione o mês e clique em "Gerar Relatório"
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {(selectedEmployee === "all" ? employees : employees.filter((e) => e.id === selectedEmployee)).map((emp) => {
+                    const monthlyData = calculateEmployeeMonthlyData(emp.id);
+                    const totalWorked = monthlyData.reduce((acc, d) => acc + d.totalMinutes, 0);
+                    const totalOvertime = monthlyData.reduce((acc, d) => acc + d.overtime, 0);
+                    const hasRecords = monthlyData.some((d) => d.entry !== null);
+
+                    if (!hasRecords && selectedEmployee === "all") return null;
+
+                    return (
+                      <Card key={emp.id} className="border-2">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle className="text-lg">{emp.full_name}</CardTitle>
+                              <CardDescription>{emp.job_title || "Não informado"}</CardDescription>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Total Trabalhado</p>
+                              <p className="font-bold text-lg">{formatMinutesToHours(totalWorked)}</p>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-24">Data</TableHead>
+                                  <TableHead className="w-16">Dia</TableHead>
+                                  <TableHead className="w-20 text-center">Entrada</TableHead>
+                                  <TableHead className="w-20 text-center">Início Int.</TableHead>
+                                  <TableHead className="w-20 text-center">Fim Int.</TableHead>
+                                  <TableHead className="w-20 text-center">Saída</TableHead>
+                                  <TableHead className="w-24 text-center">Horas</TableHead>
+                                  <TableHead className="w-24 text-center">H. Extra</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {monthlyData.map((day) => (
+                                  <TableRow 
+                                    key={day.date.toISOString()}
+                                    className={!day.entry ? "text-muted-foreground bg-muted/20" : ""}
+                                  >
+                                    <TableCell className="font-mono text-sm">
+                                      {format(day.date, "dd/MM")}
+                                    </TableCell>
+                                    <TableCell className="capitalize">
+                                      {format(day.date, "EEE", { locale: ptBR })}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono">
+                                      {day.entry || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono">
+                                      {day.breakStart || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono">
+                                      {day.breakEnd || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono">
+                                      {day.exit || "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {day.totalMinutes > 0 ? formatMinutesToHours(day.totalMinutes) : "-"}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      {day.overtime > 0 ? (
+                                        <Badge variant="outline" className="text-green-600">
+                                          +{formatMinutesToHours(day.overtime)}
+                                        </Badge>
+                                      ) : "-"}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                          <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                            <div className="flex gap-6">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Total Trabalhado</p>
+                                <p className="font-bold">{formatMinutesToHours(totalWorked)}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">Horas Extras</p>
+                                <p className="font-bold text-green-600">{formatMinutesToHours(totalOvertime)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
