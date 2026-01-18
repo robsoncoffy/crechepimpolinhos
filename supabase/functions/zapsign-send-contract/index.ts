@@ -98,45 +98,196 @@ serve(async (req) => {
     const formattedBirthDate = new Date(birthDate).toLocaleDateString('pt-BR');
     const currentDate = new Date().toLocaleDateString('pt-BR');
 
-    // Create document content with placeholders
+    // Fetch additional data from child_registrations if available
+    let address = "";
+    let emergencyContact = "";
+    
+    if (registrationId) {
+      const { data: regData } = await supabase
+        .from('child_registrations')
+        .select('address, city, allergies, medications')
+        .eq('id', registrationId)
+        .single();
+      
+      if (regData) {
+        address = regData.address ? `${regData.address}, ${regData.city || 'Canoas/RS'}` : 'Canoas/RS';
+      }
+    }
+
+    // Get authorized pickup for emergency contact
+    if (registrationId) {
+      const { data: pickupData } = await supabase
+        .from('authorized_pickups')
+        .select('full_name, relationship')
+        .eq('registration_id', registrationId)
+        .limit(1)
+        .single();
+      
+      if (pickupData) {
+        emergencyContact = `${pickupData.full_name} (${pickupData.relationship})`;
+      }
+    }
+
+    // Format shift hours
+    const shiftHours: Record<string, string> = {
+      manha: "07h00min às 12h30min",
+      tarde: "13h00min às 18h00min",
+      integral: "07h00min às 19h00min",
+    };
+
+    // Create document content with the complete 14-clause contract
     const contractContent = `
-CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS
-CRECHE PIMPOLINHOS
+CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS E CUIDADOS INFANTIS
 
-Data: ${currentDate}
+CRECHE ESCOLA PIMPOLINHOS
 
-CONTRATANTE (Responsável):
-Nome: ${parentName}
-${parentCpf ? `CPF: ${parentCpf}` : ''}
-E-mail: ${parentEmail}
+Pelo presente instrumento particular de Contrato de Prestação de Serviços Educacionais e Cuidados Infantis, de um lado:
 
-ALUNO(A):
-Nome: ${childName}
-Data de Nascimento: ${formattedBirthDate}
-Turma: ${classTypeLabels[classType] || classType}
-Turno: ${shiftTypeLabels[shiftType] || shiftType}
-${planType ? `Plano: ${planTypeLabels[planType] || planType}` : ''}
+CLÁUSULA 1 – DAS PARTES CONTRATANTES
 
-CLÁUSULA 1 - DO OBJETO
-O presente contrato tem por objeto a prestação de serviços educacionais pela CRECHE PIMPOLINHOS ao aluno acima identificado.
+CONTRATADA: CRECHE ESCOLA PIMPOLINHOS, pessoa jurídica de direito privado, inscrita no CNPJ sob nº XX.XXX.XXX/XXXX-XX, com sede na Rua XXXXX, nº XXX, Bairro XXXXX, Canoas/RS, CEP XXXXX-XXX, neste ato representada por sua proprietária/diretora, doravante denominada simplesmente CONTRATADA.
 
-CLÁUSULA 2 - DAS OBRIGAÇÕES
-O CONTRATANTE se compromete a:
-a) Manter os dados cadastrais atualizados;
-b) Cumprir pontualmente com as obrigações financeiras;
-c) Respeitar os horários de entrada e saída;
-d) Comunicar ausências com antecedência.
+CONTRATANTE: ${parentName}${parentCpf ? `, inscrito(a) no CPF sob nº ${parentCpf}` : ''}, residente e domiciliado(a) em ${address || 'Canoas/RS'}, e-mail: ${parentEmail}, doravante denominado(a) simplesmente CONTRATANTE (responsável legal pelo aluno).
 
-CLÁUSULA 3 - DO PERÍODO LETIVO
-O ano letivo segue o calendário escolar estabelecido pela instituição.
+ALUNO(A): ${childName}, nascido(a) em ${formattedBirthDate}.
 
-CLÁUSULA 4 - DA RESCISÃO
-O presente contrato poderá ser rescindido mediante aviso prévio de 30 dias.
+As partes acima qualificadas firmam o presente contrato, que se regerá pelas cláusulas e condições a seguir estabelecidas.
 
-CLÁUSULA 5 - DISPOSIÇÕES GERAIS
-Este contrato é regido pelas leis brasileiras.
 
-Canoas, RS - ${currentDate}
+CLÁUSULA 2 – DO OBJETO
+
+2.1. O presente contrato tem por objeto a prestação de serviços educacionais e de cuidados infantis pela CONTRATADA ao aluno acima identificado, em conformidade com as diretrizes do Ministério da Educação e legislação aplicável à educação infantil.
+
+2.2. A CONTRATADA se compromete a oferecer ao aluno:
+a) Atividades pedagógicas adequadas à faixa etária;
+b) Alimentação balanceada, conforme cardápio elaborado por nutricionista;
+c) Cuidados com higiene pessoal;
+d) Ambiente seguro e estimulante para o desenvolvimento infantil;
+e) Acompanhamento do desenvolvimento da criança;
+f) Comunicação regular com os responsáveis sobre o dia a dia do aluno.
+
+
+CLÁUSULA 3 – DA MATRÍCULA
+
+3.1. A matrícula terá validade para o ano letivo vigente, podendo ser renovada para o período seguinte mediante manifestação de interesse do CONTRATANTE e disponibilidade de vaga.
+
+3.2. A efetivação da matrícula está condicionada à:
+a) Apresentação de toda documentação exigida;
+b) Assinatura do presente contrato;
+c) Pagamento da primeira mensalidade ou taxa de matrícula, quando aplicável.
+
+
+CLÁUSULA 4 – DAS MENSALIDADES E FORMA DE PAGAMENTO
+
+4.1. O CONTRATANTE obriga-se a pagar à CONTRATADA o valor mensal correspondente ao plano contratado (${planType ? planTypeLabels[planType] || planType : 'conforme acordado'}), conforme tabela de preços vigente no ato da matrícula.
+
+4.2. As mensalidades vencem no dia 10 (dez) de cada mês e deverão ser pagas por meio de boleto bancário, PIX ou outra forma disponibilizada pela CONTRATADA.
+
+4.3. O atraso no pagamento implicará:
+a) Multa de 2% (dois por cento) sobre o valor devido;
+b) Juros de mora de 1% (um por cento) ao mês;
+c) Correção monetária pelo índice oficial (INPC ou equivalente);
+d) Após 60 (sessenta) dias de inadimplência, poderá haver cancelamento da matrícula.
+
+4.4. A ausência do aluno às aulas não exime o CONTRATANTE do pagamento integral da mensalidade.
+
+
+CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO
+
+5.1. A CONTRATADA funcionará de segunda a sexta-feira, das 07h00min às 19h00min.
+
+5.2. O aluno está matriculado no turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'}).
+
+5.3. Turma: ${classTypeLabels[classType] || classType}.
+
+5.4. A tolerância para entrada e saída é de 15 (quinze) minutos. Atrasos frequentes poderão ser comunicados ao Conselho Tutelar, conforme legislação vigente.
+
+5.5. A criança somente será entregue aos pais ou responsáveis devidamente autorizados e cadastrados no sistema.
+
+
+CLÁUSULA 6 – DA ALIMENTAÇÃO E MEDICAMENTOS
+
+6.1. A alimentação será fornecida conforme cardápio elaborado por nutricionista, respeitando as necessidades nutricionais da faixa etária.
+
+6.2. Alergias, intolerâncias alimentares ou restrições dietéticas deverão ser informadas por escrito no ato da matrícula e sempre que houver alteração.
+
+6.3. A CONTRATADA não administrará medicamentos, salvo mediante apresentação de receita médica atualizada e autorização expressa por escrito do CONTRATANTE.
+
+
+CLÁUSULA 7 – DO UNIFORME E MATERIAIS
+
+7.1. O uso do uniforme é obrigatório para identificação e segurança das crianças.
+
+7.2. Materiais pedagógicos e de higiene poderão ser solicitados periodicamente, conforme lista fornecida pela CONTRATADA.
+
+
+CLÁUSULA 8 – DA SAÚDE E SEGURANÇA
+
+8.1. Em caso de enfermidade ou acidente, o CONTRATANTE será imediatamente comunicado para providências.
+
+8.2. Casos de doenças infectocontagiosas deverão ser comunicados à CONTRATADA, ficando o aluno afastado até liberação médica.
+
+8.3. Contato de emergência: ${emergencyContact || 'A ser informado pelo responsável'}.
+
+8.4. A CONTRATADA não se responsabiliza por objetos de valor trazidos pelo aluno.
+
+
+CLÁUSULA 9 – DO REGULAMENTO INTERNO
+
+9.1. O CONTRATANTE declara ter conhecimento e concorda em cumprir o Regulamento Interno da CONTRATADA, que integra o presente contrato.
+
+
+CLÁUSULA 10 – DO USO DE IMAGEM
+
+10.1. O CONTRATANTE autoriza expressamente o uso da imagem do aluno para fins pedagógicos, institucionais e de divulgação das atividades da CONTRATADA em redes sociais, site, materiais impressos e outros meios de comunicação, sem qualquer ônus.
+
+10.2. Caso não concorde com esta autorização, o CONTRATANTE deverá manifestar-se por escrito no ato da matrícula.
+
+
+CLÁUSULA 11 – DA RESCISÃO
+
+11.1. O presente contrato poderá ser rescindido:
+a) Por iniciativa do CONTRATANTE, mediante aviso prévio de 30 (trinta) dias, por escrito;
+b) Por iniciativa da CONTRATADA, em caso de inadimplência superior a 60 dias ou descumprimento das normas internas;
+c) Por mútuo acordo entre as partes.
+
+11.2. Em caso de rescisão, ficam devidas as mensalidades vencidas até a data efetiva do desligamento.
+
+
+CLÁUSULA 12 – DA PROTEÇÃO DE DADOS
+
+12.1. A CONTRATADA compromete-se a tratar os dados pessoais do aluno e do CONTRATANTE em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 – LGPD).
+
+12.2. Os dados coletados serão utilizados exclusivamente para fins educacionais, administrativos e de comunicação com a família.
+
+
+CLÁUSULA 13 – DO FORO
+
+13.1. Fica eleito o Foro da Comarca de Canoas/RS para dirimir quaisquer dúvidas ou controvérsias oriundas do presente contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
+
+
+CLÁUSULA 14 – DISPOSIÇÕES GERAIS
+
+14.1. Este contrato passa a vigorar na data de sua assinatura.
+
+14.2. Eventuais comunicados e notificações poderão ser realizados por meio eletrônico (e-mail, WhatsApp ou aplicativo da escola), sendo considerados válidos para todos os efeitos legais.
+
+14.3. Alterações contratuais somente terão validade se formalizadas por escrito.
+
+E, por estarem assim justos e contratados, as partes assinam o presente instrumento digitalmente, produzindo os mesmos efeitos jurídicos de um documento físico assinado de próprio punho.
+
+
+Canoas/RS, ${currentDate}.
+
+
+_____________________________________________
+CONTRATANTE (Responsável Legal)
+${parentName}
+
+
+_____________________________________________
+CONTRATADA
+CRECHE ESCOLA PIMPOLINHOS
     `.trim();
 
     // Step 1: Create document in ZapSign
