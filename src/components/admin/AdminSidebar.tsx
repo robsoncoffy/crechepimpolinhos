@@ -40,34 +40,36 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { RoleViewSwitcher } from "./RoleViewSwitcher";
 
+// Menu items with role restrictions
+// roles: which roles can see this item (empty = all staff)
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/painel" },
-  { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true },
-  { icon: Users, label: "Professores", href: "/painel/professores" },
-  { icon: Baby, label: "Crianças", href: "/painel/criancas" },
-  { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada" },
-  { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda" },
-  { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
-  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens" },
-  { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe" },
-  { icon: Megaphone, label: "Avisos", href: "/painel/avisos" },
-  { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro" },
-  { icon: FileSignature, label: "Contratos", href: "/painel/contratos" },
-  { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio" },
-  { icon: Camera, label: "Galeria", href: "/painel/galeria" },
-  { icon: CalendarDays, label: "Eventos", href: "/painel/eventos" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/painel", roles: [] },
+  { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true, roles: ["admin"] },
+  { icon: Users, label: "Professores", href: "/painel/professores", roles: ["admin"] },
+  { icon: Baby, label: "Crianças", href: "/painel/criancas", roles: ["admin", "teacher", "pedagogue", "auxiliar"] },
+  { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada", roles: ["admin", "teacher", "auxiliar"] },
+  { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
+  { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento", roles: ["admin", "teacher", "pedagogue"] },
+  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "teacher", "auxiliar"] },
+  { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe", roles: [] },
+  { icon: Megaphone, label: "Avisos", href: "/painel/avisos", roles: ["admin", "teacher"] },
+  { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
+  { icon: FileSignature, label: "Contratos", href: "/painel/contratos", roles: ["admin"] },
+  { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio", roles: ["admin", "nutritionist", "cook"] },
+  { icon: Camera, label: "Galeria", href: "/painel/galeria", roles: ["admin", "teacher"] },
+  { icon: CalendarDays, label: "Eventos", href: "/painel/eventos", roles: ["admin", "teacher", "pedagogue"] },
 ];
 
 const secondaryItems = [
-  { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais" },
-  { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites" },
-  { icon: Settings, label: "Configurações", href: "/painel/config" },
+  { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais", roles: ["admin"] },
+  { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites", roles: ["admin"] },
+  { icon: Settings, label: "Configurações", href: "/painel/config", roles: ["admin"] },
 ];
 
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, profile, isAdmin, isTeacher } = useAuth();
+  const { signOut, profile, roles, isAdmin, isTeacher, isCook, isNutritionist, isPedagogue, isAuxiliar } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -76,7 +78,27 @@ export function AdminSidebar() {
     navigate("/");
   };
 
-  const roleLabel = isAdmin ? "Administrador" : isTeacher ? "Professor(a)" : "Usuário";
+  // Determine role label
+  const getRoleLabel = () => {
+    if (isAdmin) return "Administrador";
+    if (isTeacher) return "Professor(a)";
+    if (isNutritionist) return "Nutricionista";
+    if (isCook) return "Cozinheira";
+    if (isPedagogue) return "Pedagoga";
+    if (isAuxiliar) return "Auxiliar";
+    return "Funcionário";
+  };
+
+  // Filter menu items based on user roles
+  const canSeeItem = (itemRoles: string[]) => {
+    if (itemRoles.length === 0) return true; // Empty array = all staff can see
+    return roles.some(role => itemRoles.includes(role));
+  };
+
+  const filteredMenuItems = menuItems.filter(item => canSeeItem(item.roles));
+  const filteredSecondaryItems = secondaryItems.filter(item => canSeeItem(item.roles));
+
+  const roleLabel = getRoleLabel();
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -145,7 +167,7 @@ export function AdminSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {filteredMenuItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <SidebarMenuItem key={item.href}>
@@ -174,33 +196,35 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Secondary Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/60">
-            Sistema
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {secondaryItems.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Secondary Navigation - Only show if there are items */}
+        {filteredSecondaryItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-sidebar-foreground/60">
+              Sistema
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredSecondaryItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                      >
+                        <Link to={item.href}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {/* Footer */}

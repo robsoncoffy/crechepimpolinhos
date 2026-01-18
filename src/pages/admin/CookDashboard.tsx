@@ -1,0 +1,228 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { UtensilsCrossed, ChevronRight, AlertTriangle, Baby, Clock } from "lucide-react";
+
+interface ChildWithAllergy {
+  id: string;
+  full_name: string;
+  allergies: string | null;
+  dietary_restrictions: string | null;
+  special_milk: string | null;
+  class_type: string;
+}
+
+export default function CookDashboard() {
+  const { profile } = useAuth();
+  const [childrenWithAllergies, setChildrenWithAllergies] = useState<ChildWithAllergy[]>([]);
+  const [todayMenu, setTodayMenu] = useState<{ breakfast?: string; lunch?: string; snack?: string; dinner?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Fetch children with allergies or special dietary needs
+        const { data: children } = await supabase
+          .from("children")
+          .select("id, full_name, allergies, dietary_restrictions, special_milk, class_type")
+          .or("allergies.not.is.null,dietary_restrictions.not.is.null,special_milk.not.is.null");
+
+        if (children) {
+          setChildrenWithAllergies(children);
+        }
+
+        // Fetch today's menu
+        const today = new Date();
+        const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // Monday = 1, Sunday = 7
+        
+        // Get the start of the current week (Monday)
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
+        const weekStart = startOfWeek.toISOString().split("T")[0];
+
+        const { data: menu } = await supabase
+          .from("weekly_menus")
+          .select("*")
+          .eq("week_start", weekStart)
+          .eq("day_of_week", dayOfWeek)
+          .single();
+
+        if (menu) {
+          setTodayMenu(menu);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const getClassLabel = (classType: string) => {
+    switch (classType) {
+      case "bercario": return "Berçário";
+      case "maternal": return "Maternal";
+      case "jardim": return "Jardim";
+      default: return classType;
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div>
+        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground">
+          Olá, {profile?.full_name?.split(" ")[0]}! 👋
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Painel da Cozinha
+        </p>
+      </div>
+
+      {/* Today's Menu */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UtensilsCrossed className="w-5 h-5 text-primary" />
+            Cardápio de Hoje
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-muted-foreground">Carregando...</p>
+          ) : todayMenu ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {todayMenu.breakfast && (
+                <div className="p-3 bg-pimpo-yellow/10 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm font-medium text-pimpo-yellow mb-1">
+                    <Clock className="w-4 h-4" />
+                    Café da Manhã
+                  </div>
+                  <p className="text-sm">{todayMenu.breakfast}</p>
+                </div>
+              )}
+              {todayMenu.lunch && (
+                <div className="p-3 bg-pimpo-green/10 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm font-medium text-pimpo-green mb-1">
+                    <Clock className="w-4 h-4" />
+                    Almoço
+                  </div>
+                  <p className="text-sm">{todayMenu.lunch}</p>
+                </div>
+              )}
+              {todayMenu.snack && (
+                <div className="p-3 bg-primary/10 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary mb-1">
+                    <Clock className="w-4 h-4" />
+                    Lanche
+                  </div>
+                  <p className="text-sm">{todayMenu.snack}</p>
+                </div>
+              )}
+              {todayMenu.dinner && (
+                <div className="p-3 bg-pimpo-red/10 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm font-medium text-pimpo-red mb-1">
+                    <Clock className="w-4 h-4" />
+                    Jantar
+                  </div>
+                  <p className="text-sm">{todayMenu.dinner}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <UtensilsCrossed className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>Cardápio de hoje não configurado</p>
+              <Link to="/painel/cardapio">
+                <Button variant="link">Configurar cardápio</Button>
+              </Link>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Children with Allergies */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-pimpo-red" />
+            Crianças com Restrições Alimentares
+            <Badge variant="destructive">{childrenWithAllergies.length}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-muted-foreground">Carregando...</p>
+          ) : childrenWithAllergies.length > 0 ? (
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-3">
+                {childrenWithAllergies.map((child) => (
+                  <div key={child.id} className="p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Baby className="w-4 h-4 text-primary" />
+                        <span className="font-semibold">{child.full_name}</span>
+                      </div>
+                      <Badge variant="outline">{getClassLabel(child.class_type)}</Badge>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                      {child.allergies && (
+                        <p className="text-pimpo-red">
+                          <strong>Alergias:</strong> {child.allergies}
+                        </p>
+                      )}
+                      {child.dietary_restrictions && (
+                        <p className="text-pimpo-yellow">
+                          <strong>Restrições:</strong> {child.dietary_restrictions}
+                        </p>
+                      )}
+                      {child.special_milk && (
+                        <p className="text-primary">
+                          <strong>Leite Especial:</strong> {child.special_milk}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>Nenhuma criança com restrições alimentares cadastradas</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Ações Rápidas</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <Link to="/painel/cardapio">
+            <Button className="w-full justify-between">
+              <span className="flex items-center gap-2">
+                <UtensilsCrossed className="w-4 h-4" />
+                Ver Cardápio Semanal
+              </span>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Link to="/painel/chat-equipe">
+            <Button variant="outline" className="w-full justify-start gap-2">
+              Chat com a Equipe
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
