@@ -1509,6 +1509,7 @@ export type Database = {
         | "cook"
         | "nutritionist"
         | "pedagogue"
+        | "auxiliar"
       approval_status: "pending" | "approved" | "rejected"
       class_type: "bercario" | "maternal" | "jardim"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
@@ -1650,6 +1651,7 @@ export const Constants = {
         "cook",
         "nutritionist",
         "pedagogue",
+        "auxiliar",
       ],
       approval_status: ["pending", "approved", "rejected"],
       class_type: ["bercario", "maternal", "jardim"],
