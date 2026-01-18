@@ -624,6 +624,65 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_time_clock: {
+        Row: {
+          clock_type: Database["public"]["Enums"]["clock_type"]
+          created_at: string
+          created_by: string | null
+          device_id: string | null
+          employee_id: string | null
+          id: string
+          location: string | null
+          notes: string | null
+          photo_url: string | null
+          source: Database["public"]["Enums"]["clock_source"]
+          timestamp: string
+          updated_at: string
+          user_id: string | null
+          verified: boolean
+        }
+        Insert: {
+          clock_type: Database["public"]["Enums"]["clock_type"]
+          created_at?: string
+          created_by?: string | null
+          device_id?: string | null
+          employee_id?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          source?: Database["public"]["Enums"]["clock_source"]
+          timestamp?: string
+          updated_at?: string
+          user_id?: string | null
+          verified?: boolean
+        }
+        Update: {
+          clock_type?: Database["public"]["Enums"]["clock_type"]
+          created_at?: string
+          created_by?: string | null
+          device_id?: string | null
+          employee_id?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          source?: Database["public"]["Enums"]["clock_source"]
+          timestamp?: string
+          updated_at?: string
+          user_id?: string | null
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_time_clock_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollment_contracts: {
         Row: {
           child_id: string | null
@@ -1455,6 +1514,84 @@ export type Database = {
           },
         ]
       }
+      time_clock_config: {
+        Row: {
+          break_duration_minutes: number
+          created_at: string
+          device_ip: string | null
+          device_name: string
+          id: string
+          is_active: boolean
+          tolerance_minutes: number
+          updated_at: string
+          webhook_secret: string | null
+          work_end_time: string
+          work_start_time: string
+        }
+        Insert: {
+          break_duration_minutes?: number
+          created_at?: string
+          device_ip?: string | null
+          device_name?: string
+          id?: string
+          is_active?: boolean
+          tolerance_minutes?: number
+          updated_at?: string
+          webhook_secret?: string | null
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Update: {
+          break_duration_minutes?: number
+          created_at?: string
+          device_ip?: string | null
+          device_name?: string
+          id?: string
+          is_active?: boolean
+          tolerance_minutes?: number
+          updated_at?: string
+          webhook_secret?: string | null
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Relationships: []
+      }
+      time_clock_setup_tasks: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          notes: string | null
+          order_index: number
+          task_key: string
+          task_label: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          order_index?: number
+          task_key: string
+          task_label: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          notes?: string | null
+          order_index?: number
+          task_key?: string
+          task_label?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1586,6 +1723,8 @@ export type Database = {
         | "auxiliar"
       approval_status: "pending" | "approved" | "rejected"
       class_type: "bercario" | "maternal" | "jardim"
+      clock_source: "controlid" | "manual" | "mobile"
+      clock_type: "entry" | "exit" | "break_start" | "break_end"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
       meal_status: "tudo" | "quase_tudo" | "metade" | "pouco" | "nao_aceitou"
       mood_status: "feliz" | "calmo" | "agitado" | "choroso" | "sonolento"
@@ -1729,6 +1868,8 @@ export const Constants = {
       ],
       approval_status: ["pending", "approved", "rejected"],
       class_type: ["bercario", "maternal", "jardim"],
+      clock_source: ["controlid", "manual", "mobile"],
+      clock_type: ["entry", "exit", "break_start", "break_end"],
       evacuation_status: ["normal", "pastosa", "liquida", "nao"],
       meal_status: ["tudo", "quase_tudo", "metade", "pouco", "nao_aceitou"],
       mood_status: ["feliz", "calmo", "agitado", "choroso", "sonolento"],
