@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
   Baby,
@@ -23,6 +24,9 @@ import {
   Edit,
   Save,
   X,
+  Droplets,
+  Smile,
+  FileText,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -42,6 +46,21 @@ const mealOptions = [
   { value: "metade", label: "Metade" },
   { value: "pouco", label: "Pouco" },
   { value: "nao_aceitou", label: "Não aceitou" },
+];
+
+const evacuationOptions = [
+  { value: "normal", label: "Normal" },
+  { value: "pastosa", label: "Pastosa" },
+  { value: "liquida", label: "Líquida" },
+  { value: "nao", label: "Não evacuou" },
+];
+
+const moodOptions = [
+  { value: "feliz", label: "😊 Feliz" },
+  { value: "calmo", label: "😌 Calmo" },
+  { value: "agitado", label: "😤 Agitado" },
+  { value: "choroso", label: "😢 Choroso" },
+  { value: "sonolento", label: "😴 Sonolento" },
 ];
 
 export function DemoTeacherDashboard() {
@@ -274,13 +293,42 @@ export function DemoTeacherDashboard() {
                           </div>
                         </div>
 
+                        {/* Hygiene */}
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2 mb-3">
+                            <Droplets className="w-4 h-4 text-pimpo-blue" />
+                            Higiene
+                          </h4>
+                          <div className="grid sm:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <Checkbox id="urinated" disabled={!editMode} defaultChecked />
+                              <label htmlFor="urinated" className="text-sm">Fez xixi</label>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-sm text-muted-foreground">Evacuação</label>
+                              <Select defaultValue="normal" disabled={!editMode}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {evacuationOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Health */}
                         <div>
                           <h4 className="font-medium flex items-center gap-2 mb-3">
                             <Activity className="w-4 h-4 text-pimpo-red" />
                             Saúde
                           </h4>
-                          <div className="flex gap-4">
+                          <div className="flex flex-wrap gap-4">
                             <div className="flex items-center gap-2">
                               <Checkbox id="fever" disabled={!editMode} />
                               <label htmlFor="fever" className="text-sm">Teve febre</label>
@@ -290,6 +338,40 @@ export function DemoTeacherDashboard() {
                               <label htmlFor="medicine" className="text-sm">Tomou remédio</label>
                             </div>
                           </div>
+                        </div>
+
+                        {/* Mood */}
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2 mb-3">
+                            <Smile className="w-4 h-4 text-pimpo-yellow" />
+                            Humor do Dia
+                          </h4>
+                          <Select defaultValue="feliz" disabled={!editMode}>
+                            <SelectTrigger className="w-full sm:w-64">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {moodOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* School Note */}
+                        <div>
+                          <h4 className="font-medium flex items-center gap-2 mb-3">
+                            <FileText className="w-4 h-4 text-pimpo-green" />
+                            Bilhetinho da Escola
+                          </h4>
+                          <Textarea 
+                            placeholder="Como foi o dia da criança? Escreva um recadinho para os pais..."
+                            className="min-h-[100px]"
+                            disabled={!editMode}
+                            defaultValue="Hoje a Maria participou das atividades de pintura com muita animação! Brincou bastante no parquinho e interagiu muito bem com os coleguinhas. Um dia muito especial! 🎨"
+                          />
                         </div>
                       </CardContent>
                     </Card>
