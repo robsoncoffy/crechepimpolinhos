@@ -21,6 +21,7 @@ import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminContracts from "@/pages/admin/AdminContracts";
 import AdminStaffChat from "@/pages/admin/AdminStaffChat";
 import AdminProfiles from "@/pages/admin/AdminProfiles";
+import AdminTimeClock from "@/pages/admin/AdminTimeClock";
 import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
 import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
@@ -109,6 +110,11 @@ function DashboardContent() {
           <Route path="/perfis" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminProfiles />
+            </ProtectedRoute>
+          } />
+          <Route path="/ponto" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminTimeClock />
             </ProtectedRoute>
           } />
           <Route path="/config" element={
