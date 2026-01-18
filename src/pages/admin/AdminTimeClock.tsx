@@ -631,7 +631,7 @@ export default function AdminTimeClock() {
                             <span className="font-medium">{emp.full_name}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{emp.role}</TableCell>
+                        <TableCell className="text-muted-foreground">{emp.job_title}</TableCell>
                         <TableCell>
                           {emp.entryTime
                             ? format(parseISO(emp.entryTime), "HH:mm")
