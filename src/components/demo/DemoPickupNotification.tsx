@@ -68,6 +68,17 @@ export function DemoPickupNotification({ childName }: DemoPickupNotificationProp
         : `Escola notificada sobre o atraso de ${delayMinutes} minutos`,
       { description: "(Modo Demo - nenhuma notificação real enviada)" }
     );
+
+    // Simulate teacher notification to write the school note
+    setTimeout(() => {
+      toast.info(
+        "📝 Lembrete enviado à professora!",
+        { 
+          description: `Professora foi notificada para escrever o bilhetinho de ${childName.split(" ")[0]} antes da busca.`,
+          duration: 5000
+        }
+      );
+    }, 1500);
   };
 
   return (

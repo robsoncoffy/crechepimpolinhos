@@ -235,9 +235,14 @@ export function DemoParentDashboard() {
                   </div>
                   {/* School Note */}
                   <div className="mt-4 pt-3 border-t">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-pimpo-green" />
-                      <span className="text-sm font-medium">Bilhetinho da Escola</span>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-pimpo-green" />
+                        <span className="text-sm font-medium">Bilhetinho da Escola</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        Atualizado às 15:42
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground bg-pimpo-green/5 p-3 rounded-lg border border-pimpo-green/20">
                       "Hoje a Maria participou das atividades de pintura com muita animação! Brincou bastante no parquinho. 🎨"
