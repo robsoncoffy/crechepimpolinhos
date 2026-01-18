@@ -45,6 +45,8 @@ import { RoleViewSwitcher } from "./RoleViewSwitcher";
 // roles: which roles can see this item (empty = all staff)
 import { Clock } from "lucide-react";
 
+import { GraduationCap } from "lucide-react";
+
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/painel", roles: [] },
   { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true, roles: ["admin"] },
@@ -54,7 +56,8 @@ const menuItems = [
   { icon: Clock, label: "Ponto Eletrônico", href: "/painel/ponto", roles: ["admin"] },
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento", roles: ["admin", "teacher", "pedagogue"] },
-  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "teacher", "auxiliar"] },
+  { icon: GraduationCap, label: "Avaliações Plus+", href: "/painel/avaliacoes", roles: ["admin", "pedagogue"] },
+  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "teacher", "auxiliar", "nutritionist"] },
   { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe", roles: [] },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos", roles: ["admin", "teacher"] },
   { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },

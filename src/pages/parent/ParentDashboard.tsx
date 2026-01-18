@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ParentChatTabs } from "@/components/parent/ParentChatTabs";
 import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
 import { GrowthChart } from "@/components/parent/GrowthChart";
 import { PickupNotification } from "@/components/parent/PickupNotification";
@@ -16,6 +16,7 @@ import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { PaymentsTab } from "@/components/parent/PaymentsTab";
 import { DetailedWeatherWidget } from "@/components/parent/DetailedWeatherWidget";
+import { QuarterlyEvaluationsTab } from "@/components/parent/QuarterlyEvaluationsTab";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ import {
   Camera,
   CalendarDays,
   CreditCard,
+  GraduationCap,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -48,6 +50,7 @@ interface Child {
   birth_date: string;
   shift_type?: string | null;
   allergies?: string | null;
+  plan_type?: string | null;
 }
 
 interface MonthlyTracking {
@@ -88,7 +91,7 @@ export default function ParentDashboard() {
       const childIds = parentChildren.map((pc) => pc.child_id);
 
       const [childrenRes, growthRes] = await Promise.all([
-        supabase.from("children").select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies").in("id", childIds),
+        supabase.from("children").select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies, plan_type").in("id", childIds),
         supabase.from("monthly_tracking").select("*").in("child_id", childIds),
       ]);
 
@@ -411,7 +414,7 @@ export default function ParentDashboard() {
                     <CardContent className="p-0">
                       <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="border-b bg-muted/30">
-                          <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5 sm:grid-cols-8">
+                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-9' : 'grid-cols-5 sm:grid-cols-8'}`}>
                             <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <Calendar className="w-4 h-4" />
                             </TabsTrigger>
@@ -430,6 +433,11 @@ export default function ParentDashboard() {
                             <TabsTrigger value="crescimento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
                               <TrendingUp className="w-4 h-4" />
                             </TabsTrigger>
+                            {selectedChild.plan_type === 'plus' && (
+                              <TabsTrigger value="avaliacoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
+                                <GraduationCap className="w-4 h-4" />
+                              </TabsTrigger>
+                            )}
                             <TabsTrigger value="perfil" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
                               <User className="w-4 h-4" />
                             </TabsTrigger>
@@ -476,9 +484,18 @@ export default function ParentDashboard() {
                           />
                         </TabsContent>
 
+                        {selectedChild.plan_type === 'plus' && (
+                          <TabsContent value="avaliacoes" className="m-0 p-4 sm:p-6">
+                            <QuarterlyEvaluationsTab
+                              childId={selectedChild.id}
+                              childName={selectedChild.full_name}
+                            />
+                          </TabsContent>
+                        )}
+
                         <TabsContent value="chat" className="m-0">
                           <div className="h-[500px]">
-                            <ChatWindow
+                            <ParentChatTabs
                               key={selectedChild.id}
                               childId={selectedChild.id}
                               childName={selectedChild.full_name}

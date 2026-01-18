@@ -997,6 +997,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          channel_type: string | null
           child_id: string
           content: string
           created_at: string
@@ -1005,6 +1006,7 @@ export type Database = {
           sender_id: string
         }
         Insert: {
+          channel_type?: string | null
           child_id: string
           content: string
           created_at?: string
@@ -1013,6 +1015,7 @@ export type Database = {
           sender_id: string
         }
         Update: {
+          channel_type?: string | null
           child_id?: string
           content?: string
           created_at?: string
@@ -1356,6 +1359,68 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quarterly_evaluations: {
+        Row: {
+          child_id: string
+          cognitive_development: string | null
+          created_at: string | null
+          creativity_arts: string | null
+          id: string
+          language_development: string | null
+          motor_development: string | null
+          next_steps: string | null
+          overall_summary: string | null
+          pedagogue_id: string
+          quarter: number
+          recommendations: string | null
+          social_emotional: string | null
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          child_id: string
+          cognitive_development?: string | null
+          created_at?: string | null
+          creativity_arts?: string | null
+          id?: string
+          language_development?: string | null
+          motor_development?: string | null
+          next_steps?: string | null
+          overall_summary?: string | null
+          pedagogue_id: string
+          quarter: number
+          recommendations?: string | null
+          social_emotional?: string | null
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          child_id?: string
+          cognitive_development?: string | null
+          created_at?: string | null
+          creativity_arts?: string | null
+          id?: string
+          language_development?: string | null
+          motor_development?: string | null
+          next_steps?: string | null
+          overall_summary?: string | null
+          pedagogue_id?: string
+          quarter?: number
+          recommendations?: string | null
+          social_emotional?: string | null
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quarterly_evaluations_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       school_events: {
         Row: {
