@@ -87,7 +87,7 @@ const testimonials = [{
 }];
 const stats = [{
   value: "+20",
-  label: "Anos de Experiência"
+  label: "Anos de Exp. dos Profissionais"
 }, {
   value: "100",
   label: "Famílias Atendidas"
@@ -201,7 +201,7 @@ export default function Home() {
                   </div>
                   <div>
                     <p className="font-fredoka text-2xl font-bold text-foreground">+20</p>
-                    <p className="text-sm text-muted-foreground">Anos de Experiência</p>
+                    <p className="text-sm text-muted-foreground">Anos de Exp. dos Profissionais</p>
                   </div>
                 </div>
               </div>
