@@ -24,6 +24,8 @@ import {
   X,
   Loader2,
   Send,
+  Smile,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +54,16 @@ const evacuationLabels: Record<EvacuationStatus, { label: string; color: string 
   normal: { label: "Normal", color: "text-pimpo-green" },
   pastosa: { label: "Pastosa", color: "text-pimpo-yellow" },
   liquida: { label: "Líquida", color: "text-destructive" },
+};
+
+type MoodStatus = "feliz" | "calmo" | "agitado" | "choroso" | "sonolento";
+
+const moodLabels: Record<MoodStatus, { label: string; emoji: string; color: string }> = {
+  feliz: { label: "Feliz", emoji: "😄", color: "text-pimpo-green" },
+  calmo: { label: "Calmo", emoji: "😊", color: "text-pimpo-blue" },
+  agitado: { label: "Agitado", emoji: "🤪", color: "text-pimpo-yellow" },
+  choroso: { label: "Choroso", emoji: "😢", color: "text-pimpo-red" },
+  sonolento: { label: "Sonolento", emoji: "😴", color: "text-muted-foreground" },
 };
 
 function MealDisplay({ label, value }: { label: string; value: MealStatus | null }) {
@@ -332,32 +344,61 @@ export function ParentAgendaView({ childId, childName }: ParentAgendaViewProps) 
               </CardContent>
             </Card>
 
-            {/* Atividades e Observações da Escola */}
-            {(record.activities || record.school_notes) && (
+            {/* Humor do Dia */}
+            {(record as any).mood && moodLabels[(record as any).mood as MoodStatus] && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Smile className="w-4 h-4 text-pimpo-yellow" />
+                    Humor do Dia
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                    <span className="text-3xl">{moodLabels[(record as any).mood as MoodStatus].emoji}</span>
+                    <div>
+                      <Badge 
+                        variant="outline" 
+                        className={cn("font-medium", moodLabels[(record as any).mood as MoodStatus].color)}
+                      >
+                        {moodLabels[(record as any).mood as MoodStatus].label}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Atividades */}
+            {record.activities && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <FileText className="w-4 h-4 text-muted-foreground" />
-                    Atividades e Observações
+                    Atividades do Dia
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {record.activities && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Atividades realizadas</Label>
-                      <div className="bg-muted/50 rounded-lg p-3 mt-1">
-                        <p className="text-sm whitespace-pre-wrap">{record.activities}</p>
-                      </div>
-                    </div>
-                  )}
-                  {record.school_notes && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Observações da escola</Label>
-                      <div className="bg-primary/10 rounded-lg p-3 mt-1 border border-primary/20">
-                        <p className="text-sm whitespace-pre-wrap">{record.school_notes}</p>
-                      </div>
-                    </div>
-                  )}
+                <CardContent>
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <p className="text-sm whitespace-pre-wrap">{record.activities}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bilhetinho da Escola */}
+            {record.school_notes && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base text-primary">
+                    <MessageSquare className="w-4 h-4" />
+                    Bilhetinho da Escola
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-background rounded-lg p-4 border border-primary/20">
+                    <p className="text-sm whitespace-pre-wrap">{record.school_notes}</p>
+                  </div>
                 </CardContent>
               </Card>
             )}
