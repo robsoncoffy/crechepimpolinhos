@@ -27,8 +27,9 @@ import {
   BookOpen,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 // Mock stats
 const mockStats = {
@@ -170,6 +171,10 @@ export function DemoAdminDashboard() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72">
+                <VisuallyHidden>
+                  <SheetTitle>Menu de navegação</SheetTitle>
+                  <SheetDescription>Menu de navegação do painel administrativo</SheetDescription>
+                </VisuallyHidden>
                 <Sidebar isMobile />
               </SheetContent>
             </Sheet>

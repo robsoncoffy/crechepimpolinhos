@@ -8,7 +8,7 @@ export default function Demo() {
   const [currentRole, setCurrentRole] = useState<DemoRole>("parent");
 
   return (
-    <>
+    <div className="relative">
       {currentRole === "parent" && <DemoParentDashboard />}
       {currentRole === "teacher" && <DemoTeacherDashboard />}
       {currentRole === "admin" && <DemoAdminDashboard />}
@@ -17,6 +17,6 @@ export default function Demo() {
         currentRole={currentRole} 
         onRoleChange={setCurrentRole} 
       />
-    </>
+    </div>
   );
 }

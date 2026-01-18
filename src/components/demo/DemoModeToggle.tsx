@@ -42,7 +42,7 @@ export function DemoModeToggle({ currentRole, onRoleChange }: DemoModeToggleProp
   const CurrentIcon = roleConfig[currentRole].icon;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-2 pointer-events-auto">
       {/* Role Selection Panel */}
       {isExpanded && (
         <div className="bg-card rounded-xl shadow-2xl border p-4 animate-in slide-in-from-bottom-4 duration-200">
