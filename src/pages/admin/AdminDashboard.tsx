@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { WeatherWidget } from "@/components/admin/WeatherWidget";
 import { PickupNotificationsWidget } from "@/components/admin/PickupNotificationsWidget";
+import { PendingContractsWidget } from "@/components/admin/PendingContractsWidget";
 import {
   Users,
   Baby,
@@ -142,9 +143,12 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Weather and Pickup Notifications */}
+      {/* Weather, Pickup Notifications and Pending Contracts */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <WeatherWidget />
+        <div className="space-y-4">
+          <WeatherWidget />
+          <PendingContractsWidget />
+        </div>
         <div className="lg:col-span-2">
           <PickupNotificationsWidget />
         </div>
