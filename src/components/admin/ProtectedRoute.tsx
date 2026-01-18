@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Database } from "@/integrations/supabase/types";
+import AccessDenied from "@/pages/AccessDenied";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -13,10 +13,10 @@ interface ProtectedRouteProps {
 /**
  * Protects routes based on user roles.
  * If allowedRoles is empty, all authenticated staff can access.
- * If user doesn't have required role, redirects to dashboard.
+ * If user doesn't have required role, shows 403 page.
  */
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { roles, loading, isStaff } = useAuth();
+  const { roles, loading } = useAuth();
 
   if (loading) {
     return null;
@@ -31,8 +31,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const hasAccess = roles.some(role => allowedRoles.includes(role));
 
   if (!hasAccess) {
-    // Redirect to main dashboard if unauthorized
-    return <Navigate to="/painel" replace />;
+    return <AccessDenied />;
   }
 
   return <>{children}</>;
