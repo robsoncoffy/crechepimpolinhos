@@ -22,13 +22,13 @@ import AdminContracts from "@/pages/admin/AdminContracts";
 import AdminStaffChat from "@/pages/admin/AdminStaffChat";
 import AdminProfiles from "@/pages/admin/AdminProfiles";
 import AdminTimeClock from "@/pages/admin/AdminTimeClock";
+import AdminQuarterlyEvaluations from "@/pages/admin/AdminQuarterlyEvaluations";
 import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
 import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
-
 // Component to select the right dashboard based on role
 function RoleBasedDashboard() {
   const { isAdmin, isTeacher, isNutritionist, isCook, isPedagogue, isAuxiliar } = useAuth();
@@ -166,6 +166,11 @@ function DashboardContent() {
           <Route path="/eventos" element={
             <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
               <AdminEvents />
+            </ProtectedRoute>
+          } />
+          <Route path="/avaliacoes" element={
+            <ProtectedRoute allowedRoles={["admin", "pedagogue"]}>
+              <AdminQuarterlyEvaluations />
             </ProtectedRoute>
           } />
           
