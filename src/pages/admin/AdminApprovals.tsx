@@ -271,7 +271,6 @@ export default function AdminApprovals() {
             childId: newChild.id,
             registrationId: selectedRegistration.id,
             parentId: selectedRegistration.parent_id,
-            parentName: selectedRegistration.parent_name || "Responsável",
             childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
             birthDate: selectedRegistration.birth_date,
             classType: selectedClassType,

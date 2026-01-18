@@ -17,7 +17,9 @@ const loginSchema = z.object({
 
 const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
-  phone: z.string().optional(),
+  cpf: z.string().min(11, "CPF inválido").max(14, "CPF inválido"),
+  rg: z.string().optional(),
+  phone: z.string().min(10, "Telefone é obrigatório"),
   confirmPassword: z.string(),
   inviteCode: z.string().min(1, "Código de convite é obrigatório"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -39,6 +41,8 @@ export default function Auth() {
     password: "",
     confirmPassword: "",
     fullName: "",
+    cpf: "",
+    rg: "",
     phone: "",
     inviteCode: searchParams.get("invite") || "",
   });
@@ -171,6 +175,8 @@ export default function Auth() {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: formData.fullName,
+              cpf: formData.cpf.replace(/\D/g, ''),
+              rg: formData.rg || null,
               phone: formData.phone,
             },
           },
@@ -362,7 +368,36 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone (opcional)</Label>
+                    <Label htmlFor="cpf">CPF *</Label>
+                    <Input
+                      id="cpf"
+                      name="cpf"
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={formData.cpf}
+                      onChange={handleChange}
+                      className={errors.cpf ? "border-destructive" : ""}
+                      maxLength={14}
+                    />
+                    {errors.cpf && (
+                      <p className="text-sm text-destructive">{errors.cpf}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="rg">RG (opcional)</Label>
+                    <Input
+                      id="rg"
+                      name="rg"
+                      type="text"
+                      placeholder="Seu RG"
+                      value={formData.rg}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefone *</Label>
                     <Input
                       id="phone"
                       name="phone"
@@ -370,7 +405,11 @@ export default function Auth() {
                       placeholder="(51) 99999-9999"
                       value={formData.phone}
                       onChange={handleChange}
+                      className={errors.phone ? "border-destructive" : ""}
                     />
+                    {errors.phone && (
+                      <p className="text-sm text-destructive">{errors.phone}</p>
+                    )}
                   </div>
                 </>
               )}
