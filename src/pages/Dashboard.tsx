@@ -22,7 +22,7 @@ import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
 function DashboardContent() {
-  const { user, loading, isAdmin, isTeacher, isParent } = useAuth();
+  const { user, loading, isAdmin, isTeacher, isParent, isStaff } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -46,8 +46,8 @@ function DashboardContent() {
     return null;
   }
 
-  // Admin or Teacher - show admin panel with layout
-  if (isAdmin || isTeacher) {
+  // Staff (Admin, Teacher, Cook, Nutritionist, Pedagogue, Auxiliar) - show admin panel with layout
+  if (isStaff) {
     return (
       <AdminLayout>
         <Routes>
@@ -73,7 +73,7 @@ function DashboardContent() {
     );
   }
 
-  // Parent - show parent panel
+  // Parent only (not staff) - show parent panel
   if (isParent) {
     return <ParentDashboard />;
   }
