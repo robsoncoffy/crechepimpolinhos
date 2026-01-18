@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bell, Calendar, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Info, LucideIcon } from "lucide-react";
+import { Bell, Calendar, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Info, Car, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -66,6 +66,12 @@ const notificationTypeConfig: Record<string, NotificationTypeConfig> = {
     bgColor: "bg-pimpo-purple/10",
     borderColor: "border-l-pimpo-purple",
     iconColor: "text-pimpo-purple",
+  },
+  pickup: {
+    icon: Car,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
   },
   info: {
     icon: Info,
