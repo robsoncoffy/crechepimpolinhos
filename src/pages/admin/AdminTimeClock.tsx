@@ -53,6 +53,7 @@ import {
   Download,
   Printer,
   FileText,
+  AlertTriangle,
   BarChart3,
   TrendingUp,
 } from "lucide-react";
@@ -139,6 +140,13 @@ export default function AdminTimeClock() {
   const [chartData, setChartData] = useState<TimeClockRecord[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [selectedChartEmployee, setSelectedChartEmployee] = useState<string>("all");
+  const [overtimeAlerts, setOvertimeAlerts] = useState<{ 
+    employee_id: string; 
+    employee_name: string;
+    overtimeHours: number;
+    limitHours: number;
+  }[]>([]);
+  const OVERTIME_LIMIT_HOURS = 44; // CLT default
   const [manualForm, setManualForm] = useState({
     employee_id: "",
     clock_type: "entry" as "entry" | "exit" | "break_start" | "break_end",
@@ -173,6 +181,7 @@ export default function AdminTimeClock() {
       fetchSetupTasks(),
       fetchConfig(),
       fetchEmployees(),
+      checkOvertimeAlerts(),
     ]);
     setLoading(false);
   }
@@ -372,7 +381,108 @@ export default function AdminTimeClock() {
     }
   }
 
-  // Calculate monthly hours by employee for charts
+  async function checkOvertimeAlerts() {
+    try {
+      // Get first day of current month
+      const monthStart = startOfMonth(new Date());
+      
+      // Get all month records
+      const { data: monthRecords, error: monthError } = await supabase
+        .from("employee_time_clock")
+        .select(`
+          *,
+          employee_profiles (
+            full_name,
+            job_title
+          )
+        `)
+        .gte("timestamp", monthStart.toISOString())
+        .order("timestamp", { ascending: true });
+
+      if (monthError) throw monthError;
+
+      // Get config for work hours calculation
+      const workMinutesPerDay = config
+        ? differenceInMinutes(
+            parseISO(`2000-01-01T${config.work_end_time}`),
+            parseISO(`2000-01-01T${config.work_start_time}`)
+          ) - (config.break_duration_minutes || 60)
+        : 8 * 60 - 60;
+
+      const alerts: typeof overtimeAlerts = [];
+
+      // Group records by employee
+      const employeeRecordsMap: Record<string, TimeClockRecord[]> = {};
+      for (const record of (monthRecords as TimeClockRecord[]) || []) {
+        const empId = record.employee_id;
+        if (!empId) continue;
+        if (!employeeRecordsMap[empId]) {
+          employeeRecordsMap[empId] = [];
+        }
+        employeeRecordsMap[empId].push(record);
+      }
+
+      // Calculate overtime for each employee
+      for (const [empId, records] of Object.entries(employeeRecordsMap)) {
+        // Group by day
+        const dailyRecords: Record<string, TimeClockRecord[]> = {};
+        for (const record of records) {
+          const day = record.timestamp.split("T")[0];
+          if (!dailyRecords[day]) {
+            dailyRecords[day] = [];
+          }
+          dailyRecords[day].push(record);
+        }
+
+        let totalOvertimeMinutes = 0;
+
+        for (const [, dayRecords] of Object.entries(dailyRecords)) {
+          const entry = dayRecords.find((r) => r.clock_type === "entry");
+          const exit = dayRecords.find((r) => r.clock_type === "exit");
+          const breakStart = dayRecords.find((r) => r.clock_type === "break_start");
+          const breakEnd = dayRecords.find((r) => r.clock_type === "break_end");
+
+          if (entry && exit) {
+            let workedMinutes = differenceInMinutes(parseISO(exit.timestamp), parseISO(entry.timestamp));
+
+            // Subtract break
+            if (breakStart && breakEnd) {
+              workedMinutes -= differenceInMinutes(parseISO(breakEnd.timestamp), parseISO(breakStart.timestamp));
+            } else {
+              workedMinutes -= config?.break_duration_minutes || 60;
+            }
+
+            workedMinutes = Math.max(0, workedMinutes);
+
+            if (workedMinutes > workMinutesPerDay) {
+              totalOvertimeMinutes += workedMinutes - workMinutesPerDay;
+            }
+          }
+        }
+
+        const overtimeHours = totalOvertimeMinutes / 60;
+        const empName = records[0]?.employee_profiles?.full_name || "Funcionário";
+
+        // Check if approaching or exceeding limit
+        if (overtimeHours >= OVERTIME_LIMIT_HOURS * 0.8) { // Alert at 80% or more
+          alerts.push({
+            employee_id: empId,
+            employee_name: empName,
+            overtimeHours: Math.round(overtimeHours * 10) / 10,
+            limitHours: OVERTIME_LIMIT_HOURS,
+          });
+        }
+      }
+
+      // Sort by overtime hours descending
+      alerts.sort((a, b) => b.overtimeHours - a.overtimeHours);
+      setOvertimeAlerts(alerts);
+    } catch (error) {
+      console.error("Error checking overtime alerts:", error);
+    }
+  }
+
+
   const monthlyChartData = useMemo(() => {
     if (chartData.length === 0) return [];
 
@@ -1085,6 +1195,67 @@ export default function AdminTimeClock() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Overtime Alerts Widget */}
+          {overtimeAlerts.length > 0 && (
+            <Card className="border-orange-500/50 bg-orange-500/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-orange-600">
+                  <AlertTriangle className="w-5 h-5" />
+                  Alertas de Hora Extra
+                </CardTitle>
+                <CardDescription>
+                  Funcionários próximos ou acima do limite mensal ({OVERTIME_LIMIT_HOURS}h)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {overtimeAlerts.map((alert) => {
+                    const isExceeded = alert.overtimeHours >= alert.limitHours;
+                    const percentage = Math.min(100, (alert.overtimeHours / alert.limitHours) * 100);
+                    
+                    return (
+                      <div
+                        key={alert.employee_id}
+                        className={`flex items-center gap-4 p-3 rounded-lg border ${
+                          isExceeded 
+                            ? "bg-red-500/10 border-red-500/30" 
+                            : "bg-orange-500/10 border-orange-500/30"
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium">{alert.employee_name}</span>
+                            <span className={`text-sm font-semibold ${
+                              isExceeded ? "text-red-600" : "text-orange-600"
+                            }`}>
+                              {alert.overtimeHours}h / {alert.limitHours}h
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all ${
+                                isExceeded ? "bg-red-500" : "bg-orange-500"
+                              }`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                        {isExceeded && (
+                          <Badge variant="destructive" className="shrink-0">
+                            Excedido
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Os funcionários listados recebem notificações automáticas por e-mail e no sistema.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Employee Status List */}
           <Card>
