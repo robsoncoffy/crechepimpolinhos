@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,9 +53,25 @@ import {
   Download,
   Printer,
   FileText,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react";
-import { format, startOfDay, endOfDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, startOfDay, endOfDay, parseISO, differenceInMinutes, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  ComposedChart,
+  Area,
+} from "recharts";
 
 interface TimeClockRecord {
   id: string;
@@ -120,6 +136,9 @@ export default function AdminTimeClock() {
   const [manualDialogOpen, setManualDialogOpen] = useState(false);
   const [manualFormLoading, setManualFormLoading] = useState(false);
   const [employees, setEmployees] = useState<{ id: string; user_id: string; full_name: string; job_title: string | null }[]>([]);
+  const [chartData, setChartData] = useState<TimeClockRecord[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [selectedChartEmployee, setSelectedChartEmployee] = useState<string>("all");
   const [manualForm, setManualForm] = useState({
     employee_id: "",
     clock_type: "entry" as "entry" | "exit" | "break_start" | "break_end",
@@ -316,6 +335,226 @@ export default function AdminTimeClock() {
       setReportLoading(false);
     }
   }
+
+  async function fetchChartData() {
+    setChartLoading(true);
+    try {
+      // Fetch last 6 months of data for comparison
+      const endDate = endOfMonth(new Date());
+      const startDate = startOfMonth(subMonths(new Date(), 5));
+
+      let query = supabase
+        .from("employee_time_clock")
+        .select(`
+          *,
+          employee_profiles (
+            full_name,
+            job_title
+          )
+        `)
+        .gte("timestamp", startDate.toISOString())
+        .lte("timestamp", endDate.toISOString())
+        .order("timestamp", { ascending: true });
+
+      if (selectedChartEmployee !== "all") {
+        query = query.eq("employee_id", selectedChartEmployee);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setChartData((data as TimeClockRecord[]) || []);
+    } catch (error) {
+      console.error("Error fetching chart data:", error);
+      toast.error("Erro ao carregar dados do gráfico");
+    } finally {
+      setChartLoading(false);
+    }
+  }
+
+  // Calculate monthly hours by employee for charts
+  const monthlyChartData = useMemo(() => {
+    if (chartData.length === 0) return [];
+
+    const workMinutesPerDay = config
+      ? differenceInMinutes(
+          parseISO(`2000-01-01T${config.work_end_time}`),
+          parseISO(`2000-01-01T${config.work_start_time}`)
+        ) - (config.break_duration_minutes || 60)
+      : 8 * 60 - 60;
+
+    // Group by month
+    const monthlyData: Record<string, { month: string; monthLabel: string; [key: string]: any }> = {};
+
+    // Initialize last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = subMonths(new Date(), i);
+      const monthKey = format(monthDate, "yyyy-MM");
+      const monthLabel = format(monthDate, "MMM/yy", { locale: ptBR });
+      monthlyData[monthKey] = { month: monthKey, monthLabel };
+    }
+
+    // Process chart data
+    const employeesInData = new Set<string>();
+    chartData.forEach((record) => {
+      if (record.employee_id && record.employee_profiles?.full_name) {
+        employeesInData.add(record.employee_id);
+      }
+    });
+
+    // Calculate hours for each employee per month
+    employeesInData.forEach((empId) => {
+      const empRecords = chartData.filter((r) => r.employee_id === empId);
+      const empName = empRecords[0]?.employee_profiles?.full_name || "Desconhecido";
+
+      Object.keys(monthlyData).forEach((monthKey) => {
+        const monthDate = parseISO(monthKey + "-01");
+        const days = eachDayOfInterval({
+          start: startOfMonth(monthDate),
+          end: endOfMonth(monthDate),
+        });
+
+        let totalMinutes = 0;
+        let overtimeMinutes = 0;
+
+        days.forEach((day) => {
+          const dayRecords = empRecords.filter((r) =>
+            isSameDay(parseISO(r.timestamp), day)
+          );
+
+          const entry = dayRecords.find((r) => r.clock_type === "entry");
+          const exit = dayRecords.find((r) => r.clock_type === "exit");
+          const breakStart = dayRecords.find((r) => r.clock_type === "break_start");
+          const breakEnd = dayRecords.find((r) => r.clock_type === "break_end");
+
+          if (entry && exit) {
+            let worked = differenceInMinutes(parseISO(exit.timestamp), parseISO(entry.timestamp));
+            if (breakStart && breakEnd) {
+              worked -= differenceInMinutes(parseISO(breakEnd.timestamp), parseISO(breakStart.timestamp));
+            } else if (worked > 0) {
+              worked -= config?.break_duration_minutes || 60;
+            }
+            worked = Math.max(0, worked);
+            totalMinutes += worked;
+
+            if (worked > workMinutesPerDay) {
+              overtimeMinutes += worked - workMinutesPerDay;
+            }
+          }
+        });
+
+        // Store hours (not minutes) for better readability
+        monthlyData[monthKey][`${empId}_hours`] = Math.round(totalMinutes / 60 * 10) / 10;
+        monthlyData[monthKey][`${empId}_overtime`] = Math.round(overtimeMinutes / 60 * 10) / 10;
+        monthlyData[monthKey][`${empId}_name`] = empName;
+      });
+    });
+
+    return Object.values(monthlyData);
+  }, [chartData, config]);
+
+  // Get unique employees from chart data for legend
+  const chartEmployees = useMemo(() => {
+    const empMap = new Map<string, string>();
+    chartData.forEach((r) => {
+      if (r.employee_id && r.employee_profiles?.full_name) {
+        empMap.set(r.employee_id, r.employee_profiles.full_name);
+      }
+    });
+    return Array.from(empMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [chartData]);
+
+  // Aggregate data for all employees comparison
+  const employeeComparisonData = useMemo(() => {
+    if (chartData.length === 0) return [];
+
+    const workMinutesPerDay = config
+      ? differenceInMinutes(
+          parseISO(`2000-01-01T${config.work_end_time}`),
+          parseISO(`2000-01-01T${config.work_start_time}`)
+        ) - (config.break_duration_minutes || 60)
+      : 8 * 60 - 60;
+
+    const currentMonth = format(new Date(), "yyyy-MM");
+    const lastMonth = format(subMonths(new Date(), 1), "yyyy-MM");
+
+    const employeeStats: Record<string, { 
+      name: string; 
+      currentMonth: number; 
+      lastMonth: number;
+      overtime: number;
+    }> = {};
+
+    employees.forEach((emp) => {
+      const empRecords = chartData.filter((r) => r.employee_id === emp.id);
+      
+      [currentMonth, lastMonth].forEach((monthKey) => {
+        const monthDate = parseISO(monthKey + "-01");
+        const days = eachDayOfInterval({
+          start: startOfMonth(monthDate),
+          end: endOfMonth(monthDate),
+        });
+
+        let totalMinutes = 0;
+        let overtimeMinutes = 0;
+
+        days.forEach((day) => {
+          const dayRecords = empRecords.filter((r) =>
+            isSameDay(parseISO(r.timestamp), day)
+          );
+
+          const entry = dayRecords.find((r) => r.clock_type === "entry");
+          const exit = dayRecords.find((r) => r.clock_type === "exit");
+          const breakStart = dayRecords.find((r) => r.clock_type === "break_start");
+          const breakEnd = dayRecords.find((r) => r.clock_type === "break_end");
+
+          if (entry && exit) {
+            let worked = differenceInMinutes(parseISO(exit.timestamp), parseISO(entry.timestamp));
+            if (breakStart && breakEnd) {
+              worked -= differenceInMinutes(parseISO(breakEnd.timestamp), parseISO(breakStart.timestamp));
+            } else if (worked > 0) {
+              worked -= config?.break_duration_minutes || 60;
+            }
+            worked = Math.max(0, worked);
+            totalMinutes += worked;
+
+            if (worked > workMinutesPerDay) {
+              overtimeMinutes += worked - workMinutesPerDay;
+            }
+          }
+        });
+
+        if (!employeeStats[emp.id]) {
+          employeeStats[emp.id] = {
+            name: emp.full_name,
+            currentMonth: 0,
+            lastMonth: 0,
+            overtime: 0,
+          };
+        }
+
+        if (monthKey === currentMonth) {
+          employeeStats[emp.id].currentMonth = Math.round(totalMinutes / 60 * 10) / 10;
+          employeeStats[emp.id].overtime = Math.round(overtimeMinutes / 60 * 10) / 10;
+        } else {
+          employeeStats[emp.id].lastMonth = Math.round(totalMinutes / 60 * 10) / 10;
+        }
+      });
+    });
+
+    return Object.values(employeeStats).filter(
+      (emp) => emp.currentMonth > 0 || emp.lastMonth > 0
+    );
+  }, [chartData, employees, config]);
+
+  // Colors for charts
+  const chartColors = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+  ];
 
   interface DailyRecord {
     date: Date;
@@ -789,8 +1028,9 @@ export default function AdminTimeClock() {
       )}
 
       <Tabs defaultValue="today" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="today">Hoje</TabsTrigger>
+          <TabsTrigger value="stats">Estatísticas</TabsTrigger>
           <TabsTrigger value="reports">Relatórios</TabsTrigger>
           <TabsTrigger value="manual">Registros</TabsTrigger>
           <TabsTrigger value="config">Configuração</TabsTrigger>
@@ -956,6 +1196,290 @@ export default function AdminTimeClock() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Stats Tab */}
+        <TabsContent value="stats" className="space-y-6">
+          {/* Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Estatísticas de Horas Trabalhadas
+              </CardTitle>
+              <CardDescription>
+                Visualize horas trabalhadas e comparativos mensais por funcionário
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4 items-end">
+                <div className="space-y-2 flex-1">
+                  <Label>Funcionário</Label>
+                  <Select
+                    value={selectedChartEmployee}
+                    onValueChange={setSelectedChartEmployee}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Funcionários</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={fetchChartData} disabled={chartLoading}>
+                  {chartLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                  )}
+                  Carregar Dados
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {chartData.length > 0 && (
+            <>
+              {/* Monthly Comparison Bar Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Comparativo Mensal de Horas</CardTitle>
+                  <CardDescription>
+                    Evolução de horas trabalhadas nos últimos 6 meses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={monthlyChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis 
+                          dataKey="monthLabel" 
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                          label={{ value: 'Horas', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number, name: string) => {
+                            const cleanName = name.replace('_hours', '').replace('_overtime', '');
+                            const emp = chartEmployees.find(e => e.id === cleanName);
+                            const isOvertime = name.includes('overtime');
+                            return [
+                              `${value}h`,
+                              isOvertime 
+                                ? `${emp?.name || 'Funcionário'} (H. Extra)` 
+                                : emp?.name || 'Funcionário'
+                            ];
+                          }}
+                        />
+                        <Legend 
+                          formatter={(value) => {
+                            const cleanName = value.replace('_hours', '').replace('_overtime', '');
+                            const emp = chartEmployees.find(e => e.id === cleanName);
+                            const isOvertime = value.includes('overtime');
+                            return isOvertime 
+                              ? `${emp?.name || 'Funcionário'} (H. Extra)` 
+                              : emp?.name || 'Funcionário';
+                          }}
+                        />
+                        {chartEmployees.map((emp, index) => (
+                          <Bar 
+                            key={emp.id}
+                            dataKey={`${emp.id}_hours`}
+                            name={`${emp.id}_hours`}
+                            fill={chartColors[index % chartColors.length]}
+                            radius={[4, 4, 0, 0]}
+                          />
+                        ))}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Employee Comparison - Current vs Last Month */}
+              {employeeComparisonData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Comparativo: Mês Atual vs Mês Anterior</CardTitle>
+                    <CardDescription>
+                      {format(new Date(), "MMMM/yyyy", { locale: ptBR })} vs {format(subMonths(new Date(), 1), "MMMM/yyyy", { locale: ptBR })}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={employeeComparisonData} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                          <XAxis 
+                            type="number" 
+                            tick={{ fontSize: 12 }}
+                            tickLine={false}
+                            label={{ value: 'Horas', position: 'bottom', fontSize: 12 }}
+                          />
+                          <YAxis 
+                            dataKey="name" 
+                            type="category"
+                            tick={{ fontSize: 11 }}
+                            tickLine={false}
+                            axisLine={false}
+                            width={100}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--background))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                            }}
+                            formatter={(value: number) => [`${value}h`]}
+                          />
+                          <Legend />
+                          <Bar 
+                            dataKey="currentMonth" 
+                            name={format(new Date(), "MMM/yy", { locale: ptBR })}
+                            fill="hsl(var(--chart-1))" 
+                            radius={[0, 4, 4, 0]}
+                          />
+                          <Bar 
+                            dataKey="lastMonth" 
+                            name={format(subMonths(new Date(), 1), "MMM/yy", { locale: ptBR })}
+                            fill="hsl(var(--chart-2))" 
+                            radius={[0, 4, 4, 0]}
+                          />
+                          <Bar 
+                            dataKey="overtime" 
+                            name="H. Extra (atual)"
+                            fill="hsl(var(--chart-4))" 
+                            radius={[0, 4, 4, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Monthly Trend Line Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Tendência de Horas Trabalhadas</CardTitle>
+                  <CardDescription>
+                    Evolução mensal com linha de tendência
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={monthlyChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                        <XAxis 
+                          dataKey="monthLabel" 
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number, name: string) => {
+                            const cleanName = name.replace('_hours', '');
+                            const emp = chartEmployees.find(e => e.id === cleanName);
+                            return [`${value}h`, emp?.name || 'Funcionário'];
+                          }}
+                        />
+                        <Legend 
+                          formatter={(value) => {
+                            const cleanName = value.replace('_hours', '');
+                            const emp = chartEmployees.find(e => e.id === cleanName);
+                            return emp?.name || 'Funcionário';
+                          }}
+                        />
+                        {chartEmployees.map((emp, index) => (
+                          <Line 
+                            key={emp.id}
+                            type="monotone"
+                            dataKey={`${emp.id}_hours`}
+                            name={`${emp.id}_hours`}
+                            stroke={chartColors[index % chartColors.length]}
+                            strokeWidth={2}
+                            dot={{ fill: chartColors[index % chartColors.length], strokeWidth: 2 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Summary Stats Cards */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {employeeComparisonData.slice(0, 4).map((emp, index) => {
+                  const diff = emp.currentMonth - emp.lastMonth;
+                  const diffPercent = emp.lastMonth > 0 
+                    ? Math.round((diff / emp.lastMonth) * 100) 
+                    : 0;
+                  
+                  return (
+                    <Card key={index}>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium truncate">{emp.name}</p>
+                          {diffPercent !== 0 && (
+                            <Badge 
+                              variant="outline" 
+                              className={diffPercent > 0 ? "text-green-600" : "text-red-600"}
+                            >
+                              {diffPercent > 0 ? "+" : ""}{diffPercent}%
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-2xl font-bold">{emp.currentMonth}h</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Mês anterior: {emp.lastMonth}h
+                          {emp.overtime > 0 && (
+                            <span className="ml-2 text-green-600">+{emp.overtime}h extras</span>
+                          )}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {chartData.length === 0 && !chartLoading && (
+            <div className="text-center py-12 bg-muted/30 rounded-xl border-2 border-dashed">
+              <BarChart3 className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                Clique em "Carregar Dados" para visualizar as estatísticas
+              </p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Reports Tab */}
