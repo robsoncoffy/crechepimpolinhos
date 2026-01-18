@@ -143,10 +143,11 @@ export default function AdminTimeClock() {
   const [overtimeAlerts, setOvertimeAlerts] = useState<{ 
     employee_id: string; 
     employee_name: string;
+    workedHours: number;
     overtimeHours: number;
     limitHours: number;
   }[]>([]);
-  const OVERTIME_LIMIT_HOURS = 44; // CLT default
+  const WEEKLY_WORK_LIMIT_HOURS = 40; // 40 hours per week
   const [manualForm, setManualForm] = useState({
     employee_id: "",
     clock_type: "entry" as "entry" | "exit" | "break_start" | "break_end",
@@ -383,11 +384,16 @@ export default function AdminTimeClock() {
 
   async function checkOvertimeAlerts() {
     try {
-      // Get first day of current month
-      const monthStart = startOfMonth(new Date());
+      // Get start of current week (Monday)
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - diffToMonday);
+      weekStart.setHours(0, 0, 0, 0);
       
-      // Get all month records
-      const { data: monthRecords, error: monthError } = await supabase
+      // Get all week records
+      const { data: weekRecords, error: weekError } = await supabase
         .from("employee_time_clock")
         .select(`
           *,
@@ -396,24 +402,16 @@ export default function AdminTimeClock() {
             job_title
           )
         `)
-        .gte("timestamp", monthStart.toISOString())
+        .gte("timestamp", weekStart.toISOString())
         .order("timestamp", { ascending: true });
 
-      if (monthError) throw monthError;
-
-      // Get config for work hours calculation
-      const workMinutesPerDay = config
-        ? differenceInMinutes(
-            parseISO(`2000-01-01T${config.work_end_time}`),
-            parseISO(`2000-01-01T${config.work_start_time}`)
-          ) - (config.break_duration_minutes || 60)
-        : 8 * 60 - 60;
+      if (weekError) throw weekError;
 
       const alerts: typeof overtimeAlerts = [];
 
       // Group records by employee
       const employeeRecordsMap: Record<string, TimeClockRecord[]> = {};
-      for (const record of (monthRecords as TimeClockRecord[]) || []) {
+      for (const record of (weekRecords as TimeClockRecord[]) || []) {
         const empId = record.employee_id;
         if (!empId) continue;
         if (!employeeRecordsMap[empId]) {
@@ -422,7 +420,7 @@ export default function AdminTimeClock() {
         employeeRecordsMap[empId].push(record);
       }
 
-      // Calculate overtime for each employee
+      // Calculate weekly hours for each employee
       for (const [empId, records] of Object.entries(employeeRecordsMap)) {
         // Group by day
         const dailyRecords: Record<string, TimeClockRecord[]> = {};
@@ -434,7 +432,7 @@ export default function AdminTimeClock() {
           dailyRecords[day].push(record);
         }
 
-        let totalOvertimeMinutes = 0;
+        let totalWorkedMinutes = 0;
 
         for (const [, dayRecords] of Object.entries(dailyRecords)) {
           const entry = dayRecords.find((r) => r.clock_type === "entry");
@@ -453,29 +451,28 @@ export default function AdminTimeClock() {
             }
 
             workedMinutes = Math.max(0, workedMinutes);
-
-            if (workedMinutes > workMinutesPerDay) {
-              totalOvertimeMinutes += workedMinutes - workMinutesPerDay;
-            }
+            totalWorkedMinutes += workedMinutes;
           }
         }
 
-        const overtimeHours = totalOvertimeMinutes / 60;
+        const totalWorkedHours = totalWorkedMinutes / 60;
+        const overtimeHours = Math.max(0, totalWorkedHours - WEEKLY_WORK_LIMIT_HOURS);
         const empName = records[0]?.employee_profiles?.full_name || "Funcionário";
 
-        // Check if approaching or exceeding limit
-        if (overtimeHours >= OVERTIME_LIMIT_HOURS * 0.8) { // Alert at 80% or more
+        // Check if approaching or exceeding weekly limit (alert at 80% or more)
+        if (totalWorkedHours >= WEEKLY_WORK_LIMIT_HOURS * 0.8) {
           alerts.push({
             employee_id: empId,
             employee_name: empName,
+            workedHours: Math.round(totalWorkedHours * 10) / 10,
             overtimeHours: Math.round(overtimeHours * 10) / 10,
-            limitHours: OVERTIME_LIMIT_HOURS,
+            limitHours: WEEKLY_WORK_LIMIT_HOURS,
           });
         }
       }
 
-      // Sort by overtime hours descending
-      alerts.sort((a, b) => b.overtimeHours - a.overtimeHours);
+      // Sort by worked hours descending
+      alerts.sort((a, b) => b.workedHours - a.workedHours);
       setOvertimeAlerts(alerts);
     } catch (error) {
       console.error("Error checking overtime alerts:", error);
@@ -1196,23 +1193,23 @@ export default function AdminTimeClock() {
             </Card>
           </div>
 
-          {/* Overtime Alerts Widget */}
+          {/* Weekly Overtime Alerts Widget */}
           {overtimeAlerts.length > 0 && (
             <Card className="border-orange-500/50 bg-orange-500/5">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-orange-600">
                   <AlertTriangle className="w-5 h-5" />
-                  Alertas de Hora Extra
+                  Alertas de Carga Horária Semanal
                 </CardTitle>
                 <CardDescription>
-                  Funcionários próximos ou acima do limite mensal ({OVERTIME_LIMIT_HOURS}h)
+                  Funcionários próximos ou acima do limite semanal de {WEEKLY_WORK_LIMIT_HOURS}h
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {overtimeAlerts.map((alert) => {
-                    const isExceeded = alert.overtimeHours >= alert.limitHours;
-                    const percentage = Math.min(100, (alert.overtimeHours / alert.limitHours) * 100);
+                    const isExceeded = alert.workedHours > alert.limitHours;
+                    const percentage = Math.min(100, (alert.workedHours / alert.limitHours) * 100);
                     
                     return (
                       <div
@@ -1229,7 +1226,12 @@ export default function AdminTimeClock() {
                             <span className={`text-sm font-semibold ${
                               isExceeded ? "text-red-600" : "text-orange-600"
                             }`}>
-                              {alert.overtimeHours}h / {alert.limitHours}h
+                              {alert.workedHours}h / {alert.limitHours}h
+                              {alert.overtimeHours > 0 && (
+                                <span className="ml-1 text-xs">
+                                  (+{alert.overtimeHours}h extra)
+                                </span>
+                              )}
                             </span>
                           </div>
                           <div className="h-2 bg-muted rounded-full overflow-hidden">

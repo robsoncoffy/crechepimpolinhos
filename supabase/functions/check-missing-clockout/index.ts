@@ -22,8 +22,8 @@ interface EmployeeOvertimeInfo {
   limitHours: number;
 }
 
-// Monthly overtime limit in hours (Brazilian CLT default is 44h extra per month max)
-const OVERTIME_LIMIT_HOURS = 44;
+// Weekly work limit in hours (40h per week = 8h/day * 5 days)
+const WEEKLY_WORK_LIMIT_HOURS = 40;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -252,12 +252,16 @@ serve(async (req) => {
       }
     }
 
-    // ========= CHECK 2: Overtime Limit Exceeded =========
-    console.log("Checking for overtime limit violations...");
+    // ========= CHECK 2: Weekly Overtime Limit Exceeded =========
+    console.log("Checking for weekly overtime limit violations...");
 
-    // Get first day of current month
-    const monthStart = new Date(brazilTime.getFullYear(), brazilTime.getMonth(), 1);
-    const monthStartStr = monthStart.toISOString().split('T')[0];
+    // Get start of current week (Monday)
+    const dayOfWeek = brazilTime.getDay();
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 6 days back, else subtract 1
+    const weekStart = new Date(brazilTime);
+    weekStart.setDate(brazilTime.getDate() - diffToMonday);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
 
     // Get all employees
     const { data: allEmployees, error: empError } = await supabase
@@ -275,34 +279,24 @@ serve(async (req) => {
       .eq('is_active', true)
       .maybeSingle();
 
-    // Default work minutes per day (8h - 1h break = 7h = 420 min)
-    let workMinutesPerDay = 420;
-    if (timeConfig) {
-      const startParts = timeConfig.work_start_time.split(':').map(Number);
-      const endParts = timeConfig.work_end_time.split(':').map(Number);
-      const startMins = startParts[0] * 60 + startParts[1];
-      const endMins = endParts[0] * 60 + endParts[1];
-      workMinutesPerDay = endMins - startMins - (timeConfig.break_duration_minutes || 60);
-    }
-
-    // Get all month records
-    const { data: monthRecords, error: monthError } = await supabase
+    // Get weekly records
+    const { data: weekRecords, error: weekError } = await supabase
       .from('employee_time_clock')
       .select('*')
-      .gte('timestamp', `${monthStartStr}T00:00:00`)
+      .gte('timestamp', `${weekStartStr}T00:00:00`)
       .lte('timestamp', `${todayStr}T23:59:59`)
       .order('timestamp', { ascending: true });
 
-    if (monthError) {
-      console.error("Error fetching month records:", monthError);
+    if (weekError) {
+      console.error("Error fetching week records:", weekError);
     }
 
     const overtimeAlerts: EmployeeOvertimeInfo[] = [];
     const overtimeNotificationsCreated: string[] = [];
 
-    if (allEmployees && monthRecords) {
+    if (allEmployees && weekRecords) {
       for (const emp of allEmployees) {
-        const empRecords = monthRecords.filter((r: any) => r.employee_id === emp.id);
+        const empRecords = weekRecords.filter((r: any) => r.employee_id === emp.id);
         
         // Group by day
         const dailyRecords: Record<string, any[]> = {};
@@ -314,9 +308,9 @@ serve(async (req) => {
           dailyRecords[day].push(record);
         }
 
-        let totalOvertimeMinutes = 0;
+        let totalWorkedMinutes = 0;
 
-        // Calculate overtime for each day
+        // Calculate total hours worked this week
         for (const [, records] of Object.entries(dailyRecords)) {
           const entry = records.find((r: any) => r.clock_type === 'entry');
           const exit = records.find((r: any) => r.clock_type === 'exit');
@@ -337,32 +331,30 @@ serve(async (req) => {
             }
 
             workedMinutes = Math.max(0, workedMinutes);
-
-            if (workedMinutes > workMinutesPerDay) {
-              totalOvertimeMinutes += workedMinutes - workMinutesPerDay;
-            }
+            totalWorkedMinutes += workedMinutes;
           }
         }
 
-        const overtimeHours = totalOvertimeMinutes / 60;
+        const totalWorkedHours = totalWorkedMinutes / 60;
+        const overtimeHours = Math.max(0, totalWorkedHours - WEEKLY_WORK_LIMIT_HOURS);
 
-        // Check if exceeded limit
-        if (overtimeHours >= OVERTIME_LIMIT_HOURS) {
+        // Check if exceeded weekly limit
+        if (totalWorkedHours > WEEKLY_WORK_LIMIT_HOURS) {
           overtimeAlerts.push({
             employee_id: emp.id,
             employee_name: emp.full_name,
             user_id: emp.user_id,
             overtimeHours: Math.round(overtimeHours * 10) / 10,
-            limitHours: OVERTIME_LIMIT_HOURS,
+            limitHours: WEEKLY_WORK_LIMIT_HOURS,
           });
 
-          // Check if notification was already sent this month for this employee
+          // Check if notification was already sent this week for this employee
           const { data: existingOvertimeNotif } = await supabase
             .from('notifications')
             .select('id')
             .eq('user_id', emp.user_id)
             .eq('type', 'overtime_exceeded')
-            .gte('created_at', `${monthStartStr}T00:00:00`)
+            .gte('created_at', `${weekStartStr}T00:00:00`)
             .maybeSingle();
 
           if (!existingOvertimeNotif) {
@@ -371,8 +363,8 @@ serve(async (req) => {
               .from('notifications')
               .insert({
                 user_id: emp.user_id,
-                title: '⚠️ Limite de Hora Extra Excedido',
-                message: `Você acumulou ${Math.round(overtimeHours * 10) / 10}h de hora extra este mês, excedendo o limite de ${OVERTIME_LIMIT_HOURS}h. Por favor, converse com a administração.`,
+                title: '⚠️ Limite Semanal de Horas Excedido',
+                message: `Você trabalhou ${Math.round(totalWorkedHours * 10) / 10}h esta semana, excedendo o limite de ${WEEKLY_WORK_LIMIT_HOURS}h (+${Math.round(overtimeHours * 10) / 10}h extra). Converse com a administração.`,
                 type: 'overtime_exceeded',
                 link: '/painel/ponto',
               });
@@ -395,13 +387,13 @@ serve(async (req) => {
                     body: JSON.stringify({
                       from: "Creche Pimpolinhos <onboarding@resend.dev>",
                       to: [userData.user.email],
-                      subject: "⚠️ Limite de Hora Extra Excedido - Creche Pimpolinhos",
+                      subject: "⚠️ Limite Semanal de Horas Excedido - Creche Pimpolinhos",
                       html: `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                          <h2 style="color: #f59e0b;">⚠️ Limite de Hora Extra Excedido</h2>
+                          <h2 style="color: #f59e0b;">⚠️ Limite Semanal de Horas Excedido</h2>
                           <p>Olá <strong>${emp.full_name}</strong>,</p>
-                          <p>Identificamos que você acumulou <strong>${Math.round(overtimeHours * 10) / 10} horas</strong> de hora extra este mês.</p>
-                          <p style="color: #dc2626;"><strong>O limite mensal de ${OVERTIME_LIMIT_HOURS} horas foi excedido.</strong></p>
+                          <p>Identificamos que você trabalhou <strong>${Math.round(totalWorkedHours * 10) / 10} horas</strong> esta semana.</p>
+                          <p style="color: #dc2626;"><strong>O limite semanal de ${WEEKLY_WORK_LIMIT_HOURS} horas foi excedido em ${Math.round(overtimeHours * 10) / 10}h.</strong></p>
                           <p>Por favor, entre em contato com a administração para regularização e ajuste do seu banco de horas.</p>
                           <div style="margin: 30px 0;">
                             <a href="https://crechepimpolinhos.lovable.app/painel/ponto" 
