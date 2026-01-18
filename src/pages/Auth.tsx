@@ -470,6 +470,16 @@ export default function Auth() {
                 Após o cadastro, a escola irá aprovar seu acesso e vincular seu filho à sua conta.
               </p>
             )}
+
+            <div className="mt-6 pt-4 border-t text-center">
+              <p className="text-sm text-muted-foreground mb-2">É funcionário da escola?</p>
+              <Link 
+                to="/cadastro-funcionario" 
+                className="text-sm text-primary hover:underline font-medium"
+              >
+                Clique aqui para cadastro de funcionários
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
