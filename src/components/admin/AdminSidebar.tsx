@@ -18,6 +18,7 @@ import {
   ClipboardCheck,
   CreditCard,
   FileSignature,
+  Megaphone,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -36,8 +37,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-import { Megaphone } from "lucide-react";
+import { RoleViewSwitcher } from "./RoleViewSwitcher";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/painel" },
@@ -107,7 +107,7 @@ export function AdminSidebar() {
 
       <SidebarContent>
         {/* User Info */}
-        <SidebarGroup className="border-b border-sidebar-border pb-4">
+        <SidebarGroup className="pb-2">
           <div className={cn(
             "flex items-center gap-3 px-2 py-2",
             isCollapsed && "justify-center"
@@ -129,6 +129,11 @@ export function AdminSidebar() {
               </div>
             )}
           </div>
+        </SidebarGroup>
+
+        {/* Role View Switcher */}
+        <SidebarGroup className="border-b border-sidebar-border pb-4">
+          <RoleViewSwitcher isCollapsed={isCollapsed} />
         </SidebarGroup>
 
         {/* Main Navigation */}
