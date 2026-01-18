@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -231,7 +232,7 @@ Canoas, RS - ${currentDate}
 
     console.log("Contract saved successfully:", contractData.id);
 
-    // Step 4: Create notification for admin
+    // Step 4: Create notification for parent
     const { error: notifError } = await supabase
       .from('notifications')
       .insert({
@@ -244,6 +245,103 @@ Canoas, RS - ${currentDate}
 
     if (notifError) {
       console.warn("Failed to create notification:", notifError);
+    }
+
+    // Step 5: Send email notification to parent
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (RESEND_API_KEY) {
+      try {
+        const resend = new Resend(RESEND_API_KEY);
+        console.log("Sending contract notification email to:", parentEmail);
+
+        await resend.emails.send({
+          from: "Creche Pimpolinhos <onboarding@resend.dev>",
+          to: [parentEmail],
+          subject: `📝 Contrato de Matrícula de ${childName} - Assinatura Pendente`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 30px; text-align: center;">
+                  <h1 style="color: white; margin: 0; font-size: 24px;">📝 Creche Pimpolinhos</h1>
+                  <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Contrato de Matrícula</p>
+                </div>
+                <div style="padding: 30px;">
+                  <h2 style="color: #1e293b; margin-top: 0;">Olá, ${parentName}! 👋</h2>
+                  <p style="color: #475569; font-size: 16px; line-height: 1.6;">
+                    O contrato de matrícula de <strong>${childName}</strong> está disponível para assinatura digital.
+                  </p>
+                  
+                  <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #3b82f6;">
+                    <h3 style="color: #1e40af; margin: 0 0 15px; font-size: 16px;">📋 Dados do Contrato</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="color: #475569; padding: 8px 0; font-size: 14px;"><strong>Criança:</strong></td>
+                        <td style="color: #1e293b; padding: 8px 0; font-size: 14px;">${childName}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #475569; padding: 8px 0; font-size: 14px;"><strong>Turma:</strong></td>
+                        <td style="color: #1e293b; padding: 8px 0; font-size: 14px;">${classTypeLabels[classType] || classType}</td>
+                      </tr>
+                      <tr>
+                        <td style="color: #475569; padding: 8px 0; font-size: 14px;"><strong>Turno:</strong></td>
+                        <td style="color: #1e293b; padding: 8px 0; font-size: 14px;">${shiftTypeLabels[shiftType] || shiftType}</td>
+                      </tr>
+                      ${planType ? `
+                      <tr>
+                        <td style="color: #475569; padding: 8px 0; font-size: 14px;"><strong>Plano:</strong></td>
+                        <td style="color: #1e293b; padding: 8px 0; font-size: 14px;">${planTypeLabels[planType] || planType}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </div>
+
+                  <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+                    <p style="color: #92400e; margin: 0; font-size: 14px;">
+                      <strong>⏰ Atenção:</strong> O contrato deve ser assinado digitalmente para confirmar a matrícula. Clique no botão abaixo para acessar o documento.
+                    </p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${signUrl}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      ✍️ Assinar Contrato
+                    </a>
+                  </div>
+                  
+                  <p style="color: #64748b; font-size: 12px; line-height: 1.6; text-align: center;">
+                    Se o botão não funcionar, copie e cole este link no seu navegador:<br>
+                    <a href="${signUrl}" style="color: #3b82f6; word-break: break-all;">${signUrl}</a>
+                  </p>
+
+                  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;">
+                  
+                  <p style="color: #475569; font-size: 14px; line-height: 1.6; text-align: center;">
+                    Em caso de dúvidas, entre em contato conosco pelo telefone <strong>(51) 99999-9999</strong> ou responda este e-mail.
+                  </p>
+                </div>
+                <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                  <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} Creche Pimpolinhos - Todos os direitos reservados
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `,
+        });
+
+        console.log("Contract notification email sent successfully");
+      } catch (emailError) {
+        console.warn("Failed to send contract email notification:", emailError);
+        // Don't fail the whole request if email fails - contract was still created
+      }
+    } else {
+      console.warn("RESEND_API_KEY not configured - skipping email notification");
     }
 
     return new Response(
