@@ -19,6 +19,7 @@ import {
   CreditCard,
   FileSignature,
   Megaphone,
+  MessagesSquare,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -47,7 +48,8 @@ const menuItems = [
   { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada" },
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda" },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento" },
-  { icon: MessageSquare, label: "Mensagens", href: "/painel/mensagens" },
+  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens" },
+  { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe" },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos" },
   { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro" },
   { icon: FileSignature, label: "Contratos", href: "/painel/contratos" },

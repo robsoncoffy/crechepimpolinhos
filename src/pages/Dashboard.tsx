@@ -18,6 +18,7 @@ import AdminParentInvites from "@/pages/admin/AdminParentInvites";
 import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminContracts from "@/pages/admin/AdminContracts";
+import AdminStaffChat from "@/pages/admin/AdminStaffChat";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 
@@ -57,6 +58,7 @@ function DashboardContent() {
           <Route path="/criancas" element={<AdminChildren />} />
           <Route path="/agenda" element={<AdminAgenda />} />
           <Route path="/mensagens" element={<AdminMessages />} />
+          <Route path="/chat-equipe" element={<AdminStaffChat />} />
           <Route path="/crescimento" element={<AdminGrowth />} />
           <Route path="/cardapio" element={<AdminMenu />} />
           <Route path="/galeria" element={<AdminGallery />} />
