@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminTeachers from "@/pages/admin/AdminTeachers";
@@ -72,23 +73,99 @@ function DashboardContent() {
       <AdminLayout>
         <Routes>
           <Route path="/" element={<RoleBasedDashboard />} />
-          <Route path="/aprovacoes" element={<AdminApprovals />} />
-          <Route path="/professores" element={<AdminTeachers />} />
-          <Route path="/criancas" element={<AdminChildren />} />
-          <Route path="/agenda" element={<AdminAgenda />} />
-          <Route path="/mensagens" element={<AdminMessages />} />
+          
+          {/* Admin only routes */}
+          <Route path="/aprovacoes" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminApprovals />
+            </ProtectedRoute>
+          } />
+          <Route path="/professores" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminTeachers />
+            </ProtectedRoute>
+          } />
+          <Route path="/convites" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminEmployeeInvites />
+            </ProtectedRoute>
+          } />
+          <Route path="/convites-pais" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminParentInvites />
+            </ProtectedRoute>
+          } />
+          <Route path="/financeiro" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminPayments />
+            </ProtectedRoute>
+          } />
+          <Route path="/contratos" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminContracts />
+            </ProtectedRoute>
+          } />
+          <Route path="/config" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminConfigPlaceholder />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin + Teacher routes */}
+          <Route path="/avisos" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+              <AdminAnnouncements />
+            </ProtectedRoute>
+          } />
+          <Route path="/galeria" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+              <AdminGallery />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin + Teacher + Auxiliar routes */}
+          <Route path="/criancas" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue", "auxiliar"]}>
+              <AdminChildren />
+            </ProtectedRoute>
+          } />
+          <Route path="/chamada" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
+              <AdminAttendance />
+            </ProtectedRoute>
+          } />
+          <Route path="/mensagens" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
+              <AdminMessages />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin + Teacher + Pedagogue routes */}
+          <Route path="/agenda" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar", "pedagogue"]}>
+              <AdminAgenda />
+            </ProtectedRoute>
+          } />
+          <Route path="/crescimento" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
+              <AdminGrowth />
+            </ProtectedRoute>
+          } />
+          <Route path="/eventos" element={
+            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
+              <AdminEvents />
+            </ProtectedRoute>
+          } />
+          
+          {/* Admin + Nutritionist + Cook routes */}
+          <Route path="/cardapio" element={
+            <ProtectedRoute allowedRoles={["admin", "nutritionist", "cook"]}>
+              <AdminMenu />
+            </ProtectedRoute>
+          } />
+          
+          {/* All staff can access */}
           <Route path="/chat-equipe" element={<AdminStaffChat />} />
-          <Route path="/crescimento" element={<AdminGrowth />} />
-          <Route path="/cardapio" element={<AdminMenu />} />
-          <Route path="/galeria" element={<AdminGallery />} />
-          <Route path="/eventos" element={<AdminEvents />} />
-          <Route path="/convites" element={<AdminEmployeeInvites />} />
-          <Route path="/convites-pais" element={<AdminParentInvites />} />
-          <Route path="/avisos" element={<AdminAnnouncements />} />
-          <Route path="/financeiro" element={<AdminPayments />} />
-          <Route path="/contratos" element={<AdminContracts />} />
-          <Route path="/chamada" element={<AdminAttendance />} />
-          <Route path="/config" element={<AdminConfigPlaceholder />} />
         </Routes>
       </AdminLayout>
     );
