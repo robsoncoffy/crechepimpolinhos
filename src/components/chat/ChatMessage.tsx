@@ -26,6 +26,9 @@ export function ChatMessage({ content, timestamp, isOwn, senderName, isRead }: C
         )}
       >
         <p className="text-sm whitespace-pre-wrap break-words">{content}</p>
+        {!isOwn && senderName && (
+          <p className="text-xs text-muted-foreground/70 mt-1 text-right">— {senderName}</p>
+        )}
       </div>
       <div className={cn("flex items-center gap-1 px-1", isOwn && "flex-row-reverse")}>
         <span className="text-xs text-muted-foreground">

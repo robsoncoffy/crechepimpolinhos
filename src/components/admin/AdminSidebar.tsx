@@ -57,7 +57,7 @@ const menuItems = [
   { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento", roles: ["admin", "teacher", "pedagogue"] },
   { icon: GraduationCap, label: "Avaliações Plus+", href: "/painel/avaliacoes", roles: ["admin", "pedagogue"] },
-  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "teacher", "auxiliar", "nutritionist"] },
+  { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "nutritionist"] },
   { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe", roles: [] },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos", roles: ["admin", "teacher"] },
   { icon: CreditCard, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
