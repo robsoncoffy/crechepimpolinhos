@@ -18,6 +18,16 @@ interface ContractRequest {
   classType: string;
   shiftType: string;
   planType?: string;
+  // Optional override data from admin editing
+  overrideData?: {
+    parentName?: string;
+    parentCpf?: string;
+    parentRg?: string;
+    parentPhone?: string;
+    parentEmail?: string;
+    address?: string;
+    emergencyContact?: string;
+  };
 }
 
 // Dados fixos da empresa
@@ -74,6 +84,7 @@ serve(async (req) => {
       classType,
       shiftType,
       planType,
+      overrideData,
     } = body;
 
     // Validate required fields
@@ -81,19 +92,22 @@ serve(async (req) => {
       throw new Error("Missing required fields: childId, parentId, childName");
     }
 
-    // Fetch parent email from auth
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(parentId);
-    if (userError) {
-      console.error("Error fetching user:", userError);
-      throw new Error("Failed to fetch parent data");
-    }
-    const parentEmail = userData?.user?.email;
+    // Fetch parent email from auth (can be overridden)
+    let parentEmail = overrideData?.parentEmail || '';
     if (!parentEmail) {
-      throw new Error("Parent email not found");
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(parentId);
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        throw new Error("Failed to fetch parent data");
+      }
+      parentEmail = userData?.user?.email || '';
+      if (!parentEmail) {
+        throw new Error("Parent email not found");
+      }
     }
-    console.log("Fetched parent email:", parentEmail);
+    console.log("Using parent email:", parentEmail);
 
-    // Fetch parent profile data (name, CPF, RG, phone)
+    // Fetch parent profile data (name, CPF, RG, phone) - can be overridden
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('full_name, cpf, rg, phone')
@@ -105,22 +119,28 @@ serve(async (req) => {
       throw new Error("Failed to fetch parent profile");
     }
 
-    const parentName = profileData?.full_name || 'Responsável';
-    const parentCpf = profileData?.cpf || '';
-    const parentRg = profileData?.rg || '';
-    const parentPhone = profileData?.phone || '';
+    // Use override data if provided, otherwise use profile data
+    const parentName = overrideData?.parentName || profileData?.full_name || 'Responsável';
+    const parentCpf = overrideData?.parentCpf || profileData?.cpf || '';
+    const parentRg = overrideData?.parentRg || profileData?.rg || '';
+    const parentPhone = overrideData?.parentPhone || profileData?.phone || '';
 
-    console.log("Fetched parent profile:", { parentName, parentCpf: parentCpf ? 'exists' : 'missing', parentRg: parentRg ? 'exists' : 'missing' });
+    console.log("Using parent data:", { 
+      parentName, 
+      parentCpf: parentCpf ? 'exists' : 'missing', 
+      parentRg: parentRg ? 'exists' : 'missing',
+      hasOverrides: !!overrideData 
+    });
 
     // Format date
     const formattedBirthDate = new Date(birthDate).toLocaleDateString('pt-BR');
     const currentDate = new Date().toLocaleDateString('pt-BR');
 
     // Fetch additional data from child_registrations if available
-    let address = "";
-    let emergencyContact = "";
+    let address = overrideData?.address || "";
+    let emergencyContact = overrideData?.emergencyContact || "";
     
-    if (registrationId) {
+    if (!address && registrationId) {
       const { data: regData } = await supabase
         .from('child_registrations')
         .select('address, city, allergies, medications')
@@ -132,8 +152,8 @@ serve(async (req) => {
       }
     }
 
-    // Get authorized pickup for emergency contact
-    if (registrationId) {
+    // Get authorized pickup for emergency contact if not overridden
+    if (!emergencyContact && registrationId) {
       const { data: pickupData } = await supabase
         .from('authorized_pickups')
         .select('full_name, relationship')

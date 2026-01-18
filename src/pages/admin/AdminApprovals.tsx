@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
-import { ContractPreviewDialog } from "@/components/admin/ContractPreviewDialog";
+import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -325,7 +325,7 @@ export default function AdminApprovals() {
     }
   }
 
-  async function sendContractAfterPreview() {
+  async function sendContractAfterPreview(editedData: ContractData) {
     if (!pendingApprovalData) return;
 
     const { registration, newChild } = pendingApprovalData;
@@ -336,11 +336,21 @@ export default function AdminApprovals() {
           childId: newChild.id,
           registrationId: registration.id,
           parentId: registration.parent_id,
-          childName: `${registration.first_name} ${registration.last_name}`,
+          childName: editedData.childName,
           birthDate: registration.birth_date,
           classType: selectedClassType,
           shiftType: selectedShiftType,
           planType: registration.plan_type,
+          // Pass edited data to override profile data if changed
+          overrideData: {
+            parentName: editedData.parentName,
+            parentCpf: editedData.parentCpf,
+            parentRg: editedData.parentRg,
+            parentPhone: editedData.parentPhone,
+            parentEmail: editedData.parentEmail,
+            address: editedData.address,
+            emergencyContact: editedData.emergencyContact,
+          },
         },
       });
 
@@ -348,7 +358,7 @@ export default function AdminApprovals() {
         console.error("Error sending contract:", contractResponse.error);
         toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato. Verifique a configuração do ZapSign.");
       } else {
-        toast.success(`Cadastro de ${registration.first_name} aprovado! E-mail de boas-vindas e contrato enviados.`);
+        toast.success(`Cadastro de ${editedData.childName} aprovado! E-mail de boas-vindas e contrato enviados.`);
       }
     } catch (contractError) {
       console.error("Error sending contract:", contractError);
@@ -357,6 +367,7 @@ export default function AdminApprovals() {
 
     setPendingApprovalData(null);
     setSelectedRegistration(null);
+    setContractData(null);
     fetchData();
   }
 
