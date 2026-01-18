@@ -62,7 +62,7 @@ export function DemoParentDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-pimpo-blue-light/30 to-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-pimpo-blue-light/30 to-background relative">
       {/* Header */}
       <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
         <div className="container py-3 flex items-center justify-between">
