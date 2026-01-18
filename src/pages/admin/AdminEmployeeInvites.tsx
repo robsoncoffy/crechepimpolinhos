@@ -62,7 +62,7 @@ export default function AdminEmployeeInvites() {
 
     const { error } = await supabase.from("employee_invites").insert([{
       invite_code: code,
-      role: newRole as "admin" | "teacher" | "parent",
+      role: newRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       created_by: user.id,
     }]);
 
@@ -97,7 +97,15 @@ export default function AdminEmployeeInvites() {
       case "admin":
         return <Badge className="bg-pimpo-red">Administrador</Badge>;
       case "teacher":
-        return <Badge className="bg-pimpo-blue">Professor</Badge>;
+        return <Badge className="bg-pimpo-blue">Professor(a)</Badge>;
+      case "cook":
+        return <Badge className="bg-pimpo-yellow text-pimpo-yellow-foreground">Cozinheira</Badge>;
+      case "nutritionist":
+        return <Badge className="bg-pimpo-green">Nutricionista</Badge>;
+      case "pedagogue":
+        return <Badge className="bg-purple-500">Pedagoga</Badge>;
+      case "auxiliar":
+        return <Badge className="bg-cyan-500">Auxiliar de Sala</Badge>;
       default:
         return <Badge variant="secondary">{role}</Badge>;
     }
@@ -133,6 +141,10 @@ export default function AdminEmployeeInvites() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="teacher">Professor(a)</SelectItem>
+                  <SelectItem value="auxiliar">Auxiliar de Sala</SelectItem>
+                  <SelectItem value="cook">Cozinheira</SelectItem>
+                  <SelectItem value="nutritionist">Nutricionista</SelectItem>
+                  <SelectItem value="pedagogue">Pedagoga</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
