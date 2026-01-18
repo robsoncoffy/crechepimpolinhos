@@ -86,8 +86,8 @@ const testimonials = [{
   avatar: "CO"
 }];
 const stats = [{
-  value: "+20",
-  label: "Anos de Exp. dos Profissionais"
+  value: "",
+  label: "Profissionais com mais de 20 anos de experiência"
 }, {
   value: "100",
   label: "Famílias Atendidas"
@@ -200,8 +200,7 @@ export default function Home() {
                     <Award className="w-7 h-7 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-fredoka text-2xl font-bold text-foreground">+20</p>
-                    <p className="text-sm text-muted-foreground">Anos de Exp. dos Profissionais</p>
+                    <p className="text-sm text-muted-foreground">Profissionais com mais de 20 anos de experiência</p>
                   </div>
                 </div>
               </div>
