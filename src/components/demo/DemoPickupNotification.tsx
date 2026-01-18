@@ -12,8 +12,23 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Car, Clock, CheckCircle2 } from "lucide-react";
+import { Car, Clock, CheckCircle2, UserCheck } from "lucide-react";
+
+// Mock authorized people for demo
+const mockAuthorizedPeople = [
+  { id: "1", name: "Maria Silva (Avó)", relationship: "Avó materna" },
+  { id: "2", name: "João Santos (Tio)", relationship: "Tio paterno" },
+  { id: "3", name: "Ana Costa (Vizinha)", relationship: "Vizinha autorizada" },
+];
 
 interface DemoPickupNotificationProps {
   childName: string;
@@ -25,6 +40,8 @@ export function DemoPickupNotification({ childName }: DemoPickupNotificationProp
   const [delayMinutes, setDelayMinutes] = useState<string>("10");
   const [message, setMessage] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [someoneElsePickup, setSomeoneElsePickup] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<string>("");
 
   const handleSubmit = async () => {
     // Simulate API call
@@ -37,11 +54,17 @@ export function DemoPickupNotification({ childName }: DemoPickupNotificationProp
       setNotificationType("on_way");
       setDelayMinutes("10");
       setMessage("");
+      setSomeoneElsePickup(false);
+      setSelectedPerson("");
     }, 2000);
+
+    const personName = someoneElsePickup && selectedPerson 
+      ? mockAuthorizedPeople.find(p => p.id === selectedPerson)?.name 
+      : "você";
 
     toast.success(
       notificationType === "on_way"
-        ? "Escola notificada que você está a caminho!"
+        ? `Escola notificada que ${personName} está a caminho!`
         : `Escola notificada sobre o atraso de ${delayMinutes} minutos`,
       { description: "(Modo Demo - nenhuma notificação real enviada)" }
     );
@@ -130,6 +153,47 @@ export function DemoPickupNotification({ childName }: DemoPickupNotificationProp
                   </div>
                 </div>
               )}
+
+              {/* Someone else pickup option */}
+              <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-center space-x-3">
+                  <Checkbox
+                    id="someone_else"
+                    checked={someoneElsePickup}
+                    onCheckedChange={(checked) => {
+                      setSomeoneElsePickup(checked === true);
+                      if (!checked) setSelectedPerson("");
+                    }}
+                  />
+                  <Label htmlFor="someone_else" className="cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-pimpo-blue" />
+                      <span className="font-medium">Outra pessoa vai buscar</span>
+                    </div>
+                  </Label>
+                </div>
+
+                {someoneElsePickup && (
+                  <div className="ml-6 space-y-2">
+                    <Label className="text-sm font-medium">Quem vai buscar?</Label>
+                    <Select value={selectedPerson} onValueChange={setSelectedPerson}>
+                      <SelectTrigger className="w-full bg-background">
+                        <SelectValue placeholder="Selecione a pessoa autorizada" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockAuthorizedPeople.map((person) => (
+                          <SelectItem key={person.id} value={person.id}>
+                            <div className="flex flex-col">
+                              <span>{person.name}</span>
+                              <span className="text-xs text-muted-foreground">{person.relationship}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="demo_message" className="text-sm font-medium">
