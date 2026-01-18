@@ -20,6 +20,7 @@ import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
 import AdminPayments from "@/pages/admin/AdminPayments";
 import AdminContracts from "@/pages/admin/AdminContracts";
 import AdminStaffChat from "@/pages/admin/AdminStaffChat";
+import AdminProfiles from "@/pages/admin/AdminProfiles";
 import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
 import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
@@ -103,6 +104,11 @@ function DashboardContent() {
           <Route path="/contratos" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminContracts />
+            </ProtectedRoute>
+          } />
+          <Route path="/perfis" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminProfiles />
             </ProtectedRoute>
           } />
           <Route path="/config" element={

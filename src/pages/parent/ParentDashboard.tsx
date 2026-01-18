@@ -15,6 +15,7 @@ import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
 import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { PaymentsTab } from "@/components/parent/PaymentsTab";
+import { DetailedWeatherWidget } from "@/components/parent/DetailedWeatherWidget";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -393,8 +394,9 @@ export default function ParentDashboard() {
             {/* Main Content Grid */}
             {selectedChild && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Today + Announcements + Pickup */}
+                {/* Left Column - Weather + Today + Announcements + Pickup */}
                 <div className="lg:col-span-1 space-y-4">
+                  <DetailedWeatherWidget pickupTime="17:00" />
                   <AnnouncementsWidget />
                   <TodayAtSchoolWidget childId={selectedChild.id} />
                   <PickupNotification 

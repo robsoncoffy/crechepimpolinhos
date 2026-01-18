@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Users,
+  User,
   Baby,
   UserCheck,
   LayoutDashboard,
@@ -61,6 +62,7 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: User, label: "Perfis de Usuários", href: "/painel/perfis", roles: ["admin"] },
   { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais", roles: ["admin"] },
   { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites", roles: ["admin"] },
   { icon: Settings, label: "Configurações", href: "/painel/config", roles: ["admin"] },
