@@ -263,6 +263,8 @@ export type Database = {
           birth_date: string
           class_type: Database["public"]["Enums"]["class_type"]
           created_at: string
+          dietary_restrictions: string | null
+          food_preferences: string | null
           full_name: string
           id: string
           medical_info: string | null
@@ -271,6 +273,7 @@ export type Database = {
           photo_url: string | null
           plan_type: Database["public"]["Enums"]["plan_type"] | null
           shift_type: Database["public"]["Enums"]["shift_type"]
+          special_milk: string | null
           updated_at: string
         }
         Insert: {
@@ -279,6 +282,8 @@ export type Database = {
           birth_date: string
           class_type: Database["public"]["Enums"]["class_type"]
           created_at?: string
+          dietary_restrictions?: string | null
+          food_preferences?: string | null
           full_name: string
           id?: string
           medical_info?: string | null
@@ -287,6 +292,7 @@ export type Database = {
           photo_url?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           shift_type: Database["public"]["Enums"]["shift_type"]
+          special_milk?: string | null
           updated_at?: string
         }
         Update: {
@@ -295,6 +301,8 @@ export type Database = {
           birth_date?: string
           class_type?: Database["public"]["Enums"]["class_type"]
           created_at?: string
+          dietary_restrictions?: string | null
+          food_preferences?: string | null
           full_name?: string
           id?: string
           medical_info?: string | null
@@ -303,6 +311,7 @@ export type Database = {
           photo_url?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           shift_type?: Database["public"]["Enums"]["shift_type"]
+          special_milk?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -787,6 +796,74 @@ export type Database = {
           },
         ]
       }
+      meal_tracking: {
+        Row: {
+          afternoon_snack_served: boolean | null
+          afternoon_snack_time: string | null
+          breakfast_served: boolean | null
+          breakfast_time: string | null
+          child_id: string
+          created_at: string | null
+          dinner_served: boolean | null
+          dinner_time: string | null
+          id: string
+          lunch_served: boolean | null
+          lunch_time: string | null
+          meal_date: string
+          morning_snack_served: boolean | null
+          morning_snack_time: string | null
+          recorded_by: string | null
+          special_diet_notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          afternoon_snack_served?: boolean | null
+          afternoon_snack_time?: string | null
+          breakfast_served?: boolean | null
+          breakfast_time?: string | null
+          child_id: string
+          created_at?: string | null
+          dinner_served?: boolean | null
+          dinner_time?: string | null
+          id?: string
+          lunch_served?: boolean | null
+          lunch_time?: string | null
+          meal_date?: string
+          morning_snack_served?: boolean | null
+          morning_snack_time?: string | null
+          recorded_by?: string | null
+          special_diet_notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          afternoon_snack_served?: boolean | null
+          afternoon_snack_time?: string | null
+          breakfast_served?: boolean | null
+          breakfast_time?: string | null
+          child_id?: string
+          created_at?: string | null
+          dinner_served?: boolean | null
+          dinner_time?: string | null
+          id?: string
+          lunch_served?: boolean | null
+          lunch_time?: string | null
+          meal_date?: string
+          morning_snack_served?: boolean | null
+          morning_snack_time?: string | null
+          recorded_by?: string | null
+          special_diet_notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_tracking_child_id_fkey"
+            columns: ["child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           child_id: string
@@ -1250,6 +1327,51 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_activity_plans: {
+        Row: {
+          afternoon_activities: string | null
+          class_type: Database["public"]["Enums"]["class_type"]
+          created_at: string | null
+          created_by: string | null
+          day_of_week: number
+          id: string
+          learning_objectives: string | null
+          materials_needed: string | null
+          morning_activities: string | null
+          notes: string | null
+          updated_at: string | null
+          week_start: string
+        }
+        Insert: {
+          afternoon_activities?: string | null
+          class_type: Database["public"]["Enums"]["class_type"]
+          created_at?: string | null
+          created_by?: string | null
+          day_of_week: number
+          id?: string
+          learning_objectives?: string | null
+          materials_needed?: string | null
+          morning_activities?: string | null
+          notes?: string | null
+          updated_at?: string | null
+          week_start: string
+        }
+        Update: {
+          afternoon_activities?: string | null
+          class_type?: Database["public"]["Enums"]["class_type"]
+          created_at?: string | null
+          created_by?: string | null
+          day_of_week?: number
+          id?: string
+          learning_objectives?: string | null
+          materials_needed?: string | null
+          morning_activities?: string | null
+          notes?: string | null
+          updated_at?: string | null
+          week_start?: string
+        }
+        Relationships: []
+      }
       weekly_menus: {
         Row: {
           breakfast: string | null
@@ -1308,7 +1430,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "parent"
+      app_role:
+        | "admin"
+        | "teacher"
+        | "parent"
+        | "cook"
+        | "nutritionist"
+        | "pedagogue"
       approval_status: "pending" | "approved" | "rejected"
       class_type: "bercario" | "maternal" | "jardim"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
@@ -1443,7 +1571,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "parent"],
+      app_role: [
+        "admin",
+        "teacher",
+        "parent",
+        "cook",
+        "nutritionist",
+        "pedagogue",
+      ],
       approval_status: ["pending", "approved", "rejected"],
       class_type: ["bercario", "maternal", "jardim"],
       evacuation_status: ["normal", "pastosa", "liquida", "nao"],

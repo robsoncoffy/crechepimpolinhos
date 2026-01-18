@@ -7,10 +7,13 @@ import {
   GraduationCap, 
   Shield,
   ChevronUp,
-  ChevronDown 
+  ChevronDown,
+  ChefHat,
+  Leaf,
+  BookOpen,
 } from "lucide-react";
 
-export type DemoRole = "parent" | "teacher" | "admin";
+export type DemoRole = "parent" | "teacher" | "admin" | "cook" | "nutritionist" | "pedagogue";
 
 interface DemoModeToggleProps {
   currentRole: DemoRole;
@@ -33,12 +36,27 @@ const roleConfig = {
     icon: Shield,
     color: "bg-pimpo-red text-white hover:bg-pimpo-red/90",
   },
+  cook: {
+    label: "Cozinheira",
+    icon: ChefHat,
+    color: "bg-orange-500 text-white hover:bg-orange-500/90",
+  },
+  nutritionist: {
+    label: "Nutricionista",
+    icon: Leaf,
+    color: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  },
+  pedagogue: {
+    label: "Pedagoga",
+    icon: BookOpen,
+    color: "bg-purple-600 text-white hover:bg-purple-600/90",
+  },
 };
 
 export function DemoModeToggle({ currentRole, onRoleChange }: DemoModeToggleProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const roles: DemoRole[] = ["parent", "teacher", "admin"];
+  const roles: DemoRole[] = ["parent", "teacher", "admin", "cook", "nutritionist", "pedagogue"];
   const CurrentIcon = roleConfig[currentRole].icon;
 
   return (
