@@ -139,8 +139,11 @@ export default function AdminParentInvites() {
     }
   };
 
+  // Always use the production URL for invite links
+  const PRODUCTION_URL = "https://crechepimpolinhos.lovable.app";
+  
   const copyToClipboard = (code: string) => {
-    const url = `${window.location.origin}/auth?mode=signup&invite=${code}`;
+    const url = `${PRODUCTION_URL}/auth?mode=signup&invite=${code}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copiado para a área de transferência!");
   };

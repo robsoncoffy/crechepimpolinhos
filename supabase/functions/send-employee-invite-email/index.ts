@@ -12,12 +12,21 @@ const corsHeaders = {
 interface InviteEmailRequest {
   email: string;
   inviteCode: string;
-  childName?: string;
-  parentName?: string;
+  role: string;
+  employeeName?: string;
 }
 
+const roleLabels: Record<string, string> = {
+  admin: "Administrador(a)",
+  teacher: "Professor(a)",
+  cook: "Cozinheira",
+  nutritionist: "Nutricionista",
+  pedagogue: "Pedagoga",
+  auxiliar: "Auxiliar de Sala",
+};
+
 serve(async (req: Request): Promise<Response> => {
-  console.log("send-parent-invite-email function called");
+  console.log("send-employee-invite-email function called");
 
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -71,7 +80,7 @@ serve(async (req: Request): Promise<Response> => {
     const body: InviteEmailRequest = await req.json();
     console.log("Request body:", body);
 
-    const { email, inviteCode, childName, parentName } = body;
+    const { email, inviteCode, role, employeeName } = body;
 
     // Validate inputs
     if (!email || !inviteCode) {
@@ -81,16 +90,17 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Always use the production URL for invite links
+    // Always use the production URL
     const appUrl = "https://crechepimpolinhos.lovable.app";
-    const signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
+    const signupUrl = `${appUrl}/cadastro-funcionario?code=${inviteCode}`;
+    const roleLabel = roleLabels[role] || role;
 
-    console.log("Sending invite email to:", email);
+    console.log("Sending employee invite email to:", email);
 
     const emailResponse = await resend.emails.send({
       from: "Creche Pimpolinhos <onboarding@resend.dev>",
       to: [email],
-      subject: `🎈 Convite para Creche Pimpolinhos${childName ? ` - ${childName}` : ""}`,
+      subject: `🎓 Convite para Trabalhar na Creche Pimpolinhos - ${roleLabel}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -100,42 +110,41 @@ serve(async (req: Request): Promise<Response> => {
         </head>
         <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
           <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 30px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px;">🎈 Creche Pimpolinhos</h1>
-              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Você foi convidado!</p>
+            <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">🎓 Creche Pimpolinhos</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Convite para Funcionário</p>
             </div>
             <div style="padding: 30px;">
-              <h2 style="color: #1e293b; margin-top: 0;">Olá${parentName ? `, ${parentName}` : ""}! 👋</h2>
+              <h2 style="color: #1e293b; margin-top: 0;">Olá${employeeName ? `, ${employeeName}` : ""}! 👋</h2>
               <p style="color: #475569; font-size: 16px; line-height: 1.6;">
-                Você recebeu um convite para se cadastrar no sistema da <strong>Creche Pimpolinhos</strong>${childName ? ` como responsável de <strong>${childName}</strong>` : ""}.
+                Você foi convidado(a) para fazer parte da equipe da <strong>Creche Pimpolinhos</strong> como <strong>${roleLabel}</strong>.
               </p>
               
-              <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-                <h3 style="color: #1e40af; margin: 0 0 10px; font-size: 16px;">🔑 Seu Código de Convite</h3>
+              <div style="background-color: #f0fdf4; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #22c55e;">
+                <h3 style="color: #166534; margin: 0 0 10px; font-size: 16px;">🔑 Seu Código de Convite</h3>
                 <p style="font-family: monospace; font-size: 24px; font-weight: bold; color: #1e293b; margin: 0; letter-spacing: 2px;">
                   ${inviteCode}
                 </p>
               </div>
 
               <p style="color: #475569; font-size: 16px; line-height: 1.6;">
-                Com o cadastro, você terá acesso a:
+                Complete seu cadastro para acessar o sistema e começar a trabalhar conosco:
               </p>
               <ul style="color: #475569; font-size: 14px; line-height: 1.8;">
-                <li>📅 Acompanhar a agenda diária do seu filho</li>
-                <li>📊 Visualizar o crescimento e desenvolvimento</li>
-                <li>💬 Comunicar-se diretamente com a escola</li>
-                <li>📷 Receber fotos e atualizações</li>
-                <li>🍽️ Ver o cardápio semanal</li>
+                <li>📋 Preencha seus dados pessoais e documentos</li>
+                <li>🏦 Informe seus dados bancários para pagamento</li>
+                <li>📅 Acesse a agenda e registros diários</li>
+                <li>💬 Comunique-se com a equipe</li>
               </ul>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                  Criar Minha Conta
+                <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Completar Meu Cadastro
                 </a>
               </div>
               
               <p style="color: #94a3b8; font-size: 12px; line-height: 1.6; text-align: center;">
-                Este convite expira em 30 dias. Se você não solicitou este convite, pode ignorar este e-mail.
+                Este convite expira em 7 dias. Se você não solicitou este convite, pode ignorar este e-mail.
               </p>
             </div>
             <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
@@ -149,7 +158,7 @@ serve(async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Invite email sent:", emailResponse);
+    console.log("Employee invite email sent:", emailResponse);
 
     return new Response(
       JSON.stringify({ 
@@ -160,7 +169,7 @@ serve(async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error in send-parent-invite-email:", error);
+    console.error("Error in send-employee-invite-email:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

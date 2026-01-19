@@ -305,8 +305,12 @@ export default function EmployeeRegistration() {
         })
         .eq("invite_code", formData.inviteCode.trim().toUpperCase());
 
-      toast.success("Cadastro realizado com sucesso!");
-      navigate("/painel");
+      toast.success("Cadastro realizado com sucesso! Redirecionando...");
+      
+      // Wait a moment for the session to be established, then redirect
+      setTimeout(() => {
+        window.location.href = "/painel";
+      }, 1500);
     } catch (error: unknown) {
       console.error("Registration error:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao realizar cadastro";

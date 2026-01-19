@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X } from "lucide-react";
+import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X, Mail, Send } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -22,12 +22,18 @@ interface Invite {
   used_at: string | null;
 }
 
+// Always use the production URL for invite links
+const PRODUCTION_URL = "https://crechepimpolinhos.lovable.app";
+
 export default function AdminEmployeeInvites() {
   const { user } = useAuth();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<string>("teacher");
+  const [employeeEmail, setEmployeeEmail] = useState("");
+  const [employeeName, setEmployeeName] = useState("");
 
   const fetchInvites = async () => {
     const { data, error } = await supabase
@@ -60,19 +66,60 @@ export default function AdminEmployeeInvites() {
     setCreating(true);
     const code = generateCode();
 
-    const { error } = await supabase.from("employee_invites").insert([{
+    const { data, error } = await supabase.from("employee_invites").insert([{
       invite_code: code,
       role: newRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       created_by: user.id,
-    }]);
+    }]).select().single();
 
     if (error) {
       toast.error("Erro ao criar convite");
-    } else {
-      toast.success(`Convite ${code} criado com sucesso!`);
-      fetchInvites();
+      setCreating(false);
+      return;
     }
+
+    toast.success(`Convite ${code} criado com sucesso!`);
+    
+    // If email is provided, send the invite
+    if (employeeEmail.trim()) {
+      await sendInviteEmail(code, newRole, employeeEmail.trim(), employeeName.trim());
+    }
+    
+    fetchInvites();
+    setEmployeeEmail("");
+    setEmployeeName("");
     setCreating(false);
+  };
+
+  const sendInviteEmail = async (code: string, role: string, email: string, name?: string) => {
+    setSendingEmail(code);
+    
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke("send-employee-invite-email", {
+        body: { 
+          email, 
+          inviteCode: code, 
+          role,
+          employeeName: name || undefined
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      toast.success(`E-mail de convite enviado para ${email}`);
+    } catch (error: any) {
+      console.error("Error sending invite email:", error);
+      toast.error("Erro ao enviar e-mail de convite");
+    } finally {
+      setSendingEmail(null);
+    }
   };
 
   const deleteInvite = async (id: string) => {
@@ -87,7 +134,7 @@ export default function AdminEmployeeInvites() {
   };
 
   const copyToClipboard = (code: string) => {
-    const url = `${window.location.origin}/cadastro-funcionario?code=${code}`;
+    const url = `${PRODUCTION_URL}/cadastro-funcionario?code=${code}`;
     navigator.clipboard.writeText(url);
     toast.success("Link copiado para a área de transferência!");
   };
@@ -111,6 +158,18 @@ export default function AdminEmployeeInvites() {
     }
   };
 
+  const getRoleLabel = (role: string) => {
+    const labels: Record<string, string> = {
+      admin: "Administrador(a)",
+      teacher: "Professor(a)",
+      cook: "Cozinheira",
+      nutritionist: "Nutricionista",
+      pedagogue: "Pedagoga",
+      auxiliar: "Auxiliar de Sala",
+    };
+    return labels[role] || role;
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -119,7 +178,7 @@ export default function AdminEmployeeInvites() {
           Convites de Funcionários
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Gere códigos de convite para novos funcionários se cadastrarem
+          Gere códigos de convite e envie por e-mail para novos funcionários
         </p>
       </div>
 
@@ -128,13 +187,13 @@ export default function AdminEmployeeInvites() {
         <CardHeader>
           <CardTitle className="text-lg">Criar Novo Convite</CardTitle>
           <CardDescription>
-            O convite expira em 7 dias após a criação
+            O convite expira em 7 dias. Informe o e-mail para enviar automaticamente.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Label htmlFor="role">Função do Funcionário</Label>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="role">Função do Funcionário *</Label>
               <Select value={newRole} onValueChange={setNewRole}>
                 <SelectTrigger>
                   <SelectValue />
@@ -149,14 +208,40 @@ export default function AdminEmployeeInvites() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="employeeName">Nome do Funcionário</Label>
+              <Input
+                id="employeeName"
+                value={employeeName}
+                onChange={(e) => setEmployeeName(e.target.value)}
+                placeholder="Ex: Maria Silva"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="employeeEmail">E-mail do Funcionário</Label>
+              <Input
+                id="employeeEmail"
+                type="email"
+                value={employeeEmail}
+                onChange={(e) => setEmployeeEmail(e.target.value)}
+                placeholder="email@exemplo.com"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Se informado, o convite será enviado automaticamente por e-mail
+              </p>
+            </div>
             <div className="flex items-end">
-              <Button onClick={createInvite} disabled={creating}>
+              <Button onClick={createInvite} disabled={creating} className="w-full md:w-auto">
                 {creating ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : employeeEmail.trim() ? (
+                  <Send className="w-4 h-4 mr-2" />
                 ) : (
                   <Plus className="w-4 h-4 mr-2" />
                 )}
-                Gerar Convite
+                {employeeEmail.trim() ? "Gerar e Enviar Convite" : "Gerar Convite"}
               </Button>
             </div>
           </div>
@@ -195,7 +280,7 @@ export default function AdminEmployeeInvites() {
                     }`}
                   >
                     <div className="flex-1 min-w-0 space-y-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <code className="text-lg font-mono font-bold tracking-widest">
                           {invite.invite_code}
                         </code>
@@ -226,16 +311,37 @@ export default function AdminEmployeeInvites() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-3 sm:mt-0">
+                    <div className="flex items-center gap-2 mt-3 sm:mt-0 flex-wrap">
                       {!invite.is_used && !isExpired && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(invite.invite_code)}
-                        >
-                          <Copy className="w-4 h-4 mr-1" />
-                          Copiar Link
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(invite.invite_code)}
+                          >
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copiar Link
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const email = prompt(`Digite o e-mail do ${getRoleLabel(invite.role)}:`);
+                              if (email) {
+                                const name = prompt("Nome do funcionário (opcional):");
+                                sendInviteEmail(invite.invite_code, invite.role, email, name || undefined);
+                              }
+                            }}
+                            disabled={sendingEmail === invite.invite_code}
+                          >
+                            {sendingEmail === invite.invite_code ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <Mail className="w-4 h-4 mr-1" />
+                            )}
+                            Enviar
+                          </Button>
+                        </>
                       )}
                       {!invite.is_used && (
                         <Button
