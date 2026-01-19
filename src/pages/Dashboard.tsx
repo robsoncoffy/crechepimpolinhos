@@ -27,6 +27,7 @@ import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
 import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
+import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
@@ -115,6 +116,11 @@ function DashboardContent() {
           <Route path="/ponto" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminTimeClock />
+            </ProtectedRoute>
+          } />
+          <Route path="/pre-matriculas" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminPreEnrollments />
             </ProtectedRoute>
           } />
           <Route path="/config" element={

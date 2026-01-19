@@ -35,7 +35,18 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inviteStatus, setInviteStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
-  const [inviteData, setInviteData] = useState<{ child_name?: string } | null>(null);
+  const [inviteData, setInviteData] = useState<{ 
+    child_name?: string;
+    pre_enrollment?: {
+      parent_name: string;
+      email: string;
+      phone: string;
+      child_name: string;
+      child_birth_date: string;
+      desired_class_type: string;
+      desired_shift_type: string;
+    } | null;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -84,10 +95,10 @@ export default function Auth() {
 
     setInviteStatus("checking");
 
-    // First check parent_invites
+    // First check parent_invites with pre_enrollment data
     const { data: parentData, error: parentError } = await supabase
       .from("parent_invites")
-      .select("id, child_name, expires_at, used_by")
+      .select("id, child_name, email, phone, expires_at, used_by, pre_enrollment_id")
       .eq("invite_code", code.toUpperCase())
       .maybeSingle();
 
@@ -104,8 +115,32 @@ export default function Auth() {
         return;
       }
 
+      // Fetch pre-enrollment data if linked
+      let preEnrollmentData = null;
+      if (parentData.pre_enrollment_id) {
+        const { data: preEnrollment } = await supabase
+          .from("pre_enrollments")
+          .select("parent_name, email, phone, child_name, child_birth_date, desired_class_type, desired_shift_type")
+          .eq("id", parentData.pre_enrollment_id)
+          .single();
+        
+        if (preEnrollment) {
+          preEnrollmentData = preEnrollment;
+          // Pre-fill form with pre-enrollment data
+          setFormData(prev => ({
+            ...prev,
+            fullName: preEnrollment.parent_name || prev.fullName,
+            email: preEnrollment.email || prev.email,
+            phone: preEnrollment.phone || prev.phone,
+          }));
+        }
+      }
+
       setInviteStatus("valid");
-      setInviteData({ child_name: parentData.child_name || undefined });
+      setInviteData({ 
+        child_name: parentData.child_name || undefined,
+        pre_enrollment: preEnrollmentData
+      });
       return;
     }
 

@@ -1153,6 +1153,7 @@ export type Database = {
           invite_code: string
           notes: string | null
           phone: string | null
+          pre_enrollment_id: string | null
           used_at: string | null
           used_by: string | null
         }
@@ -1166,6 +1167,7 @@ export type Database = {
           invite_code: string
           notes?: string | null
           phone?: string | null
+          pre_enrollment_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
@@ -1179,10 +1181,19 @@ export type Database = {
           invite_code?: string
           notes?: string | null
           phone?: string | null
+          pre_enrollment_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "parent_invites_pre_enrollment_id_fkey"
+            columns: ["pre_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "pre_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_customers: {
         Row: {
@@ -1256,6 +1267,7 @@ export type Database = {
         Row: {
           child_birth_date: string
           child_name: string
+          converted_to_invite_id: string | null
           created_at: string
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
@@ -1271,6 +1283,7 @@ export type Database = {
         Insert: {
           child_birth_date: string
           child_name: string
+          converted_to_invite_id?: string | null
           created_at?: string
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
@@ -1286,6 +1299,7 @@ export type Database = {
         Update: {
           child_birth_date?: string
           child_name?: string
+          converted_to_invite_id?: string | null
           created_at?: string
           desired_class_type?: Database["public"]["Enums"]["class_type"]
           desired_shift_type?: Database["public"]["Enums"]["shift_type"]
@@ -1298,7 +1312,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pre_enrollments_converted_to_invite_id_fkey"
+            columns: ["converted_to_invite_id"]
+            isOneToOne: false
+            referencedRelation: "parent_invites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
