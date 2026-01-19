@@ -290,7 +290,12 @@ export default function AdminProfiles() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{profile.full_name}</h3>
+                        <h3 className="font-semibold truncate flex items-center gap-1.5">
+                          {profile.full_name}
+                          {isUserAdmin(profile.user_id) && (
+                            <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
+                          )}
+                        </h3>
                         {profile.phone && (
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
                             <Phone className="w-3 h-3" />
@@ -342,7 +347,12 @@ export default function AdminProfiles() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{profile.full_name}</h3>
+                        <h3 className="font-semibold truncate flex items-center gap-1.5">
+                          {profile.full_name}
+                          {isUserAdmin(profile.user_id) && (
+                            <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
+                          )}
+                        </h3>
                         {employeeData?.job_title && (
                           <p className="text-sm text-muted-foreground">{employeeData.job_title}</p>
                         )}
