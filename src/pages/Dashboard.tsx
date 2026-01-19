@@ -4,6 +4,7 @@ import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import TeacherDashboard from "@/pages/admin/TeacherDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
 import AdminTeachers from "@/pages/admin/AdminTeachers";
 import AdminChildren from "@/pages/admin/AdminChildren";
@@ -36,7 +37,7 @@ function RoleBasedDashboard() {
 
   // Priority order: Admin > Teacher > Nutritionist > Cook > Pedagogue > Auxiliar
   if (isAdmin) return <AdminDashboard />;
-  if (isTeacher) return <AdminDashboard />;
+  if (isTeacher) return <TeacherDashboard />;
   if (isNutritionist) return <NutritionistDashboard />;
   if (isCook) return <CookDashboard />;
   if (isPedagogue) return <PedagogueDashboard />;

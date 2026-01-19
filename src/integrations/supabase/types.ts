@@ -1607,6 +1607,36 @@ export type Database = {
           },
         ]
       }
+      teacher_assignments: {
+        Row: {
+          class_type: Database["public"]["Enums"]["class_type"]
+          created_at: string
+          id: string
+          is_primary: boolean | null
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          class_type: Database["public"]["Enums"]["class_type"]
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          shift_type: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          class_type?: Database["public"]["Enums"]["class_type"]
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          shift_type?: Database["public"]["Enums"]["shift_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       time_clock_config: {
         Row: {
           break_duration_minutes: number
