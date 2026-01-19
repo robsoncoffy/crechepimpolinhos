@@ -454,7 +454,7 @@ export default function Home() {
                       <benefit.icon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-foreground">{benefit.title}</h4>
+                      <h3 className="font-semibold text-foreground text-base">{benefit.title}</h3>
                       <p className="text-sm text-muted-foreground">{benefit.description}</p>
                     </div>
                   </div>)}
