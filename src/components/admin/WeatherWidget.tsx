@@ -1,20 +1,10 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Cloud, Sun, CloudRain, CloudSnow, CloudLightning, Wind, Droplets, Loader2 } from "lucide-react";
-
-interface WeatherData {
-  temp: number;
-  description: string;
-  icon: string;
-  humidity: number;
-  wind: number;
-  feels_like: number;
-}
+import { useState, useEffect } from "react";
+import { useWeather, getWeatherIcon as getWeatherEmoji } from "@/hooks/useWeather";
 
 export function WeatherWidget() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { weather, loading, error } = useWeather();
 
   // Get current time in Canoas/RS timezone
   const getCurrentTime = () => {
@@ -45,78 +35,13 @@ export function WeatherWidget() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    // Fetch weather for Canoas, RS using Open-Meteo (free, no API key needed)
-    const fetchWeather = async () => {
-      try {
-        // Canoas, RS coordinates
-        const lat = -29.9175;
-        const lon = -51.1833;
-        
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=America/Sao_Paulo`
-        );
-        
-        if (!response.ok) throw new Error("Weather fetch failed");
-        
-        const data = await response.json();
-        const current = data.current;
-        
-        // Map weather codes to descriptions
-        const weatherDescriptions: Record<number, string> = {
-          0: "Céu limpo",
-          1: "Principalmente limpo",
-          2: "Parcialmente nublado",
-          3: "Nublado",
-          45: "Neblina",
-          48: "Neblina com gelo",
-          51: "Garoa leve",
-          53: "Garoa moderada",
-          55: "Garoa intensa",
-          61: "Chuva leve",
-          63: "Chuva moderada",
-          65: "Chuva forte",
-          71: "Neve leve",
-          73: "Neve moderada",
-          75: "Neve forte",
-          80: "Pancadas leves",
-          81: "Pancadas moderadas",
-          82: "Pancadas fortes",
-          95: "Tempestade",
-          96: "Tempestade com granizo leve",
-          99: "Tempestade com granizo forte",
-        };
-        
-        setWeather({
-          temp: Math.round(current.temperature_2m),
-          description: weatherDescriptions[current.weather_code] || "Indefinido",
-          icon: String(current.weather_code),
-          humidity: current.relative_humidity_2m,
-          wind: Math.round(current.wind_speed_10m),
-          feels_like: Math.round(current.apparent_temperature),
-        });
-      } catch (err) {
-        console.error("Weather error:", err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchWeather();
-    // Refresh weather every 30 minutes
-    const weatherInterval = setInterval(fetchWeather, 30 * 60 * 1000);
-    return () => clearInterval(weatherInterval);
-  }, []);
-
-  const getWeatherIcon = (code: string) => {
-    const numCode = parseInt(code);
-    if (numCode === 0 || numCode === 1) return <Sun className="w-8 h-8 text-pimpo-yellow" />;
-    if (numCode === 2 || numCode === 3) return <Cloud className="w-8 h-8 text-muted-foreground" />;
-    if (numCode >= 51 && numCode <= 67) return <CloudRain className="w-8 h-8 text-pimpo-blue" />;
-    if (numCode >= 71 && numCode <= 77) return <CloudSnow className="w-8 h-8 text-blue-200" />;
-    if (numCode >= 80 && numCode <= 82) return <CloudRain className="w-8 h-8 text-pimpo-blue" />;
-    if (numCode >= 95) return <CloudLightning className="w-8 h-8 text-pimpo-yellow" />;
+  const getWeatherIcon = (code: number) => {
+    if (code === 0 || code === 1) return <Sun className="w-8 h-8 text-pimpo-yellow" />;
+    if (code === 2 || code === 3) return <Cloud className="w-8 h-8 text-muted-foreground" />;
+    if (code >= 51 && code <= 67) return <CloudRain className="w-8 h-8 text-pimpo-blue" />;
+    if (code >= 71 && code <= 77) return <CloudSnow className="w-8 h-8 text-blue-200" />;
+    if (code >= 80 && code <= 82) return <CloudRain className="w-8 h-8 text-pimpo-blue" />;
+    if (code >= 95) return <CloudLightning className="w-8 h-8 text-pimpo-yellow" />;
     return <Cloud className="w-8 h-8 text-muted-foreground" />;
   };
 
@@ -157,8 +82,8 @@ export function WeatherWidget() {
             <p className="text-sm text-muted-foreground capitalize">{getCurrentDate()}</p>
           </div>
           <div className="text-right">
-            {getWeatherIcon(weather.icon)}
-            <p className="text-2xl font-bold mt-1">{weather.temp}°C</p>
+            {getWeatherIcon(weather.weatherCode)}
+            <p className="text-2xl font-bold mt-1">{weather.temperature}°C</p>
             <p className="text-xs text-muted-foreground">{weather.description}</p>
           </div>
         </div>
@@ -169,10 +94,10 @@ export function WeatherWidget() {
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Wind className="w-3.5 h-3.5" />
-            <span>{weather.wind} km/h</span>
+            <span>{weather.windSpeed} km/h</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Sensação: {weather.feels_like}°C</span>
+            <span>Sensação: {weather.apparentTemperature}°C</span>
           </div>
         </div>
       </CardContent>

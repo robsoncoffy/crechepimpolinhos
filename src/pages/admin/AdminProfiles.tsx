@@ -27,6 +27,10 @@ import {
   ShieldCheck,
   ShieldOff
 } from "lucide-react";
+import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
+import { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface Profile {
   id: string;
@@ -199,37 +203,16 @@ export default function AdminProfiles() {
     setLoadingDetails(false);
   };
 
+  // Role helper functions now use centralized constants
   const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      admin: "Administrador",
-      teacher: "Professor(a)",
-      cook: "Cozinheira",
-      nutritionist: "Nutricionista",
-      pedagogue: "Pedagoga",
-      auxiliar: "Auxiliar",
-      parent: "Responsável"
-    };
-    return labels[role] || role;
+    return roleLabels[role as AppRole] || role;
   };
 
   const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      admin: "bg-blue-100 text-blue-800",
-      teacher: "bg-purple-100 text-purple-800",
-      cook: "bg-orange-100 text-orange-800",
-      nutritionist: "bg-emerald-100 text-emerald-800",
-      pedagogue: "bg-pink-100 text-pink-800",
-      auxiliar: "bg-yellow-100 text-yellow-800",
-      parent: "bg-green-100 text-green-800"
-    };
-    return colors[role] || "bg-gray-100 text-gray-800";
+    return roleBadgeColors[role as AppRole] || "bg-gray-100 text-gray-800";
   };
 
-  const classTypeLabels: Record<string, string> = {
-    bercario: "Berçário",
-    maternal: "Maternal",
-    jardim: "Jardim"
-  };
+  // classTypeLabels is now imported from @/lib/constants
 
   if (loading) {
     return (

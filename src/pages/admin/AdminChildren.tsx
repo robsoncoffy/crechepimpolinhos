@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2 } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
+import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type ClassType = Database["public"]["Enums"]["class_type"];
@@ -61,18 +62,6 @@ interface ParentChild {
   relationship: string;
   profile?: Profile;
 }
-
-const classTypeLabels: Record<ClassType, string> = {
-  bercario: "Berçário",
-  maternal: "Maternal",
-  jardim: "Jardim",
-};
-
-const shiftTypeLabels: Record<ShiftType, string> = {
-  manha: "Manhã",
-  tarde: "Tarde",
-  integral: "Integral",
-};
 
 export default function AdminChildren() {
   const [children, setChildren] = useState<Child[]>([]);
@@ -274,22 +263,7 @@ export default function AdminChildren() {
     });
   }
 
-  function calculateAge(birthDate: string) {
-    const birth = new Date(birthDate);
-    const today = new Date();
-    const months =
-      (today.getFullYear() - birth.getFullYear()) * 12 +
-      (today.getMonth() - birth.getMonth());
-    const years = Math.floor(months / 12);
-    const remainingMonths = months % 12;
-
-    if (years > 0) {
-      return `${years} ano${years > 1 ? "s" : ""} e ${remainingMonths} ${
-        remainingMonths === 1 ? "mês" : "meses"
-      }`;
-    }
-    return `${remainingMonths} ${remainingMonths === 1 ? "mês" : "meses"}`;
-  }
+  // calculateAge is now imported from @/lib/constants
 
   if (loading) {
     return (

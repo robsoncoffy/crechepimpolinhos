@@ -41,59 +41,79 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchUserData = async (userId: string) => {
       try {
-        // Fetch profile
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", userId)
-          .single();
+        // Fetch profile and roles in parallel
+        const [profileResult, rolesResult] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", userId)
+        ]);
 
-        if (profileData) {
-          setProfile(profileData);
+        if (!isMounted) return;
+
+        if (profileResult.data) {
+          setProfile(profileResult.data);
         }
 
-        // Fetch roles
-        const { data: rolesData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userId);
-
-        if (rolesData) {
-          setRoles(rolesData.map((r) => r.role));
+        if (rolesResult.data) {
+          setRoles(rolesResult.data.map((r) => r.role));
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
       }
     };
 
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Fetch user data and THEN set loading to false
           await fetchUserData(session.user.id);
         } else {
           setProfile(null);
           setRoles([]);
         }
         
-        setLoading(false);
+        // Only set loading false AFTER data is fully loaded
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     );
 
+    // Check initial session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!isMounted) return;
+      
       setUser(session?.user ?? null);
       
       if (session?.user) {
         await fetchUserData(session.user.id);
       }
       
-      setLoading(false);
+      // Only set loading false AFTER data is fully loaded
+      if (isMounted) {
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
