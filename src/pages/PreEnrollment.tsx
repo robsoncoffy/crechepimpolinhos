@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,7 @@ const preEnrollmentSchema = z.object({
   desired_shift_type: z.enum(["manha", "tarde", "integral"], { required_error: "Selecione um turno" }),
   how_heard_about: z.string().max(200, "Texto muito longo").optional(),
   notes: z.string().max(1000, "Texto muito longo").optional(),
+  acceptTerms: z.boolean().refine(val => val === true, { message: "Você deve aceitar os termos para continuar" }),
 });
 
 type PreEnrollmentFormData = z.infer<typeof preEnrollmentSchema>;
@@ -64,6 +65,7 @@ export default function PreEnrollment() {
       child_birth_date: "",
       how_heard_about: "",
       notes: "",
+      acceptTerms: false,
     },
   });
 
@@ -359,6 +361,42 @@ export default function PreEnrollment() {
                                 />
                               </FormControl>
                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Terms Acceptance */}
+                      <div className="pt-4 border-t">
+                        <FormField
+                          control={form.control}
+                          name="acceptTerms"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="text-sm font-normal cursor-pointer">
+                                  Li e concordo com a{" "}
+                                  <Link to="/politica-privacidade" target="_blank" className="text-primary hover:underline font-medium">
+                                    Política de Privacidade
+                                  </Link>
+                                  ,{" "}
+                                  <Link to="/lgpd" target="_blank" className="text-primary hover:underline font-medium">
+                                    LGPD
+                                  </Link>
+                                  {" "}e{" "}
+                                  <Link to="/termos-uso" target="_blank" className="text-primary hover:underline font-medium">
+                                    Termos de Uso
+                                  </Link>
+                                  . *
+                                </FormLabel>
+                                <FormMessage />
+                              </div>
                             </FormItem>
                           )}
                         />

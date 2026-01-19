@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { Phone, Mail, MapPin, Instagram, Clock } from "lucide-react";
-import logo from "@/assets/logo-pimpolinhos.png";
+import { Phone, MapPin, Instagram, Clock, Shield, Scale, FileText } from "lucide-react";
+
 export function Footer() {
   return <footer className="bg-primary text-primary-foreground">
       <div className="container py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Logo e descrição */}
           <div className="space-y-4">
             <img alt="Creche Pimpolinhos" className="h-32 w-auto" src="/lovable-uploads/fae47659-1869-4fc2-b5ac-1573ffbc1bae.png" />
@@ -37,6 +37,31 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/contato" className="hover:underline">Contato</Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal */}
+          <div>
+            <h3 className="font-fredoka text-xl font-bold mb-4">Legal</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/politica-privacidade" className="hover:underline flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Política de Privacidade
+                </Link>
+              </li>
+              <li>
+                <Link to="/lgpd" className="hover:underline flex items-center gap-2">
+                  <Scale className="w-4 h-4" />
+                  LGPD
+                </Link>
+              </li>
+              <li>
+                <Link to="/termos-uso" className="hover:underline flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Termos de Uso
+                </Link>
               </li>
             </ul>
           </div>
