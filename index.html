@@ -16,8 +16,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     
-    <!-- Preload critical resources to reduce network dependency chain -->
-    <link rel="preload" href="/src/main.tsx" as="script" crossorigin />
+    <!-- Preload LCP hero image for faster discovery -->
+    <link rel="preload" href="/src/assets/hero-children.jpg" as="image" fetchpriority="high" />
     
     <!-- Icons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
