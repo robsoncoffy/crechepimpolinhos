@@ -396,7 +396,7 @@ export default function Home() {
                     {/* App Content */}
                     <div className="p-4 space-y-4">
                       <div className="flex items-center gap-3 mb-6">
-                        <img src={logo} alt="Logo" className="w-10 h-10" />
+                        <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
                         <div>
                           <p className="font-semibold text-sm">Agenda Digital</p>
                           <p className="text-xs text-muted-foreground">Pedro Silva - Maternal</p>
