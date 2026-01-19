@@ -7,7 +7,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Logo e descrição */}
           <div className="space-y-4">
-            <img alt="Creche Pimpolinhos" className="h-32 w-auto" src="/lovable-uploads/fae47659-1869-4fc2-b5ac-1573ffbc1bae.png" />
+            <img alt="Creche Pimpolinhos" className="h-32 w-auto" src="/lovable-uploads/fae47659-1869-4fc2-b5ac-1573ffbc1bae.png" width="153" height="128" />
             <p className="text-primary-foreground/90">
               Colorindo a infância com cuidado e alegria! Educação infantil de qualidade em Canoas/RS.
             </p>
