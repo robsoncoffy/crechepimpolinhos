@@ -19,6 +19,9 @@ import ChildRegistration from "./pages/ChildRegistration";
 import AcceptInvite from "./pages/AcceptInvite";
 import EmployeeRegistration from "./pages/EmployeeRegistration";
 import Install from "./pages/Install";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import LGPD from "./pages/LGPD";
+import TermsOfUse from "./pages/TermsOfUse";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +58,9 @@ const App = () => (
           <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
+          <Route path="/lgpd" element={<LGPD />} />
+          <Route path="/termos-uso" element={<TermsOfUse />} />
           <Route path="/painel/*" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
