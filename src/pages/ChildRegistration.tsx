@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,6 +83,12 @@ const ChildRegistration = () => {
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [childFullName, setChildFullName] = useState<string>("");
   const [activeTab, setActiveTab] = useState("basic");
+  const [preEnrollmentData, setPreEnrollmentData] = useState<{
+    child_name: string;
+    child_birth_date: string;
+    desired_class_type: string;
+    desired_shift_type: string;
+  } | null>(null);
   
   // File states
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -110,6 +116,49 @@ const ChildRegistration = () => {
   });
 
   const selectedEnrollmentType = watch("enrollmentType");
+
+  // Fetch pre-enrollment data if user has an invite linked to one
+  useEffect(() => {
+    const fetchPreEnrollmentData = async () => {
+      if (!user) return;
+
+      // Find the invite used by this user
+      const { data: invite } = await supabase
+        .from("parent_invites")
+        .select("pre_enrollment_id")
+        .eq("used_by", user.id)
+        .maybeSingle();
+
+      if (invite?.pre_enrollment_id) {
+        const { data: preEnrollment } = await supabase
+          .from("pre_enrollments")
+          .select("child_name, child_birth_date, desired_class_type, desired_shift_type")
+          .eq("id", invite.pre_enrollment_id)
+          .single();
+
+        if (preEnrollment) {
+          setPreEnrollmentData(preEnrollment);
+          
+          // Parse child name into first and last name
+          const nameParts = preEnrollment.child_name.trim().split(" ");
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || "";
+          
+          // Pre-fill form fields
+          setValue("firstName", firstName);
+          setValue("lastName", lastName);
+          setValue("birthDate", preEnrollment.child_birth_date);
+          
+          toast({
+            title: "Dados da pré-matrícula carregados!",
+            description: "Alguns campos foram preenchidos automaticamente com os dados informados na pré-matrícula.",
+          });
+        }
+      }
+    };
+
+    fetchPreEnrollmentData();
+  }, [user, setValue, toast]);
 
   const fetchAddressByCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');

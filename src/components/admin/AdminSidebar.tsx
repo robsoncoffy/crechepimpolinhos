@@ -20,6 +20,7 @@ import {
   FileSignature,
   Megaphone,
   MessagesSquare,
+  ClipboardPen,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -64,6 +65,7 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: ClipboardPen, label: "Pré-Matrículas", href: "/painel/pre-matriculas", roles: ["admin"] },
   { icon: User, label: "Perfis de Usuários", href: "/painel/perfis", roles: ["admin"] },
   { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais", roles: ["admin"] },
   { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites", roles: ["admin"] },
