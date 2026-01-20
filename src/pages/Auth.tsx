@@ -442,7 +442,7 @@ export default function Auth() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone *</Label>
+                    <Label htmlFor="phone">Telefone <span className="text-destructive">*</span></Label>
                     <Input
                       id="phone"
                       name="phone"
@@ -451,6 +451,7 @@ export default function Auth() {
                       value={formData.phone}
                       onChange={handleChange}
                       className={errors.phone ? "border-destructive" : ""}
+                      required
                     />
                     {errors.phone && (
                       <p className="text-sm text-destructive">{errors.phone}</p>
