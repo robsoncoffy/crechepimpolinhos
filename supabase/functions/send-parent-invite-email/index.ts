@@ -14,6 +14,9 @@ interface InviteEmailRequest {
   inviteCode: string;
   childName?: string;
   parentName?: string;
+  couponCode?: string;
+  couponDiscountType?: "percentage" | "fixed";
+  couponDiscountValue?: number;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -70,7 +73,7 @@ serve(async (req: Request): Promise<Response> => {
     const body: InviteEmailRequest = await req.json();
     console.log("Request body:", body);
 
-    const { email, inviteCode, childName, parentName } = body;
+    const { email, inviteCode, childName, parentName, couponCode, couponDiscountType, couponDiscountValue } = body;
 
     if (!email || !inviteCode) {
       return new Response(
@@ -80,11 +83,64 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const appUrl = "https://crechepimpolinhos.lovable.app";
-    const signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
+    let signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
+    if (couponCode) {
+      signupUrl += `&cupom=${couponCode}`;
+    }
     const logoUrl = `${appUrl}/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png`;
 
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
     const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
+    
+    // Format discount text
+    let discountText = "";
+    let discountHtml = "";
+    if (couponCode && couponDiscountValue && couponDiscountValue > 0) {
+      if (couponDiscountType === "percentage") {
+        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${couponDiscountValue}% de desconto nas mensalidades! Seu cupom "${couponCode}" será aplicado automaticamente.`;
+        discountHtml = `
+          <tr>
+            <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
+              <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
+              <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                Bônus Especial para Você!
+              </p>
+              <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
+                ${couponDiscountValue}% OFF
+              </p>
+              <p style="margin: 0; color: #15803d; font-size: 14px;">
+                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${couponCode}</strong>
+              </p>
+              <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
+                ✨ Aplicado automaticamente no cadastro!
+              </p>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>`;
+      } else {
+        const formattedValue = couponDiscountValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${formattedValue} de desconto nas mensalidades! Seu cupom "${couponCode}" será aplicado automaticamente.`;
+        discountHtml = `
+          <tr>
+            <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
+              <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
+              <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                Bônus Especial para Você!
+              </p>
+              <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
+                ${formattedValue} OFF
+              </p>
+              <p style="margin: 0; color: #15803d; font-size: 14px;">
+                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${couponCode}</strong>
+              </p>
+              <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
+                ✨ Aplicado automaticamente no cadastro!
+              </p>
+            </td>
+          </tr>
+          <tr><td style="height: 24px;"></td></tr>`;
+      }
+    }
 
     const plainText = `
 ${greeting}
@@ -92,7 +148,7 @@ ${greeting}
 🎉 Você foi convidado(a) para fazer parte da família Creche Pimpolinhos${childName ? ` como responsável de ${childName}` : ""}!
 
 Seu código de convite é: ${inviteCode}
-
+${discountText ? `\n${discountText}\n` : ""}
 Ao se cadastrar, você terá acesso a:
 - 📱 Agenda diária do seu filho
 - 📸 Fotos e momentos especiais
@@ -215,6 +271,11 @@ Equipe Creche Pimpolinhos 💚
                           </p>
                         </td>
                       </tr>
+                    </table>
+                    
+                    <!-- Discount Coupon Box -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 24px;">
+                      ${discountHtml}
                     </table>
                     
                     <!-- Benefits Section -->
