@@ -38,10 +38,23 @@ const AcceptInvite = () => {
 
   const token = searchParams.get("token");
 
-  // Check if logged-in user needs to complete child registration
+  // Check if logged-in user needs to complete child registration (only for parents)
   useEffect(() => {
     const checkUserRegistration = async () => {
       if (authLoading || !user) return;
+      
+      // First check if user is staff (admin, teacher, cook, etc.)
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const isStaff = roles?.some(r => 
+        ["admin", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"].includes(r.role)
+      );
+
+      // Staff members don't need child registrations
+      if (isStaff) return;
       
       // Check if user has any child registrations
       const { data: registrations } = await supabase
@@ -50,7 +63,7 @@ const AcceptInvite = () => {
         .eq("parent_id", user.id)
         .limit(1);
 
-      // If no child registrations, redirect to complete registration
+      // If parent has no child registrations, redirect to complete registration
       if (!registrations || registrations.length === 0) {
         toast({
           title: "Complete seu cadastro",
