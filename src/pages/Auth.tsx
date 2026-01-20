@@ -228,16 +228,24 @@ export default function Auth() {
         });
 
         if (error) {
-          if (error.message.includes("already registered")) {
+          console.error("Signup error details:", {
+            message: error.message,
+            status: error.status,
+            name: error.name,
+            code: (error as any).code,
+            fullError: JSON.stringify(error)
+          });
+          
+          if (error.message.includes("already registered") || error.message.includes("already been registered")) {
             toast({
               title: "Email já cadastrado",
-              description: "Este email já está em uso. Tente fazer login.",
+              description: `Este email já está em uso. Tente fazer login. (Erro técnico: ${error.message})`,
               variant: "destructive",
             });
           } else {
             toast({
               title: "Erro ao cadastrar",
-              description: error.message,
+              description: `${error.message} (Status: ${error.status || 'N/A'})`,
               variant: "destructive",
             });
           }
