@@ -46,39 +46,61 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 
-// Menu items with role restrictions
+// Menu items organized by category with role restrictions
 // roles: which roles can see this item (empty = all staff)
 
 import { GraduationCap } from "lucide-react";
 
-const menuItems = [
+// Dashboard
+const dashboardItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/painel", roles: [] },
-  { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true, roles: ["admin"] },
-  { icon: Users, label: "Professores", href: "/painel/professores", roles: ["admin"] },
+];
+
+// Gestão de Alunos
+const studentItems = [
   { icon: Baby, label: "Crianças", href: "/painel/criancas", roles: ["admin", "teacher", "pedagogue", "auxiliar"] },
   { icon: ClipboardCheck, label: "Chamada", href: "/painel/chamada", roles: ["admin", "teacher", "auxiliar"] },
-  { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
   { icon: TrendingUp, label: "Crescimento", href: "/painel/crescimento", roles: ["admin", "teacher", "pedagogue"] },
   { icon: GraduationCap, label: "Avaliações Plus+", href: "/painel/avaliacoes", roles: ["admin", "pedagogue"] },
+];
+
+// Rotina Escolar
+const routineItems = [
+  { icon: ClipboardList, label: "Agenda Digital", href: "/painel/agenda", roles: ["admin", "teacher", "auxiliar", "pedagogue"] },
+  { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio", roles: ["admin", "nutritionist", "cook"] },
+  { icon: CalendarDays, label: "Eventos", href: "/painel/eventos", roles: ["admin", "teacher", "pedagogue"] },
+  { icon: Camera, label: "Galeria", href: "/painel/galeria", roles: ["admin", "teacher"] },
+];
+
+// Comunicação
+const communicationItems = [
   { icon: MessageSquare, label: "Mensagens Pais", href: "/painel/mensagens", roles: ["admin", "nutritionist"] },
   { icon: MessagesSquare, label: "Chat Equipe", href: "/painel/chat-equipe", roles: [] },
   { icon: Megaphone, label: "Avisos", href: "/painel/avisos", roles: ["admin", "teacher"] },
-  { icon: FileSignature, label: "Contratos", href: "/painel/contratos", roles: ["admin"] },
-  { icon: UtensilsCrossed, label: "Cardápio", href: "/painel/cardapio", roles: ["admin", "nutritionist", "cook"] },
-  { icon: Camera, label: "Galeria", href: "/painel/galeria", roles: ["admin", "teacher"] },
-  { icon: CalendarDays, label: "Eventos", href: "/painel/eventos", roles: ["admin", "teacher", "pedagogue"] },
+  { icon: Mail, label: "E-mails", href: "/painel/emails", roles: ["admin"] },
 ];
 
-const secondaryItems = [
-  { icon: Mail, label: "E-mails", href: "/painel/emails", roles: ["admin"] },
-  { icon: FileText, label: "Relatórios", href: "/painel/relatorios", roles: ["admin"] },
-  { icon: CalendarOff, label: "Férias/Ausências", href: "/painel/ausencias", roles: ["admin"] },
-  { icon: DollarSign, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
-  { icon: Clock, label: "Ponto Eletrônico", href: "/painel/ponto", roles: ["admin"] },
+// Administrativo
+const adminItems = [
+  { icon: UserCheck, label: "Aprovações", href: "/painel/aprovacoes", badge: true, roles: ["admin"] },
+  { icon: Users, label: "Professores", href: "/painel/professores", roles: ["admin"] },
+  { icon: FileSignature, label: "Contratos", href: "/painel/contratos", roles: ["admin"] },
   { icon: ClipboardPen, label: "Pré-Matrículas", href: "/painel/pre-matriculas", roles: ["admin"] },
   { icon: User, label: "Perfis de Usuários", href: "/painel/perfis", roles: ["admin"] },
   { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais", roles: ["admin"] },
-  { icon: Ticket, label: "Convites de Funcionário", href: "/painel/convites", roles: ["admin"] },
+  { icon: Ticket, label: "Convites Funcionário", href: "/painel/convites", roles: ["admin"] },
+];
+
+// Financeiro & RH
+const financeHrItems = [
+  { icon: DollarSign, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
+  { icon: Clock, label: "Ponto Eletrônico", href: "/painel/ponto", roles: ["admin"] },
+  { icon: CalendarOff, label: "Férias/Ausências", href: "/painel/ausencias", roles: ["admin"] },
+  { icon: FileText, label: "Relatórios", href: "/painel/relatorios", roles: ["admin"] },
+];
+
+// Configurações
+const settingsItems = [
   { icon: Settings, label: "Configurações", href: "/painel/config", roles: ["admin"] },
 ];
 
@@ -111,10 +133,57 @@ export function AdminSidebar() {
     return roles.some(role => itemRoles.includes(role));
   };
 
-  const filteredMenuItems = menuItems.filter(item => canSeeItem(item.roles));
-  const filteredSecondaryItems = secondaryItems.filter(item => canSeeItem(item.roles));
+  // Filter each category
+  const filteredDashboard = dashboardItems.filter(item => canSeeItem(item.roles));
+  const filteredStudents = studentItems.filter(item => canSeeItem(item.roles));
+  const filteredRoutine = routineItems.filter(item => canSeeItem(item.roles));
+  const filteredCommunication = communicationItems.filter(item => canSeeItem(item.roles));
+  const filteredAdmin = adminItems.filter(item => canSeeItem(item.roles));
+  const filteredFinanceHr = financeHrItems.filter(item => canSeeItem(item.roles));
+  const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
 
   const roleLabel = getRoleLabel();
+
+  // Helper component for rendering menu sections
+  const renderMenuSection = (items: typeof dashboardItems, label: string) => {
+    if (items.length === 0) return null;
+    return (
+      <SidebarGroup>
+        <SidebarGroupLabel className="text-sidebar-foreground/60">
+          {label}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {items.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive}
+                    tooltip={item.label}
+                  >
+                    <Link to={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                      {"badge" in item && item.badge && !isCollapsed && (
+                        <Badge 
+                          variant="secondary" 
+                          className="ml-auto bg-sidebar-foreground/20 text-sidebar-foreground text-xs px-1.5"
+                        >
+                          Novo
+                        </Badge>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -171,72 +240,14 @@ export function AdminSidebar() {
           </div>
         </SidebarGroup>
 
-
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/60">
-            Menu Principal
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filteredMenuItems.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link to={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                        {item.badge && !isCollapsed && (
-                          <Badge 
-                            variant="secondary" 
-                            className="ml-auto bg-sidebar-foreground/20 text-sidebar-foreground text-xs px-1.5"
-                          >
-                            Novo
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Secondary Navigation - Only show if there are items */}
-        {filteredSecondaryItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-sidebar-foreground/60">
-              Sistema
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {filteredSecondaryItems.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.label}
-                      >
-                        <Link to={item.href}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+        {/* Categorized Navigation */}
+        {renderMenuSection(filteredDashboard, "Início")}
+        {renderMenuSection(filteredStudents, "Gestão de Alunos")}
+        {renderMenuSection(filteredRoutine, "Rotina Escolar")}
+        {renderMenuSection(filteredCommunication, "Comunicação")}
+        {renderMenuSection(filteredAdmin, "Administrativo")}
+        {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
+        {renderMenuSection(filteredSettings, "Configurações")}
       </SidebarContent>
 
       {/* Footer */}
