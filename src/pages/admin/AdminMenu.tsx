@@ -21,10 +21,22 @@ import {
   CalendarDays,
   Check,
   Baby,
-  Users
+  Users,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface MenuItem {
   id?: string;
@@ -60,8 +72,79 @@ export default function AdminMenu() {
   const [maternalItems, setMaternalItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+  const copyFromPreviousWeek = async () => {
+    setCopying(true);
+    const previousWeekStart = format(subWeeks(weekStart, 1), 'yyyy-MM-dd');
+    
+    try {
+      const { data, error } = await supabase
+        .from('weekly_menus')
+        .select('*')
+        .eq('week_start', previousWeekStart)
+        .order('day_of_week');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error('Não há cardápio na semana anterior para copiar');
+        setCopying(false);
+        return;
+      }
+
+      // Copy data to current week, preserving menu types
+      const bercarioData = data.filter(item => item.menu_type === 'bercario');
+      const maternalData = data.filter(item => item.menu_type === 'maternal');
+
+      const newBercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+        const existing = bercarioData.find(item => item.day_of_week === dayOfWeek);
+        if (existing) {
+          return {
+            id: bercarioItems.find(b => b.day_of_week === dayOfWeek)?.id,
+            week_start: weekStartStr,
+            day_of_week: dayOfWeek,
+            breakfast: existing.breakfast || '',
+            lunch: existing.lunch || '',
+            snack: existing.snack || '',
+            dinner: existing.dinner || '',
+            notes: existing.notes || '',
+            menu_type: 'bercario' as const
+          };
+        }
+        return bercarioItems.find(b => b.day_of_week === dayOfWeek) || emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
+      });
+
+      const newMaternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+        const existing = maternalData.find(item => item.day_of_week === dayOfWeek);
+        if (existing) {
+          return {
+            id: maternalItems.find(m => m.day_of_week === dayOfWeek)?.id,
+            week_start: weekStartStr,
+            day_of_week: dayOfWeek,
+            breakfast: existing.breakfast || '',
+            lunch: existing.lunch || '',
+            snack: existing.snack || '',
+            dinner: existing.dinner || '',
+            notes: existing.notes || '',
+            menu_type: 'maternal' as const
+          };
+        }
+        return maternalItems.find(m => m.day_of_week === dayOfWeek) || emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
+      });
+
+      setBercarioItems(newBercario);
+      setMaternalItems(newMaternal);
+      toast.success('Cardápio da semana anterior copiado! Não esqueça de salvar.');
+    } catch (error) {
+      console.error('Error copying menu:', error);
+      toast.error('Erro ao copiar cardápio');
+    } finally {
+      setCopying(false);
+    }
+  };
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -333,8 +416,46 @@ export default function AdminMenu() {
           </Button>
         </div>
         
-        {/* PDF Export Buttons */}
-        <div className="flex justify-end">
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={loading || copying}
+                className="border-pimpo-yellow text-pimpo-yellow hover:bg-pimpo-yellow/10"
+              >
+                {copying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Copiando...
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copiar Semana Anterior
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Copiar cardápio da semana anterior?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isso irá substituir o cardápio atual pelos dados da semana anterior ({format(subWeeks(weekStart, 1), "d 'de' MMMM", { locale: ptBR })} - {format(addDays(subWeeks(weekStart, 1), 4), "d 'de' MMMM", { locale: ptBR })}).
+                  <br /><br />
+                  <strong>Atenção:</strong> As alterações só serão salvas quando você clicar em "Salvar Cardápios".
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={copyFromPreviousWeek} className="bg-pimpo-yellow hover:bg-pimpo-yellow/90 text-white">
+                  Copiar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <MenuPdfExport 
             menuItems={activeTab === 'bercario' ? bercarioItems : maternalItems} 
             weekStart={weekStart} 
