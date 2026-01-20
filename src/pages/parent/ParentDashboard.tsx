@@ -70,11 +70,31 @@ export default function ParentDashboard() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [growthData, setGrowthData] = useState<Record<string, MonthlyTracking[]>>({});
   const [activeTab, setActiveTab] = useState("agenda");
+  const [pendingRegistrations, setPendingRegistrations] = useState<{ first_name: string; last_name: string; status: string }[]>([]);
+  const [checkingRegistrations, setCheckingRegistrations] = useState(true);
 
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
+
+  // Check for pending child registrations (runs for all users, approved or not)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkPendingRegistrations = async () => {
+      setCheckingRegistrations(true);
+      const { data } = await supabase
+        .from("child_registrations")
+        .select("first_name, last_name, status")
+        .eq("parent_id", user.id);
+
+      setPendingRegistrations(data || []);
+      setCheckingRegistrations(false);
+    };
+
+    checkPendingRegistrations();
+  }, [user]);
 
   // Fetch children and growth data
   useEffect(() => {
@@ -186,8 +206,86 @@ export default function ParentDashboard() {
     jardim: "Jardim",
   };
 
-  // If not approved, show pending message
+  // If not approved, check what to show
   if (!isApproved) {
+    // Still loading registrations
+    if (checkingRegistrations) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+
+    // No pending registrations - redirect to child registration
+    if (pendingRegistrations.length === 0) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light">
+          {/* Header */}
+          <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
+            <div className="container py-4 flex items-center justify-between">
+              <Link to="/" className="flex items-center gap-3">
+                <img src={logo} alt="Creche Pimpolinhos" className="h-10" />
+                <span className="font-fredoka text-lg font-bold hidden sm:inline">Pimpolinhos</span>
+              </Link>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sair
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          {/* Content - Prompt to register child */}
+          <main className="container py-8 max-w-2xl">
+            <div className="mb-8">
+              <h1 className="font-fredoka text-3xl font-bold">
+                Olá, {profile?.full_name?.split(" ")[0] || "Responsável"}!
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Bem-vindo ao portal de pais da Creche Pimpolinhos
+              </p>
+            </div>
+
+            <Card className="shadow-lg border-2">
+              <CardHeader className="bg-primary/10 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-full bg-primary/20">
+                    <Baby className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Cadastre seu Pimpolho</CardTitle>
+                    <CardDescription>Preencha os dados do seu filho para continuar</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-6">
+                <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Próximo passo</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Para completar seu cadastro, você precisa adicionar os dados do seu filho.
+                      Após o envio, a escola irá analisar e aprovar a matrícula.
+                    </p>
+                  </div>
+                </div>
+                <Button asChild size="lg" className="w-full gap-2">
+                  <Link to="/cadastro-pimpolho">
+                    <UserPlus className="w-5 h-5" />
+                    Cadastrar meu filho
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      );
+    }
+
+    // Has pending registrations - show waiting for approval
     return (
       <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light">
         {/* Header */}
@@ -226,21 +324,36 @@ export default function ParentDashboard() {
                 </div>
                 <div>
                   <CardTitle>Aguardando Aprovação</CardTitle>
-                  <CardDescription>Seu cadastro está sendo analisado</CardDescription>
+                  <CardDescription>
+                    {pendingRegistrations.length === 1 
+                      ? `Cadastro de ${pendingRegistrations[0].first_name} em análise`
+                      : `${pendingRegistrations.length} cadastros em análise`}
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
+              {/* List of pending children */}
+              <div className="space-y-2">
+                {pendingRegistrations.map((reg, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 bg-pimpo-yellow/5 rounded-lg border border-pimpo-yellow/20">
+                    <Baby className="w-5 h-5 text-pimpo-yellow shrink-0" />
+                    <span className="font-medium">{reg.first_name} {reg.last_name}</span>
+                    <Badge variant="secondary" className="ml-auto">Pendente</Badge>
+                  </div>
+                ))}
+              </div>
+
               <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
                 <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div>
                   <p className="font-medium">O que acontece agora?</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    A escola precisa aprovar seu acesso e vincular seu filho à sua conta.
-                    Você receberá uma notificação quando o acesso for liberado.
+                    A escola está analisando o cadastro. Você receberá uma notificação quando o acesso for liberado.
                   </p>
                 </div>
               </div>
+              
               <div className="flex items-start gap-3 p-4 bg-pimpo-green/10 rounded-lg">
                 <MessageSquare className="w-5 h-5 text-pimpo-green mt-0.5 shrink-0" />
                 <div>
@@ -258,6 +371,13 @@ export default function ParentDashboard() {
                   </p>
                 </div>
               </div>
+
+              <Button asChild variant="outline" size="sm" className="w-full gap-2">
+                <Link to="/cadastro-pimpolho">
+                  <UserPlus className="w-4 h-4" />
+                  Adicionar outro filho
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </main>
