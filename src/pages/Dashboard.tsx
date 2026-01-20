@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -54,39 +53,6 @@ function RoleBasedDashboard() {
 function DashboardContent() {
   const { user, loading, isParent, isStaff } = useAuth();
   const navigate = useNavigate();
-  const [checkingChildRegistration, setCheckingChildRegistration] = useState(true);
-  const [hasChildRegistration, setHasChildRegistration] = useState<boolean | null>(null);
-
-  // Check if parent user needs to complete child registration
-  useEffect(() => {
-    const checkChildRegistration = async () => {
-      if (!user || loading) return;
-      
-      // Only check for parent-only users (not staff)
-      if (isStaff) {
-        setCheckingChildRegistration(false);
-        return;
-      }
-
-      // Check if user has any child registrations
-      const { data: registrations } = await supabase
-        .from("child_registrations")
-        .select("id")
-        .eq("parent_id", user.id)
-        .limit(1);
-
-      if (!registrations || registrations.length === 0) {
-        // No child registrations - redirect to complete registration
-        navigate("/cadastro-pimpolho");
-        return;
-      }
-
-      setHasChildRegistration(true);
-      setCheckingChildRegistration(false);
-    };
-
-    checkChildRegistration();
-  }, [user, loading, isStaff, navigate]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -94,7 +60,7 @@ function DashboardContent() {
     }
   }, [user, loading, navigate]);
 
-  if (loading || (isParent && !isStaff && checkingChildRegistration)) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
