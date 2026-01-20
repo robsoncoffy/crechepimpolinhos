@@ -32,6 +32,7 @@ import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
 import AdminEmails from "@/pages/admin/AdminEmails";
+import AdminConfig from "@/pages/admin/AdminConfig";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
@@ -134,7 +135,7 @@ function DashboardContent() {
           } />
           <Route path="/config" element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminConfigPlaceholder />
+              <AdminConfig />
             </ProtectedRoute>
           } />
           
@@ -222,24 +223,6 @@ function DashboardContent() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <p>Acesso não autorizado</p>
-    </div>
-  );
-}
-
-function AdminConfigPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground">
-          Configurações
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Configurações do sistema em desenvolvimento
-        </p>
-      </div>
-      <div className="flex items-center justify-center py-20 bg-muted/30 rounded-xl border-2 border-dashed">
-        <p className="text-muted-foreground">Em breve</p>
-      </div>
     </div>
   );
 }
