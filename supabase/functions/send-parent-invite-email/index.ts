@@ -88,7 +88,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Sending invite email to:", email);
 
     const emailResponse = await resend.emails.send({
-      from: "Creche Pimpolinhos <onboarding@resend.dev>",
+      from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
       to: [email],
       subject: `🎈 Convite para Creche Pimpolinhos${childName ? ` - ${childName}` : ""}`,
       html: `
