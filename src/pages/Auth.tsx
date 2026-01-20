@@ -20,7 +20,7 @@ const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, "Nome deve ter no mínimo 2 caracteres"),
   cpf: z.string().refine((val) => validateCPF(val), { message: "CPF inválido" }),
   rg: z.string().optional(),
-  phone: z.string().min(14, "Telefone inválido"),
+  phone: z.string().min(1, "Telefone é obrigatório").min(14, "Telefone inválido"),
   confirmPassword: z.string(),
   inviteCode: z.string().min(1, "Código de convite é obrigatório"),
 }).refine((data) => data.password === data.confirmPassword, {
