@@ -136,7 +136,10 @@ const ChildRegistration = () => {
   const selectedEnrollmentType = watch("enrollmentType");
   const watchedBirthDate = watch("birthDate");
 
-  // Estimate class type based on birth date (rough approximation)
+  // Estimate class type based on birth date
+  // 0-1 ano e 11 meses (0-23 meses) = Berçário
+  // 2-3 anos e 11 meses (24-47 meses) = Maternal
+  // 4-6 anos (48-72 meses) = Jardim de Infância
   const estimatedClassType: ClassType = (() => {
     if (!watchedBirthDate) return "maternal"; // default
     
@@ -144,10 +147,17 @@ const ChildRegistration = () => {
     const now = new Date();
     const ageMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
     
-    if (ageMonths < 24) return "bercario";
-    if (ageMonths < 48) return "maternal";
-    return "jardim";
+    if (ageMonths < 24) return "bercario"; // 0-1 ano e 11 meses
+    if (ageMonths < 48) return "maternal"; // 2-3 anos e 11 meses
+    return "jardim"; // 4+ anos
   })();
+  
+  // Get the class name for display
+  const estimatedClassName = estimatedClassType === "bercario" 
+    ? "Berçário" 
+    : estimatedClassType === "maternal" 
+      ? "Maternal" 
+      : "Jardim de Infância";
 
   // Get price for a plan with optional discount
   const getPlanPrice = (planType: PlanType) => {
@@ -1374,8 +1384,7 @@ const ChildRegistration = () => {
 
                         {/* Estimated class info */}
                         <p className="text-xs text-muted-foreground italic">
-                          * Valores estimados para turma de {estimatedClassType === "bercario" ? "Berçário" : estimatedClassType === "maternal" ? "Maternal" : "Jardim"} 
-                          com base na data de nascimento informada. O valor final será confirmado pela escola.
+                          * Valores estimados para turma de {estimatedClassName} com base na data de nascimento informada. O valor final será confirmado pela escola.
                         </p>
                       </div>
                     )}
