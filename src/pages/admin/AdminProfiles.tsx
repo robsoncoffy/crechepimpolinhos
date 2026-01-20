@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -27,14 +27,15 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
-  AlertTriangle,
-  MailX
+  Database
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
-import { Database } from "@/integrations/supabase/types";
+import { Database as SupabaseDB } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
+import { EmailDiagnosticModal } from "@/components/admin/EmailDiagnosticModal";
+import { UserDeletionDialog } from "@/components/admin/UserDeletionDialog";
 
-type AppRole = Database["public"]["Enums"]["app_role"];
+type AppRole = SupabaseDB["public"]["Enums"]["app_role"];
 
 interface Profile {
   id: string;
@@ -373,8 +374,8 @@ export default function AdminProfiles() {
           onClick={() => setLiberateEmailDialogOpen(true)}
           className="gap-2"
         >
-          <MailX className="w-4 h-4" />
-          Liberar E-mail
+          <Database className="w-4 h-4" />
+          Diagnóstico de E-mail
         </Button>
       </div>
 
@@ -719,131 +720,24 @@ export default function AdminProfiles() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" />
-              Confirmar Exclusão
-            </DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.full_name}</strong>?
-            </DialogDescription>
-          </DialogHeader>
-          
-          {userToDeleteEmail && (
-            <div className="p-3 bg-muted rounded-lg border flex items-center gap-2">
-              <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm font-medium break-all">{userToDeleteEmail}</span>
-            </div>
-          )}
+      {/* Delete Confirmation Dialog - Using new component */}
+      <UserDeletionDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        userId={userToDelete?.user_id || ""}
+        userName={userToDelete?.full_name || ""}
+        onDeleteComplete={() => {
+          setSelectedProfile(null);
+          fetchData();
+        }}
+      />
 
-          <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-            <p className="text-sm text-destructive font-medium mb-2">Esta ação irá:</p>
-            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-              <li>Remover o acesso ao sistema</li>
-              <li>Apagar todos os dados relacionados</li>
-              <li>Liberar o e-mail para novo cadastro</li>
-            </ul>
-            <p className="text-sm text-destructive font-semibold mt-3">
-              Esta ação não pode ser desfeita!
-            </p>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={deletingUser}
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={deletingUser}
-            >
-              {deletingUser ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Excluir Permanentemente
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Liberate Email Dialog */}
-      <Dialog open={liberateEmailDialogOpen} onOpenChange={setLiberateEmailDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MailX className="w-5 h-5 text-primary" />
-              Liberar E-mail para Novo Cadastro
-            </DialogTitle>
-            <DialogDescription>
-              Digite o e-mail que deseja liberar. Isso removerá qualquer conta e dados associados.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email-to-liberate">E-mail</Label>
-              <Input
-                id="email-to-liberate"
-                type="email"
-                placeholder="email@exemplo.com"
-                value={emailToLiberate}
-                onChange={(e) => setEmailToLiberate(e.target.value)}
-                disabled={liberatingEmail}
-              />
-            </div>
-
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                <strong>Atenção:</strong> Esta ação irá remover permanentemente qualquer usuário 
-                associado a este e-mail, liberando-o para um novo cadastro.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setLiberateEmailDialogOpen(false);
-                setEmailToLiberate("");
-              }}
-              disabled={liberatingEmail}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleLiberateEmail}
-              disabled={liberatingEmail || !emailToLiberate.trim()}
-            >
-              {liberatingEmail ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Liberando...
-                </>
-              ) : (
-                <>
-                  <MailX className="w-4 h-4 mr-2" />
-                  Liberar E-mail
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Email Diagnostic Modal */}
+      <EmailDiagnosticModal
+        open={liberateEmailDialogOpen}
+        onOpenChange={setLiberateEmailDialogOpen}
+        onCleanupComplete={fetchData}
+      />
     </div>
   );
 }
