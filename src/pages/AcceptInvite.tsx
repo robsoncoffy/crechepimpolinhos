@@ -38,6 +38,34 @@ const AcceptInvite = () => {
 
   const token = searchParams.get("token");
 
+  // Check if logged-in user needs to complete child registration
+  useEffect(() => {
+    const checkUserRegistration = async () => {
+      if (authLoading || !user) return;
+      
+      // Check if user has any child registrations
+      const { data: registrations } = await supabase
+        .from("child_registrations")
+        .select("id")
+        .eq("parent_id", user.id)
+        .limit(1);
+
+      // If no child registrations, redirect to complete registration
+      if (!registrations || registrations.length === 0) {
+        toast({
+          title: "Complete seu cadastro",
+          description: "Você precisa cadastrar os dados do seu filho para continuar.",
+        });
+        navigate("/cadastro-pimpolho");
+      }
+    };
+
+    // Only check if this is NOT a guardian invitation (token present means it's second guardian flow)
+    if (!token && user) {
+      checkUserRegistration();
+    }
+  }, [user, authLoading, token, navigate, toast]);
+
   useEffect(() => {
     const fetchInvitation = async () => {
       if (!token) {
