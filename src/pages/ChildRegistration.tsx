@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -81,6 +81,7 @@ interface AuthorizedPickupFile {
 
 const ChildRegistration = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,6 +105,7 @@ const ChildRegistration = () => {
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [couponCode, setCouponCode] = useState("");
+  const [couponAutoApplied, setCouponAutoApplied] = useState(false);
   
   // Discount coupon hook
   const { 
@@ -153,6 +155,19 @@ const ChildRegistration = () => {
     return calculateDiscount(basePrice);
   };
 
+  // Auto-apply coupon from URL parameter
+  useEffect(() => {
+    const urlCoupon = searchParams.get("cupom");
+    if (urlCoupon && !couponAutoApplied && !coupon) {
+      setCouponCode(urlCoupon.toUpperCase());
+      validateCoupon(urlCoupon).then((result) => {
+        if (result) {
+          setCouponAutoApplied(true);
+        }
+      });
+    }
+  }, [searchParams, couponAutoApplied, coupon, validateCoupon]);
+
   // Fetch pre-enrollment data if user has an invite linked to one
   useEffect(() => {
     const fetchPreEnrollmentData = async () => {
@@ -161,7 +176,7 @@ const ChildRegistration = () => {
       // Find the invite used by this user
       const { data: invite } = await supabase
         .from("parent_invites")
-        .select("pre_enrollment_id")
+        .select("pre_enrollment_id, coupon_code")
         .eq("used_by", user.id)
         .maybeSingle();
 
@@ -191,10 +206,20 @@ const ChildRegistration = () => {
           });
         }
       }
+
+      // Auto-apply coupon from invite if not already applied
+      if (invite?.coupon_code && !couponAutoApplied && !coupon && !searchParams.get("cupom")) {
+        setCouponCode(invite.coupon_code);
+        validateCoupon(invite.coupon_code).then((result) => {
+          if (result) {
+            setCouponAutoApplied(true);
+          }
+        });
+      }
     };
 
     fetchPreEnrollmentData();
-  }, [user, setValue, toast]);
+  }, [user, setValue, toast, couponAutoApplied, coupon, validateCoupon, searchParams]);
 
   const fetchAddressByCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');

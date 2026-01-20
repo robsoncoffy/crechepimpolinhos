@@ -64,7 +64,11 @@ const initialFormData: CouponFormData = {
   max_uses: "",
 };
 
-export function DiscountCouponsManager() {
+interface DiscountCouponsManagerProps {
+  onCouponChange?: () => void;
+}
+
+export function DiscountCouponsManager({ onCouponChange }: DiscountCouponsManagerProps = {}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -114,6 +118,7 @@ export function DiscountCouponsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discount-coupons"] });
+      onCouponChange?.();
       toast({
         title: editingCoupon ? "Cupom atualizado!" : "Cupom criado!",
         description: `O cupom ${formData.code.toUpperCase()} foi salvo com sucesso.`,
@@ -142,6 +147,7 @@ export function DiscountCouponsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discount-coupons"] });
+      onCouponChange?.();
     },
   });
 
@@ -156,6 +162,7 @@ export function DiscountCouponsManager() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discount-coupons"] });
+      onCouponChange?.();
       toast({
         title: "Cupom excluído",
         description: "O cupom foi removido com sucesso.",
