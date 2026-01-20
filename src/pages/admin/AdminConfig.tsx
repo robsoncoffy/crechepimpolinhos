@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DiscountCouponsManager } from "@/components/admin/DiscountCouponsManager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -214,7 +215,7 @@ const AdminConfig = () => {
       </div>
 
       <Tabs defaultValue="escola" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="escola" className="gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Escola</span>
@@ -226,6 +227,10 @@ const AdminConfig = () => {
           <TabsTrigger value="precos" className="gap-2">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Preços</span>
+          </TabsTrigger>
+          <TabsTrigger value="cupons" className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden sm:inline">Cupons</span>
           </TabsTrigger>
           <TabsTrigger value="notificacoes" className="gap-2">
             <Bell className="h-4 w-4" />
@@ -662,6 +667,11 @@ const AdminConfig = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Tab: Cupons de Desconto */}
+        <TabsContent value="cupons" className="space-y-6">
+          <DiscountCouponsManager />
         </TabsContent>
 
         {/* Tab: Notificações */}
