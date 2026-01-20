@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { useGmail } from "@/hooks/useGmail";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { ptBR } from "date-fns/locale";
 
 export default function AdminEmails() {
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const {
     emails,
     isLoading,
@@ -55,6 +57,7 @@ export default function AdminEmails() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [authUrlToShow, setAuthUrlToShow] = useState<string | null>(null);
 
   useEffect(() => {
     if (isAuthorized) {
@@ -62,17 +65,22 @@ export default function AdminEmails() {
     }
   }, [isAuthorized, fetchEmails]);
 
+  // Periodically check if authorization was completed
+  useEffect(() => {
+    if (authUrlToShow && !isAuthorized) {
+      const interval = setInterval(async () => {
+        await checkStatus();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [authUrlToShow, isAuthorized, checkStatus]);
+
   const handleAuthorize = async () => {
     setIsAuthorizing(true);
     const authUrl = await getAuthUrl();
     if (authUrl) {
-      window.open(authUrl, "_blank", "width=600,height=700");
-      // Check status periodically
-      const interval = setInterval(async () => {
-        await checkStatus();
-      }, 3000);
-      // Stop checking after 5 minutes
-      setTimeout(() => clearInterval(interval), 300000);
+      // Show the URL for the user to open manually (iframe blocks popups)
+      setAuthUrlToShow(authUrl);
     }
     setIsAuthorizing(false);
   };
@@ -190,23 +198,72 @@ export default function AdminEmails() {
                 </ul>
               </div>
 
-              <Button 
-                onClick={handleAuthorize} 
-                className="w-full" 
-                size="lg"
-                disabled={isAuthorizing}
-              >
-                {isAuthorizing ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                )}
-                Autorizar Acesso ao Gmail
-              </Button>
+              {authUrlToShow ? (
+                <div className="space-y-4">
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <h4 className="font-medium text-green-800 dark:text-green-200 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Link de autorização gerado!
+                    </h4>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+                      Copie o link abaixo e abra em uma nova aba do navegador (fora do preview):
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input 
+                      value={authUrlToShow} 
+                      readOnly 
+                      className="text-xs"
+                    />
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(authUrlToShow);
+                        toast({
+                          title: "Link copiado!",
+                          description: "Cole em uma nova aba do navegador para autorizar.",
+                        });
+                      }}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
+                  <a 
+                    href={authUrlToShow} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button className="w-full" size="lg">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Abrir Autorização do Google
+                    </Button>
+                  </a>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Após autorizar no Google, volte aqui. A página atualizará automaticamente.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Button 
+                    onClick={handleAuthorize} 
+                    className="w-full" 
+                    size="lg"
+                    disabled={isAuthorizing}
+                  >
+                    {isAuthorizing ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                    )}
+                    Autorizar Acesso ao Gmail
+                  </Button>
 
-              <p className="text-xs text-center text-muted-foreground">
-                Uma nova janela será aberta para você fazer login no Google e autorizar o acesso.
-              </p>
+                  <p className="text-xs text-center text-muted-foreground">
+                    Clique para gerar o link de autorização do Google.
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
