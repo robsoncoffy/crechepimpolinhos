@@ -212,15 +212,32 @@ export default function AdminParentInvites() {
         if (couponMode === "new") {
           discountType = newCouponData.discount_type;
           discountValue = parseFloat(newCouponData.discount_value);
+          console.log("New coupon details:", { discountType, discountValue });
         } else {
-          // Find existing coupon details
+          // Find existing coupon details from state or fetch fresh
           const existingCoupon = coupons.find(c => c.code === couponCodeToUse);
+          console.log("Looking for existing coupon:", couponCodeToUse, "Found:", existingCoupon);
           if (existingCoupon) {
             discountType = existingCoupon.discount_type as "percentage" | "fixed";
             discountValue = existingCoupon.discount_value;
+          } else {
+            // If not found in state, fetch from database
+            const { data: couponData } = await supabase
+              .from("discount_coupons")
+              .select("discount_type, discount_value")
+              .eq("code", couponCodeToUse)
+              .single();
+            
+            if (couponData) {
+              discountType = couponData.discount_type as "percentage" | "fixed";
+              discountValue = couponData.discount_value;
+              console.log("Fetched coupon from DB:", couponData);
+            }
           }
         }
       }
+      
+      console.log("Sending email with coupon details:", { couponCodeToUse, discountType, discountValue });
       
       await sendInviteEmail(
         formData.email, 
