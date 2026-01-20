@@ -62,22 +62,26 @@ serve(async (req) => {
 
     console.log(`Attempting to delete user: ${userId}`);
 
-    // First, try to get the user from auth to confirm existence
+    // Optional: try to get the user from auth for logging purposes.
+    // IMPORTANT: we should NOT rely on this lookup to decide whether to delete.
     const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
-    
+
     let authUserDeleted = false;
     let authUserEmail: string | null = null;
+    let authDeleteAttempted = false;
 
     if (getUserError || !targetUser?.user) {
-      console.log(`User ${userId} not found in auth.users, will clean up related tables only`);
-      
-      // Try to find the email from profiles table for logging
+      console.log(
+        `Auth lookup failed or user not found for ${userId}. getUserError=${getUserError?.message ?? "none"}`
+      );
+
+      // Try to find something for logs (profile name)
       const { data: profileData } = await supabaseAdmin
         .from("profiles")
         .select("full_name")
         .eq("user_id", userId)
         .maybeSingle();
-      
+
       if (profileData) {
         console.log(`Found profile for user ${userId}: ${profileData.full_name}`);
       }
@@ -205,25 +209,23 @@ serve(async (req) => {
       console.log("Error deleting profiles:", profileError.message);
     }
 
-    // Finally, delete the auth user if it exists
-    if (targetUser?.user) {
-      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    // Finally, ALWAYS attempt to delete the auth user.
+    // Even if the lookup fails, we still try to delete to ensure the email is actually freed.
+    authDeleteAttempted = true;
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
-      if (deleteError) {
-        // If still getting "user not found", the user might have been deleted already
-        if (deleteError.message?.includes("not found")) {
-          console.log("Auth user already deleted or not found");
-          authUserDeleted = true;
-        } else {
-          throw deleteError;
-        }
-      } else {
+    if (deleteError) {
+      // If still getting "user not found", the user might have been deleted already
+      if (deleteError.message?.includes("not found")) {
+        console.log("Auth user already deleted or not found");
         authUserDeleted = true;
-        console.log(`Successfully deleted auth user: ${userId}`);
+      } else {
+        console.log(`Auth delete failed for ${userId}: ${deleteError.message}`);
+        throw deleteError;
       }
     } else {
-      // User wasn't in auth.users, just mark as cleaned up
       authUserDeleted = true;
+      console.log(`Successfully deleted auth user: ${userId}`);
     }
 
     return new Response(
@@ -231,6 +233,7 @@ serve(async (req) => {
         success: true, 
         message: "Usuário deletado com sucesso",
         authUserDeleted,
+        authDeleteAttempted,
         email: authUserEmail
       }),
       {
