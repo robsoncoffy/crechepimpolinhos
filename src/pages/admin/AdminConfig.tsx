@@ -15,7 +15,8 @@ import {
   Copy,
   ExternalLink,
   Save,
-  Loader2
+  Loader2,
+  Search
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { useGmail } from "@/hooks/useGmail";
+import { useCepLookup, formatCep } from "@/hooks/useCepLookup";
 import { PLANS, CLASS_NAMES, PLAN_NAMES, ENROLLMENT_FEE } from "@/lib/pricing";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,6 +38,20 @@ const AdminConfig = () => {
   const { toast } = useToast();
   const { settings, isLoading, getSetting, getSettingWithDefault, updateMultipleSettings, isUpdating } = useSystemSettings();
   const { isAuthorized: gmailConfigured, accountEmail: gmailEmail, checkStatus } = useGmail();
+  const { isLoading: isLoadingCep, fetchAddress } = useCepLookup();
+
+  // Handle CEP lookup
+  const handleCepBlur = async (cep: string) => {
+    const address = await fetchAddress(cep);
+    if (address) {
+      setSchoolData(prev => ({
+        ...prev,
+        address: address.street,
+        city: address.city,
+        state: address.state,
+      }));
+    }
+  };
 
   // School data state
   const [schoolData, setSchoolData] = useState({
@@ -281,11 +297,22 @@ const AdminConfig = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="school-zip">CEP</Label>
-                  <Input
-                    id="school-zip"
-                    value={schoolData.zipCode}
-                    onChange={(e) => setSchoolData({ ...schoolData, zipCode: e.target.value })}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="school-zip"
+                      value={schoolData.zipCode}
+                      onChange={(e) => setSchoolData({ ...schoolData, zipCode: formatCep(e.target.value) })}
+                      onBlur={(e) => handleCepBlur(e.target.value)}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                    {isLoadingCep && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Digite o CEP para preencher automaticamente</p>
                 </div>
               </div>
 
