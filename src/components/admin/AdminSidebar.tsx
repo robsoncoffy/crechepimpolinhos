@@ -25,6 +25,7 @@ import {
   CalendarOff,
   DollarSign,
   Clock,
+  Mail,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -69,6 +70,7 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: Mail, label: "E-mails", href: "/painel/emails", roles: ["admin"] },
   { icon: FileText, label: "Relatórios", href: "/painel/relatorios", roles: ["admin"] },
   { icon: CalendarOff, label: "Férias/Ausências", href: "/painel/ausencias", roles: ["admin"] },
   { icon: DollarSign, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
