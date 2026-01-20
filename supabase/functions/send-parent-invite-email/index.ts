@@ -151,6 +151,26 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Invite email sent:", emailResponse);
 
+    // Check if there was an error from Resend
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      
+      // Check for domain validation error
+      if (emailResponse.error.message?.includes("verify a domain")) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Domínio de e-mail não verificado. Para enviar e-mails reais, é necessário verificar um domínio no Resend. Por enquanto, use o botão 'Copiar Link' para compartilhar o convite manualmente." 
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ error: emailResponse.error.message || "Erro ao enviar e-mail" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
