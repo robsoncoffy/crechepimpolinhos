@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -25,10 +25,13 @@ import {
   FileText,
   Loader2,
   ShieldCheck,
-  ShieldOff
+  ShieldOff,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
 import { Database } from "@/integrations/supabase/types";
+import { useAuth } from "@/hooks/useAuth";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -73,6 +76,7 @@ interface EmployeeProfile {
 }
 
 export default function AdminProfiles() {
+  const { user } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [employeeProfiles, setEmployeeProfiles] = useState<EmployeeProfile[]>([]);
@@ -83,6 +87,9 @@ export default function AdminProfiles() {
   const [parentChildren, setParentChildren] = useState<ParentChild[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [togglingAdmin, setTogglingAdmin] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -145,6 +152,47 @@ export default function AdminProfiles() {
     } finally {
       setTogglingAdmin(false);
     }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    // Prevent self-deletion
+    if (userToDelete.user_id === user?.id) {
+      toast.error("Você não pode deletar sua própria conta");
+      return;
+    }
+
+    setDeletingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId: userToDelete.user_id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Usuário ${userToDelete.full_name} removido do sistema`);
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      setSelectedProfile(null);
+      await fetchData();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Erro ao deletar usuário: " + (error as Error).message);
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
+  const openDeleteDialog = (profile: Profile) => {
+    // Prevent opening delete dialog for self
+    if (profile.user_id === user?.id) {
+      toast.error("Você não pode deletar sua própria conta");
+      return;
+    }
+    setUserToDelete(profile);
+    setDeleteDialogOpen(true);
   };
 
   const getParentProfiles = () => {
@@ -541,9 +589,78 @@ export default function AdminProfiles() {
                     </div>
                   </>
                 )}
+
+                {/* Delete User Button */}
+                {selectedProfile && selectedProfile.user_id !== user?.id && (
+                  <>
+                    <Separator className="my-4" />
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => openDeleteDialog(selectedProfile)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir Usuário
+                    </Button>
+                  </>
+                )}
               </div>
             )}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              Confirmar Exclusão
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir permanentemente o usuário <strong>{userToDelete?.full_name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+            <p className="text-sm text-destructive font-medium mb-2">Esta ação irá:</p>
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>Remover o acesso ao sistema</li>
+              <li>Apagar todos os dados relacionados</li>
+              <li>Liberar o e-mail para novo cadastro</li>
+            </ul>
+            <p className="text-sm text-destructive font-semibold mt-3">
+              Esta ação não pode ser desfeita!
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deletingUser}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={deletingUser}
+            >
+              {deletingUser ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir Permanentemente
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

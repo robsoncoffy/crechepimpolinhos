@@ -60,24 +60,179 @@ serve(async (req) => {
       throw new Error("Você não pode deletar sua própria conta");
     }
 
-    // Delete from user_roles first (cascade should handle this, but being explicit)
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
+    console.log(`Attempting to delete user: ${userId}`);
 
-    // Delete from profiles
-    await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
+    // First, try to get the user from auth to confirm existence
+    const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    let authUserDeleted = false;
+    let authUserEmail: string | null = null;
+
+    if (getUserError || !targetUser?.user) {
+      console.log(`User ${userId} not found in auth.users, will clean up related tables only`);
+      
+      // Try to find the email from profiles table for logging
+      const { data: profileData } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (profileData) {
+        console.log(`Found profile for user ${userId}: ${profileData.full_name}`);
+      }
+    } else {
+      authUserEmail = targetUser.user.email || null;
+      console.log(`Found auth user: ${authUserEmail}`);
+    }
+
+    // Delete from related tables first (in order of dependencies)
+    
+    // Delete parent_children links
+    const { error: parentChildrenError } = await supabaseAdmin
+      .from("parent_children")
+      .delete()
+      .eq("parent_id", userId);
+    if (parentChildrenError) {
+      console.log("Error deleting parent_children:", parentChildrenError.message);
+    }
+
+    // Delete pickup_notifications
+    const { error: pickupError } = await supabaseAdmin
+      .from("pickup_notifications")
+      .delete()
+      .eq("parent_id", userId);
+    if (pickupError) {
+      console.log("Error deleting pickup_notifications:", pickupError.message);
+    }
+
+    // Delete enrollment_contracts
+    const { error: contractsError } = await supabaseAdmin
+      .from("enrollment_contracts")
+      .delete()
+      .eq("parent_id", userId);
+    if (contractsError) {
+      console.log("Error deleting enrollment_contracts:", contractsError.message);
+    }
+
+    // Delete invoices
+    const { error: invoicesError } = await supabaseAdmin
+      .from("invoices")
+      .delete()
+      .eq("parent_id", userId);
+    if (invoicesError) {
+      console.log("Error deleting invoices:", invoicesError.message);
+    }
+
+    // Delete subscriptions
+    const { error: subscriptionsError } = await supabaseAdmin
+      .from("subscriptions")
+      .delete()
+      .eq("parent_id", userId);
+    if (subscriptionsError) {
+      console.log("Error deleting subscriptions:", subscriptionsError.message);
+    }
+
+    // Delete payment_customers
+    const { error: paymentCustomersError } = await supabaseAdmin
+      .from("payment_customers")
+      .delete()
+      .eq("parent_id", userId);
+    if (paymentCustomersError) {
+      console.log("Error deleting payment_customers:", paymentCustomersError.message);
+    }
 
     // Delete from child_registrations
-    await supabaseAdmin.from("child_registrations").delete().eq("parent_id", userId);
+    const { error: regError } = await supabaseAdmin
+      .from("child_registrations")
+      .delete()
+      .eq("parent_id", userId);
+    if (regError) {
+      console.log("Error deleting child_registrations:", regError.message);
+    }
 
-    // Delete the auth user
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    // Delete from user_roles
+    const { error: rolesError } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", userId);
+    if (rolesError) {
+      console.log("Error deleting user_roles:", rolesError.message);
+    }
 
-    if (deleteError) {
-      throw deleteError;
+    // Delete from notifications
+    const { error: notifError } = await supabaseAdmin
+      .from("notifications")
+      .delete()
+      .eq("user_id", userId);
+    if (notifError) {
+      console.log("Error deleting notifications:", notifError.message);
+    }
+
+    // Delete from announcement_reads
+    const { error: announcementError } = await supabaseAdmin
+      .from("announcement_reads")
+      .delete()
+      .eq("user_id", userId);
+    if (announcementError) {
+      console.log("Error deleting announcement_reads:", announcementError.message);
+    }
+
+    // Delete from push_subscriptions
+    const { error: pushError } = await supabaseAdmin
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", userId);
+    if (pushError) {
+      console.log("Error deleting push_subscriptions:", pushError.message);
+    }
+
+    // Delete employee_profile if exists
+    const { error: empProfileError } = await supabaseAdmin
+      .from("employee_profiles")
+      .delete()
+      .eq("user_id", userId);
+    if (empProfileError) {
+      console.log("Error deleting employee_profiles:", empProfileError.message);
+    }
+
+    // Delete from profiles
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .delete()
+      .eq("user_id", userId);
+    if (profileError) {
+      console.log("Error deleting profiles:", profileError.message);
+    }
+
+    // Finally, delete the auth user if it exists
+    if (targetUser?.user) {
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+      if (deleteError) {
+        // If still getting "user not found", the user might have been deleted already
+        if (deleteError.message?.includes("not found")) {
+          console.log("Auth user already deleted or not found");
+          authUserDeleted = true;
+        } else {
+          throw deleteError;
+        }
+      } else {
+        authUserDeleted = true;
+        console.log(`Successfully deleted auth user: ${userId}`);
+      }
+    } else {
+      // User wasn't in auth.users, just mark as cleaned up
+      authUserDeleted = true;
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "Usuário deletado com sucesso" }),
+      JSON.stringify({ 
+        success: true, 
+        message: "Usuário deletado com sucesso",
+        authUserDeleted,
+        email: authUserEmail
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
