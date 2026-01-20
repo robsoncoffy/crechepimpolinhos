@@ -81,7 +81,10 @@ serve(async (req: Request): Promise<Response> => {
 
     const appUrl = "https://crechepimpolinhos.lovable.app";
     const signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
-    const logoUrl = `${appUrl}/logo-email.png`;
+
+    // Usa imagem inline (CID) para o logo aparecer mesmo quando o cliente de e-mail bloqueia imagens externas
+    const logoCid = "logo-pimpolinhos";
+    const logoSourceUrl = `${appUrl}/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png`;
 
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
     const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
@@ -168,12 +171,12 @@ Equipe Creche Pimpolinhos 💚
                       <tr>
                         <td align="center">
                           <div style="background: #ffffff; border-radius: 20px; padding: 16px 24px; display: inline-block; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
-                            <img src="${logoUrl}" alt="Creche Pimpolinhos" width="120" style="display: block; height: auto; border: 0;">
+                            <img src="cid:${logoCid}" alt="Creche Pimpolinhos" width="120" style="display: block; height: auto; border: 0;">
                           </div>
                         </td>
                       </tr>
                     </table>
-                    
+
                     <h1 style="margin: 24px 0 0; color: #ffffff; font-size: 28px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                       Bem-vindo(a) à Família!
                     </h1>
@@ -344,9 +347,16 @@ Equipe Creche Pimpolinhos 💚
       </td>
     </tr>
   </table>
-</body>
-</html>
-      `,
+ </body>
+ </html>
+       `,
+      attachments: [
+        {
+          filename: "logo-pimpolinhos.png",
+          path: logoSourceUrl,
+          contentId: logoCid,
+        },
+      ],
     });
 
     console.log("Invite email sent:", emailResponse);
