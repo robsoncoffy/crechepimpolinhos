@@ -164,21 +164,25 @@ export default function AdminApprovals() {
   }
 
   async function handleReject(parent: PendingParent) {
-    if (!confirm("Tem certeza que deseja rejeitar este cadastro?")) return;
+    if (!confirm("Tem certeza que deseja rejeitar este cadastro? O usuário será completamente removido do sistema e poderá se cadastrar novamente.")) return;
 
+    setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ status: "rejected" })
-        .eq("id", parent.id);
+      // Call edge function to delete the user completely
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId: parent.user_id },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      toast.success("Cadastro rejeitado");
+      toast.success("Cadastro rejeitado e usuário removido do sistema");
       fetchData();
     } catch (error) {
       console.error("Error rejecting parent:", error);
-      toast.error("Erro ao rejeitar cadastro");
+      toast.error("Erro ao rejeitar cadastro: " + (error as Error).message);
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -372,21 +376,47 @@ export default function AdminApprovals() {
   }
 
   async function handleRejectRegistration(registration: PendingChildRegistration) {
-    if (!confirm(`Tem certeza que deseja rejeitar o cadastro de ${registration.first_name}?`)) return;
+    const deleteUser = confirm(`Tem certeza que deseja rejeitar o cadastro de ${registration.first_name}?\n\nClique OK para rejeitar apenas o cadastro da criança.\nO responsável continuará com acesso ao sistema.`);
+    
+    if (!deleteUser) return;
 
+    setActionLoading(true);
     try {
+      // First, delete the child registration
       const { error } = await supabase
         .from("child_registrations")
-        .update({ status: "rejected" })
+        .delete()
         .eq("id", registration.id);
 
       if (error) throw error;
 
-      toast.success("Cadastro da criança rejeitado");
+      // Ask if they want to also delete the parent user
+      const deleteParent = confirm("Deseja também remover o responsável do sistema? Isso permitirá que ele se cadastre novamente com o mesmo e-mail.");
+      
+      if (deleteParent) {
+        const { data, error: deleteError } = await supabase.functions.invoke("delete-user", {
+          body: { userId: registration.parent_id },
+        });
+
+        if (deleteError) {
+          console.error("Error deleting parent:", deleteError);
+          toast.warning("Cadastro da criança removido, mas houve erro ao remover o responsável");
+        } else if (data?.error) {
+          console.error("Error deleting parent:", data.error);
+          toast.warning("Cadastro da criança removido, mas houve erro ao remover o responsável");
+        } else {
+          toast.success("Cadastro da criança e responsável removidos do sistema");
+        }
+      } else {
+        toast.success("Cadastro da criança removido");
+      }
+      
       fetchData();
     } catch (error) {
       console.error("Error rejecting registration:", error);
       toast.error("Erro ao rejeitar cadastro");
+    } finally {
+      setActionLoading(false);
     }
   }
 
