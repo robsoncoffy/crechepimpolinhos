@@ -57,13 +57,22 @@ export function useGmail(): UseGmailResult {
 
   const checkStatus = useCallback(async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("gmail-oauth/status");
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-oauth/status`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
       
-      if (error) {
-        console.error("Status check error:", error);
+      if (!response.ok) {
+        console.error("Status check error:", response.statusText);
         return;
       }
 
+      const data = await response.json();
       setIsAuthorized(data?.isAuthorized || false);
       setAccountEmail(data?.email || null);
     } catch (err) {
@@ -73,10 +82,18 @@ export function useGmail(): UseGmailResult {
 
   const getAuthUrl = useCallback(async (): Promise<string | null> => {
     try {
-      const { data, error } = await supabase.functions.invoke("gmail-oauth/authorize");
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gmail-oauth/authorize`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
       
-      if (error) {
-        console.error("Auth URL error:", error);
+      if (!response.ok) {
+        console.error("Auth URL error:", response.statusText);
         toast({
           title: "Erro",
           description: "Não foi possível gerar a URL de autorização",
@@ -85,6 +102,7 @@ export function useGmail(): UseGmailResult {
         return null;
       }
 
+      const data = await response.json();
       return data?.authUrl || null;
     } catch (err) {
       console.error("Get auth URL failed:", err);
