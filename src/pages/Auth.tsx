@@ -65,14 +65,30 @@ export default function Auth() {
   // Check if user is already logged in and redirect appropriately
   useEffect(() => {
     const checkUserAndRedirect = async (userId: string) => {
-      // Check if user has any child registrations
+      // First check if user is staff (admin, teacher, cook, etc.)
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+
+      const isStaff = roles?.some(r => 
+        ["admin", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"].includes(r.role)
+      );
+
+      // Staff members go directly to panel
+      if (isStaff) {
+        navigate("/painel");
+        return;
+      }
+
+      // For parents only: check if they have child registrations
       const { data: registrations } = await supabase
         .from("child_registrations")
         .select("id")
         .eq("parent_id", userId)
         .limit(1);
 
-      // If no child registrations, redirect to complete registration
+      // If parent has no child registrations, redirect to complete registration
       if (!registrations || registrations.length === 0) {
         navigate("/cadastro-pimpolho");
       } else {
