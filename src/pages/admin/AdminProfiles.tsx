@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  MailX
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
 import { Database } from "@/integrations/supabase/types";
@@ -90,6 +91,9 @@ export default function AdminProfiles() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [liberateEmailDialogOpen, setLiberateEmailDialogOpen] = useState(false);
+  const [emailToLiberate, setEmailToLiberate] = useState("");
+  const [liberatingEmail, setLiberatingEmail] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -185,6 +189,38 @@ export default function AdminProfiles() {
     }
   };
 
+  const handleLiberateEmail = async () => {
+    if (!emailToLiberate.trim()) {
+      toast.error("Digite um e-mail válido");
+      return;
+    }
+
+    setLiberatingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { email: emailToLiberate.trim().toLowerCase() },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(
+        data?.authUserDeleted
+          ? `E-mail ${emailToLiberate} liberado com sucesso!`
+          : `Dados do e-mail ${emailToLiberate} removidos do banco.`
+      );
+      console.log("Liberate email result:", data);
+      setLiberateEmailDialogOpen(false);
+      setEmailToLiberate("");
+      await fetchData();
+    } catch (error) {
+      console.error("Error liberating email:", error);
+      toast.error("Erro ao liberar e-mail: " + (error as Error).message);
+    } finally {
+      setLiberatingEmail(false);
+    }
+  };
+
   const openDeleteDialog = (profile: Profile) => {
     // Prevent opening delete dialog for self
     if (profile.user_id === user?.id) {
@@ -272,11 +308,21 @@ export default function AdminProfiles() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-fredoka font-bold">Perfis de Usuários</h1>
-        <p className="text-muted-foreground">
-          Visualize os perfis de pais/responsáveis e funcionários
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-fredoka font-bold">Perfis de Usuários</h1>
+          <p className="text-muted-foreground">
+            Visualize os perfis de pais/responsáveis e funcionários
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setLiberateEmailDialogOpen(true)}
+          className="gap-2"
+        >
+          <MailX className="w-4 h-4" />
+          Liberar E-mail
+        </Button>
       </div>
 
       {/* Search */}
@@ -657,6 +703,71 @@ export default function AdminProfiles() {
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir Permanentemente
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Liberate Email Dialog */}
+      <Dialog open={liberateEmailDialogOpen} onOpenChange={setLiberateEmailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MailX className="w-5 h-5 text-primary" />
+              Liberar E-mail para Novo Cadastro
+            </DialogTitle>
+            <DialogDescription>
+              Digite o e-mail que deseja liberar. Isso removerá qualquer conta e dados associados.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email-to-liberate">E-mail</Label>
+              <Input
+                id="email-to-liberate"
+                type="email"
+                placeholder="email@exemplo.com"
+                value={emailToLiberate}
+                onChange={(e) => setEmailToLiberate(e.target.value)}
+                disabled={liberatingEmail}
+              />
+            </div>
+
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <strong>Atenção:</strong> Esta ação irá remover permanentemente qualquer usuário 
+                associado a este e-mail, liberando-o para um novo cadastro.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLiberateEmailDialogOpen(false);
+                setEmailToLiberate("");
+              }}
+              disabled={liberatingEmail}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleLiberateEmail}
+              disabled={liberatingEmail || !emailToLiberate.trim()}
+            >
+              {liberatingEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Liberando...
+                </>
+              ) : (
+                <>
+                  <MailX className="w-4 h-4 mr-2" />
+                  Liberar E-mail
                 </>
               )}
             </Button>
