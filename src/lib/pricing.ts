@@ -59,19 +59,19 @@ export const PLANS: PlanInfo[] = [
 // Pricing matrix: prices[classType][planType]
 export const PRICES: Record<ClassType, Record<PlanType, number>> = {
   bercario: {
-    basico: 900,
-    intermediario: 1400,
-    plus: 1600,
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
   },
   maternal: {
-    basico: 800,
-    intermediario: 1300,
-    plus: 1500,
+    basico: 749.90,
+    intermediario: 1099.90,
+    plus: 1499.90,
   },
   jardim: {
-    basico: 700,
-    intermediario: 1200,
-    plus: 1400,
+    basico: 649.90,
+    intermediario: 949.90,
+    plus: 1299.90,
   },
 };
 
