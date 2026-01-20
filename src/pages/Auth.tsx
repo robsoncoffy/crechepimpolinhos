@@ -258,9 +258,9 @@ export default function Auth() {
 
         toast({
           title: "Cadastro realizado!",
-          description: "Sua conta foi criada. Aguarde a aprovação da escola para acessar a agenda.",
+          description: "Agora vamos cadastrar os dados do seu filho.",
         });
-        navigate("/painel");
+        navigate("/cadastro-pimpolho");
       } else {
         const result = loginSchema.safeParse(formData);
         if (!result.success) {
