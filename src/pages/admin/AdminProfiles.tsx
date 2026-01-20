@@ -85,6 +85,8 @@ export default function AdminProfiles() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeProfile | null>(null);
+  const [selectedProfileEmail, setSelectedProfileEmail] = useState<string | null>(null);
+  const [loadingSelectedEmail, setLoadingSelectedEmail] = useState(false);
   const [parentChildren, setParentChildren] = useState<ParentChild[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [togglingAdmin, setTogglingAdmin] = useState(false);
@@ -99,6 +101,40 @@ export default function AdminProfiles() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const uid = selectedProfile?.user_id;
+
+    if (!uid) {
+      setSelectedProfileEmail(null);
+      setLoadingSelectedEmail(false);
+      return;
+    }
+
+    (async () => {
+      setLoadingSelectedEmail(true);
+      setSelectedProfileEmail(null);
+      try {
+        const { data, error } = await supabase.functions.invoke("delete-user", {
+          body: { userId: uid, checkOnly: true },
+        });
+        if (cancelled) return;
+        if (error) throw error;
+        setSelectedProfileEmail(data?.email ?? null);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("Error fetching selected profile email:", err);
+        setSelectedProfileEmail(null);
+      } finally {
+        if (!cancelled) setLoadingSelectedEmail(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfile?.user_id]);
 
   const fetchData = async () => {
     try {
@@ -229,11 +265,14 @@ export default function AdminProfiles() {
       return;
     }
     setUserToDelete(profile);
-    setUserToDeleteEmail(null);
+    const cachedEmail =
+      profile.user_id === selectedProfile?.user_id ? selectedProfileEmail : null;
+    setUserToDeleteEmail(cachedEmail);
     setDeleteDialogOpen(true);
 
     // Fetch email from profiles or edge function
     try {
+      if (cachedEmail) return;
       const { data } = await supabase.functions.invoke("delete-user", {
         body: { userId: profile.user_id, checkOnly: true },
       });
@@ -542,6 +581,16 @@ export default function AdminProfiles() {
                 {/* Contact Info */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-semibold text-muted-foreground">Contato</h4>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    {loadingSelectedEmail ? (
+                      <span className="text-muted-foreground">Carregando e-mail...</span>
+                    ) : selectedProfileEmail ? (
+                      <span className="break-all">{selectedProfileEmail}</span>
+                    ) : (
+                      <span className="text-muted-foreground">E-mail não encontrado</span>
+                    )}
+                  </div>
                   {selectedProfile?.phone && (
                     <div className="flex items-center gap-2 text-sm">
                       <Phone className="w-4 h-4 text-muted-foreground" />
