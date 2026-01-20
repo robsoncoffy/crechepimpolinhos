@@ -239,7 +239,7 @@ export function AdminSidebar() {
       {/* Header */}
       <SidebarHeader className="border-b border-sidebar-border">
         <div className={cn("flex items-center gap-3 px-2 py-3", isCollapsed && "justify-center")}>
-          <img alt="Pimpolinhos" className={cn("transition-all duration-200 object-contain", isCollapsed ? "h-16 w-16" : "h-20")} src="/lovable-uploads/bf71a637-c409-47c8-aafe-f647dbff2e33.png" />
+          <img alt="Pimpolinhos" className={cn("transition-all duration-200 object-contain", isCollapsed ? "h-16 w-16" : "h-20")} src="/lovable-uploads/eed7b86f-7ea7-4bb8-befc-3aefe00dce68.png" />
           {!isCollapsed && <div className="flex flex-col">
               <span className="font-fredoka text-lg font-bold text-sidebar-foreground">
                 Pimpolinhos
