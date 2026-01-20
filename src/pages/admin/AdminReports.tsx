@@ -10,10 +10,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Download, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2 } from "lucide-react";
+import { FileText, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classTypeLabels } from "@/lib/constants";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
+import { ExportButtons, exportToCSV } from "@/components/admin/ReportExport";
 import {
   BarChart,
   Bar,
@@ -154,33 +155,7 @@ export default function AdminReports() {
     }
   };
 
-  const exportToCSV = (data: any[], filename: string) => {
-    if (data.length === 0) {
-      toast.error("Nenhum dado para exportar");
-      return;
-    }
-
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data.map(row => 
-      Object.values(row).map(val => 
-        typeof val === "string" ? `"${val}"` : val
-      ).join(",")
-    ).join("\n");
-    
-    const csv = `${headers}\n${rows}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${filename}_${format(new Date(), "yyyy-MM-dd")}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Relatório exportado com sucesso!");
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  // Use the reusable export component - functions now available via ExportButtons
 
   // Calculate attendance stats
   const getAttendanceStats = () => {
@@ -378,16 +353,18 @@ export default function AdminReports() {
                   Período: {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => exportToCSV(attendanceStats, "frequencia")}>
-                  <Download className="w-4 h-4 mr-2" />
-                  CSV
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePrint}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Imprimir
-                </Button>
-              </div>
+              <ExportButtons 
+                data={attendanceStats} 
+                filename="frequencia"
+                columns={[
+                  { key: "name", label: "Aluno" },
+                  { key: "class", label: "Turma" },
+                  { key: "workDays", label: "Dias Úteis" },
+                  { key: "present", label: "Presenças" },
+                  { key: "absent", label: "Faltas" },
+                  { key: "rate", label: "% Frequência" },
+                ]}
+              />
             </CardHeader>
             <CardContent>
               <Table>
