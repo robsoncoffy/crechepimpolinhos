@@ -82,22 +82,61 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    const normalizedCouponCode = couponCode?.trim().toUpperCase() || undefined;
+    let resolvedCouponDiscountType = couponDiscountType;
+    let resolvedCouponDiscountValue = couponDiscountValue;
+
+    // Fallback: if frontend didn't send metadata, fetch it server-side
+    if (normalizedCouponCode && (!resolvedCouponDiscountType || typeof resolvedCouponDiscountValue !== "number")) {
+      try {
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+        const { data: couponRow, error: couponErr } = await adminClient
+          .from("discount_coupons")
+          .select("discount_type, discount_value")
+          .eq("code", normalizedCouponCode)
+          .maybeSingle();
+
+        if (couponErr) {
+          console.error("Error fetching coupon details:", couponErr);
+        }
+
+        if (couponRow) {
+          resolvedCouponDiscountType = couponRow.discount_type === "percentage" ? "percentage" : "fixed";
+          resolvedCouponDiscountValue = couponRow.discount_value;
+        }
+      } catch (e) {
+        console.error("Error resolving coupon details:", e);
+      }
+    }
+
+    console.log("Resolved coupon for email:", {
+      couponCode: normalizedCouponCode,
+      couponDiscountType: resolvedCouponDiscountType,
+      couponDiscountValue: resolvedCouponDiscountValue,
+    });
+
     const appUrl = "https://crechepimpolinhos.lovable.app";
     let signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
-    if (couponCode) {
-      signupUrl += `&cupom=${couponCode}`;
+    if (normalizedCouponCode) {
+      signupUrl += `&cupom=${encodeURIComponent(normalizedCouponCode)}`;
     }
     const logoUrl = `${appUrl}/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png`;
 
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
     const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
-    
+
     // Format discount text
     let discountText = "";
     let discountHtml = "";
-    if (couponCode && couponDiscountValue && couponDiscountValue > 0) {
-      if (couponDiscountType === "percentage") {
-        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${couponDiscountValue}% de desconto nas mensalidades! Seu cupom "${couponCode}" será aplicado automaticamente.`;
+    if (
+      normalizedCouponCode &&
+      typeof resolvedCouponDiscountValue === "number" &&
+      resolvedCouponDiscountValue > 0
+    ) {
+      if (resolvedCouponDiscountType === "percentage") {
+        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${resolvedCouponDiscountValue}% de desconto nas mensalidades! Seu cupom "${normalizedCouponCode}" será aplicado automaticamente.`;
         discountHtml = `
           <tr>
             <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
@@ -106,10 +145,10 @@ serve(async (req: Request): Promise<Response> => {
                 Bônus Especial para Você!
               </p>
               <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
-                ${couponDiscountValue}% OFF
+                ${resolvedCouponDiscountValue}% OFF
               </p>
               <p style="margin: 0; color: #15803d; font-size: 14px;">
-                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${couponCode}</strong>
+                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
               </p>
               <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
                 ✨ Aplicado automaticamente no cadastro!
@@ -118,8 +157,8 @@ serve(async (req: Request): Promise<Response> => {
           </tr>
           <tr><td style="height: 24px;"></td></tr>`;
       } else {
-        const formattedValue = couponDiscountValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${formattedValue} de desconto nas mensalidades! Seu cupom "${couponCode}" será aplicado automaticamente.`;
+        const formattedValue = resolvedCouponDiscountValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${formattedValue} de desconto nas mensalidades! Seu cupom "${normalizedCouponCode}" será aplicado automaticamente.`;
         discountHtml = `
           <tr>
             <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
@@ -131,7 +170,7 @@ serve(async (req: Request): Promise<Response> => {
                 ${formattedValue} OFF
               </p>
               <p style="margin: 0; color: #15803d; font-size: 14px;">
-                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${couponCode}</strong>
+                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
               </p>
               <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
                 ✨ Aplicado automaticamente no cadastro!
