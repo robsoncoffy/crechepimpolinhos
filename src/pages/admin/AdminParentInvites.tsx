@@ -207,16 +207,14 @@ export default function AdminParentInvites() {
       // Get coupon details for email
       let discountType: "percentage" | "fixed" | undefined;
       let discountValue: number | undefined;
-      
+
       if (couponCodeToUse) {
         if (couponMode === "new") {
           discountType = newCouponData.discount_type;
           discountValue = parseFloat(newCouponData.discount_value);
-          console.log("New coupon details:", { discountType, discountValue });
         } else {
           // Find existing coupon details from state or fetch fresh
-          const existingCoupon = coupons.find(c => c.code === couponCodeToUse);
-          console.log("Looking for existing coupon:", couponCodeToUse, "Found:", existingCoupon);
+          const existingCoupon = coupons.find((c) => c.code === couponCodeToUse);
           if (existingCoupon) {
             discountType = existingCoupon.discount_type as "percentage" | "fixed";
             discountValue = existingCoupon.discount_value;
@@ -226,23 +224,20 @@ export default function AdminParentInvites() {
               .from("discount_coupons")
               .select("discount_type, discount_value")
               .eq("code", couponCodeToUse)
-              .single();
-            
+              .maybeSingle();
+
             if (couponData) {
               discountType = couponData.discount_type as "percentage" | "fixed";
               discountValue = couponData.discount_value;
-              console.log("Fetched coupon from DB:", couponData);
             }
           }
         }
       }
-      
-      console.log("Sending email with coupon details:", { couponCodeToUse, discountType, discountValue });
-      
+
       await sendInviteEmail(
-        formData.email, 
-        code, 
-        formData.childName || undefined, 
+        formData.email,
+        code,
+        formData.childName || undefined,
         couponCodeToUse || undefined,
         discountType,
         discountValue
@@ -259,9 +254,9 @@ export default function AdminParentInvites() {
   };
 
   const sendInviteEmail = async (
-    email: string, 
-    inviteCode: string, 
-    childName?: string, 
+    email: string,
+    inviteCode: string,
+    childName?: string,
     couponCode?: string,
     couponDiscountType?: "percentage" | "fixed",
     couponDiscountValue?: number
@@ -269,15 +264,39 @@ export default function AdminParentInvites() {
     setSendingEmail(inviteCode);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
+      const normalizedCouponCode = couponCode?.trim().toUpperCase() || undefined;
+      let resolvedType = couponDiscountType;
+      let resolvedValue = couponDiscountValue;
+
+      // If this call didn't include coupon metadata (common on "Enviar Email"), fetch it.
+      if (normalizedCouponCode && (!resolvedType || typeof resolvedValue !== "number")) {
+        const existingCoupon = coupons.find((c) => c.code === normalizedCouponCode);
+        if (existingCoupon) {
+          resolvedType = existingCoupon.discount_type as "percentage" | "fixed";
+          resolvedValue = existingCoupon.discount_value;
+        } else {
+          const { data: couponData } = await supabase
+            .from("discount_coupons")
+            .select("discount_type, discount_value")
+            .eq("code", normalizedCouponCode)
+            .maybeSingle();
+
+          if (couponData) {
+            resolvedType = couponData.discount_type as "percentage" | "fixed";
+            resolvedValue = couponData.discount_value;
+          }
+        }
+      }
+
       const response = await supabase.functions.invoke("send-parent-invite-email", {
-        body: { 
-          email, 
-          inviteCode, 
-          childName, 
-          couponCode,
-          couponDiscountType,
-          couponDiscountValue
+        body: {
+          email,
+          inviteCode,
+          childName,
+          couponCode: normalizedCouponCode,
+          couponDiscountType: resolvedType,
+          couponDiscountValue: resolvedValue,
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
