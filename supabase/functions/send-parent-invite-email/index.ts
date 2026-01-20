@@ -87,10 +87,20 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Sending invite email to:", email);
 
+    const plainText = `Olá${parentName ? `, ${parentName}` : ""}!
+
+Você recebeu um convite para se cadastrar no sistema da Creche Pimpolinhos${childName ? ` como responsável de ${childName}` : ""}.
+
+Código do convite: ${inviteCode}
+Link para criar sua conta: ${signupUrl}
+
+Este convite expira em 30 dias. Se você não solicitou este convite, pode ignorar este e-mail.`;
+
     const emailResponse = await resend.emails.send({
       from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
       to: [email],
       subject: `🎈 Convite para Creche Pimpolinhos${childName ? ` - ${childName}` : ""}`,
+      text: plainText,
       html: `
         <!DOCTYPE html>
         <html>
@@ -172,9 +182,10 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "E-mail de convite enviado com sucesso" 
+      JSON.stringify({
+        success: true,
+        emailId: emailResponse.data?.id ?? null,
+        message: "E-mail de convite enviado com sucesso",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
