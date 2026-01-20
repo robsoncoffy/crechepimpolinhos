@@ -432,6 +432,45 @@ export type Database = {
           },
         ]
       }
+      employee_absences: {
+        Row: {
+          approved_by: string | null
+          created_at: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          notes: string | null
+          start_date: string
+          status: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id: string
+          end_date: string
+          id?: string
+          notes?: string | null
+          start_date: string
+          status?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string | null
+          employee_id?: string
+          end_date?: string
+          id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       employee_invites: {
         Row: {
           created_at: string | null
