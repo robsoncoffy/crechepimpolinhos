@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -140,17 +140,22 @@ const ChildRegistration = () => {
   // 0-1 ano e 11 meses (0-23 meses) = Berçário
   // 2-3 anos e 11 meses (24-47 meses) = Maternal
   // 4-6 anos (48-72 meses) = Jardim de Infância
-  const estimatedClassType: ClassType = (() => {
+  const estimatedClassType: ClassType = useMemo(() => {
     if (!watchedBirthDate) return "maternal"; // default
-    
-    const birth = new Date(watchedBirthDate);
+
+    // Force a stable date-only parsing to avoid timezone edge cases
+    const birth = new Date(`${watchedBirthDate}T00:00:00`);
     const now = new Date();
-    const ageMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
-    
+    if (Number.isNaN(birth.getTime())) return "maternal";
+
+    let ageMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+    // If we haven't reached the birth day within the month yet, subtract one month
+    if (now.getDate() < birth.getDate()) ageMonths -= 1;
+
     if (ageMonths < 24) return "bercario"; // 0-1 ano e 11 meses
     if (ageMonths < 48) return "maternal"; // 2-3 anos e 11 meses
     return "jardim"; // 4+ anos
-  })();
+  }, [watchedBirthDate]);
   
   // Get the class name for display
   const estimatedClassName = estimatedClassType === "bercario" 
@@ -184,11 +189,27 @@ const ChildRegistration = () => {
       if (!user) return;
 
       // Find the invite used by this user
-      const { data: invite } = await supabase
+      let invite: { pre_enrollment_id: string | null; coupon_code: string | null } | null = null;
+
+      const { data: inviteByUser } = await supabase
         .from("parent_invites")
         .select("pre_enrollment_id, coupon_code")
         .eq("used_by", user.id)
         .maybeSingle();
+
+      invite = inviteByUser ?? null;
+
+      // Fallback: some flows might not set used_by; try by email
+      if (!invite && user.email) {
+        const { data: inviteByEmail } = await supabase
+          .from("parent_invites")
+          .select("pre_enrollment_id, coupon_code")
+          .eq("email", user.email)
+          .order("created_at", { ascending: false })
+          .maybeSingle();
+
+        invite = inviteByEmail ?? null;
+      }
 
       if (invite?.pre_enrollment_id) {
         const { data: preEnrollment } = await supabase
@@ -219,8 +240,9 @@ const ChildRegistration = () => {
 
       // Auto-apply coupon from invite if not already applied
       if (invite?.coupon_code && !couponAutoApplied && !coupon && !searchParams.get("cupom")) {
-        setCouponCode(invite.coupon_code);
-        validateCoupon(invite.coupon_code).then((result) => {
+        const code = invite.coupon_code.toUpperCase();
+        setCouponCode(code);
+        validateCoupon(code).then((result) => {
           if (result) {
             setCouponAutoApplied(true);
           }
@@ -1194,64 +1216,44 @@ const ChildRegistration = () => {
                           Selecione o plano que melhor atende às necessidades da sua família.
                         </p>
 
-                        {/* Coupon Code Input */}
-                        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <Tag className="h-4 w-4 text-primary" />
-                            <Label className="text-sm font-medium">Cupom de Desconto</Label>
-                          </div>
-                          <div className="flex gap-2">
-                            <Input
-                              value={couponCode}
-                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                              placeholder="Digite o código do cupom"
-                              className="font-mono uppercase flex-1"
-                              maxLength={20}
-                              disabled={!!coupon}
-                            />
-                            {coupon ? (
+                        {/* Coupon Display (read-only if auto-applied) */}
+                        {coupon && (
+                          <div className="bg-primary/10 rounded-lg p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Tag className="h-5 w-5 text-primary" />
+                                <div>
+                                  <p className="font-medium text-foreground">Cupom Aplicado!</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Código: <span className="font-mono font-semibold">{coupon.code}</span>
+                                  </p>
+                                </div>
+                              </div>
                               <Button 
                                 type="button" 
-                                variant="outline" 
+                                variant="ghost" 
+                                size="sm"
                                 onClick={() => {
                                   clearCoupon();
                                   setCouponCode("");
+                                  setCouponAutoApplied(false);
                                 }}
                               >
                                 <X className="h-4 w-4 mr-1" />
                                 Remover
                               </Button>
-                            ) : (
-                              <Button 
-                                type="button" 
-                                variant="secondary"
-                                onClick={() => validateCoupon(couponCode)}
-                                disabled={isValidatingCoupon || !couponCode.trim()}
-                              >
-                                {isValidatingCoupon ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  "Aplicar"
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                          {coupon && (
+                            </div>
                             <div className="flex items-center gap-2 text-sm text-primary">
                               <CheckCircle2 className="h-4 w-4" />
                               <span>
-                                Cupom <span className="font-mono font-semibold">{coupon.code}</span> aplicado! 
                                 {coupon.discount_type === "percentage" 
-                                  ? ` ${coupon.discount_value}% de desconto`
-                                  : ` R$ ${coupon.discount_value.toFixed(2)} de desconto`
+                                  ? `${coupon.discount_value}% de desconto aplicado`
+                                  : `R$ ${coupon.discount_value.toFixed(2)} de desconto aplicado`
                                 }
                               </span>
                             </div>
-                          )}
-                          {couponError && !coupon && (
-                            <p className="text-sm text-destructive">{couponError}</p>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         <Controller
                           name="planType"
@@ -1266,6 +1268,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("basico");
                                 const hasDiscount = price.discountAmount > 0;
+                                const basePrice = PRICES[estimatedClassType].basico;
                                 return (
                                   <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'basico' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <RadioGroupItem value="basico" id="basico" />
@@ -1277,7 +1280,7 @@ const ChildRegistration = () => {
                                         <div className="text-right">
                                           {hasDiscount && (
                                             <span className="text-sm text-muted-foreground line-through mr-2">
-                                              {formatCurrency(PRICES[estimatedClassType].basico)}
+                                              {formatCurrency(basePrice)}
                                             </span>
                                           )}
                                           <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
@@ -1303,6 +1306,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("intermediario");
                                 const hasDiscount = price.discountAmount > 0;
+                                const basePrice = PRICES[estimatedClassType].intermediario;
                                 return (
                                   <div className={`relative flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'intermediario' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
@@ -1317,7 +1321,7 @@ const ChildRegistration = () => {
                                         <div className="text-right">
                                           {hasDiscount && (
                                             <span className="text-sm text-muted-foreground line-through mr-2">
-                                              {formatCurrency(PRICES[estimatedClassType].intermediario)}
+                                              {formatCurrency(basePrice)}
                                             </span>
                                           )}
                                           <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
@@ -1343,6 +1347,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("plus");
                                 const hasDiscount = price.discountAmount > 0;
+                                const basePrice = PRICES[estimatedClassType].plus;
                                 return (
                                   <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'plus' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <RadioGroupItem value="plus" id="plus" />
@@ -1354,7 +1359,7 @@ const ChildRegistration = () => {
                                         <div className="text-right">
                                           {hasDiscount && (
                                             <span className="text-sm text-muted-foreground line-through mr-2">
-                                              {formatCurrency(PRICES[estimatedClassType].plus)}
+                                              {formatCurrency(basePrice)}
                                             </span>
                                           )}
                                           <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
