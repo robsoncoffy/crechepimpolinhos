@@ -11,9 +11,12 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDiscountCoupon } from "@/hooks/useDiscountCoupon";
+import { PRICES, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 import { 
   Baby, 
   MapPin, 
@@ -28,7 +31,9 @@ import {
   ArrowRight,
   Camera,
   X,
-  UserPlus
+  UserPlus,
+  Tag,
+  Loader2
 } from "lucide-react";
 import { InviteSecondGuardian } from "@/components/child/InviteSecondGuardian";
 
@@ -98,6 +103,17 @@ const ChildRegistration = () => {
   const [authorizedPickupFiles, setAuthorizedPickupFiles] = useState<AuthorizedPickupFile[]>([]);
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  
+  // Discount coupon hook
+  const { 
+    coupon, 
+    isLoading: isValidatingCoupon, 
+    error: couponError, 
+    validateCoupon, 
+    clearCoupon,
+    calculateDiscount 
+  } = useDiscountCoupon();
 
   const {
     register,
@@ -116,6 +132,26 @@ const ChildRegistration = () => {
   });
 
   const selectedEnrollmentType = watch("enrollmentType");
+  const watchedBirthDate = watch("birthDate");
+
+  // Estimate class type based on birth date (rough approximation)
+  const estimatedClassType: ClassType = (() => {
+    if (!watchedBirthDate) return "maternal"; // default
+    
+    const birth = new Date(watchedBirthDate);
+    const now = new Date();
+    const ageMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+    
+    if (ageMonths < 24) return "bercario";
+    if (ageMonths < 48) return "maternal";
+    return "jardim";
+  })();
+
+  // Get price for a plan with optional discount
+  const getPlanPrice = (planType: PlanType) => {
+    const basePrice = PRICES[estimatedClassType][planType];
+    return calculateDiscount(basePrice);
+  };
 
   // Fetch pre-enrollment data if user has an invite linked to one
   useEffect(() => {
@@ -1122,6 +1158,66 @@ const ChildRegistration = () => {
                         <p className="text-sm text-muted-foreground">
                           Selecione o plano que melhor atende às necessidades da sua família.
                         </p>
+
+                        {/* Coupon Code Input */}
+                        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Tag className="h-4 w-4 text-primary" />
+                            <Label className="text-sm font-medium">Cupom de Desconto</Label>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input
+                              value={couponCode}
+                              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                              placeholder="Digite o código do cupom"
+                              className="font-mono uppercase flex-1"
+                              maxLength={20}
+                              disabled={!!coupon}
+                            />
+                            {coupon ? (
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => {
+                                  clearCoupon();
+                                  setCouponCode("");
+                                }}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Remover
+                              </Button>
+                            ) : (
+                              <Button 
+                                type="button" 
+                                variant="secondary"
+                                onClick={() => validateCoupon(couponCode)}
+                                disabled={isValidatingCoupon || !couponCode.trim()}
+                              >
+                                {isValidatingCoupon ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Aplicar"
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                          {coupon && (
+                            <div className="flex items-center gap-2 text-sm text-primary">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>
+                                Cupom <span className="font-mono font-semibold">{coupon.code}</span> aplicado! 
+                                {coupon.discount_type === "percentage" 
+                                  ? ` ${coupon.discount_value}% de desconto`
+                                  : ` R$ ${coupon.discount_value.toFixed(2)} de desconto`
+                                }
+                              </span>
+                            </div>
+                          )}
+                          {couponError && !coupon && (
+                            <p className="text-sm text-destructive">{couponError}</p>
+                          )}
+                        </div>
+
                         <Controller
                           name="planType"
                           control={control}
@@ -1132,67 +1228,130 @@ const ChildRegistration = () => {
                               className="grid gap-4"
                             >
                               {/* Plano Básico */}
-                              <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'basico' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
-                                <RadioGroupItem value="basico" id="basico" />
-                                <div className="flex-1">
-                                  <Label htmlFor="basico" className="text-base font-medium cursor-pointer">
-                                    Plano Básico
-                                  </Label>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Meio período - 4 horas diárias (Manhã ou Tarde)
-                                  </p>
-                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                                    <li>• Manhã (7h às 11h) ou Tarde (15h às 19h)</li>
-                                    <li>• 2 refeições incluídas</li>
-                                    <li>• Atividades pedagógicas e recreação</li>
-                                  </ul>
-                                </div>
-                              </div>
+                              {(() => {
+                                const price = getPlanPrice("basico");
+                                const hasDiscount = price.discountAmount > 0;
+                                return (
+                                  <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'basico' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                    <RadioGroupItem value="basico" id="basico" />
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="basico" className="text-base font-medium cursor-pointer">
+                                          Plano Básico
+                                        </Label>
+                                        <div className="text-right">
+                                          {hasDiscount && (
+                                            <span className="text-sm text-muted-foreground line-through mr-2">
+                                              {formatCurrency(PRICES[estimatedClassType].basico)}
+                                            </span>
+                                          )}
+                                          <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
+                                            {formatCurrency(price.discountedPrice)}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">/mês</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        Meio período - 4 horas diárias (Manhã ou Tarde)
+                                      </p>
+                                      <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                        <li>• Manhã (7h às 11h) ou Tarde (15h às 19h)</li>
+                                        <li>• 2 refeições incluídas</li>
+                                        <li>• Atividades pedagógicas e recreação</li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
 
                               {/* Plano Intermediário */}
-                              <div className={`relative flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'intermediario' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
-                                <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
-                                  Popular
-                                </div>
-                                <RadioGroupItem value="intermediario" id="intermediario" />
-                                <div className="flex-1">
-                                  <Label htmlFor="intermediario" className="text-base font-medium cursor-pointer">
-                                    Plano Intermediário
-                                  </Label>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Período integral - até 8 horas diárias
-                                  </p>
-                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                                    <li>• Funcionamento das 7h às 19h</li>
-                                    <li>• Todas as refeições incluídas</li>
-                                    <li>• Atividades extras (Ballet, Capoeira, Música)</li>
-                                  </ul>
-                                </div>
-                              </div>
+                              {(() => {
+                                const price = getPlanPrice("intermediario");
+                                const hasDiscount = price.discountAmount > 0;
+                                return (
+                                  <div className={`relative flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'intermediario' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                    <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+                                      Popular
+                                    </div>
+                                    <RadioGroupItem value="intermediario" id="intermediario" />
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="intermediario" className="text-base font-medium cursor-pointer">
+                                          Plano Intermediário
+                                        </Label>
+                                        <div className="text-right">
+                                          {hasDiscount && (
+                                            <span className="text-sm text-muted-foreground line-through mr-2">
+                                              {formatCurrency(PRICES[estimatedClassType].intermediario)}
+                                            </span>
+                                          )}
+                                          <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
+                                            {formatCurrency(price.discountedPrice)}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">/mês</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        Período integral - até 8 horas diárias
+                                      </p>
+                                      <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                        <li>• Funcionamento das 7h às 19h</li>
+                                        <li>• Todas as refeições incluídas</li>
+                                        <li>• Atividades extras (Ballet, Capoeira, Música)</li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
 
                               {/* Plano Plus+ */}
-                              <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'plus' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
-                                <RadioGroupItem value="plus" id="plus" />
-                                <div className="flex-1">
-                                  <Label htmlFor="plus" className="text-base font-medium cursor-pointer">
-                                    Plano Plus+
-                                  </Label>
-                                  <p className="text-sm text-muted-foreground mt-1">
-                                    Integral estendido - até 10 horas diárias
-                                  </p>
-                                  <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                                    <li>• Tudo do Plano Intermediário</li>
-                                    <li>• Flexibilidade total de horário</li>
-                                    <li>• Acompanhamento pedagógico exclusivo</li>
-                                  </ul>
-                                </div>
-                              </div>
+                              {(() => {
+                                const price = getPlanPrice("plus");
+                                const hasDiscount = price.discountAmount > 0;
+                                return (
+                                  <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'plus' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
+                                    <RadioGroupItem value="plus" id="plus" />
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between">
+                                        <Label htmlFor="plus" className="text-base font-medium cursor-pointer">
+                                          Plano Plus+
+                                        </Label>
+                                        <div className="text-right">
+                                          {hasDiscount && (
+                                            <span className="text-sm text-muted-foreground line-through mr-2">
+                                              {formatCurrency(PRICES[estimatedClassType].plus)}
+                                            </span>
+                                          )}
+                                          <span className={`text-lg font-bold ${hasDiscount ? 'text-primary' : ''}`}>
+                                            {formatCurrency(price.discountedPrice)}
+                                          </span>
+                                          <span className="text-xs text-muted-foreground">/mês</span>
+                                        </div>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        Integral estendido - até 10 horas diárias
+                                      </p>
+                                      <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                                        <li>• Tudo do Plano Intermediário</li>
+                                        <li>• Flexibilidade total de horário</li>
+                                        <li>• Acompanhamento pedagógico exclusivo</li>
+                                      </ul>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </RadioGroup>
                           )}
                         />
                         {errors.planType && (
                           <p className="text-sm text-destructive">{errors.planType.message}</p>
                         )}
+
+                        {/* Estimated class info */}
+                        <p className="text-xs text-muted-foreground italic">
+                          * Valores estimados para turma de {estimatedClassType === "bercario" ? "Berçário" : estimatedClassType === "maternal" ? "Maternal" : "Jardim"} 
+                          com base na data de nascimento informada. O valor final será confirmado pela escola.
+                        </p>
                       </div>
                     )}
 
