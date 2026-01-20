@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfWeek, addWeeks, subWeeks, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,7 +19,9 @@ import {
   Cookie,
   Moon,
   CalendarDays,
-  Check
+  Check,
+  Baby,
+  Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -32,25 +35,29 @@ interface MenuItem {
   snack: string;
   dinner: string;
   notes: string;
+  menu_type: 'bercario' | 'maternal';
 }
 
 const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
 
-const emptyMenuItem = (weekStart: string, dayOfWeek: number): MenuItem => ({
+const emptyMenuItem = (weekStart: string, dayOfWeek: number, menuType: 'bercario' | 'maternal'): MenuItem => ({
   week_start: weekStart,
   day_of_week: dayOfWeek,
   breakfast: '',
   lunch: '',
   snack: '',
   dinner: '',
-  notes: ''
+  notes: '',
+  menu_type: menuType
 });
 
 export default function AdminMenu() {
   const [weekStart, setWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [activeTab, setActiveTab] = useState<'bercario' | 'maternal'>('bercario');
+  const [bercarioItems, setBercarioItems] = useState<MenuItem[]>([]);
+  const [maternalItems, setMaternalItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -72,9 +79,9 @@ export default function AdminMenu() {
         return;
       }
 
-      // Create menu items for all 5 days, filling in existing data
-      const items: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-        const existing = data?.find(item => item.day_of_week === dayOfWeek);
+      // Create menu items for all 5 days for each type
+      const bercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+        const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'bercario');
         if (existing) {
           return {
             id: existing.id,
@@ -84,13 +91,33 @@ export default function AdminMenu() {
             lunch: existing.lunch || '',
             snack: existing.snack || '',
             dinner: existing.dinner || '',
-            notes: existing.notes || ''
+            notes: existing.notes || '',
+            menu_type: 'bercario' as const
           };
         }
-        return emptyMenuItem(weekStartStr, dayOfWeek);
+        return emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
       });
 
-      setMenuItems(items);
+      const maternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+        const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'maternal');
+        if (existing) {
+          return {
+            id: existing.id,
+            week_start: existing.week_start,
+            day_of_week: existing.day_of_week,
+            breakfast: existing.breakfast || '',
+            lunch: existing.lunch || '',
+            snack: existing.snack || '',
+            dinner: existing.dinner || '',
+            notes: existing.notes || '',
+            menu_type: 'maternal' as const
+          };
+        }
+        return emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
+      });
+
+      setBercarioItems(bercario);
+      setMaternalItems(maternal);
       setLoading(false);
     };
 
@@ -100,8 +127,9 @@ export default function AdminMenu() {
   const goToPreviousWeek = () => setWeekStart(subWeeks(weekStart, 1));
   const goToNextWeek = () => setWeekStart(addWeeks(weekStart, 1));
 
-  const updateMenuItem = (dayOfWeek: number, field: keyof MenuItem, value: string) => {
-    setMenuItems(prev => 
+  const updateMenuItem = (menuType: 'bercario' | 'maternal', dayOfWeek: number, field: keyof MenuItem, value: string) => {
+    const setItems = menuType === 'bercario' ? setBercarioItems : setMaternalItems;
+    setItems(prev => 
       prev.map(item => 
         item.day_of_week === dayOfWeek 
           ? { ...item, [field]: value }
@@ -112,9 +140,10 @@ export default function AdminMenu() {
 
   const handleSave = async () => {
     setSaving(true);
+    const allItems = [...bercarioItems, ...maternalItems];
 
     try {
-      for (const item of menuItems) {
+      for (const item of allItems) {
         // Skip empty items
         if (!item.breakfast && !item.lunch && !item.snack && !item.dinner && !item.notes) {
           // If it existed before, delete it
@@ -134,7 +163,8 @@ export default function AdminMenu() {
           lunch: item.lunch || null,
           snack: item.snack || null,
           dinner: item.dinner || null,
-          notes: item.notes || null
+          notes: item.notes || null,
+          menu_type: item.menu_type
         };
 
         if (item.id) {
@@ -164,6 +194,113 @@ export default function AdminMenu() {
     }
   };
 
+  const currentMenuItems = activeTab === 'bercario' ? bercarioItems : maternalItems;
+  const tabColor = activeTab === 'bercario' ? 'pimpo-blue' : 'pimpo-green';
+
+  const renderMenuForm = (items: MenuItem[], menuType: 'bercario' | 'maternal') => (
+    <div className="grid gap-6">
+      {items.map((item) => {
+        const dayDate = addDays(weekStart, item.day_of_week - 1);
+        const hasContent = item.breakfast || item.lunch || item.snack || item.dinner;
+
+        return (
+          <Card 
+            key={item.day_of_week}
+            className={`transition-all ${
+              hasContent 
+                ? menuType === 'bercario' 
+                  ? 'border-pimpo-blue/30 bg-pimpo-blue/5' 
+                  : 'border-pimpo-green/30 bg-pimpo-green/5'
+                : ''
+            }`}
+          >
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {dayNames[item.day_of_week - 1]}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({format(dayDate, 'd/MM')})
+                  </span>
+                </CardTitle>
+                {hasContent && (
+                  <Check className={`w-5 h-5 ${menuType === 'bercario' ? 'text-pimpo-blue' : 'text-pimpo-green'}`} />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Café da Manhã */}
+                <div>
+                  <Label className="flex items-center gap-2 text-sm mb-2">
+                    <Coffee className="w-4 h-4 text-pimpo-yellow" />
+                    Café da Manhã
+                  </Label>
+                  <Input
+                    value={item.breakfast}
+                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'breakfast', e.target.value)}
+                    placeholder="Ex: Pão com manteiga, leite com achocolatado, fruta"
+                  />
+                </div>
+
+                {/* Almoço */}
+                <div>
+                  <Label className="flex items-center gap-2 text-sm mb-2">
+                    <Soup className={`w-4 h-4 ${menuType === 'bercario' ? 'text-pimpo-blue' : 'text-pimpo-green'}`} />
+                    Almoço
+                  </Label>
+                  <Input
+                    value={item.lunch}
+                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'lunch', e.target.value)}
+                    placeholder="Ex: Arroz, feijão, frango grelhado, salada"
+                  />
+                </div>
+
+                {/* Lanche */}
+                <div>
+                  <Label className="flex items-center gap-2 text-sm mb-2">
+                    <Cookie className="w-4 h-4 text-pimpo-yellow" />
+                    Lanche da Tarde
+                  </Label>
+                  <Input
+                    value={item.snack}
+                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'snack', e.target.value)}
+                    placeholder="Ex: Biscoito integral, suco natural"
+                  />
+                </div>
+
+                {/* Jantar */}
+                <div>
+                  <Label className="flex items-center gap-2 text-sm mb-2">
+                    <Moon className="w-4 h-4 text-pimpo-red" />
+                    Jantar
+                  </Label>
+                  <Input
+                    value={item.dinner}
+                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'dinner', e.target.value)}
+                    placeholder="Ex: Sopa de legumes, pão"
+                  />
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <Label className="flex items-center gap-2 text-sm mb-2">
+                  📝 Observações
+                </Label>
+                <Textarea
+                  value={item.notes}
+                  onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'notes', e.target.value)}
+                  placeholder="Observações adicionais (opcional)"
+                  rows={2}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
@@ -174,7 +311,7 @@ export default function AdminMenu() {
               Cardápio Semanal
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Gerencie o cardápio que será exibido para os pais
+              Gerencie os cardápios que serão exibidos para os pais
             </p>
           </div>
           <Button 
@@ -190,7 +327,7 @@ export default function AdminMenu() {
             ) : (
               <>
                 <Save className="w-4 h-4 mr-2" />
-                Salvar Cardápio
+                Salvar Cardápios
               </>
             )}
           </Button>
@@ -199,9 +336,9 @@ export default function AdminMenu() {
         {/* PDF Export Buttons */}
         <div className="flex justify-end">
           <MenuPdfExport 
-            menuItems={menuItems} 
+            menuItems={activeTab === 'bercario' ? bercarioItems : maternalItems} 
             weekStart={weekStart} 
-            disabled={loading || menuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
+            disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
           />
         </div>
       </div>
@@ -240,110 +377,41 @@ export default function AdminMenu() {
         </CardContent>
       </Card>
 
-      {/* Menu Form */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-pimpo-yellow" />
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          {menuItems.map((item) => {
-            const dayDate = addDays(weekStart, item.day_of_week - 1);
-            const hasContent = item.breakfast || item.lunch || item.snack || item.dinner;
+      {/* Tabs for Menu Types */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'bercario' | 'maternal')}>
+        <TabsList className="grid w-full grid-cols-2 h-14">
+          <TabsTrigger 
+            value="bercario" 
+            className="flex items-center gap-2 data-[state=active]:bg-pimpo-blue data-[state=active]:text-white text-base"
+          >
+            <Baby className="w-5 h-5" />
+            Berçário
+          </TabsTrigger>
+          <TabsTrigger 
+            value="maternal" 
+            className="flex items-center gap-2 data-[state=active]:bg-pimpo-green data-[state=active]:text-white text-base"
+          >
+            <Users className="w-5 h-5" />
+            Maternal / Jardim
+          </TabsTrigger>
+        </TabsList>
 
-            return (
-              <Card 
-                key={item.day_of_week}
-                className={`transition-all ${
-                  hasContent ? 'border-pimpo-green/30 bg-pimpo-green/5' : ''
-                }`}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      {dayNames[item.day_of_week - 1]}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        ({format(dayDate, 'd/MM')})
-                      </span>
-                    </CardTitle>
-                    {hasContent && (
-                      <Check className="w-5 h-5 text-pimpo-green" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Café da Manhã */}
-                    <div>
-                      <Label className="flex items-center gap-2 text-sm mb-2">
-                        <Coffee className="w-4 h-4 text-pimpo-yellow" />
-                        Café da Manhã
-                      </Label>
-                      <Input
-                        value={item.breakfast}
-                        onChange={(e) => updateMenuItem(item.day_of_week, 'breakfast', e.target.value)}
-                        placeholder="Ex: Pão com manteiga, leite com achocolatado, fruta"
-                      />
-                    </div>
-
-                    {/* Almoço */}
-                    <div>
-                      <Label className="flex items-center gap-2 text-sm mb-2">
-                        <Soup className="w-4 h-4 text-pimpo-green" />
-                        Almoço
-                      </Label>
-                      <Input
-                        value={item.lunch}
-                        onChange={(e) => updateMenuItem(item.day_of_week, 'lunch', e.target.value)}
-                        placeholder="Ex: Arroz, feijão, frango grelhado, salada"
-                      />
-                    </div>
-
-                    {/* Lanche */}
-                    <div>
-                      <Label className="flex items-center gap-2 text-sm mb-2">
-                        <Cookie className="w-4 h-4 text-pimpo-blue" />
-                        Lanche da Tarde
-                      </Label>
-                      <Input
-                        value={item.snack}
-                        onChange={(e) => updateMenuItem(item.day_of_week, 'snack', e.target.value)}
-                        placeholder="Ex: Biscoito integral, suco natural"
-                      />
-                    </div>
-
-                    {/* Jantar */}
-                    <div>
-                      <Label className="flex items-center gap-2 text-sm mb-2">
-                        <Moon className="w-4 h-4 text-pimpo-red" />
-                        Jantar
-                      </Label>
-                      <Input
-                        value={item.dinner}
-                        onChange={(e) => updateMenuItem(item.day_of_week, 'dinner', e.target.value)}
-                        placeholder="Ex: Sopa de legumes, pão"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Observações */}
-                  <div>
-                    <Label className="flex items-center gap-2 text-sm mb-2">
-                      📝 Observações
-                    </Label>
-                    <Textarea
-                      value={item.notes}
-                      onChange={(e) => updateMenuItem(item.day_of_week, 'notes', e.target.value)}
-                      placeholder="Observações adicionais (opcional)"
-                      rows={2}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+        {/* Menu Form */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-pimpo-yellow" />
+          </div>
+        ) : (
+          <>
+            <TabsContent value="bercario" className="mt-6">
+              {renderMenuForm(bercarioItems, 'bercario')}
+            </TabsContent>
+            <TabsContent value="maternal" className="mt-6">
+              {renderMenuForm(maternalItems, 'maternal')}
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </div>
   );
 }

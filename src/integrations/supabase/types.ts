@@ -2047,6 +2047,7 @@ export type Database = {
           dinner: string | null
           id: string
           lunch: string | null
+          menu_type: string
           notes: string | null
           snack: string | null
           updated_at: string | null
@@ -2059,6 +2060,7 @@ export type Database = {
           dinner?: string | null
           id?: string
           lunch?: string | null
+          menu_type?: string
           notes?: string | null
           snack?: string | null
           updated_at?: string | null
@@ -2071,6 +2073,7 @@ export type Database = {
           dinner?: string | null
           id?: string
           lunch?: string | null
+          menu_type?: string
           notes?: string | null
           snack?: string | null
           updated_at?: string | null
