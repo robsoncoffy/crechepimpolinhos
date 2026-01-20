@@ -62,17 +62,33 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if user is already logged in
+  // Check if user is already logged in and redirect appropriately
   useEffect(() => {
+    const checkUserAndRedirect = async (userId: string) => {
+      // Check if user has any child registrations
+      const { data: registrations } = await supabase
+        .from("child_registrations")
+        .select("id")
+        .eq("parent_id", userId)
+        .limit(1);
+
+      // If no child registrations, redirect to complete registration
+      if (!registrations || registrations.length === 0) {
+        navigate("/cadastro-pimpolho");
+      } else {
+        navigate("/painel");
+      }
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate("/painel");
+        checkUserAndRedirect(session.user.id);
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/painel");
+        checkUserAndRedirect(session.user.id);
       }
     });
 
