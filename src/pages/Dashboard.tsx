@@ -31,6 +31,7 @@ import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
+import AdminEmails from "@/pages/admin/AdminEmails";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
@@ -124,6 +125,11 @@ function DashboardContent() {
           <Route path="/pre-matriculas" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminPreEnrollments />
+            </ProtectedRoute>
+          } />
+          <Route path="/emails" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminEmails />
             </ProtectedRoute>
           } />
           <Route path="/config" element={
