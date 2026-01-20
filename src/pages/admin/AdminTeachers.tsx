@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -33,7 +34,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Trash2, Loader2, UserCheck, Mail, Phone } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Users, Plus, Trash2, Loader2, UserCheck, Phone, GraduationCap } from "lucide-react";
+import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
+import { Database } from "@/integrations/supabase/types";
+
+type ClassType = Database["public"]["Enums"]["class_type"];
+type ShiftType = Database["public"]["Enums"]["shift_type"];
+
+interface TeacherAssignment {
+  id: string;
+  user_id: string;
+  class_type: ClassType;
+  shift_type: ShiftType;
+  is_primary: boolean;
+}
 
 interface Teacher {
   id: string;
@@ -43,20 +64,28 @@ interface Teacher {
   status: string;
   created_at: string;
   email?: string;
+  assignment?: TeacherAssignment | null;
 }
 
 export default function AdminTeachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [assignLoading, setAssignLoading] = useState(false);
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
     phone: "",
     password: "",
+  });
+  const [assignmentData, setAssignmentData] = useState({
+    class_type: "" as ClassType | "",
+    shift_type: "" as ShiftType | "",
+    is_primary: false,
   });
 
   useEffect(() => {
@@ -85,8 +114,18 @@ export default function AdminTeachers() {
         .select("*")
         .in("user_id", userIds);
 
+      // Get assignments for these users
+      const { data: assignments } = await supabase
+        .from("teacher_assignments")
+        .select("*")
+        .in("user_id", userIds);
+
       if (profiles) {
-        setTeachers(profiles);
+        const teachersWithAssignments = profiles.map((profile) => ({
+          ...profile,
+          assignment: assignments?.find((a) => a.user_id === profile.user_id) || null,
+        }));
+        setTeachers(teachersWithAssignments);
       }
     } catch (error) {
       console.error("Error fetching teachers:", error);
@@ -147,6 +186,12 @@ export default function AdminTeachers() {
     if (!selectedTeacher) return;
 
     try {
+      // Remove teacher assignment first
+      await supabase
+        .from("teacher_assignments")
+        .delete()
+        .eq("user_id", selectedTeacher.user_id);
+
       // Remove teacher role
       await supabase
         .from("user_roles")
@@ -164,6 +209,65 @@ export default function AdminTeachers() {
     }
   }
 
+  async function handleAssignTeacher(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedTeacher || !assignmentData.class_type || !assignmentData.shift_type) {
+      toast.error("Selecione a turma e o turno");
+      return;
+    }
+
+    setAssignLoading(true);
+    try {
+      // Check if assignment exists
+      const { data: existing } = await supabase
+        .from("teacher_assignments")
+        .select("id")
+        .eq("user_id", selectedTeacher.user_id)
+        .single();
+
+      if (existing) {
+        // Update existing assignment
+        await supabase
+          .from("teacher_assignments")
+          .update({
+            class_type: assignmentData.class_type as ClassType,
+            shift_type: assignmentData.shift_type as ShiftType,
+            is_primary: assignmentData.is_primary,
+          })
+          .eq("user_id", selectedTeacher.user_id);
+      } else {
+        // Create new assignment
+        await supabase.from("teacher_assignments").insert({
+          user_id: selectedTeacher.user_id,
+          class_type: assignmentData.class_type as ClassType,
+          shift_type: assignmentData.shift_type as ShiftType,
+          is_primary: assignmentData.is_primary,
+        });
+      }
+
+      toast.success("Turma atribuída com sucesso!");
+      setAssignDialogOpen(false);
+      setSelectedTeacher(null);
+      setAssignmentData({ class_type: "", shift_type: "", is_primary: false });
+      fetchTeachers();
+    } catch (error) {
+      console.error("Error assigning teacher:", error);
+      toast.error("Erro ao atribuir turma");
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
+  function openAssignDialog(teacher: Teacher) {
+    setSelectedTeacher(teacher);
+    setAssignmentData({
+      class_type: teacher.assignment?.class_type || "",
+      shift_type: teacher.assignment?.shift_type || "",
+      is_primary: teacher.assignment?.is_primary || false,
+    });
+    setAssignDialogOpen(true);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -171,6 +275,8 @@ export default function AdminTeachers() {
       </div>
     );
   }
+
+  const assignedTeachers = teachers.filter((t) => t.assignment);
 
   return (
     <div className="space-y-8">
@@ -181,7 +287,7 @@ export default function AdminTeachers() {
             Professores
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie a equipe de professores e auxiliares
+            Gerencie a equipe de professores e atribua turmas
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -288,13 +394,24 @@ export default function AdminTeachers() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 pt-6">
+            <div className="p-3 rounded-full bg-pimpo-blue/10">
+              <GraduationCap className="w-6 h-6 text-pimpo-blue" />
+            </div>
+            <div>
+              <p className="text-2xl font-fredoka font-bold">{assignedTeachers.length}</p>
+              <p className="text-sm text-muted-foreground">Com Turma Atribuída</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Teachers List */}
       <Card>
         <CardHeader>
           <CardTitle>Equipe</CardTitle>
-          <CardDescription>Lista de professores e auxiliares cadastrados</CardDescription>
+          <CardDescription>Lista de professores e suas turmas atribuídas</CardDescription>
         </CardHeader>
         <CardContent>
           {teachers.length === 0 ? (
@@ -311,6 +428,7 @@ export default function AdminTeachers() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Telefone</TableHead>
+                  <TableHead>Turma</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -326,7 +444,14 @@ export default function AdminTeachers() {
                             {teacher.full_name.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <span className="font-medium">{teacher.full_name}</span>
+                        <div>
+                          <span className="font-medium">{teacher.full_name}</span>
+                          {teacher.assignment?.is_primary && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              Principal
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -337,6 +462,28 @@ export default function AdminTeachers() {
                         </span>
                       ) : (
                         "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {teacher.assignment ? (
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="outline" className="w-fit">
+                            {classTypeLabels[teacher.assignment.class_type]}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {shiftTypeLabels[teacher.assignment.shift_type]}
+                          </span>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-primary hover:text-primary"
+                          onClick={() => openAssignDialog(teacher)}
+                        >
+                          <GraduationCap className="w-4 h-4 mr-1" />
+                          Atribuir
+                        </Button>
                       )}
                     </TableCell>
                     <TableCell>
@@ -355,17 +502,28 @@ export default function AdminTeachers() {
                       {new Date(teacher.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          setSelectedTeacher(teacher);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        {teacher.assignment && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openAssignDialog(teacher)}
+                          >
+                            <GraduationCap className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setSelectedTeacher(teacher);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -374,6 +532,89 @@ export default function AdminTeachers() {
           )}
         </CardContent>
       </Card>
+
+      {/* Assign Class Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atribuir Turma</DialogTitle>
+            <DialogDescription>
+              Vincule {selectedTeacher?.full_name} a uma turma específica
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAssignTeacher}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Turma</Label>
+                <Select
+                  value={assignmentData.class_type}
+                  onValueChange={(v) =>
+                    setAssignmentData({ ...assignmentData, class_type: v as ClassType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a turma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(classTypeLabels).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Turno</Label>
+                <Select
+                  value={assignmentData.shift_type}
+                  onValueChange={(v) =>
+                    setAssignmentData({ ...assignmentData, shift_type: v as ShiftType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o turno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(shiftTypeLabels).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_primary"
+                  checked={assignmentData.is_primary}
+                  onCheckedChange={(checked) =>
+                    setAssignmentData({ ...assignmentData, is_primary: checked === true })
+                  }
+                />
+                <Label htmlFor="is_primary" className="font-normal">
+                  Professor(a) Principal da Turma
+                </Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAssignDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={assignLoading}>
+                {assignLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -8,13 +8,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, isSameDay } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarOff, Plus, ChevronLeft, ChevronRight, Check, X, Loader2, Calendar as CalendarIcon, User } from "lucide-react";
+import { CalendarOff, Plus, ChevronLeft, ChevronRight, Check, X, Loader2, Calendar as CalendarIcon, User, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
+import { Database } from "@/integrations/supabase/types";
+
+type ClassType = Database["public"]["Enums"]["class_type"];
+type ShiftType = Database["public"]["Enums"]["shift_type"];
+
+interface TeacherAssignment {
+  user_id: string;
+  class_type: ClassType;
+  shift_type: ShiftType;
+}
 
 interface Absence {
   id: string;
@@ -52,10 +64,12 @@ export default function AdminAbsences() {
   const { user, isAdmin } = useAuth();
   const [absences, setAbsences] = useState<Absence[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showDialog, setShowDialog] = useState(false);
   const [selectedAbsence, setSelectedAbsence] = useState<Absence | null>(null);
+  const [conflictWarning, setConflictWarning] = useState<{ absenceId: string; message: string } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -93,6 +107,13 @@ export default function AdminAbsences() {
           .eq("status", "approved");
         
         if (employeesData) setEmployees(employeesData);
+
+        // Fetch teacher assignments for conflict detection
+        const { data: assignmentsData } = await supabase
+          .from("teacher_assignments")
+          .select("user_id, class_type, shift_type");
+        
+        if (assignmentsData) setTeacherAssignments(assignmentsData as TeacherAssignment[]);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -131,6 +152,74 @@ export default function AdminAbsences() {
     } catch (error) {
       console.error("Error submitting absence:", error);
       toast.error("Erro ao enviar solicitação");
+    }
+  };
+
+  // Check for coverage conflicts when approving
+  const checkCoverageConflict = (absence: Absence): string | null => {
+    // Find the teacher's assignment
+    const teacherAssignment = teacherAssignments.find(
+      (a) => a.user_id === absence.employee_id
+    );
+    
+    if (!teacherAssignment) return null;
+
+    // Find other teachers in the same class/shift
+    const sameClassTeachers = teacherAssignments.filter(
+      (a) =>
+        a.class_type === teacherAssignment.class_type &&
+        a.shift_type === teacherAssignment.shift_type &&
+        a.user_id !== absence.employee_id
+    );
+
+    if (sameClassTeachers.length === 0) {
+      // No other teacher in this class - potential conflict
+      const className = classTypeLabels[teacherAssignment.class_type];
+      const shiftName = shiftTypeLabels[teacherAssignment.shift_type];
+      return `A turma ${className} (${shiftName}) ficará sem professor entre ${format(parseISO(absence.start_date), "dd/MM")} e ${format(parseISO(absence.end_date), "dd/MM/yyyy")}.`;
+    }
+
+    // Check if the other teachers also have approved absences in the same period
+    const absenceStart = parseISO(absence.start_date);
+    const absenceEnd = parseISO(absence.end_date);
+
+    const otherTeacherUserIds = sameClassTeachers.map((t) => t.user_id);
+    const conflictingAbsences = absences.filter(
+      (a) =>
+        a.status === "approved" &&
+        otherTeacherUserIds.includes(a.employee_id) &&
+        parseISO(a.start_date) <= absenceEnd &&
+        parseISO(a.end_date) >= absenceStart
+    );
+
+    if (conflictingAbsences.length === sameClassTeachers.length) {
+      // All other teachers also have absences in this period
+      const className = classTypeLabels[teacherAssignment.class_type];
+      const shiftName = shiftTypeLabels[teacherAssignment.shift_type];
+      return `A turma ${className} (${shiftName}) poderá ficar sem cobertura. Os outros professores da turma também têm ausências neste período.`;
+    }
+
+    return null;
+  };
+
+  const handleApprovalWithConflictCheck = (absence: Absence, approved: boolean) => {
+    if (!approved) {
+      handleApproval(absence.id, false);
+      return;
+    }
+
+    const conflict = checkCoverageConflict(absence);
+    if (conflict) {
+      setConflictWarning({ absenceId: absence.id, message: conflict });
+    } else {
+      handleApproval(absence.id, true);
+    }
+  };
+
+  const confirmApprovalWithConflict = () => {
+    if (conflictWarning) {
+      handleApproval(conflictWarning.absenceId, true);
+      setConflictWarning(null);
     }
   };
 
@@ -408,15 +497,15 @@ export default function AdminAbsences() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-red-600 hover:bg-red-50"
-                            onClick={() => handleApproval(absence.id, false)}
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => handleApprovalWithConflictCheck(absence, false)}
                           >
                             <X className="w-4 h-4" />
                           </Button>
                           <Button
                             size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApproval(absence.id, true)}
+                            className="bg-pimpo-green hover:bg-pimpo-green/90"
+                            onClick={() => handleApprovalWithConflictCheck(absence, true)}
                           >
                             <Check className="w-4 h-4" />
                           </Button>
@@ -463,6 +552,40 @@ export default function AdminAbsences() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Conflict Warning Dialog */}
+      <Dialog open={!!conflictWarning} onOpenChange={() => setConflictWarning(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-5 h-5" />
+              Alerta de Cobertura
+            </DialogTitle>
+          </DialogHeader>
+          <Alert variant="destructive" className="border-amber-500 bg-amber-50 text-amber-800">
+            <AlertTriangle className="w-4 h-4" />
+            <AlertTitle>Conflito de Cobertura Detectado</AlertTitle>
+            <AlertDescription>
+              {conflictWarning?.message}
+            </AlertDescription>
+          </Alert>
+          <p className="text-sm text-muted-foreground">
+            Considere organizar uma substituição antes de aprovar esta solicitação.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setConflictWarning(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={confirmApprovalWithConflict}
+            >
+              Aprovar Mesmo Assim
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
