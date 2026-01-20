@@ -1233,8 +1233,8 @@ const ChildRegistration = () => {
                           Selecione o plano que melhor atende às necessidades da sua família.
                         </p>
 
-                        {/* Coupon Section */}
-                        {coupon ? (
+                        {/* Coupon Display (read-only if auto-applied) */}
+                        {coupon && (
                           <div className="bg-primary/10 rounded-lg p-4 space-y-2">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -1269,36 +1269,6 @@ const ChildRegistration = () => {
                                 }
                               </span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="border rounded-lg p-4 space-y-3">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-5 w-5 text-muted-foreground" />
-                              <Label className="font-medium">Tem um cupom de desconto?</Label>
-                            </div>
-                            <div className="flex gap-2">
-                              <Input
-                                placeholder="Digite o código do cupom"
-                                value={couponCode}
-                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                className="uppercase"
-                              />
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => validateCoupon(couponCode)}
-                                disabled={isValidatingCoupon || !couponCode.trim()}
-                              >
-                                {isValidatingCoupon ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  "Aplicar"
-                                )}
-                              </Button>
-                            </div>
-                            {couponError && (
-                              <p className="text-sm text-destructive">{couponError}</p>
-                            )}
                           </div>
                         )}
 
