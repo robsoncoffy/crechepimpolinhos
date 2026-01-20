@@ -6,6 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface DiagnosticResult {
+  source: string;
+  found: boolean;
+  count?: number;
+  details?: string;
+}
+
+interface DeleteResult {
+  source: string;
+  deleted: boolean;
+  count?: number;
+  error?: string;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -46,11 +60,11 @@ serve(async (req) => {
 
     const isAdmin = roles?.some((r) => r.role === "admin");
     if (!isAdmin) {
-      throw new Error("Apenas administradores podem deletar usuários");
+      throw new Error("Apenas administradores podem executar esta ação");
     }
 
-    // Get userId OR email from request body
-    const { userId, email, checkOnly } = await req.json();
+    // Get parameters from request body
+    const { userId, email, checkOnly, diagnoseOnly } = await req.json();
     
     if (!userId && !email) {
       throw new Error("ID do usuário ou email não fornecido");
@@ -66,7 +80,7 @@ serve(async (req) => {
     if (!targetUserId && email) {
       console.log(`Searching for user by email: ${email}`);
       
-      // List all users and find by email (supabase-js doesn't have getUserByEmail)
+      // List all users and find by email
       const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
         perPage: 1000,
       });
@@ -93,20 +107,139 @@ serve(async (req) => {
       throw new Error("Você não pode deletar sua própria conta");
     }
 
-    console.log(`Attempting to delete user: ${targetUserId || "(by email only)"}, email: ${authUserEmail}`);
+    console.log(`Processing user: ${targetUserId || "(by email only)"}, email: ${authUserEmail || email}`);
 
-    // If we have a userId, try to get user info for logging
+    // If we have a userId, try to get user info
     if (targetUserId) {
       const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
 
       if (getUserError || !targetUser?.user) {
-        console.log(
-          `Auth lookup failed or user not found for ${targetUserId}. getUserError=${getUserError?.message ?? "none"}`
-        );
+        console.log(`Auth lookup failed for ${targetUserId}: ${getUserError?.message ?? "user not found"}`);
       } else {
         authUserEmail = targetUser.user.email || authUserEmail;
         console.log(`Found auth user: ${authUserEmail}`);
       }
+    }
+
+    const searchEmail = authUserEmail || email;
+
+    // DIAGNOSTIC MODE: Check all sources for this email
+    if (diagnoseOnly) {
+      const diagnostics: DiagnosticResult[] = [];
+
+      // Check auth.users
+      diagnostics.push({
+        source: "auth.users (Autenticação)",
+        found: !!targetUserId,
+        details: targetUserId ? `ID: ${targetUserId}` : undefined,
+      });
+
+      // Check profiles table
+      if (targetUserId) {
+        const { data: profileData, count: profileCount } = await supabaseAdmin
+          .from("profiles")
+          .select("id, full_name", { count: "exact" })
+          .eq("user_id", targetUserId);
+        diagnostics.push({
+          source: "profiles",
+          found: (profileCount || 0) > 0,
+          count: profileCount || 0,
+          details: profileData?.[0]?.full_name,
+        });
+      } else {
+        diagnostics.push({ source: "profiles", found: false, count: 0 });
+      }
+
+      // Check parent_invites by email
+      if (searchEmail) {
+        const { count: inviteCount } = await supabaseAdmin
+          .from("parent_invites")
+          .select("id", { count: "exact" })
+          .ilike("email", searchEmail);
+        diagnostics.push({
+          source: "parent_invites (Convites de Pais)",
+          found: (inviteCount || 0) > 0,
+          count: inviteCount || 0,
+        });
+      }
+
+      // Check guardian_invitations by email
+      if (searchEmail) {
+        const { count: guardianCount } = await supabaseAdmin
+          .from("guardian_invitations")
+          .select("id", { count: "exact" })
+          .ilike("invited_email", searchEmail);
+        diagnostics.push({
+          source: "guardian_invitations (Convites de Responsável)",
+          found: (guardianCount || 0) > 0,
+          count: guardianCount || 0,
+        });
+      }
+
+      // Check contact_submissions by email
+      if (searchEmail) {
+        const { count: contactCount } = await supabaseAdmin
+          .from("contact_submissions")
+          .select("id", { count: "exact" })
+          .ilike("email", searchEmail);
+        diagnostics.push({
+          source: "contact_submissions (Formulário de Contato)",
+          found: (contactCount || 0) > 0,
+          count: contactCount || 0,
+        });
+      }
+
+      // Check pre_enrollments by email
+      if (searchEmail) {
+        const { count: preEnrollCount } = await supabaseAdmin
+          .from("pre_enrollments")
+          .select("id", { count: "exact" })
+          .ilike("email", searchEmail);
+        diagnostics.push({
+          source: "pre_enrollments (Pré-Matrículas)",
+          found: (preEnrollCount || 0) > 0,
+          count: preEnrollCount || 0,
+        });
+      }
+
+      // Check user_roles
+      if (targetUserId) {
+        const { count: rolesCount } = await supabaseAdmin
+          .from("user_roles")
+          .select("id", { count: "exact" })
+          .eq("user_id", targetUserId);
+        diagnostics.push({
+          source: "user_roles",
+          found: (rolesCount || 0) > 0,
+          count: rolesCount || 0,
+        });
+      }
+
+      // Check employee_profiles
+      if (targetUserId) {
+        const { count: empCount } = await supabaseAdmin
+          .from("employee_profiles")
+          .select("id", { count: "exact" })
+          .eq("user_id", targetUserId);
+        diagnostics.push({
+          source: "employee_profiles",
+          found: (empCount || 0) > 0,
+          count: empCount || 0,
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          email: authUserEmail || email,
+          userId: targetUserId,
+          diagnostics,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     }
 
     // If checkOnly is true, just return the email info without deleting
@@ -124,128 +257,222 @@ serve(async (req) => {
       );
     }
 
-    // Delete from related tables first (in order of dependencies)
-    // We'll try to delete by both user_id and also search profiles by email if needed
+    // ============ DELETION PHASE ============
+    const deleteResults: DeleteResult[] = [];
+    const originalEmail = authUserEmail || email;
     
+    // Delete from related tables first (in order of dependencies)
     if (targetUserId) {
       // Delete parent_children links
-      const { error: parentChildrenError } = await supabaseAdmin
+      const { error: parentChildrenError, count: pcCount } = await supabaseAdmin
         .from("parent_children")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (parentChildrenError) {
-        console.log("Error deleting parent_children:", parentChildrenError.message);
-      }
+      deleteResults.push({
+        source: "parent_children",
+        deleted: !parentChildrenError,
+        count: pcCount || 0,
+        error: parentChildrenError?.message,
+      });
 
       // Delete pickup_notifications
-      const { error: pickupError } = await supabaseAdmin
+      const { error: pickupError, count: pickupCount } = await supabaseAdmin
         .from("pickup_notifications")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (pickupError) {
-        console.log("Error deleting pickup_notifications:", pickupError.message);
-      }
+      deleteResults.push({
+        source: "pickup_notifications",
+        deleted: !pickupError,
+        count: pickupCount || 0,
+        error: pickupError?.message,
+      });
 
       // Delete enrollment_contracts
-      const { error: contractsError } = await supabaseAdmin
+      const { error: contractsError, count: contractsCount } = await supabaseAdmin
         .from("enrollment_contracts")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (contractsError) {
-        console.log("Error deleting enrollment_contracts:", contractsError.message);
-      }
+      deleteResults.push({
+        source: "enrollment_contracts",
+        deleted: !contractsError,
+        count: contractsCount || 0,
+        error: contractsError?.message,
+      });
 
       // Delete invoices
-      const { error: invoicesError } = await supabaseAdmin
+      const { error: invoicesError, count: invoicesCount } = await supabaseAdmin
         .from("invoices")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (invoicesError) {
-        console.log("Error deleting invoices:", invoicesError.message);
-      }
+      deleteResults.push({
+        source: "invoices",
+        deleted: !invoicesError,
+        count: invoicesCount || 0,
+        error: invoicesError?.message,
+      });
 
       // Delete subscriptions
-      const { error: subscriptionsError } = await supabaseAdmin
+      const { error: subscriptionsError, count: subsCount } = await supabaseAdmin
         .from("subscriptions")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (subscriptionsError) {
-        console.log("Error deleting subscriptions:", subscriptionsError.message);
-      }
+      deleteResults.push({
+        source: "subscriptions",
+        deleted: !subscriptionsError,
+        count: subsCount || 0,
+        error: subscriptionsError?.message,
+      });
 
       // Delete payment_customers
-      const { error: paymentCustomersError } = await supabaseAdmin
+      const { error: paymentCustomersError, count: paymentCount } = await supabaseAdmin
         .from("payment_customers")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (paymentCustomersError) {
-        console.log("Error deleting payment_customers:", paymentCustomersError.message);
-      }
+      deleteResults.push({
+        source: "payment_customers",
+        deleted: !paymentCustomersError,
+        count: paymentCount || 0,
+        error: paymentCustomersError?.message,
+      });
 
       // Delete from child_registrations
-      const { error: regError } = await supabaseAdmin
+      const { error: regError, count: regCount } = await supabaseAdmin
         .from("child_registrations")
-        .delete()
+        .delete({ count: "exact" })
         .eq("parent_id", targetUserId);
-      if (regError) {
-        console.log("Error deleting child_registrations:", regError.message);
-      }
+      deleteResults.push({
+        source: "child_registrations",
+        deleted: !regError,
+        count: regCount || 0,
+        error: regError?.message,
+      });
 
       // Delete from user_roles
-      const { error: rolesError } = await supabaseAdmin
+      const { error: rolesError, count: rolesCount } = await supabaseAdmin
         .from("user_roles")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (rolesError) {
-        console.log("Error deleting user_roles:", rolesError.message);
-      }
+      deleteResults.push({
+        source: "user_roles",
+        deleted: !rolesError,
+        count: rolesCount || 0,
+        error: rolesError?.message,
+      });
 
       // Delete from notifications
-      const { error: notifError } = await supabaseAdmin
+      const { error: notifError, count: notifCount } = await supabaseAdmin
         .from("notifications")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (notifError) {
-        console.log("Error deleting notifications:", notifError.message);
-      }
+      deleteResults.push({
+        source: "notifications",
+        deleted: !notifError,
+        count: notifCount || 0,
+        error: notifError?.message,
+      });
 
       // Delete from announcement_reads
-      const { error: announcementError } = await supabaseAdmin
+      const { error: announcementError, count: annCount } = await supabaseAdmin
         .from("announcement_reads")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (announcementError) {
-        console.log("Error deleting announcement_reads:", announcementError.message);
-      }
+      deleteResults.push({
+        source: "announcement_reads",
+        deleted: !announcementError,
+        count: annCount || 0,
+        error: announcementError?.message,
+      });
 
       // Delete from push_subscriptions
-      const { error: pushError } = await supabaseAdmin
+      const { error: pushError, count: pushCount } = await supabaseAdmin
         .from("push_subscriptions")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (pushError) {
-        console.log("Error deleting push_subscriptions:", pushError.message);
-      }
+      deleteResults.push({
+        source: "push_subscriptions",
+        deleted: !pushError,
+        count: pushCount || 0,
+        error: pushError?.message,
+      });
 
       // Delete employee_profile if exists
-      const { error: empProfileError } = await supabaseAdmin
+      const { error: empProfileError, count: empCount } = await supabaseAdmin
         .from("employee_profiles")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (empProfileError) {
-        console.log("Error deleting employee_profiles:", empProfileError.message);
-      }
+      deleteResults.push({
+        source: "employee_profiles",
+        deleted: !empProfileError,
+        count: empCount || 0,
+        error: empProfileError?.message,
+      });
 
       // Delete from profiles
-      const { error: profileError } = await supabaseAdmin
+      const { error: profileError, count: profileCount } = await supabaseAdmin
         .from("profiles")
-        .delete()
+        .delete({ count: "exact" })
         .eq("user_id", targetUserId);
-      if (profileError) {
-        console.log("Error deleting profiles:", profileError.message);
-      }
+      deleteResults.push({
+        source: "profiles",
+        deleted: !profileError,
+        count: profileCount || 0,
+        error: profileError?.message,
+      });
+    }
 
-      // Finally, attempt to delete the auth user
+    // ============ DELETE BY EMAIL (invites, contacts, pre-enrollments) ============
+    if (searchEmail) {
+      // Delete parent_invites by email
+      const { error: parentInvError, count: parentInvCount } = await supabaseAdmin
+        .from("parent_invites")
+        .delete({ count: "exact" })
+        .ilike("email", searchEmail);
+      deleteResults.push({
+        source: "parent_invites",
+        deleted: !parentInvError,
+        count: parentInvCount || 0,
+        error: parentInvError?.message,
+      });
+
+      // Delete guardian_invitations by email
+      const { error: guardianInvError, count: guardianInvCount } = await supabaseAdmin
+        .from("guardian_invitations")
+        .delete({ count: "exact" })
+        .ilike("invited_email", searchEmail);
+      deleteResults.push({
+        source: "guardian_invitations",
+        deleted: !guardianInvError,
+        count: guardianInvCount || 0,
+        error: guardianInvError?.message,
+      });
+
+      // Delete contact_submissions by email
+      const { error: contactError, count: contactCount } = await supabaseAdmin
+        .from("contact_submissions")
+        .delete({ count: "exact" })
+        .ilike("email", searchEmail);
+      deleteResults.push({
+        source: "contact_submissions",
+        deleted: !contactError,
+        count: contactCount || 0,
+        error: contactError?.message,
+      });
+
+      // Delete pre_enrollments by email
+      const { error: preEnrollError, count: preEnrollCount } = await supabaseAdmin
+        .from("pre_enrollments")
+        .delete({ count: "exact" })
+        .ilike("email", searchEmail);
+      deleteResults.push({
+        source: "pre_enrollments",
+        deleted: !preEnrollError,
+        count: preEnrollCount || 0,
+        error: preEnrollError?.message,
+      });
+    }
+
+    // ============ DELETE AUTH USER ============
+    if (targetUserId) {
       authDeleteAttempted = true;
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId);
 
@@ -255,20 +482,51 @@ serve(async (req) => {
           authUserDeleted = true;
         } else {
           console.log(`Auth delete failed for ${targetUserId}: ${deleteError.message}`);
-          // Don't throw here - we still want to report partial success
+          deleteResults.push({
+            source: "auth.users",
+            deleted: false,
+            error: deleteError.message,
+          });
         }
       } else {
         authUserDeleted = true;
         console.log(`Successfully deleted auth user: ${targetUserId}`);
+        deleteResults.push({
+          source: "auth.users",
+          deleted: true,
+        });
       }
+    } else if (searchEmail) {
+      // Email doesn't exist in auth.users
+      authUserDeleted = true;
+      deleteResults.push({
+        source: "auth.users",
+        deleted: true,
+        count: 0,
+      });
     }
 
-    // If we only have email and didn't find a userId, still try to clean up any orphaned data
-    if (!targetUserId && email) {
-      console.log(`No user ID found for email ${email}, but database records should be clean.`);
-      // The email doesn't exist in auth.users, so it should be free for registration
-      authUserDeleted = true; // It's effectively "deleted" since it doesn't exist
-    }
+    // ============ AUDIT LOG ============
+    const { data: adminProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name")
+      .eq("user_id", requestingUser.id)
+      .single();
+
+    await supabaseAdmin.from("admin_audit_logs").insert({
+      admin_id: requestingUser.id,
+      admin_email: requestingUser.email,
+      action_type: "user_deletion",
+      target_user_id: targetUserId || null,
+      target_email: originalEmail,
+      details: {
+        admin_name: adminProfile?.full_name,
+        found_by_email: foundByEmail,
+        delete_results: deleteResults,
+      },
+      success: authUserDeleted,
+      error_message: authUserDeleted ? null : "Falha ao deletar usuário do auth",
+    });
 
     return new Response(
       JSON.stringify({ 
@@ -279,8 +537,9 @@ serve(async (req) => {
         authUserDeleted,
         authDeleteAttempted,
         foundByEmail,
-        email: authUserEmail,
-        userId: targetUserId
+        email: originalEmail,
+        userId: targetUserId,
+        deleteResults,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -288,8 +547,8 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error deleting user:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erro ao deletar usuário";
+    console.error("Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erro ao processar solicitação";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
