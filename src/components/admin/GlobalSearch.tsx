@@ -92,11 +92,10 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
           .from("children")
           .select("id, full_name, class_type")
           .ilike("full_name", `%${search}%`)
-          .eq("status", "approved")
           .limit(5);
 
         if (childrenData) {
-          setChildren(childrenData.map(c => ({
+          setChildren((childrenData as unknown as Array<{ id: string; full_name: string; class_type: string }>).map(c => ({
             id: c.id,
             name: c.full_name,
             type: "child" as const,
@@ -109,12 +108,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, full_name")
-          .ilike("full_name", `%${search}%`)
           .eq("status", "approved")
+          .ilike("full_name", `%${search}%`)
           .limit(5);
 
         if (profilesData) {
-          setProfiles(profilesData.map(p => ({
+          setProfiles((profilesData as unknown as Array<{ user_id: string; full_name: string | null }>).map(p => ({
             id: p.user_id,
             name: p.full_name || "Sem nome",
             type: "staff" as const,

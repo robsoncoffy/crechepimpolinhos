@@ -21,6 +21,10 @@ import {
   Megaphone,
   MessagesSquare,
   ClipboardPen,
+  FileText,
+  CalendarOff,
+  DollarSign,
+  Clock,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import {
@@ -65,6 +69,10 @@ const menuItems = [
 ];
 
 const secondaryItems = [
+  { icon: FileText, label: "Relatórios", href: "/painel/relatorios", roles: ["admin"] },
+  { icon: CalendarOff, label: "Férias/Ausências", href: "/painel/ausencias", roles: ["admin"] },
+  { icon: DollarSign, label: "Financeiro", href: "/painel/financeiro", roles: ["admin"] },
+  { icon: Clock, label: "Ponto Eletrônico", href: "/painel/ponto", roles: ["admin"] },
   { icon: ClipboardPen, label: "Pré-Matrículas", href: "/painel/pre-matriculas", roles: ["admin"] },
   { icon: User, label: "Perfis de Usuários", href: "/painel/perfis", roles: ["admin"] },
   { icon: Users, label: "Convites de Pais", href: "/painel/convites-pais", roles: ["admin"] },

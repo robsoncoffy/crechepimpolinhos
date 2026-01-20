@@ -24,6 +24,8 @@ import AdminStaffChat from "@/pages/admin/AdminStaffChat";
 import AdminProfiles from "@/pages/admin/AdminProfiles";
 import AdminTimeClock from "@/pages/admin/AdminTimeClock";
 import AdminQuarterlyEvaluations from "@/pages/admin/AdminQuarterlyEvaluations";
+import AdminReports from "@/pages/admin/AdminReports";
+import AdminAbsences from "@/pages/admin/AdminAbsences";
 import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
 import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
@@ -178,6 +180,16 @@ function DashboardContent() {
           <Route path="/avaliacoes" element={
             <ProtectedRoute allowedRoles={["admin", "pedagogue"]}>
               <AdminQuarterlyEvaluations />
+            </ProtectedRoute>
+          } />
+          <Route path="/relatorios" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminReports />
+            </ProtectedRoute>
+          } />
+          <Route path="/ausencias" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminAbsences />
             </ProtectedRoute>
           } />
           
