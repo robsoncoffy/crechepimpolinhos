@@ -1211,6 +1211,23 @@ const ChildRegistration = () => {
                     {/* Plan Selection - Only for Private */}
                     {selectedEnrollmentType === "private" && (
                       <div className="space-y-4 pt-4 border-t">
+                        {/* Estimated Class Badge */}
+                        {watchedBirthDate && (
+                          <div className="bg-secondary/50 rounded-lg p-4 border">
+                            <div className="flex items-center gap-2">
+                              <Baby className="h-5 w-5 text-primary" />
+                              <div>
+                                <p className="text-sm font-medium">
+                                  Turma estimada: <Badge variant="secondary" className="ml-1">{estimatedClassName}</Badge>
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Baseado na data de nascimento informada. Os valores abaixo são para esta turma.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         <Label className="text-base font-medium">Plano Desejado *</Label>
                         <p className="text-sm text-muted-foreground">
                           Selecione o plano que melhor atende às necessidades da sua família.
