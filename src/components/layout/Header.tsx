@@ -70,11 +70,8 @@ export function Header() {
                 Instalar App
               </Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link to="/auth">Entrar</Link>
-            </Button>
             <Button asChild>
-              <Link to="/auth?mode=signup">Cadastrar</Link>
+              <Link to="/auth">Entrar</Link>
             </Button>
           </div>
 
@@ -94,11 +91,6 @@ export function Header() {
                 <Button variant="outline" asChild className="w-full">
                   <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
                     Entrar
-                  </Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
-                    Cadastrar
                   </Link>
                 </Button>
               </div>
