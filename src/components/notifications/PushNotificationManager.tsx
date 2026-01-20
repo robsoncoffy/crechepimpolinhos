@@ -110,12 +110,15 @@ export function PushNotificationManager() {
 
       // Save subscription to database
       const subscriptionJson = subscription.toJSON();
+      const keys = subscriptionJson.keys as { p256dh?: string; auth?: string } | undefined;
+      
       const { error } = await supabase
         .from("push_subscriptions")
         .upsert({
           user_id: user.id,
           endpoint: subscription.endpoint,
-          keys: JSON.stringify(subscriptionJson.keys),
+          p256dh: keys?.p256dh || "",
+          auth: keys?.auth || "",
         }, {
           onConflict: "user_id,endpoint",
         });

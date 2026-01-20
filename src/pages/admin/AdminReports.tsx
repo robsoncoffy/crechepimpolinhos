@@ -56,12 +56,12 @@ interface QuarterlyEvaluation {
   child_id: string;
   quarter: number;
   year: number;
-  cognitive_score: number;
-  motor_score: number;
-  social_score: number;
-  language_score: number;
-  creative_score: number;
-  children?: { full_name: string; class_type: string; plan: string };
+  cognitive_development: string | null;
+  motor_development: string | null;
+  social_emotional: string | null;
+  language_development: string | null;
+  creativity_arts: string | null;
+  children?: { full_name: string; class_type: string; plan_type: string | null };
 }
 
 export default function AdminReports() {
@@ -92,10 +92,9 @@ export default function AdminReports() {
       const { data: childrenData } = await supabase
         .from("children")
         .select("id, full_name, class_type")
-        .eq("status", "approved")
         .order("full_name");
       
-      if (childrenData) setChildren(childrenData as Child[]);
+      if (childrenData) setChildren(childrenData as unknown as Child[]);
 
       // Fetch based on active tab
       if (activeTab === "frequencia") {
@@ -132,11 +131,11 @@ export default function AdminReports() {
       if (activeTab === "desenvolvimento") {
         const { data } = await supabase
           .from("quarterly_evaluations")
-          .select("*, children(full_name, class_type, plan)")
+          .select("*, children(full_name, class_type, plan_type)")
           .order("year", { ascending: false })
           .order("quarter", { ascending: false });
         
-        if (data) setEvaluations(data as any);
+        if (data) setEvaluations(data as unknown as QuarterlyEvaluation[]);
       }
 
       if (activeTab === "financeiro") {
@@ -212,29 +211,20 @@ export default function AdminReports() {
 
   // Get Plus+ evaluations chart data
   const getEvaluationChartData = () => {
-    const plusEvaluations = evaluations.filter(e => e.children?.plan === "plus");
-    const grouped: Record<string, any> = {};
+    const plusEvaluations = evaluations.filter(e => e.children?.plan_type === "plus");
+    const grouped: Record<string, { period: string; count: number }> = {};
 
     plusEvaluations.forEach(e => {
       const key = `${e.year}-Q${e.quarter}`;
       if (!grouped[key]) {
-        grouped[key] = { period: key, cognitivo: 0, motor: 0, social: 0, linguagem: 0, criatividade: 0, count: 0 };
+        grouped[key] = { period: key, count: 0 };
       }
-      grouped[key].cognitivo += e.cognitive_score;
-      grouped[key].motor += e.motor_score;
-      grouped[key].social += e.social_score;
-      grouped[key].linguagem += e.language_score;
-      grouped[key].criatividade += e.creative_score;
       grouped[key].count++;
     });
 
-    return Object.values(grouped).map((g: any) => ({
+    return Object.values(grouped).map((g) => ({
       period: g.period,
-      Cognitivo: (g.cognitivo / g.count).toFixed(1),
-      Motor: (g.motor / g.count).toFixed(1),
-      Social: (g.social / g.count).toFixed(1),
-      Linguagem: (g.linguagem / g.count).toFixed(1),
-      Criatividade: (g.criatividade / g.count).toFixed(1),
+      Avaliações: g.count,
     }));
   };
 
@@ -317,8 +307,8 @@ export default function AdminReports() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas as turmas</SelectItem>
-                        {Object.entries(CLASS_TYPE_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label as string}</SelectItem>
+                        {Object.entries(classTypeLabels).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -450,7 +440,7 @@ export default function AdminReports() {
                   Média por área de desenvolvimento
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={() => exportToCSV(evaluations.filter(e => e.children?.plan === "plus"), "avaliacoes_plus")}>
+              <Button variant="outline" size="sm" onClick={() => exportToCSV(evaluations.filter(e => e.children?.plan_type === "plus"), "avaliacoes_plus")}>
                 <Download className="w-4 h-4 mr-2" />
                 CSV
               </Button>
@@ -462,14 +452,10 @@ export default function AdminReports() {
                     <BarChart data={evaluationChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="period" />
-                      <YAxis domain={[0, 5]} />
+                      <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="Cognitivo" fill="#3b82f6" />
-                      <Bar dataKey="Motor" fill="#22c55e" />
-                      <Bar dataKey="Social" fill="#f59e0b" />
-                      <Bar dataKey="Linguagem" fill="#8b5cf6" />
-                      <Bar dataKey="Criatividade" fill="#ec4899" />
+                      <Bar dataKey="Avaliações" fill="hsl(var(--primary))" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -491,28 +477,27 @@ export default function AdminReports() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Aluno</TableHead>
-                    <TableHead>Trimestre</TableHead>
-                    <TableHead className="text-center">Cognitivo</TableHead>
-                    <TableHead className="text-center">Motor</TableHead>
-                    <TableHead className="text-center">Social</TableHead>
-                    <TableHead className="text-center">Linguagem</TableHead>
-                    <TableHead className="text-center">Criatividade</TableHead>
+                    <TableHead>Turma</TableHead>
+                    <TableHead className="text-center">Trimestre</TableHead>
+                    <TableHead className="text-center">Ano</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {evaluations.filter(e => e.children?.plan === "plus").map((evaluation) => (
+                  {evaluations.filter(e => e.children?.plan_type === "plus").map((evaluation) => (
                     <TableRow key={evaluation.id}>
                       <TableCell className="font-medium">{evaluation.children?.full_name}</TableCell>
-                      <TableCell>{evaluation.quarter}º Tri/{evaluation.year}</TableCell>
-                      <TableCell className="text-center">{evaluation.cognitive_score}</TableCell>
-                      <TableCell className="text-center">{evaluation.motor_score}</TableCell>
-                      <TableCell className="text-center">{evaluation.social_score}</TableCell>
-                      <TableCell className="text-center">{evaluation.language_score}</TableCell>
-                      <TableCell className="text-center">{evaluation.creative_score}</TableCell>
+                      <TableCell>{classTypeLabels[evaluation.children?.class_type as keyof typeof classTypeLabels] || evaluation.children?.class_type}</TableCell>
+                      <TableCell className="text-center">{evaluation.quarter}º Trimestre</TableCell>
+                      <TableCell className="text-center">{evaluation.year}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              {evaluations.filter(e => e.children?.plan_type === "plus").length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma avaliação Plus+ encontrada.
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
