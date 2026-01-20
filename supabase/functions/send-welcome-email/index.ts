@@ -116,7 +116,7 @@ serve(async (req: Request): Promise<Response> => {
     const appUrl = req.headers.get("origin") || "https://crechepimpolinhos.lovable.app";
 
     const emailResponse = await resend.emails.send({
-      from: "Creche Pimpolinhos <onboarding@resend.dev>",
+      from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
       to: [parentEmail],
       subject: `🎉 ${childName} foi aprovado(a) na Creche Pimpolinhos!`,
       html: `

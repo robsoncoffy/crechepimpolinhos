@@ -133,7 +133,7 @@ serve(async (req: Request): Promise<Response> => {
     const inviteUrl = `${req.headers.get("origin") || "https://crechepimpolinhos.lovable.app"}/aceitar-convite?token=${invitation.token}`;
 
     const emailResponse = await resend.emails.send({
-      from: "Creche Pimpolinhos <onboarding@resend.dev>",
+      from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
       to: [invitedEmail],
       subject: `${inviterName} te convidou para ser responsável por ${childName}`,
       html: `
