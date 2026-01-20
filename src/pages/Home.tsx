@@ -131,7 +131,7 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-4 mb-12">
               <Button size="lg" className="text-lg px-8 py-6" asChild>
-                <Link to="/auth?mode=signup">
+                <Link to="/auth">
                   Área dos Pais
                   <ChevronRight className="w-5 h-5 ml-2" />
                 </Link>
@@ -461,8 +461,8 @@ export default function Home() {
               </div>
 
               <Button size="lg" asChild>
-                <Link to="/auth?mode=signup">
-                  Criar minha conta
+                <Link to="/pre-matricula">
+                  Fazer Pré-Matrícula
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </Link>
               </Button>
