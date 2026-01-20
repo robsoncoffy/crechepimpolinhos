@@ -50,7 +50,7 @@ serve(async (req) => {
     }
 
     // Get userId OR email from request body
-    const { userId, email } = await req.json();
+    const { userId, email, checkOnly } = await req.json();
     
     if (!userId && !email) {
       throw new Error("ID do usuário ou email não fornecido");
@@ -107,6 +107,21 @@ serve(async (req) => {
         authUserEmail = targetUser.user.email || authUserEmail;
         console.log(`Found auth user: ${authUserEmail}`);
       }
+    }
+
+    // If checkOnly is true, just return the email info without deleting
+    if (checkOnly) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          email: authUserEmail,
+          userId: targetUserId
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
     }
 
     // Delete from related tables first (in order of dependencies)

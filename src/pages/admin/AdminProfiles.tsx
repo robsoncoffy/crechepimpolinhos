@@ -94,6 +94,7 @@ export default function AdminProfiles() {
   const [liberateEmailDialogOpen, setLiberateEmailDialogOpen] = useState(false);
   const [emailToLiberate, setEmailToLiberate] = useState("");
   const [liberatingEmail, setLiberatingEmail] = useState(false);
+  const [userToDeleteEmail, setUserToDeleteEmail] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -221,14 +222,27 @@ export default function AdminProfiles() {
     }
   };
 
-  const openDeleteDialog = (profile: Profile) => {
+  const openDeleteDialog = async (profile: Profile) => {
     // Prevent opening delete dialog for self
     if (profile.user_id === user?.id) {
       toast.error("Você não pode deletar sua própria conta");
       return;
     }
     setUserToDelete(profile);
+    setUserToDeleteEmail(null);
     setDeleteDialogOpen(true);
+
+    // Fetch email from profiles or edge function
+    try {
+      const { data } = await supabase.functions.invoke("delete-user", {
+        body: { userId: profile.user_id, checkOnly: true },
+      });
+      if (data?.email) {
+        setUserToDeleteEmail(data.email);
+      }
+    } catch (error) {
+      console.error("Error fetching user email:", error);
+    }
   };
 
   const getParentProfiles = () => {
@@ -669,6 +683,13 @@ export default function AdminProfiles() {
             </DialogDescription>
           </DialogHeader>
           
+          {userToDeleteEmail && (
+            <div className="p-3 bg-muted rounded-lg border flex items-center gap-2">
+              <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm font-medium break-all">{userToDeleteEmail}</span>
+            </div>
+          )}
+
           <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
             <p className="text-sm text-destructive font-medium mb-2">Esta ação irá:</p>
             <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
