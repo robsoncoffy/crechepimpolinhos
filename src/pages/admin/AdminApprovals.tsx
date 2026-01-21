@@ -447,8 +447,20 @@ export default function AdminApprovals() {
         .eq("user_id", selectedRegistration.parent_id)
         .single();
 
-      // Use email and phone from the registration data (already fetched from parent_invites)
-      const parentEmail = selectedRegistration.parent_email || '';
+      // Fetch parent's email from auth via edge function or parent_invites
+      // Since we can't query auth.users directly, we use parent_invites which has the email
+      let parentEmail = selectedRegistration.parent_email || '';
+      
+      // If email not in parent_invites, try to get it from parent_invites again by used_by
+      if (!parentEmail) {
+        const { data: inviteData } = await supabase
+          .from("parent_invites")
+          .select("email")
+          .eq("used_by", selectedRegistration.parent_id)
+          .maybeSingle();
+        parentEmail = inviteData?.email || '';
+      }
+      
       const parentPhone = parentProfile?.phone || selectedRegistration.parent_phone || '';
 
       // Fetch emergency contact
