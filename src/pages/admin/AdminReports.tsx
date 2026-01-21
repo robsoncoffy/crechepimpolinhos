@@ -10,12 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2, Download, Briefcase } from "lucide-react";
+import { FileText, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2, Download, Briefcase, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classTypeLabels } from "@/lib/constants";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 import EmployeeFrequencyReport from "@/components/admin/EmployeeFrequencyReport";
 import EmployeeRegistrationReport from "@/components/admin/EmployeeRegistrationReport";
+import EmployeeOvertimeReport from "@/components/admin/EmployeeOvertimeReport";
 import { ExportButtons, exportToCSV } from "@/components/admin/ReportExport";
 import {
   BarChart,
@@ -234,10 +235,14 @@ export default function AdminReports() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="frequencia-funcionarios" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Frequência RH</span>
+          </TabsTrigger>
+          <TabsTrigger value="banco-horas" className="flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            <span className="hidden sm:inline">Banco de Horas</span>
           </TabsTrigger>
           <TabsTrigger value="ficha-cadastral" className="flex items-center gap-2">
             <Briefcase className="w-4 h-4" />
@@ -336,6 +341,11 @@ export default function AdminReports() {
         {/* Tab: Frequência Funcionários */}
         <TabsContent value="frequencia-funcionarios" className="mt-6">
           <EmployeeFrequencyReport dateRange={dateRange} />
+        </TabsContent>
+
+        {/* Tab: Banco de Horas */}
+        <TabsContent value="banco-horas" className="mt-6">
+          <EmployeeOvertimeReport />
         </TabsContent>
 
         {/* Tab: Ficha Cadastral */}
