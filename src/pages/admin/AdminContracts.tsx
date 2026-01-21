@@ -227,7 +227,7 @@ export default function AdminContracts() {
       // Get parent profiles
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, cpf, rg, phone")
+        .select("user_id, full_name, cpf, rg, phone, email")
         .in("user_id", parentIds);
 
       // Build profile map
@@ -255,7 +255,8 @@ export default function AdminContracts() {
           created_at: child.created_at,
           parent_id: parentId,
           parent_name: profile?.full_name || "Responsável não vinculado",
-          parent_email: "", // Will be fetched from auth when sending contract
+          // Prefer email saved in profiles; fallback will be resolved on preview open if missing
+          parent_email: profile?.email || "",
           parent_cpf: profile?.cpf || null,
           parent_rg: profile?.rg || null,
           parent_phone: profile?.phone || null,
@@ -269,8 +270,25 @@ export default function AdminContracts() {
     }
   }
 
-  function openContractPreview(child: ChildWithoutContract) {
-    setSelectedChildForContract(child);
+  async function openContractPreview(child: ChildWithoutContract) {
+    let parentEmail = child.parent_email;
+
+    // If email is missing in the profile, resolve from the auth user record (admin-only)
+    if (!parentEmail && child.parent_id) {
+      try {
+        const { data, error } = await supabase.functions.invoke("get-user-email", {
+          body: { userId: child.parent_id },
+        });
+
+        if (!error && data?.email) {
+          parentEmail = data.email;
+        }
+      } catch (e) {
+        console.error("Error resolving parent email:", e);
+      }
+    }
+
+    setSelectedChildForContract({ ...child, parent_email: parentEmail || "" });
     setContractPreviewOpen(true);
   }
 
