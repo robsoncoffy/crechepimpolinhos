@@ -149,6 +149,9 @@ export default function AdminContracts() {
   const [deletingContract, setDeletingContract] = useState<string | null>(null);
   const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [childToDelete, setChildToDelete] = useState<ChildWithoutContract | null>(null);
+  const [deleteChildDialogOpen, setDeleteChildDialogOpen] = useState(false);
+  const [deletingChild, setDeletingChild] = useState(false);
 
   useEffect(() => {
     fetchContracts();
@@ -491,6 +494,42 @@ export default function AdminContracts() {
     }
   }
 
+  function confirmDeleteChild(child: ChildWithoutContract) {
+    setChildToDelete(child);
+    setDeleteChildDialogOpen(true);
+  }
+
+  async function handleDeleteChild() {
+    if (!childToDelete) return;
+    
+    setDeletingChild(true);
+    try {
+      // First remove parent-child links
+      await supabase
+        .from("parent_children")
+        .delete()
+        .eq("child_id", childToDelete.id);
+
+      // Then delete the child
+      const { error } = await supabase
+        .from("children")
+        .delete()
+        .eq("id", childToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Criança removida com sucesso!");
+      setDeleteChildDialogOpen(false);
+      setChildToDelete(null);
+      fetchChildrenWithoutContract();
+    } catch (error) {
+      console.error("Error deleting child:", error);
+      toast.error("Erro ao remover criança");
+    } finally {
+      setDeletingChild(false);
+    }
+  }
+
   const filteredContracts = contracts.filter((contract) => {
     if (statusFilter === "all") return true;
     return contract.status === statusFilter;
@@ -826,13 +865,24 @@ export default function AdminContracts() {
                             {format(new Date(child.created_at), "dd/MM/yyyy", { locale: ptBR })}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              onClick={() => openContractPreview(child)}
-                            >
-                              <Send className="w-4 h-4 mr-2" />
-                              Gerar Contrato
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => openContractPreview(child)}
+                              >
+                                <Send className="w-4 h-4 mr-2" />
+                                Gerar Contrato
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => confirmDeleteChild(child)}
+                                title="Remover criança"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -991,6 +1041,50 @@ export default function AdminContracts() {
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Excluir
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Child Confirmation Dialog */}
+      <Dialog open={deleteChildDialogOpen} onOpenChange={setDeleteChildDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Remover Criança
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover <strong>{childToDelete?.full_name}</strong> do sistema?
+              <br /><br />
+              Esta ação irá remover o cadastro da criança e suas vinculações. 
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteChildDialogOpen(false)}
+              disabled={deletingChild}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteChild}
+              disabled={deletingChild}
+            >
+              {deletingChild ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Remover
                 </>
               )}
             </Button>
