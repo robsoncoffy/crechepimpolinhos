@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { DemoModeToggle, DemoRole } from "@/components/demo/DemoModeToggle";
+import { DemoModeToggle } from "@/components/demo/DemoModeToggle";
+import type { DemoRole } from "@/components/demo/DemoModeToggle";
 import { DemoParentDashboard } from "@/components/demo/DemoParentDashboard";
 import { DemoTeacherDashboard } from "@/components/demo/DemoTeacherDashboard";
 import { DemoAdminDashboard } from "@/components/demo/DemoAdminDashboard";
