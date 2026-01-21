@@ -35,6 +35,8 @@ import {
   Sparkles,
   Loader2,
   RefreshCw,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
@@ -66,24 +68,34 @@ const getPickupBadgeInfo = (notification: typeof mockChildren[0]["pickupNotifica
   }
 };
 
-// Mock messages for parent chat
-const mockParentMessages: Record<string, Array<{ id: string; content: string; isOwn: boolean; time: string; sender: string }>> = {
+// Message interface with read status
+interface DemoMessage {
+  id: string;
+  content: string;
+  isOwn: boolean;
+  time: string;
+  sender: string;
+  isRead: boolean;
+}
+
+// Mock messages for parent chat with isRead status
+const initialParentMessages: Record<string, DemoMessage[]> = {
   "1": [
-    { id: "m1", content: "Bom dia, professora! A Maria tomou remédio hoje de manhã.", sender: "Mãe da Maria", isOwn: false, time: "08:15" },
-    { id: "m2", content: "Ok, obrigada por avisar! Vou ficar atenta.", sender: "Prof. Ana", isOwn: true, time: "08:20" },
-    { id: "m3", content: "Ela está mais animada hoje! ❤️", sender: "Prof. Ana", isOwn: true, time: "14:30" },
+    { id: "m1", content: "Bom dia, professora! A Maria tomou remédio hoje de manhã.", sender: "Mãe da Maria", isOwn: false, time: "08:15", isRead: true },
+    { id: "m2", content: "Ok, obrigada por avisar! Vou ficar atenta.", sender: "Prof. Ana", isOwn: true, time: "08:20", isRead: true },
+    { id: "m3", content: "Ela está mais animada hoje! ❤️", sender: "Prof. Ana", isOwn: true, time: "14:30", isRead: true },
   ],
   "2": [
-    { id: "m4", content: "Professora, o João pode beber suco de laranja?", sender: "Pai do João", isOwn: false, time: "09:00" },
-    { id: "m5", content: "João está muito quieto hoje, está tudo bem em casa?", sender: "Pai do João", isOwn: false, time: "11:30" },
+    { id: "m4", content: "Professora, o João pode beber suco de laranja?", sender: "Pai do João", isOwn: false, time: "09:00", isRead: false },
+    { id: "m5", content: "João está muito quieto hoje, está tudo bem em casa?", sender: "Pai do João", isOwn: false, time: "11:30", isRead: false },
   ],
   "3": [],
   "4": [
-    { id: "m6", content: "Lucas vai precisar trocar a fralda com mais frequência hoje.", sender: "Mãe do Lucas", isOwn: false, time: "07:45" },
-    { id: "m7", content: "Entendido! Cuidarei disso. 👍", sender: "Prof. Ana", isOwn: true, time: "07:50" },
+    { id: "m6", content: "Lucas vai precisar trocar a fralda com mais frequência hoje.", sender: "Mãe do Lucas", isOwn: false, time: "07:45", isRead: true },
+    { id: "m7", content: "Entendido! Cuidarei disso. 👍", sender: "Prof. Ana", isOwn: true, time: "07:50", isRead: true },
   ],
   "5": [
-    { id: "m8", content: "Sofia dormiu tarde ontem, pode ficar sonolenta.", sender: "Pai da Sofia", isOwn: false, time: "08:00" },
+    { id: "m8", content: "Sofia dormiu tarde ontem, pode ficar sonolenta.", sender: "Pai da Sofia", isOwn: false, time: "08:00", isRead: false },
   ],
   "6": [],
 };
@@ -261,19 +273,32 @@ export function DemoTeacherDashboard() {
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [selectedChatChild, setSelectedChatChild] = useState<string | null>(null);
   const [chatMessage, setChatMessage] = useState("");
-  const [chatMessages, setChatMessages] = useState(mockParentMessages);
+  const [chatMessages, setChatMessages] = useState<Record<string, DemoMessage[]>>(initialParentMessages);
   const [editMode, setEditMode] = useState(false);
   const [tookMedicine, setTookMedicine] = useState(false);
+
+  // Mark messages as read when selecting a child
+  const handleSelectChatChild = (childId: string) => {
+    setSelectedChatChild(childId);
+    // Mark all messages from that child as read
+    setChatMessages((prev) => ({
+      ...prev,
+      [childId]: (prev[childId] || []).map((msg) => 
+        msg.isOwn ? msg : { ...msg, isRead: true }
+      ),
+    }));
+  };
 
   const handleSendMessage = () => {
     if (!chatMessage.trim() || !selectedChatChild) return;
     
-    const newMessage = {
+    const newMessage: DemoMessage = {
       id: `new-${Date.now()}`,
       content: chatMessage,
       sender: "Prof. Ana",
       isOwn: true,
       time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      isRead: false, // Will be marked as read when parent views
     };
     
     setChatMessages((prev) => ({
@@ -283,8 +308,9 @@ export function DemoTeacherDashboard() {
     setChatMessage("");
   };
 
+  // Count only unread messages (not own and not read)
   const getUnreadCount = (childId: string) => {
-    return (chatMessages[childId] || []).filter((m) => !m.isOwn).length;
+    return (chatMessages[childId] || []).filter((m) => !m.isOwn && !m.isRead).length;
   };
 
   const completedCount = mockChildren.filter((c) => c.hasRecord).length;
@@ -740,7 +766,7 @@ export function DemoTeacherDashboard() {
                         return (
                           <div
                             key={child.id}
-                            onClick={() => setSelectedChatChild(child.id)}
+                            onClick={() => handleSelectChatChild(child.id)}
                             className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                               selectedChatChild === child.id 
                                 ? "bg-primary/10 border-primary" 
@@ -811,9 +837,20 @@ export function DemoTeacherDashboard() {
                                       <p className="text-xs font-medium mb-1 opacity-70">{msg.sender}</p>
                                     )}
                                     <p className="text-sm">{msg.content}</p>
-                                    <p className={`text-xs mt-1 ${msg.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                                      {msg.time}
-                                    </p>
+                                    <div className={`flex items-center gap-1 mt-1 ${msg.isOwn ? "justify-end" : ""}`}>
+                                      <span className={`text-xs ${msg.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                        {msg.time}
+                                      </span>
+                                      {msg.isOwn && (
+                                        <span className={msg.isRead ? "text-pimpo-blue" : "text-primary-foreground/70"}>
+                                          {msg.isRead ? (
+                                            <CheckCheck className="w-3.5 h-3.5" />
+                                          ) : (
+                                            <Check className="w-3.5 h-3.5" />
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               ))
@@ -826,12 +863,13 @@ export function DemoTeacherDashboard() {
                             childName={mockChildren.find(c => c.id === selectedChatChild)?.name.split(" ")[0] || ""}
                             onSelect={(suggestion) => {
                               setChatMessage("");
-                              const newMessage = {
+                              const newMessage: DemoMessage = {
                                 id: `new-${Date.now()}`,
                                 content: suggestion,
                                 sender: "Prof. Ana",
                                 isOwn: true,
                                 time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                                isRead: false,
                               };
                               setChatMessages((prev) => ({
                                 ...prev,
