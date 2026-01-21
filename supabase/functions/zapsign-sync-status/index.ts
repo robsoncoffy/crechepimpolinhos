@@ -7,6 +7,31 @@ const corsHeaders = {
 };
 
 const ZAPSIGN_API_URL = "https://api.zapsign.com.br/api/v1";
+const ASAAS_API_URL = "https://api.asaas.com/v3";
+
+// Pricing matrix: prices[classType][planType]
+const PRICES: Record<string, Record<string, number>> = {
+  bercario: {
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
+  },
+  maternal: {
+    basico: 749.90,
+    intermediario: 1099.90,
+    plus: 1499.90,
+  },
+  jardim: {
+    basico: 649.90,
+    intermediario: 949.90,
+    plus: 1299.90,
+  },
+};
+
+function getContractValue(classType: string | null, planType: string | null): number {
+  if (!classType || !planType) return 0;
+  return PRICES[classType]?.[planType] ?? 0;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -26,7 +51,28 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const asaasRequest = async (endpoint: string, method: string, body?: any) => {
+      const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "access_token": asaasApiKey,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("Asaas API error:", data);
+        throw new Error(data.errors?.[0]?.description || "Erro na API do Asaas");
+      }
+      
+      return data;
+    };
 
     const { contractId } = await req.json();
 
@@ -75,7 +121,6 @@ serve(async (req) => {
 
     if (docData.status === 'signed') {
       newStatus = 'signed';
-      // Get signed_at from signers
       if (docData.signers && docData.signers.length > 0) {
         signed_at = docData.signers[0].signed_at || signed_at;
       }
@@ -104,6 +149,125 @@ serve(async (req) => {
       }
 
       console.log(`Contract ${contractId} synced: ${contract.status} -> ${newStatus}`);
+
+      // If contract was signed, create Asaas subscription
+      if (newStatus === 'signed' && contract.child_id && contract.parent_id) {
+        console.log("Creating Asaas subscription for signed contract...");
+        
+        try {
+          // Check if subscription already exists for this child
+          const { data: existingSubscription } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('child_id', contract.child_id)
+            .eq('status', 'active')
+            .single();
+
+          if (existingSubscription) {
+            console.log("Subscription already exists for this child, skipping creation");
+          } else {
+            // Get parent profile info
+            const { data: parentProfile } = await supabase
+              .from('profiles')
+              .select('full_name, cpf, phone, email')
+              .eq('user_id', contract.parent_id)
+              .single();
+
+            if (parentProfile) {
+              // Check if customer already exists
+              let customerId: string | null = null;
+              
+              const { data: existingCustomer } = await supabase
+                .from('payment_customers')
+                .select('asaas_customer_id')
+                .eq('parent_id', contract.parent_id)
+                .single();
+
+              if (existingCustomer) {
+                customerId = existingCustomer.asaas_customer_id;
+                console.log("Using existing customer:", customerId);
+              } else {
+                // Create new customer in Asaas
+                console.log("Creating new customer in Asaas...");
+                const customer = await asaasRequest("/customers", "POST", {
+                  name: parentProfile.full_name,
+                  email: parentProfile.email,
+                  cpfCnpj: parentProfile.cpf?.replace(/\D/g, ""),
+                  phone: parentProfile.phone?.replace(/\D/g, ""),
+                  externalReference: contract.parent_id,
+                });
+                
+                customerId = customer.id;
+                
+                await supabase.from("payment_customers").insert({
+                  parent_id: contract.parent_id,
+                  asaas_customer_id: customer.id,
+                });
+                console.log("Created new customer:", customerId);
+              }
+
+              // Calculate subscription value from contract
+              const subscriptionValue = getContractValue(contract.class_type, contract.plan_type);
+              
+              if (subscriptionValue > 0 && customerId) {
+                // Calculate end date (December of current year)
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const endDate = new Date(currentYear, 11, 31); // December 31
+                
+                // Calculate next due date (day 10 of next month)
+                const nextDueDate = new Date();
+                nextDueDate.setDate(10);
+                if (nextDueDate <= new Date()) {
+                  nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+                }
+
+                console.log(`Creating subscription: value=${subscriptionValue}, endDate=${endDate.toISOString()}`);
+
+                // Create subscription in Asaas with end date
+                const subscription = await asaasRequest("/subscriptions", "POST", {
+                  customer: customerId,
+                  billingType: "UNDEFINED",
+                  value: subscriptionValue,
+                  nextDueDate: nextDueDate.toISOString().split("T")[0],
+                  cycle: "MONTHLY",
+                  description: `Mensalidade ${contract.child_name} - ${contract.class_type} ${contract.plan_type}`,
+                  externalReference: contract.child_id,
+                  endDate: endDate.toISOString().split("T")[0],
+                });
+
+                console.log("Asaas subscription created:", subscription.id);
+
+                // Save to database
+                await supabase.from("subscriptions").insert({
+                  child_id: contract.child_id,
+                  parent_id: contract.parent_id,
+                  asaas_subscription_id: subscription.id,
+                  value: subscriptionValue,
+                  billing_day: 10,
+                  status: "active",
+                });
+
+                console.log("Subscription saved to database");
+
+                // Notify about subscription creation
+                await supabase.from('notifications').insert({
+                  user_id: contract.parent_id,
+                  title: '💳 Cobrança Configurada',
+                  message: `Sua assinatura mensal de R$ ${subscriptionValue.toFixed(2).replace('.', ',')} para ${contract.child_name} foi configurada.`,
+                  type: 'subscription_created',
+                  link: '/painel-responsavel',
+                });
+              } else {
+                console.log("Could not create subscription: value=", subscriptionValue, "customerId=", customerId);
+              }
+            }
+          }
+        } catch (subscriptionError) {
+          console.error("Failed to create Asaas subscription:", subscriptionError);
+          // Don't throw - we still want to process the contract status update
+        }
+      }
 
       // Create notification for admins if status changed to signed
       if (newStatus === 'signed') {

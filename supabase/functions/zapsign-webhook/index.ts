@@ -6,11 +6,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const ASAAS_API_URL = "https://api.asaas.com/v3";
+
+// Pricing matrix: prices[classType][planType]
+const PRICES: Record<string, Record<string, number>> = {
+  bercario: {
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
+  },
+  maternal: {
+    basico: 749.90,
+    intermediario: 1099.90,
+    plus: 1499.90,
+  },
+  jardim: {
+    basico: 649.90,
+    intermediario: 949.90,
+    plus: 1299.90,
+  },
+};
+
+function getContractValue(classType: string | null, planType: string | null): number {
+  if (!classType || !planType) return 0;
+  return PRICES[classType]?.[planType] ?? 0;
+}
+
 interface ZapSignWebhookPayload {
   event_type: string;
-  // ZapSign sends doc token as "token", not "doc_token"
   token: string;
-  doc_token?: string; // fallback for backwards compatibility
+  doc_token?: string;
   signer_token?: string;
   signed_at?: string;
   refused_at?: string;
@@ -31,12 +56,10 @@ interface ZapSignWebhookPayload {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed' }),
@@ -47,16 +70,35 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const asaasApiKey = Deno.env.get('ASAAS_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const asaasRequest = async (endpoint: string, method: string, body?: any) => {
+      const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "access_token": asaasApiKey,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("Asaas API error:", data);
+        throw new Error(data.errors?.[0]?.description || "Erro na API do Asaas");
+      }
+      
+      return data;
+    };
 
     const payload: ZapSignWebhookPayload = await req.json();
     console.log("Received ZapSign webhook:", JSON.stringify(payload, null, 2));
 
-    // ZapSign sends doc token as "token", not "doc_token"
     const doc_token = payload.token || payload.doc_token;
     const event_type = payload.event_type;
     
-    // Get signed_at from signer_who_signed or signers array
     const signed_at = payload.signer_who_signed?.signed_at || 
                       payload.signers?.[0]?.signed_at ||
                       payload.signed_at;
@@ -71,7 +113,6 @@ serve(async (req) => {
     
     console.log(`Processing webhook: event_type=${event_type}, doc_token=${doc_token}`);
 
-    // Find the contract by doc_token
     const { data: contract, error: findError } = await supabase
       .from('enrollment_contracts')
       .select('*')
@@ -94,7 +135,6 @@ serve(async (req) => {
     let notificationMessage: string;
     let notificationType: string;
 
-    // Process different event types
     switch (event_type) {
       case 'doc_signed':
       case 'signer_signed':
@@ -137,7 +177,6 @@ serve(async (req) => {
         );
     }
 
-    // Update contract status
     const { error: updateError } = await supabase
       .from('enrollment_contracts')
       .update(updateData)
@@ -149,6 +188,113 @@ serve(async (req) => {
     }
 
     console.log(`Contract ${contract.id} updated to status: ${newStatus}`);
+
+    // If contract was signed, create Asaas subscription
+    if (newStatus === 'signed' && contract.child_id && contract.parent_id) {
+      console.log("Creating Asaas subscription for signed contract...");
+      
+      try {
+        // Get parent profile info
+        const { data: parentProfile } = await supabase
+          .from('profiles')
+          .select('full_name, cpf, phone, email')
+          .eq('user_id', contract.parent_id)
+          .single();
+
+        if (parentProfile) {
+          // Check if customer already exists
+          let customerId: string | null = null;
+          
+          const { data: existingCustomer } = await supabase
+            .from('payment_customers')
+            .select('asaas_customer_id')
+            .eq('parent_id', contract.parent_id)
+            .single();
+
+          if (existingCustomer) {
+            customerId = existingCustomer.asaas_customer_id;
+            console.log("Using existing customer:", customerId);
+          } else {
+            // Create new customer in Asaas
+            console.log("Creating new customer in Asaas...");
+            const customer = await asaasRequest("/customers", "POST", {
+              name: parentProfile.full_name,
+              email: parentProfile.email,
+              cpfCnpj: parentProfile.cpf?.replace(/\D/g, ""),
+              phone: parentProfile.phone?.replace(/\D/g, ""),
+              externalReference: contract.parent_id,
+            });
+            
+            customerId = customer.id;
+            
+            await supabase.from("payment_customers").insert({
+              parent_id: contract.parent_id,
+              asaas_customer_id: customer.id,
+            });
+            console.log("Created new customer:", customerId);
+          }
+
+          // Calculate subscription value from contract
+          const subscriptionValue = getContractValue(contract.class_type, contract.plan_type);
+          
+          if (subscriptionValue > 0 && customerId) {
+            // Calculate end date (December of current year)
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const endDate = new Date(currentYear, 11, 31); // December 31
+            
+            // Calculate next due date (day 10 of next month)
+            const nextDueDate = new Date();
+            nextDueDate.setDate(10);
+            if (nextDueDate <= new Date()) {
+              nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+            }
+
+            console.log(`Creating subscription: value=${subscriptionValue}, endDate=${endDate.toISOString()}`);
+
+            // Create subscription in Asaas with end date
+            const subscription = await asaasRequest("/subscriptions", "POST", {
+              customer: customerId,
+              billingType: "UNDEFINED",
+              value: subscriptionValue,
+              nextDueDate: nextDueDate.toISOString().split("T")[0],
+              cycle: "MONTHLY",
+              description: `Mensalidade ${contract.child_name} - ${contract.class_type} ${contract.plan_type}`,
+              externalReference: contract.child_id,
+              endDate: endDate.toISOString().split("T")[0],
+            });
+
+            console.log("Asaas subscription created:", subscription.id);
+
+            // Save to database
+            await supabase.from("subscriptions").insert({
+              child_id: contract.child_id,
+              parent_id: contract.parent_id,
+              asaas_subscription_id: subscription.id,
+              value: subscriptionValue,
+              billing_day: 10,
+              status: "active",
+            });
+
+            console.log("Subscription saved to database");
+
+            // Notify about subscription creation
+            await supabase.from('notifications').insert({
+              user_id: contract.parent_id,
+              title: '💳 Cobrança Configurada',
+              message: `Sua assinatura mensal de R$ ${subscriptionValue.toFixed(2).replace('.', ',')} para ${contract.child_name} foi configurada.`,
+              type: 'subscription_created',
+              link: '/painel-responsavel',
+            });
+          } else {
+            console.log("Could not create subscription: value=", subscriptionValue, "customerId=", customerId);
+          }
+        }
+      } catch (subscriptionError) {
+        console.error("Failed to create Asaas subscription:", subscriptionError);
+        // Don't throw - we still want to process the contract status update
+      }
+    }
 
     // Notify parent
     const { error: parentNotifError } = await supabase
@@ -214,7 +360,6 @@ serve(async (req) => {
         console.warn("Failed to notify admins:", adminNotifError);
       }
 
-      // Send push notifications to all admins
       for (const admin of admins) {
         try {
           const supabasePublicUrl = Deno.env.get('SUPABASE_URL')!;
