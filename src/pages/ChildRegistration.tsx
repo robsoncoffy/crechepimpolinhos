@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -503,6 +503,50 @@ const ChildRegistration = () => {
     }
   };
 
+  const onInvalid = (formErrors: FieldErrors<RegistrationFormData>) => {
+    const errorKeys = Object.keys(formErrors);
+    const firstKey = errorKeys[0] as keyof RegistrationFormData | undefined;
+
+    const goToTabForField = (field?: keyof RegistrationFormData) => {
+      if (!field) return;
+
+      const basicFields: (keyof RegistrationFormData)[] = ["firstName", "lastName", "birthDate"];
+      const addressFields: (keyof RegistrationFormData)[] = [
+        "street",
+        "number",
+        "complement",
+        "neighborhood",
+        "city",
+        "state",
+        "zipCode",
+      ];
+      const documentsFields: (keyof RegistrationFormData)[] = ["cpf", "rg", "susCard"];
+      const healthFields: (keyof RegistrationFormData)[] = [
+        "allergies",
+        "medications",
+        "continuousDoctors",
+        "privateDoctors",
+      ];
+      const authorizedFields: (keyof RegistrationFormData)[] = ["authorizedPickups"];
+      const enrollmentFields: (keyof RegistrationFormData)[] = ["enrollmentType", "planType"];
+
+      if (basicFields.includes(field)) setActiveTab("basic");
+      else if (addressFields.includes(field)) setActiveTab("address");
+      else if (documentsFields.includes(field)) setActiveTab("documents");
+      else if (healthFields.includes(field)) setActiveTab("health");
+      else if (authorizedFields.includes(field)) setActiveTab("authorized");
+      else if (enrollmentFields.includes(field)) setActiveTab("enrollment");
+    };
+
+    goToTabForField(firstKey);
+
+    toast({
+      title: "Campos obrigatórios",
+      description: "Revise os campos com * (obrigatórios) antes de enviar.",
+      variant: "destructive",
+    });
+  };
+
   if (authLoading) {
     return (
       <PublicLayout>
@@ -611,7 +655,7 @@ const ChildRegistration = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-6">
                 <TabsTrigger value="basic" className="flex items-center gap-1.5">
