@@ -215,15 +215,16 @@ serve(async (req) => {
             customerId = existingCustomer.asaas_customer_id;
             console.log("Using existing customer:", customerId);
           } else {
-            // Create new customer in Asaas
+            // Create new customer in Asaas (omit phone to avoid validation issues)
             console.log("Creating new customer in Asaas...");
-            const customer = await asaasRequest("/customers", "POST", {
+            const customerData: Record<string, unknown> = {
               name: parentProfile.full_name,
               email: parentProfile.email,
               cpfCnpj: parentProfile.cpf?.replace(/\D/g, ""),
-              phone: parentProfile.phone?.replace(/\D/g, ""),
               externalReference: contract.parent_id,
-            });
+            };
+            
+            const customer = await asaasRequest("/customers", "POST", customerData);
             
             customerId = customer.id;
             
