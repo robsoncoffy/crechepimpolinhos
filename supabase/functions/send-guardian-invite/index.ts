@@ -37,15 +37,21 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Create Supabase client
+    // Create Supabase client with user token to get auth info
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // User client for auth validation
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
+    
+    // Service client for database operations (bypasses RLS)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user from token
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Get user from token (using user client)
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       console.error("User error:", userError);
       return new Response(
