@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.send-recovery-email]
 verify_jwt = false
+
+[functions.staff-chat-suggestions]
+verify_jwt = false

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { StaffQuickReplySuggestions } from "@/components/chat/StaffQuickReplySuggestions";
 import { Send, Users, MessageCircle, Hash, Plus, Trash2, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -654,6 +655,18 @@ export function StaffChatWindow() {
                 )}
               </div>
             </ScrollArea>
+
+            {/* AI Quick Reply Suggestions */}
+            {user && messages.length > 0 && (
+              <StaffQuickReplySuggestions
+                messages={messages.map(m => ({ content: m.content, sender_id: m.sender_id }))}
+                currentUserId={user.id}
+                roomName={selectedRoom.name}
+                onSelect={(suggestion) => {
+                  setNewMessage(suggestion);
+                }}
+              />
+            )}
 
             {/* Message input */}
             <div className="p-4 border-t bg-muted/20">
