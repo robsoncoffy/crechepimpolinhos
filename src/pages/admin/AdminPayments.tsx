@@ -526,8 +526,13 @@ export default function AdminPayments() {
 
   const activeSubscriptionsCount = useMemo(() => {
     const asaasCount = asaasSubscriptions.filter(s => s.status === "active").length;
-    if (asaasCount > 0) return asaasCount;
-    return subscriptions.filter(s => s.status === "active").length;
+    const localCount = subscriptions.filter(s => s.status === "active").length;
+    // Combine both, removing potential duplicates by asaas_subscription_id
+    const asaasIds = new Set(asaasSubscriptions.map(s => s.asaas_id));
+    const uniqueLocalCount = subscriptions.filter(s => 
+      s.status === "active" && !asaasIds.has((s as any).asaas_subscription_id)
+    ).length;
+    return asaasCount + uniqueLocalCount;
   }, [asaasSubscriptions, subscriptions]);
 
   return (
@@ -788,12 +793,13 @@ export default function AdminPayments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(asaasSubscriptions.length > 0 ? asaasSubscriptions : []).map((sub) => {
+                    {/* Show Asaas subscriptions first */}
+                    {asaasSubscriptions.map((sub) => {
                       const status = statusConfig[sub.status] || statusConfig.active;
                       const StatusIcon = status.icon;
                       
                       return (
-                        <TableRow key={sub.id}>
+                        <TableRow key={`asaas-${sub.id}`}>
                           <TableCell className="font-medium">
                             {getCustomerName(sub.asaas_customer_id)}
                             {!sub.linked_parent_id && (
@@ -816,6 +822,38 @@ export default function AdminPayments() {
                         </TableRow>
                       );
                     })}
+                    {/* Show local subscriptions that aren't duplicated in asaas_subscriptions */}
+                    {subscriptions
+                      .filter(sub => {
+                        // Don't show if already in asaas_subscriptions
+                        const asaasId = (sub as any).asaas_subscription_id;
+                        return !asaasSubscriptions.some(a => a.asaas_id === asaasId);
+                      })
+                      .map((sub) => {
+                        const status = statusConfig[sub.status] || statusConfig.active;
+                        const StatusIcon = status.icon;
+                        
+                        return (
+                          <TableRow key={`local-${sub.id}`}>
+                            <TableCell className="font-medium">
+                              {sub.children?.full_name || "—"}
+                            </TableCell>
+                            <TableCell>Mensalidade</TableCell>
+                            <TableCell>
+                              R$ {Number(sub.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>
+                              Dia {sub.billing_day}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`${status.color} text-white gap-1`}>
+                                <StatusIcon className="w-3 h-3" />
+                                {status.label}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               )}
