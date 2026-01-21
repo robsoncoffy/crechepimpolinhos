@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -602,19 +603,9 @@ export default function TeacherDashboard() {
               </TabsContent>
 
               {/* Mensagens Tab */}
-              <TabsContent value="mensagens" className="mt-0 space-y-4">
-                <div className="text-center py-8">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-primary opacity-50" />
-                  <h3 className="font-semibold mb-2">Chat da Equipe</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Acesse o chat para conversar com a equipe
-                  </p>
-                  <Button asChild>
-                    <Link to="/painel/chat-equipe">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Abrir Chat da Equipe
-                    </Link>
-                  </Button>
+              <TabsContent value="mensagens" className="mt-0">
+                <div className="h-[500px] -mx-4 -mb-4">
+                  <StaffChatWindow />
                 </div>
               </TabsContent>
             </div>
