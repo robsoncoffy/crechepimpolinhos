@@ -56,11 +56,6 @@ const routineItems = [{
   href: "/painel/cardapio",
   roles: ["admin", "nutritionist", "cook"]
 }, {
-  icon: UtensilsCrossed,
-  label: "Controle Refeições",
-  href: "/painel/controle-refeicoes",
-  roles: ["admin", "cook"]
-}, {
   icon: ShoppingCart,
   label: "Lista de Compras",
   href: "/painel/lista-compras",
