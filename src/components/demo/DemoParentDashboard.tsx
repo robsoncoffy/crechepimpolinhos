@@ -40,6 +40,14 @@ import {
   Target,
   ArrowRight,
   Star,
+  Settings,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  Shield,
+  Users,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
@@ -113,6 +121,13 @@ export function DemoParentDashboard() {
   const [chatInput, setChatInput] = useState("");
   const [selectedEvaluation, setSelectedEvaluation] = useState<typeof mockEvaluations[0] | null>(null);
   const [evaluationDialogOpen, setEvaluationDialogOpen] = useState(false);
+  
+  // Settings state
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Get unread count per channel
   const getUnreadCount = (channel: "school" | "nutritionist") => {
@@ -356,7 +371,7 @@ export function DemoParentDashboard() {
                 <CardContent className="p-0">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <div className="border-b bg-muted/30">
-                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-8">
+                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-9">
                         <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <Newspaper className="w-4 h-4" />
                         </TabsTrigger>
@@ -385,6 +400,9 @@ export function DemoParentDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="pagamentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <CreditCard className="w-4 h-4" />
+                        </TabsTrigger>
+                        <TabsTrigger value="configuracoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <Settings className="w-4 h-4" />
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -802,6 +820,173 @@ export function DemoParentDashboard() {
                             Valor mensal: <span className="font-semibold text-foreground">R$ 1.200,00</span>
                           </p>
                         </div>
+                      </TabsContent>
+
+                      {/* Configurações Tab */}
+                      <TabsContent value="configuracoes" className="mt-0">
+                        <h3 className="font-semibold mb-4">Configurações</h3>
+                        <ScrollArea className="h-[400px] pr-3">
+                          <div className="space-y-6">
+                            {/* Perfil do Responsável */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                  <User className="w-4 h-4 text-primary" />
+                                  Meu Perfil
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                  <Avatar className="h-16 w-16">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">
+                                      J
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-lg">João Silva</p>
+                                    <p className="text-sm text-muted-foreground">Responsável</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid gap-3 pt-2">
+                                  <div className="flex items-center gap-3 text-sm">
+                                    <Mail className="w-4 h-4 text-muted-foreground" />
+                                    <span>joao.silva@email.com</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-sm">
+                                    <Phone className="w-4 h-4 text-muted-foreground" />
+                                    <span>(11) 99999-9999</span>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Crianças Vinculadas */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                  <Users className="w-4 h-4 text-pimpo-blue" />
+                                  Crianças Vinculadas
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="h-10 w-10">
+                                        <AvatarFallback className="bg-pimpo-blue text-white font-fredoka">
+                                          M
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-medium">{mockChild.full_name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {classTypeLabels[mockChild.class_type]} • {shiftLabels[mockChild.shift_type || "integral"]}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <Badge variant="outline" className="text-pimpo-green border-pimpo-green">
+                                      {calculateAge(mockChild.birth_date)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                <Button variant="outline" size="sm" className="w-full mt-3">
+                                  <UserPlus className="w-4 h-4 mr-2" />
+                                  Convidar Outro Responsável
+                                </Button>
+                              </CardContent>
+                            </Card>
+
+                            {/* Segurança */}
+                            <Card>
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-base flex items-center gap-2">
+                                  <Shield className="w-4 h-4 text-pimpo-red" />
+                                  Segurança
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="space-y-3">
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium flex items-center gap-2">
+                                      <Lock className="w-4 h-4" />
+                                      Senha Atual
+                                    </label>
+                                    <div className="relative">
+                                      <Input
+                                        type={showCurrentPassword ? "text" : "password"}
+                                        placeholder="Digite sua senha atual"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="pr-10"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                      >
+                                        {showCurrentPassword ? (
+                                          <EyeOff className="w-4 h-4" />
+                                        ) : (
+                                          <Eye className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">Nova Senha</label>
+                                    <div className="relative">
+                                      <Input
+                                        type={showNewPassword ? "text" : "password"}
+                                        placeholder="Digite a nova senha"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="pr-10"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                      >
+                                        {showNewPassword ? (
+                                          <EyeOff className="w-4 h-4" />
+                                        ) : (
+                                          <Eye className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <label className="text-sm font-medium">Confirmar Nova Senha</label>
+                                    <Input
+                                      type="password"
+                                      placeholder="Confirme a nova senha"
+                                      value={confirmPassword}
+                                      onChange={(e) => setConfirmPassword(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+
+                                <Button 
+                                  className="w-full"
+                                  disabled={!currentPassword || !newPassword || newPassword !== confirmPassword}
+                                  onClick={() => {
+                                    alert("Demo: Senha alterada com sucesso!");
+                                    setCurrentPassword("");
+                                    setNewPassword("");
+                                    setConfirmPassword("");
+                                  }}
+                                >
+                                  <Lock className="w-4 h-4 mr-2" />
+                                  Alterar Senha
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </ScrollArea>
                       </TabsContent>
                     </div>
                   </Tabs>
