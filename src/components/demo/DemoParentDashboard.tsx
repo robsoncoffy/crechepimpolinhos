@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import {
   Calendar,
   TrendingUp,
@@ -31,10 +32,30 @@ import {
   Newspaper,
   Heart,
   MessageCircle,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
 import { DemoPickupNotification } from "./DemoPickupNotification";
+
+// Message interface with read status
+interface DemoParentMessage {
+  id: string;
+  content: string;
+  isOwn: boolean;
+  time: string;
+  sender: string;
+  isRead: boolean;
+  channel: "school" | "nutritionist";
+}
+
+// Initial messages with read status
+const initialMessages: DemoParentMessage[] = [
+  { id: "m1", content: "Bom dia! Maria participou muito bem das atividades hoje!", sender: "Prof. Ana", isOwn: false, time: "10:30", isRead: false, channel: "school" },
+  { id: "m2", content: "Ela está muito animada com as aulas de pintura 🎨", sender: "Prof. Ana", isOwn: false, time: "14:15", isRead: false, channel: "school" },
+  { id: "m3", content: "Olá! Sobre a alergia da Maria, estamos adaptando o lanche de amanhã.", sender: "Nutricionista", isOwn: false, time: "15:00", isRead: false, channel: "nutritionist" },
+];
 
 // Mock data for demo
 const mockChild = {
@@ -61,6 +82,49 @@ const shiftLabels: Record<string, string> = {
 
 export function DemoParentDashboard() {
   const [activeTab, setActiveTab] = useState("feed");
+  const [activeChannel, setActiveChannel] = useState<"school" | "nutritionist">("school");
+  const [messages, setMessages] = useState<DemoParentMessage[]>(initialMessages);
+  const [chatInput, setChatInput] = useState("");
+
+  // Get unread count per channel
+  const getUnreadCount = (channel: "school" | "nutritionist") => {
+    return messages.filter((m) => m.channel === channel && !m.isOwn && !m.isRead).length;
+  };
+
+  // Mark messages as read when switching channels
+  const handleChannelChange = (channel: "school" | "nutritionist") => {
+    setActiveChannel(channel);
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.channel === channel && !msg.isOwn ? { ...msg, isRead: true } : msg
+      )
+    );
+  };
+
+  // Send message
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+    const newMessage: DemoParentMessage = {
+      id: `new-${Date.now()}`,
+      content: chatInput,
+      isOwn: true,
+      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      sender: "Você",
+      isRead: false,
+      channel: activeChannel,
+    };
+    setMessages((prev) => [...prev, newMessage]);
+    setChatInput("");
+    
+    // Simulate read receipt after 2 seconds
+    setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === newMessage.id ? { ...msg, isRead: true } : msg
+        )
+      );
+    }, 2000);
+  };
 
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
@@ -273,7 +337,11 @@ export function DemoParentDashboard() {
                         </TabsTrigger>
                         <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative">
                           <MessageSquare className="w-4 h-4" />
-                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">3</span>
+                          {(getUnreadCount("school") + getUnreadCount("nutritionist")) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                              {getUnreadCount("school") + getUnreadCount("nutritionist")}
+                            </span>
+                          )}
                         </TabsTrigger>
                         <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <UtensilsCrossed className="w-4 h-4" />
@@ -404,38 +472,89 @@ export function DemoParentDashboard() {
                         <div className="space-y-4">
                           {/* Channel Selector */}
                           <div className="flex gap-2">
-                            <Button variant="default" size="sm" className="flex-1">
+                            <Button 
+                              variant={activeChannel === "school" ? "default" : "outline"} 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => handleChannelChange("school")}
+                            >
                               🏫 Escola
-                              <Badge variant="destructive" className="ml-2 h-5 px-1.5">2</Badge>
+                              {getUnreadCount("school") > 0 && (
+                                <Badge variant="destructive" className="ml-2 h-5 px-1.5">
+                                  {getUnreadCount("school")}
+                                </Badge>
+                              )}
                             </Button>
-                            <Button variant="outline" size="sm" className="flex-1">
+                            <Button 
+                              variant={activeChannel === "nutritionist" ? "default" : "outline"} 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => handleChannelChange("nutritionist")}
+                            >
                               🥗 Nutrição
-                              <Badge variant="destructive" className="ml-2 h-5 px-1.5">1</Badge>
+                              {getUnreadCount("nutritionist") > 0 && (
+                                <Badge variant="destructive" className="ml-2 h-5 px-1.5">
+                                  {getUnreadCount("nutritionist")}
+                                </Badge>
+                              )}
                             </Button>
                           </div>
                           {/* Messages */}
-                          <div className="space-y-3 h-[200px] overflow-y-auto">
-                            <div className="flex justify-start">
-                              <div className="bg-muted rounded-lg px-3 py-2 max-w-[80%]">
-                                <p className="text-xs font-medium text-primary mb-1">Prof. Ana</p>
-                                <p className="text-sm">Maria participou muito bem das atividades hoje!</p>
-                                <p className="text-xs text-muted-foreground mt-1">10:30</p>
-                              </div>
+                          <ScrollArea className="h-[220px] pr-2">
+                            <div className="space-y-3">
+                              {messages
+                                .filter((msg) => msg.channel === activeChannel)
+                                .map((msg) => (
+                                  <div
+                                    key={msg.id}
+                                    className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
+                                  >
+                                    <div
+                                      className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                        msg.isOwn
+                                          ? "bg-primary text-primary-foreground"
+                                          : "bg-muted"
+                                      }`}
+                                    >
+                                      {!msg.isOwn && (
+                                        <p className="text-xs font-medium text-primary mb-1">{msg.sender}</p>
+                                      )}
+                                      <p className="text-sm">{msg.content}</p>
+                                      <div className={`flex items-center gap-1 mt-1 ${msg.isOwn ? "justify-end" : ""}`}>
+                                        <span className={`text-xs ${msg.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                          {msg.time}
+                                        </span>
+                                        {msg.isOwn && (
+                                          <span className={msg.isRead ? "text-pimpo-blue" : "text-primary-foreground/70"}>
+                                            {msg.isRead ? (
+                                              <CheckCheck className="w-3.5 h-3.5" />
+                                            ) : (
+                                              <Check className="w-3.5 h-3.5" />
+                                            )}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              {messages.filter((msg) => msg.channel === activeChannel).length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                  <p className="text-sm">Nenhuma mensagem ainda</p>
+                                </div>
+                              )}
                             </div>
-                            <div className="flex justify-end">
-                              <div className="bg-primary text-primary-foreground rounded-lg px-3 py-2 max-w-[80%]">
-                                <p className="text-sm">Que bom! Ela estava animada para ir hoje 😊</p>
-                                <p className="text-xs opacity-70 mt-1">10:45</p>
-                              </div>
-                            </div>
-                          </div>
+                          </ScrollArea>
                           {/* Input */}
                           <div className="flex gap-2">
-                            <input 
-                              className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                            <Input 
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                               placeholder="Digite sua mensagem..."
+                              className="flex-1"
                             />
-                            <Button size="sm">
+                            <Button size="sm" onClick={handleSendMessage} disabled={!chatInput.trim()}>
                               <Send className="w-4 h-4" />
                             </Button>
                           </div>
