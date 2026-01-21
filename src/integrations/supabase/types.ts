@@ -1726,6 +1726,39 @@ export type Database = {
         }
         Relationships: []
       }
+      school_feed: {
+        Row: {
+          all_classes: boolean | null
+          class_type: Database["public"]["Enums"]["class_type"] | null
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          image_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          content: string
+          created_at?: string
+          created_by: string
+          id?: string
+          image_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          all_classes?: boolean | null
+          class_type?: Database["public"]["Enums"]["class_type"] | null
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          image_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_chat_rooms: {
         Row: {
           created_at: string
