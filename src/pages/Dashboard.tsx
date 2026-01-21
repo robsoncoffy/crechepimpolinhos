@@ -217,6 +217,36 @@ function DashboardContent() {
               <AdminAbsences />
             </ProtectedRoute>
           } />
+          <Route path="/contatos" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminContactSubmissions />
+            </ProtectedRoute>
+          } />
+          <Route path="/logs-auditoria" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminAuditLogs />
+            </ProtectedRoute>
+          } />
+          <Route path="/notificacoes" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminNotifications />
+            </ProtectedRoute>
+          } />
+          <Route path="/historico-retiradas" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminPickupHistory />
+            </ProtectedRoute>
+          } />
+          <Route path="/logs-email" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminEmailLogs />
+            </ProtectedRoute>
+          } />
+          <Route path="/controle-refeicoes" element={
+            <ProtectedRoute allowedRoles={["admin", "cook"]}>
+              <AdminMealTracking />
+            </ProtectedRoute>
+          } />
           
           {/* Admin + Nutritionist + Cook routes */}
           <Route path="/cardapio" element={
