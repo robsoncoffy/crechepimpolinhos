@@ -42,6 +42,7 @@ import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminMealTracking from "@/pages/admin/AdminMealTracking";
 import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
 import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
+import AdminShoppingList from "@/pages/admin/AdminShoppingList";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
 function RoleBasedDashboard() {
@@ -240,6 +241,11 @@ function DashboardContent() {
           <Route path="/logs-email" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminEmailLogs />
+            </ProtectedRoute>
+          } />
+          <Route path="/lista-compras" element={
+            <ProtectedRoute allowedRoles={["admin", "cook", "nutritionist"]}>
+              <AdminShoppingList />
             </ProtectedRoute>
           } />
           <Route path="/controle-refeicoes" element={
