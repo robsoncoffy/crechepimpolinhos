@@ -225,14 +225,16 @@ e) Acompanhamento do desenvolvimento da criança;
 f) Comunicação regular com os responsáveis sobre o dia a dia do aluno.
 
 
-CLÁUSULA 3 – DA MATRÍCULA
+CLÁUSULA 3 – DA MATRÍCULA E VIGÊNCIA
 
-3.1. A matrícula terá validade para o ano letivo vigente, podendo ser renovada para o período seguinte mediante manifestação de interesse do CONTRATANTE e disponibilidade de vaga.
+3.1. O presente contrato terá vigência a partir da data de sua assinatura até o dia 31 de dezembro de ${new Date().getFullYear()}, podendo ser renovado para o período seguinte mediante manifestação de interesse do CONTRATANTE e disponibilidade de vaga.
 
 3.2. A efetivação da matrícula está condicionada à:
 a) Apresentação de toda documentação exigida;
 b) Assinatura do presente contrato;
 c) Pagamento da primeira mensalidade ou taxa de matrícula, quando aplicável.
+
+3.3. A renovação do contrato para o ano letivo seguinte deverá ser solicitada pelo CONTRATANTE até o dia 30 de novembro do ano vigente.
 
 
 CLÁUSULA 4 – DAS MENSALIDADES E FORMA DE PAGAMENTO
