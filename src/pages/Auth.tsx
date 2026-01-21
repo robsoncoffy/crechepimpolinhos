@@ -37,6 +37,7 @@ export default function Auth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inviteStatus, setInviteStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [inviteData, setInviteData] = useState<{ 
@@ -285,6 +286,13 @@ export default function Auth() {
         // Validate invite code is valid
         if (inviteStatus !== "valid") {
           setErrors({ inviteCode: "Código de convite inválido ou expirado" });
+          setIsLoading(false);
+          return;
+        }
+
+        // Validate terms acceptance
+        if (!acceptedTerms) {
+          setErrors({ terms: "Você deve aceitar os termos de uso e a política de privacidade" });
           setIsLoading(false);
           return;
         }
@@ -671,30 +679,63 @@ export default function Auth() {
               </div>
 
               {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-sm text-destructive">{errors.confirmPassword}</p>
+                    )}
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive">{errors.confirmPassword}</p>
-                  )}
-                </div>
+
+                  {/* Terms and Privacy Policy Checkbox */}
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <Checkbox 
+                        id="acceptTerms" 
+                        checked={acceptedTerms}
+                        onCheckedChange={(checked) => {
+                          setAcceptedTerms(checked === true);
+                          if (errors.terms) {
+                            setErrors({ ...errors, terms: "" });
+                          }
+                        }}
+                        className="mt-0.5"
+                      />
+                      <label htmlFor="acceptTerms" className="text-sm text-muted-foreground cursor-pointer select-none leading-tight">
+                        Li e aceito os{" "}
+                        <Link to="/termos-uso" target="_blank" className="text-primary hover:underline">
+                          Termos de Uso
+                        </Link>{" "}
+                        e a{" "}
+                        <Link to="/politica-privacidade" target="_blank" className="text-primary hover:underline">
+                          Política de Privacidade
+                        </Link>
+                        . <span className="text-destructive">*</span>
+                      </label>
+                    </div>
+                    {errors.terms && (
+                      <p className="text-sm text-destructive">{errors.terms}</p>
+                    )}
+                  </div>
+                </>
               )}
 
               <Button 
