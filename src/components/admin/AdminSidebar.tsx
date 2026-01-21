@@ -141,6 +141,11 @@ const financeHrItems = [{
   href: "/painel/financeiro",
   roles: ["admin"]
 }, {
+  icon: Users,
+  label: "Funcionários",
+  href: "/painel/funcionarios",
+  roles: ["admin"]
+}, {
   icon: Clock,
   label: "Ponto Eletrônico",
   href: "/painel/ponto",

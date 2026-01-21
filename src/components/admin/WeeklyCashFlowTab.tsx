@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +22,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval, endOfMonth, isBefore, isAfter } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval, endOfMonth, isBefore, isAfter, getDate } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   TrendingUp, 
@@ -32,7 +34,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useSystemSettings } from "@/hooks/useSystemSettings";
 
 interface AsaasPayment {
   id: string;
@@ -61,11 +62,20 @@ interface AsaasCustomer {
   name: string;
 }
 
-interface MonthlyCost {
+interface FixedExpense {
   id: string;
   name: string;
-  value: number;
   category: string;
+  value: number;
+  due_day: number;
+  is_active: boolean;
+}
+
+interface EmployeeSalary {
+  id: string;
+  full_name: string;
+  net_salary: number | null;
+  salary_payment_day: number | null;
 }
 
 interface WeeklyCashFlowTabProps {
@@ -77,28 +87,59 @@ interface WeeklyCashFlowTabProps {
 const WEEK_COUNT = 12;
 
 export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, asaasCustomers }: WeeklyCashFlowTabProps) {
-  const { getSetting } = useSystemSettings();
   const [weekOffset, setWeekOffset] = useState(0);
   
-  const monthlyCosts = useMemo(() => {
-    const costsJson = getSetting("monthly_costs");
-    if (costsJson) {
-      try {
-        return JSON.parse(costsJson) as MonthlyCost[];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  }, [getSetting]);
+  // Fetch fixed expenses from database
+  const { data: fixedExpenses = [] } = useQuery({
+    queryKey: ["fixed-expenses-cashflow"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fixed_expenses")
+        .select("id, name, category, value, due_day, is_active")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data as FixedExpense[];
+    },
+  });
 
-  const totalMonthlyCosts = useMemo(() => {
-    return monthlyCosts.reduce((sum, cost) => sum + cost.value, 0);
-  }, [monthlyCosts]);
+  // Fetch employee salaries from database
+  const { data: employeeSalaries = [] } = useQuery({
+    queryKey: ["employee-salaries-cashflow"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_profiles")
+        .select("id, full_name, net_salary, salary_payment_day")
+        .not("net_salary", "is", null);
+      if (error) throw error;
+      return data as EmployeeSalary[];
+    },
+  });
 
+  // Calculate total monthly fixed costs
+  const totalMonthlyFixedExpenses = useMemo(() => {
+    return fixedExpenses.reduce((sum, exp) => sum + exp.value, 0);
+  }, [fixedExpenses]);
+
+  const totalMonthlySalaries = useMemo(() => {
+    return employeeSalaries.reduce((sum, emp) => sum + (emp.net_salary || 0), 0);
+  }, [employeeSalaries]);
+
+  const totalMonthlyCosts = totalMonthlyFixedExpenses + totalMonthlySalaries;
   const weeklyFixedCost = totalMonthlyCosts / 4;
 
-  // Map asaas_id to customer name
+  // Helper function to check if a due day falls within a week
+  const getDueInWeek = (dueDay: number, weekStart: Date, weekEnd: Date) => {
+    const month = weekStart.getMonth();
+    const year = weekStart.getFullYear();
+    const dueDate = new Date(year, month, dueDay);
+    
+    // Handle due days that don't exist in certain months (e.g., 31 in February)
+    if (dueDate.getMonth() !== month) {
+      return false;
+    }
+    
+    return isWithinInterval(dueDate, { start: weekStart, end: weekEnd });
+  };
   const customerNameMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const c of asaasCustomers) {
@@ -200,7 +241,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
     }
 
     return weeks;
-  }, [asaasPayments, asaasSubscriptions, customerNameMap, weeklyFixedCost, weekOffset]);
+  }, [asaasPayments, asaasSubscriptions, customerNameMap, weeklyFixedCost, weekOffset, fixedExpenses, employeeSalaries]);
 
   const stats = useMemo(() => {
     const totalEntries = weeklyData.reduce((sum, w) => sum + w.entries, 0);

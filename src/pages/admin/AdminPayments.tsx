@@ -51,6 +51,7 @@ import {
   Calculator,
   TrendingUp,
   Download,
+  Receipt,
 } from "lucide-react";
 import { format, endOfMonth, parseISO, isBefore, isEqual } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -58,6 +59,7 @@ import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
 import FinancialForecastTab from "@/components/admin/FinancialForecastTab";
 import WeeklyCashFlowTab from "@/components/admin/WeeklyCashFlowTab";
+import FixedExpensesTab from "@/components/admin/FixedExpensesTab";
 import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
@@ -684,6 +686,10 @@ export default function AdminPayments() {
             <BarChart3 className="w-4 h-4" />
             Relatórios
           </TabsTrigger>
+          <TabsTrigger value="fixed-expenses" className="gap-2">
+            <Receipt className="w-4 h-4" />
+            Contas Fixas
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="mt-4">
@@ -841,6 +847,10 @@ export default function AdminPayments() {
 
         <TabsContent value="reports" className="mt-4">
           <FinancialReportsTab asaasPayments={asaasPayments} />
+        </TabsContent>
+
+        <TabsContent value="fixed-expenses" className="mt-4">
+          <FixedExpensesTab />
         </TabsContent>
       </Tabs>
 
