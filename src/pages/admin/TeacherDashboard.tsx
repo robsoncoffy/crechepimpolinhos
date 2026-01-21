@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Users,
   Baby,
@@ -21,6 +22,9 @@ import {
   Activity,
   Heart,
   Utensils,
+  Car,
+  UserCheck,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
@@ -31,8 +35,17 @@ type DailyRecord = Database["public"]["Tables"]["daily_records"]["Row"];
 type ClassType = Database["public"]["Enums"]["class_type"];
 type ShiftType = Database["public"]["Enums"]["shift_type"];
 
+interface PickupNotification {
+  id: string;
+  notification_type: "on_way" | "delay" | "other_person";
+  delay_minutes: number | null;
+  message: string | null;
+  created_at: string;
+}
+
 interface ChildWithRecord extends Child {
   daily_record?: DailyRecord | null;
+  pickup_notification?: PickupNotification | null;
 }
 
 interface TeacherAssignment {
@@ -45,6 +58,23 @@ interface TeacherAssignment {
 function formatDate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
+
+// Helper to get pickup notification badge info
+const getPickupBadgeInfo = (notification: PickupNotification | null | undefined) => {
+  if (!notification) return null;
+  
+  switch (notification.notification_type) {
+    case "on_way":
+      return { icon: Car, label: "A caminho", color: "bg-blue-100 text-blue-700 border-blue-300" };
+    case "delay":
+      return { icon: Clock, label: `Atraso ${notification.delay_minutes}min`, color: "bg-amber-100 text-amber-700 border-amber-300" };
+    case "other_person":
+      return { icon: UserCheck, label: "Outra pessoa", color: "bg-purple-100 text-purple-700 border-purple-300" };
+    default:
+      return null;
+  }
+};
+
 
 export default function TeacherDashboard() {
   const { user, profile } = useAuth();
@@ -99,19 +129,34 @@ export default function TeacherDashboard() {
         const { data: childrenData, error: childrenError } = await childrenQuery.order("full_name");
         
         if (childrenError) throw childrenError;
+
+        // Get today's date for filtering
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
         
-        // Fetch today's records
-        const { data: recordsData, error: recordsError } = await supabase
-          .from("daily_records")
-          .select("*")
-          .eq("record_date", formatDate(selectedDate));
+        // Fetch today's records and active pickup notifications in parallel
+        const [recordsResult, pickupResult] = await Promise.all([
+          supabase
+            .from("daily_records")
+            .select("*")
+            .eq("record_date", formatDate(selectedDate)),
+          supabase
+            .from("pickup_notifications")
+            .select("*")
+            .eq("is_active", true)
+            .gte("created_at", today.toISOString())
+        ]);
         
-        if (recordsError) throw recordsError;
+        if (recordsResult.error) throw recordsResult.error;
         
-        // Combine children with their records
+        const recordsData = recordsResult.data;
+        const pickupData = pickupResult.data || [];
+        
+        // Combine children with their records and pickup notifications
         const childrenWithRecords = (childrenData || []).map((child) => ({
           ...child,
           daily_record: recordsData?.find((r) => r.child_id === child.id) || null,
+          pickup_notification: pickupData.find((p) => p.child_id === child.id) as PickupNotification | null,
         }));
         
         setChildren(childrenWithRecords);
@@ -149,6 +194,26 @@ export default function TeacherDashboard() {
     };
     
     fetchData();
+
+    // Subscribe to realtime pickup notifications
+    const pickupChannel = supabase
+      .channel("teacher-pickup-notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pickup_notifications",
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pickupChannel);
+    };
   }, [user, assignment, selectedDate]);
 
   const completedCount = children.filter((c) => c.daily_record).length;
@@ -296,77 +361,114 @@ export default function TeacherDashboard() {
                         )}
                       </div>
                     ) : (
-                      children.map((child) => (
-                        <Link
-                          key={child.id}
-                          to={`/painel/agenda?child=${child.id}`}
-                          className="block"
-                        >
-                          <div className="p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
-                                  {child.photo_url && (
-                                    <AvatarImage src={child.photo_url} alt={child.full_name} />
+                      children.map((child) => {
+                        const pickupBadge = getPickupBadgeInfo(child.pickup_notification);
+                        
+                        return (
+                          <Link
+                            key={child.id}
+                            to={`/painel/agenda?child=${child.id}`}
+                            className="block"
+                          >
+                            <div className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                              child.pickup_notification 
+                                ? "bg-gradient-to-r from-background to-blue-50/50 border-blue-200 hover:border-blue-300"
+                                : "hover:bg-muted/50"
+                            }`}>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="relative">
+                                    <Avatar className="h-10 w-10">
+                                      {child.photo_url && (
+                                        <AvatarImage src={child.photo_url} alt={child.full_name} />
+                                      )}
+                                      <AvatarFallback className="bg-primary/10 text-primary">
+                                        {child.full_name.charAt(0)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    {child.pickup_notification && (
+                                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center animate-pulse">
+                                        <Bell className="w-2.5 h-2.5 text-white" />
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-medium truncate">{child.full_name}</p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <p className="text-xs text-muted-foreground">
+                                        {classTypeLabels[child.class_type]} • {shiftTypeLabels[child.shift_type]}
+                                      </p>
+                                      {pickupBadge && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${pickupBadge.color}`}>
+                                              <pickupBadge.icon className="w-3 h-3" />
+                                              {pickupBadge.label}
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="font-medium">
+                                              {child.pickup_notification?.notification_type === "on_way" && "Responsável a caminho"}
+                                              {child.pickup_notification?.notification_type === "delay" && `Atraso de ${child.pickup_notification?.delay_minutes} minutos`}
+                                              {child.pickup_notification?.notification_type === "other_person" && "Outra pessoa vai buscar"}
+                                            </p>
+                                            {child.pickup_notification?.message && (
+                                              <p className="text-xs text-muted-foreground">{child.pickup_notification.message}</p>
+                                            )}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {child.allergies && (
+                                    <Badge variant="outline" className="text-pimpo-red border-pimpo-red/30 hidden sm:flex">
+                                      <AlertTriangle className="w-3 h-3 mr-1" />
+                                      Alergia
+                                    </Badge>
                                   )}
-                                  <AvatarFallback className="bg-primary/10 text-primary">
-                                    {child.full_name.charAt(0)}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium">{child.full_name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {classTypeLabels[child.class_type]} • {shiftTypeLabels[child.shift_type]}
-                                  </p>
+                                  {child.daily_record ? (
+                                    <Badge variant="secondary" className="bg-pimpo-green/20 text-pimpo-green">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      <span className="hidden sm:inline">Preenchida</span>
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      <span className="hidden sm:inline">Pendente</span>
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-2">
-                                {child.allergies && (
-                                  <Badge variant="outline" className="text-pimpo-red border-pimpo-red/30">
-                                    <AlertTriangle className="w-3 h-3 mr-1" />
-                                    Alergia
-                                  </Badge>
-                                )}
-                                {child.daily_record ? (
-                                  <Badge variant="secondary" className="bg-pimpo-green/20 text-pimpo-green">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    Preenchida
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    Pendente
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Quick summary if record exists */}
-                            {child.daily_record && (
-                              <div className="mt-2 pt-2 border-t flex gap-4 text-xs text-muted-foreground">
-                                {child.daily_record.lunch && (
-                                  <span className="flex items-center gap-1">
-                                    <Utensils className="w-3 h-3" />
-                                    Almoço: {child.daily_record.lunch === "tudo" ? "✓" : child.daily_record.lunch}
-                                  </span>
-                                )}
-                                {child.daily_record.mood && (
-                                  <span className="flex items-center gap-1">
-                                    Humor: {child.daily_record.mood}
-                                  </span>
-                                )}
-                                {child.daily_record.school_notes && (
-                                  <span className="flex items-center gap-1">
-                                    <FileText className="w-3 h-3" />
-                                    Com bilhete
-                                  </span>
-                                )}
-                              </div>
+                              {/* Quick summary if record exists */}
+                              {child.daily_record && (
+                                <div className="mt-2 pt-2 border-t flex gap-4 text-xs text-muted-foreground">
+                                  {child.daily_record.lunch && (
+                                    <span className="flex items-center gap-1">
+                                      <Utensils className="w-3 h-3" />
+                                      Almoço: {child.daily_record.lunch === "tudo" ? "✓" : child.daily_record.lunch}
+                                    </span>
+                                  )}
+                                  {child.daily_record.mood && (
+                                    <span className="flex items-center gap-1">
+                                      Humor: {child.daily_record.mood}
+                                    </span>
+                                  )}
+                                  {child.daily_record.school_notes && (
+                                    <span className="flex items-center gap-1">
+                                      <FileText className="w-3 h-3" />
+                                      Com bilhete
+                                    </span>
+                                  )}
+                                </div>
                             )}
                           </div>
                         </Link>
-                      ))
+                      );
+                      })
                     )}
                   </div>
                 </ScrollArea>
