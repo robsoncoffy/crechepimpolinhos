@@ -12,6 +12,7 @@ import { TodayAtSchoolWidget } from "@/components/parent/TodayAtSchoolWidget";
 import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
 import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
 import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
+import { SchoolFeedTab } from "@/components/parent/SchoolFeedTab";
 import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
 import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -43,6 +44,7 @@ import {
   CreditCard,
   GraduationCap,
   Settings,
+  Newspaper,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -545,9 +547,12 @@ export default function ParentDashboard() {
                     <CardContent className="p-0">
                       <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="border-b bg-muted/30">
-                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-10' : 'grid-cols-5 sm:grid-cols-9'}`}>
+                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-11' : 'grid-cols-5 sm:grid-cols-10'}`}>
                             <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <Calendar className="w-4 h-4" />
+                            </TabsTrigger>
+                            <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
+                              <Newspaper className="w-4 h-4" />
                             </TabsTrigger>
                             <TabsTrigger value="galeria" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <Camera className="w-4 h-4" />
@@ -588,6 +593,10 @@ export default function ParentDashboard() {
 
                         <TabsContent value="agenda" className="m-0 p-4 sm:p-6">
                           <ParentAgendaView childId={selectedChild.id} childName={selectedChild.full_name} />
+                        </TabsContent>
+
+                        <TabsContent value="feed" className="m-0 p-4 sm:p-6">
+                          <SchoolFeedTab childClassType={selectedChild.class_type} />
                         </TabsContent>
 
                         <TabsContent value="galeria" className="m-0 p-4 sm:p-6">
