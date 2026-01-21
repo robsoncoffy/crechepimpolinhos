@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface MealSuggestionsProps {
   mealType: "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner";
@@ -14,18 +20,21 @@ interface MealSuggestionsProps {
 export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: MealSuggestionsProps) {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [ingredient, setIngredient] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const fetchSuggestions = async () => {
-    if (suggestions.length > 0) {
-      setShowSuggestions(!showSuggestions);
-      return;
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
+  }, [open]);
 
+  const fetchSuggestions = async (withIngredient?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("menu-ai-suggestions", {
-        body: { mealType, menuType, dayOfWeek },
+        body: { mealType, menuType, dayOfWeek, ingredient: withIngredient || undefined },
       });
 
       if (error) throw error;
@@ -36,7 +45,6 @@ export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: Mea
       }
 
       setSuggestions(data.suggestions || []);
-      setShowSuggestions(true);
     } catch (err: any) {
       console.error("Error fetching suggestions:", err);
       toast.error("Erro ao buscar sugestões");
@@ -47,56 +55,99 @@ export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: Mea
 
   const handleSelect = (suggestion: string) => {
     onSelect(suggestion);
-    setShowSuggestions(false);
+    setOpen(false);
+    setSuggestions([]);
+    setIngredient("");
+  };
+
+  const handleIngredientSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (ingredient.trim()) {
+      fetchSuggestions(ingredient.trim());
+    }
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setSuggestions([]);
+      setIngredient("");
+    }
   };
 
   return (
-    <div className="relative">
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={fetchSuggestions}
-        disabled={loading}
-        className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
-      >
-        {loading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <>
-            <Sparkles className="w-3.5 h-3.5 mr-1" />
-            IA
-          </>
-        )}
-      </Button>
-
-      {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 mt-1 w-72 bg-popover border rounded-lg shadow-lg p-2 space-y-1">
-          <p className="text-xs text-muted-foreground px-2 pb-1 border-b mb-2">
-            Clique para usar:
-          </p>
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => handleSelect(suggestion)}
-              className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-accent transition-colors"
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+        >
+          <Sparkles className="w-3.5 h-3.5 mr-1" />
+          IA
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-3" sideOffset={4}>
+        <div className="space-y-3">
+          <form onSubmit={handleIngredientSubmit} className="flex gap-2">
+            <Input
+              ref={inputRef}
+              placeholder="Digite um ingrediente (opcional)"
+              value={ingredient}
+              onChange={(e) => setIngredient(e.target.value)}
+              className="h-8 text-sm"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              variant="secondary"
+              disabled={loading}
+              className="h-8 px-2"
             >
-              {suggestion}
-            </button>
-          ))}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
+          </form>
+
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            onClick={fetchSuggestions}
-            className="w-full mt-2 text-xs"
+            onClick={() => fetchSuggestions()}
+            disabled={loading}
+            className="w-full text-xs"
           >
-            <Sparkles className="w-3 h-3 mr-1" />
-            Novas sugestões
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+            ) : (
+              <Sparkles className="w-3.5 h-3.5 mr-1" />
+            )}
+            {suggestions.length > 0 ? "Novas sugestões" : "Gerar sugestões automáticas"}
           </Button>
+
+          {suggestions.length > 0 && (
+            <div className="space-y-1 pt-2 border-t">
+              <p className="text-xs text-muted-foreground pb-1">
+                Clique para usar:
+              </p>
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleSelect(suggestion)}
+                  className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-accent transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }
