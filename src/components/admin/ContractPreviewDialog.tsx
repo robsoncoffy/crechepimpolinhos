@@ -125,7 +125,7 @@ const DEFAULT_CLAUSES = {
 
   clauseSocialMedia: `O CONTRATANTE autoriza expressamente a CONTRATADA a capturar, utilizar e divulgar imagens (fotos e vídeos) da criança matriculada para fins de publicação em redes sociais oficiais da creche (Instagram, Facebook, WhatsApp e demais plataformas), com objetivo exclusivamente institucional, pedagógico e promocional, sem qualquer remuneração ou compensação. A autorização poderá ser revogada a qualquer momento mediante solicitação por escrito.`,
 
-  clauseValidity: `O presente contrato somente terá validade e eficácia após a confirmação do pagamento da primeira mensalidade (taxa de matrícula). Sem a comprovação deste pagamento, a vaga não será garantida e o contrato será considerado nulo de pleno direito.`,
+  clauseValidity: `O presente contrato somente terá validade e eficácia após a confirmação do pagamento da primeira mensalidade. Sem a comprovação deste pagamento, a vaga não será garantida e o contrato será considerado nulo de pleno direito.`,
 };
 
 export function ContractPreviewDialog({
