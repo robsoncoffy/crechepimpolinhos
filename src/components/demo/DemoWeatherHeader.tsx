@@ -41,9 +41,15 @@ export function DemoWeatherHeader() {
         const lat = -29.9175;
         const lon = -51.1833;
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability&timezone=America/Sao_Paulo&forecast_days=1`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability&timezone=America/Sao_Paulo&forecast_days=1`,
+          { signal: controller.signal }
         );
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) throw new Error("Weather fetch failed");
         
@@ -101,7 +107,30 @@ export function DemoWeatherHeader() {
         });
       } catch (err) {
         console.error("Weather error:", err);
-        setError(true);
+        // Use mock data as fallback for demo
+        const now = new Date();
+        const currentHour = now.getHours();
+        const mockHourly: HourlyForecast[] = [];
+        
+        for (let i = 0; i < 10; i++) {
+          const hour = (currentHour + i) % 24;
+          mockHourly.push({
+            time: `${String(hour).padStart(2, "0")}:00`,
+            temp: 24 + Math.floor(Math.random() * 6) - 3,
+            weatherCode: i < 3 ? 0 : i < 6 ? 2 : 61,
+            precipitationProb: i < 5 ? 10 : 40 + Math.floor(Math.random() * 30),
+          });
+        }
+        
+        setWeather({
+          temp: 26,
+          description: "Parc. nublado",
+          weatherCode: 2,
+          humidity: 68,
+          wind: 12,
+          feelsLike: 27,
+          hourlyForecast: mockHourly,
+        });
       } finally {
         setLoading(false);
       }
