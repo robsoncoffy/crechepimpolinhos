@@ -258,7 +258,7 @@ export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions
                   {formatCurrency(totalMonthlyCosts)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {monthlyCosts.length} itens cadastrados
+                  {fixedExpenses.length + employeeSalaries.length} itens cadastrados
                 </p>
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions
       </div>
 
       {/* Warning if costs not configured */}
-      {monthlyCosts.length === 0 && (
+      {fixedExpenses.length === 0 && employeeSalaries.length === 0 && (
         <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -296,7 +296,7 @@ export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions
                   Custos mensais não configurados
                 </p>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Cadastre os custos fixos mensais para ter uma previsão mais precisa do resultado financeiro.
+                  Cadastre as contas fixas e salários de funcionários para ter uma previsão mais precisa.
                 </p>
               </div>
             </div>
@@ -368,114 +368,69 @@ export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Costs */}
+        {/* Monthly Costs Summary */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-5 h-5 text-primary" />
-                <CardTitle className="text-lg">Custos Fixos Mensais</CardTitle>
-              </div>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    Adicionar
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Adicionar Custo Mensal</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label>Descrição</Label>
-                      <Input
-                        value={newCost.name}
-                        onChange={(e) => setNewCost({ ...newCost, name: e.target.value })}
-                        placeholder="Ex: Aluguel do imóvel"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Categoria</Label>
-                      <Select
-                        value={newCost.category}
-                        onValueChange={(v) => setNewCost({ ...newCost, category: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {COST_CATEGORIES.map((cat) => (
-                            <SelectItem key={cat.value} value={cat.value}>
-                              {cat.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={newCost.value}
-                        onChange={(e) => setNewCost({ ...newCost, value: e.target.value })}
-                        placeholder="0,00"
-                      />
-                    </div>
-                    <Button onClick={addCost} className="w-full">
-                      Adicionar Custo
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+            <div className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Resumo de Custos Fixos</CardTitle>
             </div>
+            <CardDescription>
+              Gerencie contas fixas na aba "Contas Fixas" e salários em "RH {'>'} Funcionários"
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {monthlyCosts.length === 0 ? (
+            {fixedExpenses.length === 0 && employeeSalaries.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Receipt className="w-12 h-12 mx-auto mb-4 opacity-30" />
                 <p>Nenhum custo cadastrado</p>
-                <p className="text-sm">Adicione os custos fixos mensais</p>
+                <p className="text-sm">Configure contas fixas e salários</p>
               </div>
             ) : (
               <div className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthlyCosts.map((cost) => (
-                      <TableRow key={cost.id}>
-                        <TableCell className="font-medium">{cost.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {COST_CATEGORIES.find((c) => c.value === cost.category)?.label || cost.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right text-red-600">
-                          {formatCurrency(cost.value)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeCost(cost.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TableCell>
+                {/* Salaries Section */}
+                {totalNetSalaries > 0 && (
+                  <div className="p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-800 dark:text-blue-200">
+                          Folha de Pagamento ({employeeSalaries.length} funcionários)
+                        </span>
+                      </div>
+                      <span className="font-bold text-red-600">{formatCurrency(totalNetSalaries)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fixed Expenses Section */}
+                {fixedExpenses.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Conta Fixa</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {fixedExpenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell className="font-medium">{expense.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {COST_CATEGORIES.find((c) => c.value === expense.category)?.label || expense.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right text-red-600">
+                            {formatCurrency(expense.value)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+
                 <div className="flex justify-between pt-2 border-t">
                   <span className="font-medium">Total Mensal</span>
                   <span className="font-bold text-red-600">{formatCurrency(totalMonthlyCosts)}</span>
