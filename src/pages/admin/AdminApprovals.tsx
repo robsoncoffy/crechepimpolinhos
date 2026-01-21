@@ -209,17 +209,33 @@ export default function AdminApprovals() {
 
       if (profileError) throw profileError;
 
-      // Link parent to child if selected
+      // Link parent to child if selected (use upsert to avoid duplicate key error)
       if (selectedChildId) {
-        const { error: linkError } = await supabase
+        // First check if link already exists
+        const { data: existingLink } = await supabase
           .from("parent_children")
-          .insert({
-            parent_id: selectedParent.user_id,
-            child_id: selectedChildId,
-            relationship: relationship,
-          });
+          .select("id")
+          .eq("parent_id", selectedParent.user_id)
+          .eq("child_id", selectedChildId)
+          .maybeSingle();
 
-        if (linkError) throw linkError;
+        if (!existingLink) {
+          const { error: linkError } = await supabase
+            .from("parent_children")
+            .insert({
+              parent_id: selectedParent.user_id,
+              child_id: selectedChildId,
+              relationship: relationship,
+            });
+
+          if (linkError) throw linkError;
+        } else {
+          // Update relationship if link exists
+          await supabase
+            .from("parent_children")
+            .update({ relationship: relationship })
+            .eq("id", existingLink.id);
+        }
       }
 
       // Send approval email to parent
