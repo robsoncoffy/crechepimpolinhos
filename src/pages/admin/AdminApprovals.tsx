@@ -27,8 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
 
@@ -40,8 +44,37 @@ interface PendingParent extends Profile {
   email?: string;
 }
 
+interface AuthorizedPickup {
+  id: string;
+  full_name: string;
+  relationship: string;
+  document_url: string | null;
+}
+
 interface PendingChildRegistration extends ChildRegistration {
   parent_name?: string;
+  parent_phone?: string;
+  parent_cpf?: string;
+  parent_rg?: string;
+  parent_email?: string;
+  authorized_pickups?: AuthorizedPickup[];
+}
+
+interface EditableRegistration {
+  firstName: string;
+  lastName: string;
+  birthDate: string;
+  cpf: string;
+  rg: string;
+  susCard: string;
+  address: string;
+  city: string;
+  allergies: string;
+  medications: string;
+  continuousDoctors: string;
+  privateDoctors: string;
+  enrollmentType: string;
+  planType: string | null;
 }
 
 export default function AdminApprovals() {
@@ -64,6 +97,9 @@ export default function AdminApprovals() {
     registration: PendingChildRegistration;
     newChild: Child;
   } | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableData, setEditableData] = useState<EditableRegistration | null>(null);
+  const [dialogTab, setDialogTab] = useState<string>("info");
 
   useEffect(() => {
     fetchData();
@@ -91,26 +127,50 @@ export default function AdminApprovals() {
       const regs = registrationsRes.data || [];
       if (regs.length === 0) {
         setPendingRegistrations([]);
+        setLoading(false);
         return;
       }
 
-      // Fetch parent names for registrations
+      // Fetch parent profiles for registrations
       const parentIds = [...new Set(regs.map((r) => r.parent_id))];
       const profilesLookupRes = await supabase
         .from("profiles")
-        .select("user_id, full_name")
+        .select("user_id, full_name, phone, cpf, rg")
         .in("user_id", parentIds);
 
       if (profilesLookupRes.error) throw profilesLookupRes.error;
 
       const profileMap = new Map(
-        (profilesLookupRes.data || []).map((p) => [p.user_id, p.full_name])
+        (profilesLookupRes.data || []).map((p) => [p.user_id, p])
       );
 
-      const registrationsWithParent = regs.map((reg) => ({
-        ...reg,
-        parent_name: profileMap.get(reg.parent_id) || "Responsável",
-      }));
+      // Fetch authorized pickups for all registrations
+      const regIds = regs.map((r) => r.id);
+      const pickupsRes = await supabase
+        .from("authorized_pickups")
+        .select("*")
+        .in("registration_id", regIds);
+
+      const pickupsMap = new Map<string, AuthorizedPickup[]>();
+      if (pickupsRes.data) {
+        pickupsRes.data.forEach((p) => {
+          const existing = pickupsMap.get(p.registration_id) || [];
+          existing.push(p);
+          pickupsMap.set(p.registration_id, existing);
+        });
+      }
+
+      const registrationsWithParent = regs.map((reg) => {
+        const parentProfile = profileMap.get(reg.parent_id);
+        return {
+          ...reg,
+          parent_name: parentProfile?.full_name || "Responsável",
+          parent_phone: parentProfile?.phone || undefined,
+          parent_cpf: parentProfile?.cpf || undefined,
+          parent_rg: parentProfile?.rg || undefined,
+          authorized_pickups: pickupsMap.get(reg.id) || [],
+        };
+      });
 
       setPendingRegistrations(registrationsWithParent);
     } catch (error) {
@@ -196,6 +256,27 @@ export default function AdminApprovals() {
   function openRegistrationDialog(registration: PendingChildRegistration) {
     setSelectedRegistration(registration);
     setRelationship("responsável");
+    setIsEditing(false);
+    setDialogTab("info");
+    
+    // Initialize editable data
+    setEditableData({
+      firstName: registration.first_name,
+      lastName: registration.last_name,
+      birthDate: registration.birth_date,
+      cpf: registration.cpf || "",
+      rg: registration.rg || "",
+      susCard: registration.sus_card || "",
+      address: registration.address,
+      city: registration.city,
+      allergies: registration.allergies || "",
+      medications: registration.medications || "",
+      continuousDoctors: registration.continuous_doctors || "",
+      privateDoctors: registration.private_doctors || "",
+      enrollmentType: registration.enrollment_type,
+      planType: registration.plan_type,
+    });
+    
     // Auto-suggest class based on birth date
     const birthDate = new Date(registration.birth_date);
     const today = new Date();
@@ -209,6 +290,72 @@ export default function AdminApprovals() {
     }
     setSelectedShiftType("integral");
     setRegistrationDialogOpen(true);
+  }
+
+  function handleEditableChange(field: keyof EditableRegistration, value: string | null) {
+    if (!editableData) return;
+    setEditableData({
+      ...editableData,
+      [field]: value,
+    });
+  }
+
+  async function saveEditedData() {
+    if (!selectedRegistration || !editableData) return;
+
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("child_registrations")
+        .update({
+          first_name: editableData.firstName,
+          last_name: editableData.lastName,
+          birth_date: editableData.birthDate,
+          cpf: editableData.cpf || null,
+          rg: editableData.rg || null,
+          sus_card: editableData.susCard || null,
+          address: editableData.address,
+          city: editableData.city,
+          allergies: editableData.allergies || null,
+          medications: editableData.medications || null,
+          continuous_doctors: editableData.continuousDoctors || null,
+          private_doctors: editableData.privateDoctors || null,
+          enrollment_type: editableData.enrollmentType,
+          plan_type: editableData.planType as any,
+        })
+        .eq("id", selectedRegistration.id);
+
+      if (error) throw error;
+
+      toast.success("Dados atualizados com sucesso!");
+      setIsEditing(false);
+      
+      // Update local state
+      setSelectedRegistration({
+        ...selectedRegistration,
+        first_name: editableData.firstName,
+        last_name: editableData.lastName,
+        birth_date: editableData.birthDate,
+        cpf: editableData.cpf || null,
+        rg: editableData.rg || null,
+        sus_card: editableData.susCard || null,
+        address: editableData.address,
+        city: editableData.city,
+        allergies: editableData.allergies || null,
+        medications: editableData.medications || null,
+        continuous_doctors: editableData.continuousDoctors || null,
+        private_doctors: editableData.privateDoctors || null,
+        enrollment_type: editableData.enrollmentType,
+        plan_type: editableData.planType as any,
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error("Error saving data:", error);
+      toast.error("Erro ao salvar dados");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function handleApproveRegistration() {
@@ -721,125 +868,470 @@ export default function AdminApprovals() {
         </DialogContent>
       </Dialog>
 
-      {/* Registration Approval Dialog */}
-      <Dialog open={registrationDialogOpen} onOpenChange={setRegistrationDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      {/* Registration Approval Dialog - Enhanced */}
+      <Dialog open={registrationDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsEditing(false);
+        }
+        setRegistrationDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Aprovar Cadastro de Criança</DialogTitle>
-            <DialogDescription>
-              Revise as informações e aprove o cadastro
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl">
+                  {isEditing ? "Editar Cadastro de Criança" : "Aprovar Cadastro de Criança"}
+                </DialogTitle>
+                <DialogDescription>
+                  {isEditing ? "Edite as informações antes de aprovar" : "Revise todas as informações e aprove o cadastro"}
+                </DialogDescription>
+              </div>
+              {!isEditing && (
+                <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Editar
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
-          {selectedRegistration && (
-            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Nome da Criança</p>
-                  <p className="font-semibold">{selectedRegistration.first_name} {selectedRegistration.last_name}</p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Data de Nascimento</p>
-                  <p className="font-semibold">
-                    {new Date(selectedRegistration.birth_date).toLocaleDateString("pt-BR")}
-                  </p>
-                </div>
-              </div>
+          {selectedRegistration && editableData && (
+            <ScrollArea className="max-h-[60vh] pr-4">
+              <Tabs value={dialogTab} onValueChange={setDialogTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-4">
+                  <TabsTrigger value="info" className="flex items-center gap-1 text-xs">
+                    <Baby className="w-3 h-3" />
+                    Criança
+                  </TabsTrigger>
+                  <TabsTrigger value="docs" className="flex items-center gap-1 text-xs">
+                    <FileCheck className="w-3 h-3" />
+                    Documentos
+                  </TabsTrigger>
+                  <TabsTrigger value="health" className="flex items-center gap-1 text-xs">
+                    <Heart className="w-3 h-3" />
+                    Saúde
+                  </TabsTrigger>
+                  <TabsTrigger value="pickups" className="flex items-center gap-1 text-xs">
+                    <Users className="w-3 h-3" />
+                    Autorizados
+                  </TabsTrigger>
+                </TabsList>
 
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Responsável</p>
-                <p className="font-semibold">{selectedRegistration.parent_name}</p>
-              </div>
+                {/* Tab: Informações Básicas */}
+                <TabsContent value="info" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {isEditing ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Nome</Label>
+                          <Input 
+                            value={editableData.firstName} 
+                            onChange={(e) => handleEditableChange("firstName", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Sobrenome</Label>
+                          <Input 
+                            value={editableData.lastName} 
+                            onChange={(e) => handleEditableChange("lastName", e.target.value)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Nome da Criança</p>
+                          <p className="font-semibold">{selectedRegistration.first_name} {selectedRegistration.last_name}</p>
+                        </div>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Data de Nascimento</p>
+                          <p className="font-semibold">
+                            {new Date(selectedRegistration.birth_date).toLocaleDateString("pt-BR")}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Endereço</p>
-                <p className="font-semibold">{selectedRegistration.address}</p>
-              </div>
+                  {isEditing && (
+                    <div className="space-y-2">
+                      <Label>Data de Nascimento</Label>
+                      <Input 
+                        type="date"
+                        value={editableData.birthDate} 
+                        onChange={(e) => handleEditableChange("birthDate", e.target.value)}
+                      />
+                    </div>
+                  )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Tipo de Vaga</p>
-                  <p className="font-semibold">
-                    {selectedRegistration.enrollment_type === "municipal" ? "Prefeitura" : "Particular"}
-                  </p>
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <p className="text-sm text-muted-foreground">Responsável pelo Cadastro</p>
+                    <p className="font-semibold">{selectedRegistration.parent_name}</p>
+                    {selectedRegistration.parent_phone && (
+                      <p className="text-sm text-muted-foreground mt-1">Tel: {selectedRegistration.parent_phone}</p>
+                    )}
+                    {selectedRegistration.parent_cpf && (
+                      <p className="text-sm text-muted-foreground">CPF: {selectedRegistration.parent_cpf}</p>
+                    )}
+                  </div>
+
+                  {isEditing ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Endereço</Label>
+                        <Input 
+                          value={editableData.address} 
+                          onChange={(e) => handleEditableChange("address", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cidade</Label>
+                        <Input 
+                          value={editableData.city} 
+                          onChange={(e) => handleEditableChange("city", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-muted rounded-lg flex items-start gap-3">
+                      <MapPin className="w-4 h-4 mt-1 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Endereço</p>
+                        <p className="font-semibold">{selectedRegistration.address}, {selectedRegistration.city}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {isEditing ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Tipo de Vaga</Label>
+                          <Select 
+                            value={editableData.enrollmentType} 
+                            onValueChange={(v) => handleEditableChange("enrollmentType", v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="municipal">Prefeitura</SelectItem>
+                              <SelectItem value="private">Particular</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {editableData.enrollmentType === "private" && (
+                          <div className="space-y-2">
+                            <Label>Plano</Label>
+                            <Select 
+                              value={editableData.planType || ""} 
+                              onValueChange={(v) => handleEditableChange("planType", v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecionar plano" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="basico">Básico</SelectItem>
+                                <SelectItem value="intermediario">Intermediário</SelectItem>
+                                <SelectItem value="plus">Plus+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Tipo de Vaga</p>
+                          <p className="font-semibold">
+                            {selectedRegistration.enrollment_type === "municipal" ? "Prefeitura" : "Particular"}
+                          </p>
+                        </div>
+                        {selectedRegistration.enrollment_type === "private" && (
+                          <div className="p-4 bg-muted rounded-lg">
+                            <p className="text-sm text-muted-foreground">Plano</p>
+                            <p className="font-semibold">
+                              {selectedRegistration.plan_type === "basico" ? "Básico" : 
+                               selectedRegistration.plan_type === "intermediario" ? "Intermediário" : 
+                               selectedRegistration.plan_type === "plus" ? "Plus+" : "-"}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Tab: Documentos */}
+                <TabsContent value="docs" className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    {isEditing ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label>CPF da Criança</Label>
+                          <Input 
+                            value={editableData.cpf} 
+                            onChange={(e) => handleEditableChange("cpf", e.target.value)}
+                            placeholder="000.000.000-00"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>RG da Criança</Label>
+                          <Input 
+                            value={editableData.rg} 
+                            onChange={(e) => handleEditableChange("rg", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cartão do SUS</Label>
+                          <Input 
+                            value={editableData.susCard} 
+                            onChange={(e) => handleEditableChange("susCard", e.target.value)}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">CPF da Criança</p>
+                          <p className="font-semibold">{selectedRegistration.cpf || "-"}</p>
+                        </div>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">RG da Criança</p>
+                          <p className="font-semibold">{selectedRegistration.rg || "-"}</p>
+                        </div>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Cartão do SUS</p>
+                          <p className="font-semibold">{selectedRegistration.sus_card || "-"}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {selectedRegistration.birth_certificate_url && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">Certidão de Nascimento</p>
+                      <a 
+                        href={selectedRegistration.birth_certificate_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-sm flex items-center gap-1"
+                      >
+                        <FileCheck className="w-4 h-4" />
+                        Ver documento
+                      </a>
+                    </div>
+                  )}
+
+                  {selectedRegistration.photo_url && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">Foto da Criança</p>
+                      <img 
+                        src={selectedRegistration.photo_url} 
+                        alt="Foto da criança"
+                        className="w-24 h-24 rounded-lg object-cover"
+                      />
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Tab: Saúde */}
+                <TabsContent value="health" className="space-y-4">
+                  {isEditing ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Alergias</Label>
+                        <Textarea 
+                          value={editableData.allergies} 
+                          onChange={(e) => handleEditableChange("allergies", e.target.value)}
+                          placeholder="Descreva as alergias, se houver"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Medicamentos de Uso Contínuo</Label>
+                        <Textarea 
+                          value={editableData.medications} 
+                          onChange={(e) => handleEditableChange("medications", e.target.value)}
+                          placeholder="Descreva os medicamentos, se houver"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Médicos de Uso Contínuo</Label>
+                        <Input 
+                          value={editableData.continuousDoctors} 
+                          onChange={(e) => handleEditableChange("continuousDoctors", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Médicos Particulares</Label>
+                        <Input 
+                          value={editableData.privateDoctors} 
+                          onChange={(e) => handleEditableChange("privateDoctors", e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {selectedRegistration.allergies ? (
+                        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                          <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            Alergias
+                          </p>
+                          <p className="mt-1">{selectedRegistration.allergies}</p>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Alergias</p>
+                          <p className="font-semibold text-muted-foreground">Nenhuma informada</p>
+                        </div>
+                      )}
+
+                      {selectedRegistration.medications ? (
+                        <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                          <p className="text-sm font-medium text-primary">Medicamentos de Uso Contínuo</p>
+                          <p className="mt-1">{selectedRegistration.medications}</p>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Medicamentos</p>
+                          <p className="font-semibold text-muted-foreground">Nenhum informado</p>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Médicos de Uso Contínuo</p>
+                          <p className="font-semibold">{selectedRegistration.continuous_doctors || "-"}</p>
+                        </div>
+                        <div className="p-4 bg-muted rounded-lg">
+                          <p className="text-sm text-muted-foreground">Médicos Particulares</p>
+                          <p className="font-semibold">{selectedRegistration.private_doctors || "-"}</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </TabsContent>
+
+                {/* Tab: Pessoas Autorizadas */}
+                <TabsContent value="pickups" className="space-y-4">
+                  {selectedRegistration.authorized_pickups && selectedRegistration.authorized_pickups.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Pessoas autorizadas a buscar a criança além do responsável principal:
+                      </p>
+                      {selectedRegistration.authorized_pickups.map((pickup, index) => (
+                        <div key={pickup.id} className="p-4 bg-muted rounded-lg flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{pickup.full_name}</p>
+                            <p className="text-sm text-muted-foreground">{pickup.relationship}</p>
+                          </div>
+                          {pickup.document_url && (
+                            <a 
+                              href={pickup.document_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline text-sm flex items-center gap-1"
+                            >
+                              <FileCheck className="w-4 h-4" />
+                              Documento
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Nenhuma pessoa autorizada cadastrada além do responsável principal
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              {/* Turma e Turno - sempre visíveis */}
+              <div className="mt-6 pt-6 border-t space-y-4">
+                <h4 className="font-semibold">Definir Turma e Turno</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Turma *</Label>
+                    <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "jardim")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bercario">Berçário (0-1 ano)</SelectItem>
+                        <SelectItem value="maternal">Maternal (1-3 anos)</SelectItem>
+                        <SelectItem value="jardim">Jardim (4-6 anos)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Turno *</Label>
+                    <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manha">Manhã (7h - 11h)</SelectItem>
+                        <SelectItem value="tarde">Tarde (15h - 19h)</SelectItem>
+                        <SelectItem value="integral">Integral</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">CPF</p>
-                  <p className="font-semibold">{selectedRegistration.cpf || "-"}</p>
-                </div>
-              </div>
 
-              {selectedRegistration.allergies && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600 font-medium">Alergias</p>
-                  <p className="text-red-800">{selectedRegistration.allergies}</p>
-                </div>
-              )}
-
-              {selectedRegistration.medications && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-600 font-medium">Medicamentos</p>
-                  <p className="text-blue-800">{selectedRegistration.medications}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Turma *</label>
-                  <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "jardim")}>
+                  <Label>Relacionamento do Responsável</Label>
+                  <Select value={relationship} onValueChange={setRelationship}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="bercario">Berçário (0-1 ano)</SelectItem>
-                      <SelectItem value="maternal">Maternal (1-3 anos)</SelectItem>
-                      <SelectItem value="jardim">Jardim (4-6 anos)</SelectItem>
+                      <SelectItem value="mãe">Mãe</SelectItem>
+                      <SelectItem value="pai">Pai</SelectItem>
+                      <SelectItem value="avô">Avô</SelectItem>
+                      <SelectItem value="avó">Avó</SelectItem>
+                      <SelectItem value="responsável">Responsável</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Turno *</label>
-                  <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manha">Manhã (7h - 11h)</SelectItem>
-                      <SelectItem value="tarde">Tarde (15h - 19h)</SelectItem>
-                      <SelectItem value="integral">Integral</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Relacionamento do Responsável</label>
-                <Select value={relationship} onValueChange={setRelationship}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mãe">Mãe</SelectItem>
-                    <SelectItem value="pai">Pai</SelectItem>
-                    <SelectItem value="avô">Avô</SelectItem>
-                    <SelectItem value="avó">Avó</SelectItem>
-                    <SelectItem value="responsável">Responsável</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+                  <p className="text-muted-foreground">
+                    <strong>Nota:</strong> Ao aprovar, a criança será automaticamente vinculada ao responsável <strong>{selectedRegistration.parent_name}</strong> com o relacionamento selecionado acima.
+                  </p>
+                </div>
               </div>
-            </div>
+            </ScrollArea>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRegistrationDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleApproveRegistration} disabled={actionLoading}>
-              {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              <FileText className="w-4 h-4 mr-2" />
-              Aprovar e Visualizar Contrato
-            </Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancelar Edição
+                </Button>
+                <Button onClick={saveEditedData} disabled={actionLoading}>
+                  {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Salvar Alterações
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setRegistrationDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleApproveRegistration} disabled={actionLoading}>
+                  {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <FileText className="w-4 h-4 mr-2" />
+                  Aprovar e Visualizar Contrato
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
