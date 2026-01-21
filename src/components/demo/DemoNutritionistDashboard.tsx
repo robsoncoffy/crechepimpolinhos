@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
+import { DemoMiniCalendar } from "./DemoMiniCalendar";
 
 const daysOfWeek = [
   { value: 0, label: "Segunda-feira" },
@@ -424,8 +425,11 @@ export function DemoNutritionistDashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* Quick Post Creator */}
-        <DemoQuickPostCreator userName="Nutricionista Carla" userInitial="N" />
+        {/* Mini Calendar + Quick Post Creator */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          <DemoMiniCalendar />
+          <DemoQuickPostCreator userName="Nutricionista Carla" userInitial="N" />
+        </div>
       </main>
     </div>
   );

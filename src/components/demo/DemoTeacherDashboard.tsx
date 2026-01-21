@@ -43,6 +43,7 @@ import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 import { DemoWeatherHeader } from "./DemoWeatherHeader";
+import { DemoMiniCalendar } from "./DemoMiniCalendar";
 
 // Mock children for the class with photos and pickup notifications
 const mockChildren = [
@@ -1128,8 +1129,11 @@ export function DemoTeacherDashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Post Creator */}
-        <DemoQuickPostCreator userName="Prof. Ana" userInitial="P" defaultClassType="maternal" />
+        {/* Mini Calendar + Quick Post Creator */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          <DemoMiniCalendar />
+          <DemoQuickPostCreator userName="Prof. Ana" userInitial="P" defaultClassType="maternal" />
+        </div>
       </main>
     </div>
   );
