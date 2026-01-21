@@ -447,6 +447,37 @@ serve(async (req) => {
         });
       }
 
+      case "get_balance": {
+        if (!isStaff) {
+          return new Response(JSON.stringify({ error: "Sem permissão" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        try {
+          // Get account balance from Asaas
+          const balance = await asaasRequest("/finance/balance", "GET");
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            balance: balance.balance || 0,
+            totalBalance: balance.totalBalance || 0,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          console.error("Error fetching balance:", error);
+          return new Response(JSON.stringify({ 
+            error: "Erro ao buscar saldo",
+            balance: null 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Ação inválida" }), {
           status: 400,
