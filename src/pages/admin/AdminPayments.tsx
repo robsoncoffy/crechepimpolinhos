@@ -52,7 +52,7 @@ import {
   TrendingUp,
   Download,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, endOfMonth, parseISO, isBefore, isEqual } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
@@ -468,12 +468,26 @@ export default function AdminPayments() {
   }, [asaasCustomers]);
 
   // Calculate stats from Asaas data (primary) or fallback to legacy
+  // A Receber is limited to due dates up to end of current month
   const pendingTotal = useMemo(() => {
+    const lastDayOfMonth = endOfMonth(new Date());
+    
     const asaasTotal = asaasPayments
-      .filter(p => p.status === "pending")
+      .filter(p => {
+        if (p.status !== "pending") return false;
+        const dueDate = parseISO(p.due_date);
+        return isBefore(dueDate, lastDayOfMonth) || isEqual(dueDate, lastDayOfMonth);
+      })
       .reduce((sum, p) => sum + Number(p.value), 0);
     if (asaasTotal > 0) return asaasTotal;
-    return invoices.filter(i => i.status === "pending").reduce((sum, i) => sum + Number(i.value), 0);
+    
+    return invoices
+      .filter(i => {
+        if (i.status !== "pending") return false;
+        const dueDate = parseISO(i.due_date);
+        return isBefore(dueDate, lastDayOfMonth) || isEqual(dueDate, lastDayOfMonth);
+      })
+      .reduce((sum, i) => sum + Number(i.value), 0);
   }, [asaasPayments, invoices]);
   
   const overdueTotal = useMemo(() => {

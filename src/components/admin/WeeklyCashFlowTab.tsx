@@ -20,7 +20,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval, endOfMonth, isBefore, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   TrendingUp, 
@@ -107,7 +107,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
     return map;
   }, [asaasCustomers]);
 
-  // Calculate weekly data
+  // Calculate weekly data - limited to end of current month
   const weeklyData = useMemo(() => {
     const weeks: Array<{
       weekStart: Date;
@@ -122,11 +122,17 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
     }> = [];
 
     const today = new Date();
+    const lastDayOfMonth = endOfMonth(today);
     const baseWeekStart = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
 
     for (let i = 0; i < WEEK_COUNT; i++) {
       const weekStart = addWeeks(baseWeekStart, i);
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      
+      // Skip weeks that start after end of month (for projections)
+      if (weekOffset === 0 && isAfter(weekStart, lastDayOfMonth)) {
+        continue;
+      }
       
       const label = `${format(weekStart, "dd/MM", { locale: ptBR })} - ${format(weekEnd, "dd/MM", { locale: ptBR })}`;
 
@@ -148,7 +154,10 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
             entries += value;
           } else if (isPending) {
             pending += value;
-            expectedEntries += value * 0.85;
+            // Only count expected entries up to end of month
+            if (isBefore(dueDate, lastDayOfMonth) || dueDate.getTime() === lastDayOfMonth.getTime()) {
+              expectedEntries += value * 0.85;
+            }
           } else if (isOverdue) {
             expectedEntries += value * 0.3;
           }
@@ -162,12 +171,15 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
         }
       });
 
-      // Add expected from subscriptions
+      // Add expected from subscriptions - only if next due date is within month
       asaasSubscriptions.filter(s => s.status === "active" || s.status === "ACTIVE").forEach((sub) => {
         if (sub.next_due_date) {
           const nextDue = parseISO(sub.next_due_date);
           if (isWithinInterval(nextDue, { start: weekStart, end: weekEnd })) {
-            expectedEntries += Number(sub.value) * 0.85;
+            // Only count if within current month
+            if (isBefore(nextDue, lastDayOfMonth) || nextDue.getTime() === lastDayOfMonth.getTime()) {
+              expectedEntries += Number(sub.value) * 0.85;
+            }
           }
         }
       });
@@ -283,7 +295,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Próximas {WEEK_COUNT} semanas
+              Até o fim do mês
             </p>
           </CardContent>
         </Card>
