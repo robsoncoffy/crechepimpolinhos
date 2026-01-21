@@ -10,10 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, eachDayOfInterval, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2, Download } from "lucide-react";
+import { FileText, Calendar as CalendarIcon, Users, ClipboardList, TrendingUp, DollarSign, Loader2, Download, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classTypeLabels } from "@/lib/constants";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
+import EmployeeFrequencyReport from "@/components/admin/EmployeeFrequencyReport";
+import EmployeeRegistrationReport from "@/components/admin/EmployeeRegistrationReport";
 import { ExportButtons, exportToCSV } from "@/components/admin/ReportExport";
 import {
   BarChart,
@@ -30,13 +32,6 @@ interface Child {
   id: string;
   full_name: string;
   class_type: string;
-}
-
-interface AttendanceRecord {
-  id: string;
-  child_id: string;
-  date: string;
-  status: string;
 }
 
 interface DailyRecord {
@@ -65,14 +60,64 @@ interface QuarterlyEvaluation {
   children?: { full_name: string; class_type: string; plan_type: string | null };
 }
 
+interface EmployeeProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  birth_date: string;
+  gender: string | null;
+  marital_status: string | null;
+  nationality: string | null;
+  place_of_birth: string | null;
+  mother_name: string | null;
+  father_name: string | null;
+  cpf: string;
+  rg: string | null;
+  rg_issuer: string | null;
+  rg_issue_date: string | null;
+  pis_pasep: string | null;
+  ctps_number: string | null;
+  ctps_series: string | null;
+  ctps_state: string | null;
+  voter_title: string | null;
+  voter_zone: string | null;
+  voter_section: string | null;
+  military_certificate: string | null;
+  zip_code: string | null;
+  street: string | null;
+  street_number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  bank_name: string | null;
+  bank_agency: string | null;
+  bank_account: string | null;
+  bank_account_type: string | null;
+  pix_key: string | null;
+  education_level: string | null;
+  specialization: string | null;
+  job_title: string | null;
+  work_shift: string | null;
+  has_disability: boolean;
+  disability_description: string | null;
+  hire_date: string | null;
+  salary: number | null;
+  created_at: string;
+}
+
 export default function AdminReports() {
-  const [activeTab, setActiveTab] = useState("frequencia");
+  const [activeTab, setActiveTab] = useState("frequencia-funcionarios");
   const [loading, setLoading] = useState(false);
   const [children, setChildren] = useState<Child[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [dailyRecords, setDailyRecords] = useState<DailyRecord[]>([]);
   const [evaluations, setEvaluations] = useState<QuarterlyEvaluation[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
+  const [userRoles, setUserRoles] = useState<{ user_id: string; role: string }[]>([]);
   
   // Filters
   const [selectedClass, setSelectedClass] = useState<string>("all");
@@ -89,28 +134,14 @@ export default function AdminReports() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch children
-      const { data: childrenData } = await supabase
-        .from("children")
-        .select("id, full_name, class_type")
-        .order("full_name");
-      
-      if (childrenData) setChildren(childrenData as unknown as Child[]);
-
-      // Fetch based on active tab
-      if (activeTab === "frequencia") {
-        let query = supabase
-          .from("attendance")
-          .select("*")
-          .gte("date", format(dateRange.from, "yyyy-MM-dd"))
-          .lte("date", format(dateRange.to, "yyyy-MM-dd"));
+      // Fetch children for agenda/desenvolvimento tabs
+      if (activeTab === "agenda" || activeTab === "desenvolvimento") {
+        const { data: childrenData } = await supabase
+          .from("children")
+          .select("id, full_name, class_type")
+          .order("full_name");
         
-        if (selectedChild !== "all") {
-          query = query.eq("child_id", selectedChild);
-        }
-        
-        const { data } = await query;
-        if (data) setAttendance(data);
+        if (childrenData) setChildren(childrenData as unknown as Child[]);
       }
 
       if (activeTab === "agenda") {
@@ -147,41 +178,22 @@ export default function AdminReports() {
         
         if (data) setInvoices(data);
       }
+
+      if (activeTab === "ficha-cadastral") {
+        const [employeesRes, rolesRes] = await Promise.all([
+          supabase.from("employee_profiles").select("*").order("full_name"),
+          supabase.from("user_roles").select("user_id, role"),
+        ]);
+        
+        if (employeesRes.data) setEmployees(employeesRes.data as unknown as EmployeeProfile[]);
+        if (rolesRes.data) setUserRoles(rolesRes.data);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Erro ao carregar dados");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Use the reusable export component - functions now available via ExportButtons
-
-  // Calculate attendance stats
-  const getAttendanceStats = () => {
-    const filteredChildren = selectedClass === "all" 
-      ? children 
-      : children.filter(c => c.class_type === selectedClass);
-    
-    const workDays = eachDayOfInterval({ start: dateRange.from, end: dateRange.to })
-      .filter(day => !isWeekend(day)).length;
-
-    return filteredChildren.map(child => {
-      const childAttendance = attendance.filter(a => a.child_id === child.id);
-      const present = childAttendance.filter(a => a.status === "present").length;
-      const absent = childAttendance.filter(a => a.status === "absent").length;
-      const rate = workDays > 0 ? (present / workDays) * 100 : 0;
-      
-      return {
-        id: child.id,
-        name: child.full_name,
-        class: classTypeLabels[child.class_type as keyof typeof classTypeLabels] || child.class_type,
-        workDays,
-        present,
-        absent,
-        rate: rate.toFixed(1),
-      };
-    });
   };
 
   // Get Plus+ evaluations chart data
@@ -203,7 +215,6 @@ export default function AdminReports() {
     }));
   };
 
-  const attendanceStats = getAttendanceStats();
   const evaluationChartData = getEvaluationChartData();
 
   return (
@@ -216,17 +227,21 @@ export default function AdminReports() {
             Relatórios
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gere e exporte relatórios operacionais
+            Gere e exporte relatórios operacionais e de RH
           </p>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
-          <TabsTrigger value="frequencia" className="flex items-center gap-2">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+          <TabsTrigger value="frequencia-funcionarios" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Frequência</span>
+            <span className="hidden sm:inline">Frequência RH</span>
+          </TabsTrigger>
+          <TabsTrigger value="ficha-cadastral" className="flex items-center gap-2">
+            <Briefcase className="w-4 h-4" />
+            <span className="hidden sm:inline">Ficha Cadastral</span>
           </TabsTrigger>
           <TabsTrigger value="desenvolvimento" className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4" />
@@ -242,8 +257,8 @@ export default function AdminReports() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Filters */}
-        {activeTab !== "financeiro" && (
+        {/* Filters - Only for tabs that need date range */}
+        {(activeTab === "frequencia-funcionarios" || activeTab === "agenda" || activeTab === "desenvolvimento") && (
           <Card className="mt-4">
             <CardContent className="p-4">
               <div className="flex flex-wrap gap-4 items-end">
@@ -272,26 +287,8 @@ export default function AdminReports() {
                   </Popover>
                 </div>
 
-                {/* Class Filter */}
-                {activeTab === "frequencia" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Turma</label>
-                    <Select value={selectedClass} onValueChange={setSelectedClass}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Todas as turmas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as turmas</SelectItem>
-                        {Object.entries(classTypeLabels).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Child Filter */}
-                {(activeTab === "agenda" || activeTab === "frequencia") && (
+                {/* Child Filter - Only for agenda */}
+                {activeTab === "agenda" && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Criança</label>
                     <Select value={selectedChild} onValueChange={setSelectedChild}>
@@ -336,211 +333,174 @@ export default function AdminReports() {
           </Card>
         )}
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        )}
+        {/* Tab: Frequência Funcionários */}
+        <TabsContent value="frequencia-funcionarios" className="mt-6">
+          <EmployeeFrequencyReport dateRange={dateRange} />
+        </TabsContent>
 
-        {/* Tab: Frequência */}
-        <TabsContent value="frequencia" className="mt-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Relatório de Frequência</CardTitle>
-                <CardDescription>
-                  Período: {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                </CardDescription>
-              </div>
-              <ExportButtons 
-                data={attendanceStats} 
-                filename="frequencia"
-                columns={[
-                  { key: "name", label: "Aluno" },
-                  { key: "class", label: "Turma" },
-                  { key: "workDays", label: "Dias Úteis" },
-                  { key: "present", label: "Presenças" },
-                  { key: "absent", label: "Faltas" },
-                  { key: "rate", label: "% Frequência" },
-                ]}
-              />
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Aluno</TableHead>
-                    <TableHead>Turma</TableHead>
-                    <TableHead className="text-center">Dias Úteis</TableHead>
-                    <TableHead className="text-center">Presenças</TableHead>
-                    <TableHead className="text-center">Faltas</TableHead>
-                    <TableHead className="text-center">% Frequência</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceStats.map((stat) => (
-                    <TableRow key={stat.id}>
-                      <TableCell className="font-medium">{stat.name}</TableCell>
-                      <TableCell>{stat.class}</TableCell>
-                      <TableCell className="text-center">{stat.workDays}</TableCell>
-                      <TableCell className="text-center text-green-600">{stat.present}</TableCell>
-                      <TableCell className="text-center text-red-600">{stat.absent}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={cn(
-                          "font-semibold",
-                          Number(stat.rate) >= 75 ? "text-green-600" : "text-red-600"
-                        )}>
-                          {stat.rate}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {attendanceStats.length === 0 && !loading && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum registro de frequência encontrado para o período selecionado.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+        {/* Tab: Ficha Cadastral */}
+        <TabsContent value="ficha-cadastral" className="mt-6">
+          <EmployeeRegistrationReport 
+            employees={employees} 
+            userRoles={userRoles}
+            loading={loading}
+          />
         </TabsContent>
 
         {/* Tab: Desenvolvimento */}
         <TabsContent value="desenvolvimento" className="mt-6 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Avaliações Trimestrais (Plus+)</CardTitle>
-                <CardDescription>
-                  Média por área de desenvolvimento
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => exportToCSV(evaluations.filter(e => e.children?.plan_type === "plus"), "avaliacoes_plus")}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {evaluationChartData.length > 0 ? (
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={evaluationChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="Avaliações" fill="hsl(var(--primary))" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma avaliação Plus+ encontrada.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Avaliações Trimestrais (Plus+)</CardTitle>
+                    <CardDescription>
+                      Média por área de desenvolvimento
+                    </CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => exportToCSV(evaluations.filter(e => e.children?.plan_type === "plus"), "avaliacoes_plus")}>
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {evaluationChartData.length > 0 ? (
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={evaluationChartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="period" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="Avaliações" fill="hsl(var(--primary))" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma avaliação Plus+ encontrada.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Individual Evaluations Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Avaliações Individuais</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Aluno</TableHead>
-                    <TableHead>Turma</TableHead>
-                    <TableHead className="text-center">Trimestre</TableHead>
-                    <TableHead className="text-center">Ano</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {evaluations.filter(e => e.children?.plan_type === "plus").map((evaluation) => (
-                    <TableRow key={evaluation.id}>
-                      <TableCell className="font-medium">{evaluation.children?.full_name}</TableCell>
-                      <TableCell>{classTypeLabels[evaluation.children?.class_type as keyof typeof classTypeLabels] || evaluation.children?.class_type}</TableCell>
-                      <TableCell className="text-center">{evaluation.quarter}º Trimestre</TableCell>
-                      <TableCell className="text-center">{evaluation.year}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {evaluations.filter(e => e.children?.plan_type === "plus").length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma avaliação Plus+ encontrada.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              {/* Individual Evaluations Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Avaliações Individuais</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Aluno</TableHead>
+                        <TableHead>Turma</TableHead>
+                        <TableHead className="text-center">Trimestre</TableHead>
+                        <TableHead className="text-center">Ano</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {evaluations.filter(e => e.children?.plan_type === "plus").map((evaluation) => (
+                        <TableRow key={evaluation.id}>
+                          <TableCell className="font-medium">{evaluation.children?.full_name}</TableCell>
+                          <TableCell>{classTypeLabels[evaluation.children?.class_type as keyof typeof classTypeLabels] || evaluation.children?.class_type}</TableCell>
+                          <TableCell className="text-center">{evaluation.quarter}º Trimestre</TableCell>
+                          <TableCell className="text-center">{evaluation.year}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {evaluations.filter(e => e.children?.plan_type === "plus").length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      Nenhuma avaliação Plus+ encontrada.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* Tab: Agenda */}
         <TabsContent value="agenda" className="mt-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Histórico de Agenda</CardTitle>
-                <CardDescription>
-                  Registros diários do período selecionado
-                </CardDescription>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => exportToCSV(dailyRecords.map(r => ({
-                data: r.date,
-                aluno: r.children?.full_name,
-                humor: r.mood,
-                cafeManha: r.breakfast,
-                almoco: r.lunch,
-                lanche: r.snack,
-                bilhete: r.note,
-              })), "agenda")}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Aluno</TableHead>
-                    <TableHead>Humor</TableHead>
-                    <TableHead>Café</TableHead>
-                    <TableHead>Almoço</TableHead>
-                    <TableHead>Lanche</TableHead>
-                    <TableHead>Bilhete</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {dailyRecords.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>{format(parseISO(record.date), "dd/MM/yyyy")}</TableCell>
-                      <TableCell className="font-medium">{record.children?.full_name}</TableCell>
-                      <TableCell>{record.mood || "-"}</TableCell>
-                      <TableCell>{record.breakfast || "-"}</TableCell>
-                      <TableCell>{record.lunch || "-"}</TableCell>
-                      <TableCell>{record.snack || "-"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{record.note || "-"}</TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Histórico de Agenda</CardTitle>
+                  <CardDescription>
+                    Registros diários do período selecionado
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => exportToCSV(dailyRecords.map(r => ({
+                  data: r.date,
+                  aluno: r.children?.full_name,
+                  humor: r.mood,
+                  cafeManha: r.breakfast,
+                  almoco: r.lunch,
+                  lanche: r.snack,
+                  bilhete: r.note,
+                })), "agenda")}>
+                  <Download className="w-4 h-4 mr-2" />
+                  CSV
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Aluno</TableHead>
+                      <TableHead>Humor</TableHead>
+                      <TableHead>Café</TableHead>
+                      <TableHead>Almoço</TableHead>
+                      <TableHead>Lanche</TableHead>
+                      <TableHead>Bilhete</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {dailyRecords.length === 0 && !loading && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum registro de agenda encontrado para o período selecionado.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {dailyRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>{format(parseISO(record.date), "dd/MM/yyyy")}</TableCell>
+                        <TableCell className="font-medium">{record.children?.full_name}</TableCell>
+                        <TableCell>{record.mood || "-"}</TableCell>
+                        <TableCell>{record.breakfast || "-"}</TableCell>
+                        <TableCell>{record.lunch || "-"}</TableCell>
+                        <TableCell>{record.snack || "-"}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{record.note || "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {dailyRecords.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum registro de agenda encontrado para o período selecionado.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Tab: Financeiro */}
         <TabsContent value="financeiro" className="mt-6">
-          <FinancialReportsTab invoices={invoices} />
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <FinancialReportsTab invoices={invoices} />
+          )}
         </TabsContent>
       </Tabs>
     </div>
