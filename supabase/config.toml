@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.menu-ai-suggestions]
 verify_jwt = false
+
+[functions.chat-reply-suggestions]
+verify_jwt = false
