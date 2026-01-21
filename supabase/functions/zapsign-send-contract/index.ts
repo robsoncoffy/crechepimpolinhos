@@ -367,14 +367,14 @@ CNPJ: ${COMPANY_DATA.cnpj}
       return url.toString();
     };
 
+    // ZapSign supports markdown_text for document creation (ideal for contracts)
+    // This is the recommended approach for text-based contracts
     const createDocPayload = {
       name: `Contrato de Matrícula - ${childName}`,
-      url_pdf: "",
-      base64_pdf: btoa(unescape(encodeURIComponent(contractContent))),
+      markdown_text: contractContent,
       lang: "pt-br",
       disable_signer_emails: false,
       signed_file_only_finished: true,
-      brand_logo: "",
       brand_primary_color: "#3B82F6",
       external_id: `${registrationId || childId}`,
       signers: [
