@@ -210,6 +210,20 @@ export default function AdminApprovals() {
         if (linkError) throw linkError;
       }
 
+      // Send approval email to parent
+      try {
+        await supabase.functions.invoke("send-approval-email", {
+          body: {
+            parentId: selectedParent.user_id,
+            parentName: selectedParent.full_name,
+            approvalType: "parent",
+          },
+        });
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+        // Don't block approval if email fails
+      }
+
       toast.success("Cadastro aprovado com sucesso!");
       setDialogOpen(false);
       setSelectedParent(null);
@@ -400,26 +414,18 @@ export default function AdminApprovals() {
 
       if (regError) throw regError;
 
-      // Send welcome email to parent
+      // Send approval email to parent (for child registration)
       try {
-        const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.access_token) {
-          const response = await supabase.functions.invoke("send-welcome-email", {
-            body: {
-              parentId: selectedRegistration.parent_id,
-              parentName: selectedRegistration.parent_name || "Responsável",
-              childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
-              classType: selectedClassType,
-              shiftType: selectedShiftType,
-            },
-          });
-          
-          if (response.error) {
-            console.error("Error sending welcome email:", response.error);
-          }
-        }
+        await supabase.functions.invoke("send-approval-email", {
+          body: {
+            parentId: selectedRegistration.parent_id,
+            parentName: selectedRegistration.parent_name || "Responsável",
+            approvalType: "child",
+            childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+          },
+        });
       } catch (emailError) {
-        console.error("Error sending welcome email:", emailError);
+        console.error("Error sending approval email:", emailError);
       }
 
       // Fetch parent profile for contract preview
