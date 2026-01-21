@@ -1995,6 +1995,42 @@ export type Database = {
         }
         Relationships: []
       }
+      shopping_list: {
+        Row: {
+          added_by: string | null
+          added_by_role: string
+          checked: boolean
+          created_at: string
+          id: string
+          name: string
+          quantity: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          added_by_role?: string
+          checked?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          quantity?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          added_by_role?: string
+          checked?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          quantity?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_chat_rooms: {
         Row: {
           created_at: string
