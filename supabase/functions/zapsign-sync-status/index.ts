@@ -133,7 +133,9 @@ serve(async (req) => {
     }
 
     // Update if status changed
-    if (newStatus !== contract.status) {
+    const statusChanged = newStatus !== contract.status;
+    
+    if (statusChanged) {
       const updateData: Record<string, unknown> = { status: newStatus };
       if (newStatus === 'signed' && signed_at) {
         updateData.signed_at = signed_at;
@@ -149,118 +151,121 @@ serve(async (req) => {
       }
 
       console.log(`Contract ${contractId} synced: ${contract.status} -> ${newStatus}`);
+    }
 
-      // If contract was signed, create Asaas subscription
-      if (newStatus === 'signed' && contract.child_id && contract.parent_id) {
+    // Check if we need to create subscription for signed contracts
+    // This handles both new signatures AND contracts that were signed before subscription logic was added
+    if (newStatus === 'signed' && contract.child_id && contract.parent_id) {
+      // Check if subscription already exists for this child
+      const { data: existingSubscription } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('child_id', contract.child_id)
+        .eq('status', 'active')
+        .single();
+
+      if (existingSubscription) {
+        console.log("Subscription already exists for this child");
+      } else {
         console.log("Creating Asaas subscription for signed contract...");
         
         try {
-          // Check if subscription already exists for this child
-          const { data: existingSubscription } = await supabase
-            .from('subscriptions')
-            .select('id')
-            .eq('child_id', contract.child_id)
-            .eq('status', 'active')
+          // Get parent profile info
+          const { data: parentProfile } = await supabase
+            .from('profiles')
+            .select('full_name, cpf, phone, email')
+            .eq('user_id', contract.parent_id)
             .single();
 
-          if (existingSubscription) {
-            console.log("Subscription already exists for this child, skipping creation");
-          } else {
-            // Get parent profile info
-            const { data: parentProfile } = await supabase
-              .from('profiles')
-              .select('full_name, cpf, phone, email')
-              .eq('user_id', contract.parent_id)
+          if (parentProfile) {
+            // Check if customer already exists
+            let customerId: string | null = null;
+            
+            const { data: existingCustomer } = await supabase
+              .from('payment_customers')
+              .select('asaas_customer_id')
+              .eq('parent_id', contract.parent_id)
               .single();
 
-            if (parentProfile) {
-              // Check if customer already exists
-              let customerId: string | null = null;
+            if (existingCustomer) {
+              customerId = existingCustomer.asaas_customer_id;
+              console.log("Using existing customer:", customerId);
+            } else {
+              // Create new customer in Asaas
+              console.log("Creating new customer in Asaas...");
+              // Omit phone to avoid Asaas validation issues
+              const customerData: Record<string, unknown> = {
+                name: parentProfile.full_name,
+                email: parentProfile.email,
+                cpfCnpj: parentProfile.cpf?.replace(/\D/g, ""),
+                externalReference: contract.parent_id,
+              };
               
-              const { data: existingCustomer } = await supabase
-                .from('payment_customers')
-                .select('asaas_customer_id')
-                .eq('parent_id', contract.parent_id)
-                .single();
+              const customer = await asaasRequest("/customers", "POST", customerData);
+              
+              customerId = customer.id;
+              
+              await supabase.from("payment_customers").insert({
+                parent_id: contract.parent_id,
+                asaas_customer_id: customer.id,
+              });
+              console.log("Created new customer:", customerId);
+            }
 
-              if (existingCustomer) {
-                customerId = existingCustomer.asaas_customer_id;
-                console.log("Using existing customer:", customerId);
-              } else {
-                // Create new customer in Asaas
-                console.log("Creating new customer in Asaas...");
-                const customer = await asaasRequest("/customers", "POST", {
-                  name: parentProfile.full_name,
-                  email: parentProfile.email,
-                  cpfCnpj: parentProfile.cpf?.replace(/\D/g, ""),
-                  phone: parentProfile.phone?.replace(/\D/g, ""),
-                  externalReference: contract.parent_id,
-                });
-                
-                customerId = customer.id;
-                
-                await supabase.from("payment_customers").insert({
-                  parent_id: contract.parent_id,
-                  asaas_customer_id: customer.id,
-                });
-                console.log("Created new customer:", customerId);
+            // Calculate subscription value from contract
+            const subscriptionValue = getContractValue(contract.class_type, contract.plan_type);
+            
+            if (subscriptionValue > 0 && customerId) {
+              // Calculate end date (December of current year)
+              const now = new Date();
+              const currentYear = now.getFullYear();
+              const endDate = new Date(currentYear, 11, 31); // December 31
+              
+              // Calculate next due date (day 10 of next month)
+              const nextDueDate = new Date();
+              nextDueDate.setDate(10);
+              if (nextDueDate <= new Date()) {
+                nextDueDate.setMonth(nextDueDate.getMonth() + 1);
               }
 
-              // Calculate subscription value from contract
-              const subscriptionValue = getContractValue(contract.class_type, contract.plan_type);
-              
-              if (subscriptionValue > 0 && customerId) {
-                // Calculate end date (December of current year)
-                const now = new Date();
-                const currentYear = now.getFullYear();
-                const endDate = new Date(currentYear, 11, 31); // December 31
-                
-                // Calculate next due date (day 10 of next month)
-                const nextDueDate = new Date();
-                nextDueDate.setDate(10);
-                if (nextDueDate <= new Date()) {
-                  nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-                }
+              console.log(`Creating subscription: value=${subscriptionValue}, endDate=${endDate.toISOString()}`);
 
-                console.log(`Creating subscription: value=${subscriptionValue}, endDate=${endDate.toISOString()}`);
+              // Create subscription in Asaas with end date
+              const subscription = await asaasRequest("/subscriptions", "POST", {
+                customer: customerId,
+                billingType: "UNDEFINED",
+                value: subscriptionValue,
+                nextDueDate: nextDueDate.toISOString().split("T")[0],
+                cycle: "MONTHLY",
+                description: `Mensalidade ${contract.child_name} - ${contract.class_type} ${contract.plan_type}`,
+                externalReference: contract.child_id,
+                endDate: endDate.toISOString().split("T")[0],
+              });
 
-                // Create subscription in Asaas with end date
-                const subscription = await asaasRequest("/subscriptions", "POST", {
-                  customer: customerId,
-                  billingType: "UNDEFINED",
-                  value: subscriptionValue,
-                  nextDueDate: nextDueDate.toISOString().split("T")[0],
-                  cycle: "MONTHLY",
-                  description: `Mensalidade ${contract.child_name} - ${contract.class_type} ${contract.plan_type}`,
-                  externalReference: contract.child_id,
-                  endDate: endDate.toISOString().split("T")[0],
-                });
+              console.log("Asaas subscription created:", subscription.id);
 
-                console.log("Asaas subscription created:", subscription.id);
+              // Save to database
+              await supabase.from("subscriptions").insert({
+                child_id: contract.child_id,
+                parent_id: contract.parent_id,
+                asaas_subscription_id: subscription.id,
+                value: subscriptionValue,
+                billing_day: 10,
+                status: "active",
+              });
 
-                // Save to database
-                await supabase.from("subscriptions").insert({
-                  child_id: contract.child_id,
-                  parent_id: contract.parent_id,
-                  asaas_subscription_id: subscription.id,
-                  value: subscriptionValue,
-                  billing_day: 10,
-                  status: "active",
-                });
+              console.log("Subscription saved to database");
 
-                console.log("Subscription saved to database");
-
-                // Notify about subscription creation
-                await supabase.from('notifications').insert({
-                  user_id: contract.parent_id,
-                  title: '💳 Cobrança Configurada',
-                  message: `Sua assinatura mensal de R$ ${subscriptionValue.toFixed(2).replace('.', ',')} para ${contract.child_name} foi configurada.`,
-                  type: 'subscription_created',
-                  link: '/painel-responsavel',
-                });
-              } else {
-                console.log("Could not create subscription: value=", subscriptionValue, "customerId=", customerId);
-              }
+              // Notify about subscription creation
+              await supabase.from('notifications').insert({
+                user_id: contract.parent_id,
+                title: '💳 Cobrança Configurada',
+                message: `Sua assinatura mensal de R$ ${subscriptionValue.toFixed(2).replace('.', ',')} para ${contract.child_name} foi configurada.`,
+                type: 'subscription_created',
+                link: '/painel-responsavel',
+              });
+            } else {
+              console.log("Could not create subscription: value=", subscriptionValue, "customerId=", customerId);
             }
           }
         } catch (subscriptionError) {
@@ -270,7 +275,7 @@ serve(async (req) => {
       }
 
       // Create notification for admins if status changed to signed
-      if (newStatus === 'signed') {
+      if (statusChanged) {
         const { data: admins } = await supabase
           .from('user_roles')
           .select('user_id')
@@ -297,7 +302,9 @@ serve(async (req) => {
           link: '/painel-responsavel',
         });
       }
+    }
 
+    if (statusChanged) {
       return new Response(
         JSON.stringify({ 
           success: true, 
