@@ -160,14 +160,26 @@ export default function AdminApprovals() {
         });
       }
 
+      // Fetch parent invites to get email and phone
+      const invitesRes = await supabase
+        .from("parent_invites")
+        .select("used_by, email, phone")
+        .in("used_by", parentIds);
+
+      const invitesMap = new Map(
+        (invitesRes.data || []).map((inv) => [inv.used_by, inv])
+      );
+
       const registrationsWithParent = regs.map((reg) => {
         const parentProfile = profileMap.get(reg.parent_id);
+        const parentInvite = invitesMap.get(reg.parent_id);
         return {
           ...reg,
           parent_name: parentProfile?.full_name || "Responsável",
-          parent_phone: parentProfile?.phone || undefined,
+          parent_phone: parentProfile?.phone || parentInvite?.phone || undefined,
           parent_cpf: parentProfile?.cpf || undefined,
           parent_rg: parentProfile?.rg || undefined,
+          parent_email: parentInvite?.email || undefined,
           authorized_pickups: pickupsMap.get(reg.id) || [],
         };
       });
@@ -435,9 +447,9 @@ export default function AdminApprovals() {
         .eq("user_id", selectedRegistration.parent_id)
         .single();
 
-      // Fetch parent email
-      const { data: userData } = await supabase.auth.admin.getUserById(selectedRegistration.parent_id);
-      const parentEmail = userData?.user?.email || '';
+      // Use email and phone from the registration data (already fetched from parent_invites)
+      const parentEmail = selectedRegistration.parent_email || '';
+      const parentPhone = parentProfile?.phone || selectedRegistration.parent_phone || '';
 
       // Fetch emergency contact
       let emergencyContact = '';
@@ -455,9 +467,9 @@ export default function AdminApprovals() {
       // Prepare contract data for preview
       const contractPreviewData = {
         parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
-        parentCpf: parentProfile?.cpf || '',
-        parentRg: parentProfile?.rg || '',
-        parentPhone: parentProfile?.phone || '',
+        parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
+        parentRg: parentProfile?.rg || selectedRegistration.parent_rg || '',
+        parentPhone: parentPhone,
         parentEmail: parentEmail,
         address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
         childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
