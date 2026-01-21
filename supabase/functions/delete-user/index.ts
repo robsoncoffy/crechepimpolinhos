@@ -263,6 +263,15 @@ serve(async (req) => {
     
     // Delete from related tables first (in order of dependencies)
     if (targetUserId) {
+      // ============ FIND ORPHANED CHILDREN BEFORE DELETING LINKS ============
+      // Get all children linked to this parent
+      const { data: linkedChildren } = await supabaseAdmin
+        .from("parent_children")
+        .select("child_id")
+        .eq("parent_id", targetUserId);
+      
+      const childIdsToCheck = linkedChildren?.map((pc) => pc.child_id) || [];
+
       // Delete parent_children links
       const { error: parentChildrenError, count: pcCount } = await supabaseAdmin
         .from("parent_children")
@@ -274,6 +283,59 @@ serve(async (req) => {
         count: pcCount || 0,
         error: parentChildrenError?.message,
       });
+
+      // ============ DELETE ORPHANED CHILDREN (no remaining parents) ============
+      if (childIdsToCheck.length > 0) {
+        // Check which children no longer have any parents
+        const { data: remainingLinks } = await supabaseAdmin
+          .from("parent_children")
+          .select("child_id")
+          .in("child_id", childIdsToCheck);
+        
+        const childrenWithParents = new Set(remainingLinks?.map((l) => l.child_id) || []);
+        const orphanedChildIds = childIdsToCheck.filter((id) => !childrenWithParents.has(id));
+        
+        if (orphanedChildIds.length > 0) {
+          console.log(`Found ${orphanedChildIds.length} orphaned children to delete: ${orphanedChildIds.join(", ")}`);
+          
+          // Delete all related records for orphaned children
+          for (const childId of orphanedChildIds) {
+            // Delete messages
+            await supabaseAdmin.from("messages").delete().eq("child_id", childId);
+            // Delete attendance
+            await supabaseAdmin.from("attendance").delete().eq("child_id", childId);
+            // Delete daily_records
+            await supabaseAdmin.from("daily_records").delete().eq("child_id", childId);
+            // Delete meal_tracking
+            await supabaseAdmin.from("meal_tracking").delete().eq("child_id", childId);
+            // Delete monthly_tracking
+            await supabaseAdmin.from("monthly_tracking").delete().eq("child_id", childId);
+            // Delete quarterly_evaluations
+            await supabaseAdmin.from("quarterly_evaluations").delete().eq("child_id", childId);
+            // Delete gallery_photos
+            await supabaseAdmin.from("gallery_photos").delete().eq("child_id", childId);
+            // Delete announcements targeting this child
+            await supabaseAdmin.from("announcements").delete().eq("child_id", childId);
+            // Delete pickup_notifications
+            await supabaseAdmin.from("pickup_notifications").delete().eq("child_id", childId);
+          }
+          
+          // Delete orphaned children
+          const { error: orphanDeleteError, count: orphanCount } = await supabaseAdmin
+            .from("children")
+            .delete({ count: "exact" })
+            .in("id", orphanedChildIds);
+          
+          deleteResults.push({
+            source: "children (orphaned)",
+            deleted: !orphanDeleteError,
+            count: orphanCount || 0,
+            error: orphanDeleteError?.message,
+          });
+          
+          console.log(`Deleted ${orphanCount} orphaned children`);
+        }
+      }
 
       // Delete pickup_notifications
       const { error: pickupError, count: pickupCount } = await supabaseAdmin
