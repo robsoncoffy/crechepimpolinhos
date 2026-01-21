@@ -24,6 +24,33 @@ const statusMap: Record<string, string> = {
   AWAITING_RISK_ANALYSIS: "pending",
 };
 
+// Helper function to send push notification
+async function sendPushNotification(
+  supabaseUrl: string,
+  serviceKey: string,
+  userId: string,
+  title: string,
+  body: string,
+  tag: string,
+  url: string
+) {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({ user_id: userId, title, body, tag, url }),
+    });
+    if (response.ok) {
+      console.log(`Push notification sent to ${userId}`);
+    }
+  } catch (error) {
+    console.error("Push notification error:", error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -66,104 +93,103 @@ serve(async (req) => {
 
       console.log(`Payment ${asaasPaymentId} status: ${payment.status} -> ${newStatus}`);
 
-      // Find invoice by asaas_payment_id
-      const { data: invoice, error: findError } = await supabase
-        .from("invoices")
-        .select("id, status, parent_id, child_id")
-        .eq("asaas_payment_id", asaasPaymentId)
-        .maybeSingle();
+      // First, update asaas_payments table (the main source of truth)
+      const updateData: Record<string, any> = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
 
-      if (findError) {
-        console.error("Error finding invoice:", findError);
-        return new Response(JSON.stringify({ error: "Database error" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (newStatus === "paid" && payment.paymentDate) {
+        updateData.payment_date = payment.paymentDate;
+      }
+      if (payment.billingType) {
+        updateData.billing_type = payment.billingType;
+      }
+      if (payment.bankSlipUrl) {
+        updateData.bank_slip_url = payment.bankSlipUrl;
+      }
+      if (payment.invoiceUrl) {
+        updateData.invoice_url = payment.invoiceUrl;
       }
 
-      if (invoice) {
-        console.log(`Found invoice ${invoice.id}, updating status from ${invoice.status} to ${newStatus}`);
+      const { data: asaasPayment, error: asaasUpdateError } = await supabase
+        .from("asaas_payments")
+        .update(updateData)
+        .eq("asaas_id", asaasPaymentId)
+        .select("linked_parent_id, linked_child_id, value")
+        .maybeSingle();
 
-        // Update invoice status
-        const updateData: Record<string, any> = {
-          status: newStatus,
-        };
+      if (asaasUpdateError) {
+        console.error("Error updating asaas_payments:", asaasUpdateError);
+      } else if (asaasPayment) {
+        console.log(`Updated asaas_payments for ${asaasPaymentId}`);
 
-        // Add payment date if paid
-        if (newStatus === "paid" && payment.paymentDate) {
-          updateData.payment_date = payment.paymentDate;
-        }
+        // Send notifications to parent
+        if (asaasPayment.linked_parent_id) {
+          const formattedValue = new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          }).format(asaasPayment.value);
 
-        // Add payment type if available
-        if (payment.billingType) {
-          updateData.payment_type = payment.billingType;
-        }
-
-        // Update bank slip URL if available
-        if (payment.bankSlipUrl) {
-          updateData.bank_slip_url = payment.bankSlipUrl;
-        }
-
-        // Update invoice URL if available
-        if (payment.invoiceUrl) {
-          updateData.invoice_url = payment.invoiceUrl;
-        }
-
-        const { error: updateError } = await supabase
-          .from("invoices")
-          .update(updateData)
-          .eq("id", invoice.id);
-
-        if (updateError) {
-          console.error("Error updating invoice:", updateError);
-          return new Response(JSON.stringify({ error: "Update failed" }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        // Create notification for parent
-        if (invoice.parent_id && newStatus !== invoice.status) {
           let notificationTitle = "";
           let notificationMessage = "";
+          let notificationType = "";
 
           if (newStatus === "paid") {
-            notificationTitle = "Pagamento confirmado! 🎉";
-            notificationMessage = "Seu pagamento foi recebido com sucesso.";
+            notificationTitle = "✅ Pagamento Confirmado!";
+            notificationMessage = `Seu pagamento de ${formattedValue} foi recebido com sucesso.`;
+            notificationType = "payment_confirmed";
           } else if (newStatus === "overdue") {
-            notificationTitle = "Fatura em atraso ⚠️";
-            notificationMessage = "Sua fatura está em atraso. Por favor, regularize o pagamento.";
+            notificationTitle = "⚠️ Pagamento Vencido";
+            notificationMessage = `Sua mensalidade de ${formattedValue} está em atraso. Por favor, regularize.`;
+            notificationType = "payment_overdue";
           } else if (newStatus === "refunded") {
-            notificationTitle = "Pagamento estornado";
-            notificationMessage = "Seu pagamento foi estornado.";
+            notificationTitle = "💰 Pagamento Estornado";
+            notificationMessage = `Seu pagamento de ${formattedValue} foi estornado.`;
+            notificationType = "payment_refunded";
           }
 
           if (notificationTitle) {
+            // Create in-app notification
             await supabase.from("notifications").insert({
-              user_id: invoice.parent_id,
+              user_id: asaasPayment.linked_parent_id,
               title: notificationTitle,
               message: notificationMessage,
-              type: "payment",
-              link: "/painel-pais",
+              type: notificationType,
+              link: "/painel-pais?tab=financas",
             });
-            console.log(`Notification created for parent ${invoice.parent_id}`);
+            console.log(`Notification created for parent ${asaasPayment.linked_parent_id}`);
+
+            // Send push notification
+            await sendPushNotification(
+              supabaseUrl,
+              supabaseServiceKey,
+              asaasPayment.linked_parent_id,
+              notificationTitle,
+              notificationMessage,
+              notificationType,
+              "/painel-pais?tab=financas"
+            );
           }
         }
 
         // Notify admins when payment is received
-        if (newStatus === "paid" && invoice.status !== "paid") {
-          // Get child name for notification
-          const { data: childData } = await supabase
-            .from("children")
-            .select("full_name")
-            .eq("id", invoice.child_id)
-            .single();
+        if (newStatus === "paid") {
+          // Get child name if linked
+          let childName = "Aluno";
+          if (asaasPayment.linked_child_id) {
+            const { data: childData } = await supabase
+              .from("children")
+              .select("full_name")
+              .eq("id", asaasPayment.linked_child_id)
+              .single();
+            if (childData) childName = childData.full_name;
+          }
 
-          const childName = childData?.full_name || "Aluno";
           const formattedValue = new Intl.NumberFormat("pt-BR", {
             style: "currency",
             currency: "BRL",
-          }).format(payment.value);
+          }).format(asaasPayment.value);
 
           // Get all admin users
           const { data: adminRoles } = await supabase
@@ -176,7 +202,7 @@ serve(async (req) => {
               user_id: admin.user_id,
               title: "💰 Pagamento Recebido",
               message: `Pagamento de ${formattedValue} recebido - ${childName}`,
-              type: "payment",
+              type: "payment_received",
               link: "/painel/financeiro",
             }));
 
@@ -184,16 +210,56 @@ serve(async (req) => {
             console.log(`Notifications created for ${adminRoles.length} admins`);
           }
         }
+      }
 
-        console.log(`Invoice ${invoice.id} updated successfully`);
+      // Also update invoices table if there's a linked invoice
+      const { data: invoice, error: findError } = await supabase
+        .from("invoices")
+        .select("id, status, parent_id, child_id")
+        .eq("asaas_payment_id", asaasPaymentId)
+        .maybeSingle();
+
+      if (findError) {
+        console.error("Error finding invoice:", findError);
+      }
+
+      if (invoice) {
+        console.log(`Found invoice ${invoice.id}, updating status from ${invoice.status} to ${newStatus}`);
+
+        const invoiceUpdateData: Record<string, any> = {
+          status: newStatus,
+        };
+
+        if (newStatus === "paid" && payment.paymentDate) {
+          invoiceUpdateData.payment_date = payment.paymentDate;
+        }
+        if (payment.billingType) {
+          invoiceUpdateData.payment_type = payment.billingType;
+        }
+        if (payment.bankSlipUrl) {
+          invoiceUpdateData.bank_slip_url = payment.bankSlipUrl;
+        }
+        if (payment.invoiceUrl) {
+          invoiceUpdateData.invoice_url = payment.invoiceUrl;
+        }
+
+        const { error: updateError } = await supabase
+          .from("invoices")
+          .update(invoiceUpdateData)
+          .eq("id", invoice.id);
+
+        if (updateError) {
+          console.error("Error updating invoice:", updateError);
+        } else {
+          console.log(`Invoice ${invoice.id} updated successfully`);
+        }
       } else {
         console.log(`No invoice found for payment ${asaasPaymentId}`);
-        
-        // Check if this payment is from a subscription
+
+        // Check if this payment is from a subscription - create invoice
         if (payment.subscription) {
           console.log(`Payment is from subscription ${payment.subscription}`);
-          
-          // Find subscription
+
           const { data: sub } = await supabase
             .from("subscriptions")
             .select("*")
@@ -202,8 +268,7 @@ serve(async (req) => {
 
           if (sub) {
             console.log(`Found subscription ${sub.id}, creating invoice`);
-            
-            // Create new invoice for this subscription payment
+
             const { error: insertError } = await supabase.from("invoices").insert({
               child_id: sub.child_id,
               parent_id: sub.parent_id,
@@ -241,7 +306,27 @@ serve(async (req) => {
       const asaasSubscriptionId = subscription.id;
       console.log(`Subscription event for ${asaasSubscriptionId}: ${event}`);
 
-      // Find subscription
+      // Update asaas_subscriptions table
+      const subUpdateData: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (event === "SUBSCRIPTION_DELETED" || event === "SUBSCRIPTION_INACTIVE") {
+        subUpdateData.status = "cancelled";
+      } else if (event === "SUBSCRIPTION_ACTIVATED") {
+        subUpdateData.status = "active";
+      }
+
+      if (subscription.nextDueDate) {
+        subUpdateData.next_due_date = subscription.nextDueDate;
+      }
+
+      await supabase
+        .from("asaas_subscriptions")
+        .update(subUpdateData)
+        .eq("asaas_id", asaasSubscriptionId);
+
+      // Also update subscriptions table
       const { data: sub, error: findError } = await supabase
         .from("subscriptions")
         .select("*")

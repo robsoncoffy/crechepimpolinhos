@@ -774,7 +774,7 @@ serve(async (req) => {
 
       case "pay_with_card": {
         // Pay a pending payment with credit card
-        const { paymentAsaasId, cardHolderName, cardNumber, expiryMonth, expiryYear, ccv, installments } = payload;
+        const { paymentAsaasId, cardHolderName, cardNumber, expiryMonth, expiryYear, ccv, installments, saveCard } = payload;
         
         // Verify ownership
         const { data: payment } = await supabase
@@ -806,24 +806,219 @@ serve(async (req) => {
         }
         
         try {
+          const creditCardInfo = {
+            holderName: cardHolderName,
+            number: cardNumber.replace(/\s/g, ""),
+            expiryMonth: expiryMonth,
+            expiryYear: expiryYear,
+            ccv: ccv,
+          };
+          
+          const holderInfo = {
+            name: profile.full_name,
+            email: profile.email,
+            cpfCnpj: profile.cpf?.replace(/\D/g, ""),
+            phone: profile.phone?.replace(/\D/g, "") || undefined,
+            postalCode: "00000000",
+            addressNumber: "0",
+          };
+          
           // Pay with card using Asaas
           const paymentData = await asaasRequest(`/payments/${paymentAsaasId}/payWithCreditCard`, "POST", {
-            creditCard: {
-              holderName: cardHolderName,
-              number: cardNumber.replace(/\s/g, ""),
-              expiryMonth: expiryMonth,
-              expiryYear: expiryYear,
-              ccv: ccv,
-            },
+            creditCard: creditCardInfo,
+            creditCardHolderInfo: holderInfo,
+            installmentCount: installments || 1,
+          });
+          
+          // If user wants to save the card, tokenize it
+          if (saveCard) {
+            try {
+              // Get customer ID
+              const { data: customer } = await supabase
+                .from("asaas_customers")
+                .select("asaas_id")
+                .eq("linked_parent_id", user.id)
+                .maybeSingle();
+              
+              if (customer?.asaas_id) {
+                // Create tokenized card
+                const tokenData = await asaasRequest("/creditCard/tokenize", "POST", {
+                  customer: customer.asaas_id,
+                  creditCard: creditCardInfo,
+                  creditCardHolderInfo: holderInfo,
+                });
+                
+                if (tokenData?.creditCardToken) {
+                  // Detect card brand from number
+                  const cardNum = cardNumber.replace(/\s/g, "");
+                  let cardBrand = "Outro";
+                  if (cardNum.startsWith("4")) cardBrand = "Visa";
+                  else if (/^5[1-5]/.test(cardNum)) cardBrand = "Mastercard";
+                  else if (/^3[47]/.test(cardNum)) cardBrand = "Amex";
+                  else if (cardNum.startsWith("6011") || cardNum.startsWith("65")) cardBrand = "Discover";
+                  else if (cardNum.startsWith("36") || cardNum.startsWith("38")) cardBrand = "Diners";
+                  
+                  const lastFour = cardNum.slice(-4);
+                  
+                  // Clear any existing default
+                  await supabase
+                    .from("saved_cards")
+                    .update({ is_default: false })
+                    .eq("user_id", user.id);
+                  
+                  // Save card token
+                  await supabase.from("saved_cards").insert({
+                    user_id: user.id,
+                    asaas_customer_id: customer.asaas_id,
+                    credit_card_token: tokenData.creditCardToken,
+                    card_brand: cardBrand,
+                    last_four_digits: lastFour,
+                    holder_name: cardHolderName,
+                    is_default: true,
+                  });
+                  
+                  console.log("Card tokenized and saved successfully");
+                }
+              }
+            } catch (tokenError) {
+              console.error("Error tokenizing card (payment still succeeded):", tokenError);
+              // Don't fail the payment just because tokenization failed
+            }
+          }
+          
+          // Update local record
+          await supabase.from("asaas_payments").update({
+            status: "paid",
+            payment_date: new Date().toISOString().split("T")[0],
+          }).eq("asaas_id", paymentAsaasId);
+          
+          // Create notification
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            title: "✅ Pagamento Confirmado!",
+            message: `Seu pagamento de R$ ${Number(payment.value).toFixed(2).replace(".", ",")} foi processado com sucesso.`,
+            type: "payment_confirmed",
+            link: "/painel-responsavel",
+          });
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: "Pagamento realizado com sucesso!",
+            cardSaved: saveCard || false,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("Error paying with card:", e);
+          const errorMsg = e instanceof Error ? e.message : "Erro ao processar pagamento";
+          return new Response(JSON.stringify({ error: errorMsg }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      case "get_saved_cards": {
+        // Get user's saved cards
+        const { data: cards, error } = await supabase
+          .from("saved_cards")
+          .select("id, card_brand, last_four_digits, holder_name, is_default, created_at")
+          .eq("user_id", user.id)
+          .order("is_default", { ascending: false });
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: "Erro ao buscar cartões" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        return new Response(JSON.stringify({ cards: cards || [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "delete_saved_card": {
+        const { cardId } = payload;
+        
+        const { error } = await supabase
+          .from("saved_cards")
+          .delete()
+          .eq("id", cardId)
+          .eq("user_id", user.id);
+        
+        if (error) {
+          return new Response(JSON.stringify({ error: "Erro ao remover cartão" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "pay_with_saved_card": {
+        const { paymentAsaasId, cardId, installments: installmentCount } = payload;
+        
+        // Verify ownership of payment
+        const { data: payment } = await supabase
+          .from("asaas_payments")
+          .select("*")
+          .eq("asaas_id", paymentAsaasId)
+          .eq("linked_parent_id", user.id)
+          .single();
+        
+        if (!payment) {
+          return new Response(JSON.stringify({ error: "Cobrança não encontrada" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // Get saved card
+        const { data: savedCard } = await supabase
+          .from("saved_cards")
+          .select("*")
+          .eq("id", cardId)
+          .eq("user_id", user.id)
+          .single();
+        
+        if (!savedCard) {
+          return new Response(JSON.stringify({ error: "Cartão não encontrado" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // Get profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email, cpf, phone")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (!profile) {
+          return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        try {
+          // Pay using tokenized card
+          await asaasRequest(`/payments/${paymentAsaasId}/payWithCreditCard`, "POST", {
+            creditCardToken: savedCard.credit_card_token,
             creditCardHolderInfo: {
               name: profile.full_name,
               email: profile.email,
               cpfCnpj: profile.cpf?.replace(/\D/g, ""),
               phone: profile.phone?.replace(/\D/g, "") || undefined,
-              postalCode: "00000000", // Asaas requires this but we don't have it
+              postalCode: "00000000",
               addressNumber: "0",
             },
-            installmentCount: installments || 1,
+            installmentCount: installmentCount || 1,
           });
           
           // Update local record
@@ -848,7 +1043,7 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         } catch (e) {
-          console.error("Error paying with card:", e);
+          console.error("Error paying with saved card:", e);
           const errorMsg = e instanceof Error ? e.message : "Erro ao processar pagamento";
           return new Response(JSON.stringify({ error: errorMsg }), {
             status: 500,

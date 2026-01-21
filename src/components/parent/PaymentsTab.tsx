@@ -33,11 +33,14 @@ import {
   ExternalLink,
   RefreshCw,
   Wallet,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PaymentsTabProps {
   childId: string;
@@ -57,6 +60,14 @@ interface AsaasPayment {
   linked_child_id: string | null;
 }
 
+interface SavedCard {
+  id: string;
+  card_brand: string;
+  last_four_digits: string;
+  holder_name: string;
+  is_default: boolean;
+}
+
 const statusConfig: Record<string, { label: string; color: string; icon: any; bgColor: string }> = {
   pending: { label: "Pendente", color: "text-yellow-600", icon: Clock, bgColor: "bg-yellow-50" },
   paid: { label: "Pago", color: "text-green-600", icon: CheckCircle, bgColor: "bg-green-50" },
@@ -71,8 +82,14 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<AsaasPayment | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card" | "saved">("pix");
   const [processingPayment, setProcessingPayment] = useState(false);
+  
+  // Saved cards state
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [selectedSavedCard, setSelectedSavedCard] = useState<string | null>(null);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
   
   // Card form state
   const [cardData, setCardData] = useState({
@@ -107,7 +124,31 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
 
   useEffect(() => {
     fetchPayments();
+    fetchSavedCards();
   }, [childId, user]);
+
+  const fetchSavedCards = async () => {
+    if (!user) return;
+    
+    setLoadingCards(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("asaas-payments", {
+        body: { action: "get_saved_cards" },
+      });
+      
+      if (!error && data?.cards) {
+        setSavedCards(data.cards);
+        // Pre-select default card
+        const defaultCard = data.cards.find((c: SavedCard) => c.is_default);
+        if (defaultCard) {
+          setSelectedSavedCard(defaultCard.id);
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching saved cards:", e);
+    }
+    setLoadingCards(false);
+  };
 
   const openPaymentDetails = async (payment: AsaasPayment) => {
     setSelectedPayment(payment);
@@ -185,15 +226,21 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
           expiryYear: cardData.expiryYear,
           ccv: cardData.ccv,
           installments: parseInt(cardData.installments),
+          saveCard: saveCardForFuture,
         },
       });
 
       if (error) {
         toast.error(data?.error || "Erro ao processar pagamento");
       } else if (data?.success) {
-        toast.success("Pagamento realizado com sucesso!");
+        toast.success(data.cardSaved 
+          ? "Pagamento realizado e cartão salvo!" 
+          : "Pagamento realizado com sucesso!");
         setSelectedPayment(null);
         fetchPayments();
+        if (data.cardSaved) {
+          fetchSavedCards();
+        }
         // Reset card form
         setCardData({
           holderName: "",
@@ -203,6 +250,7 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
           ccv: "",
           installments: "1",
         });
+        setSaveCardForFuture(false);
       } else {
         toast.error(data?.error || "Erro ao processar pagamento");
       }
@@ -210,6 +258,55 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
       toast.error("Erro ao processar pagamento");
     }
     setProcessingPayment(false);
+  };
+
+  const payWithSavedCard = async () => {
+    if (!selectedPayment || !selectedSavedCard) return;
+    
+    setProcessingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("asaas-payments", {
+        body: {
+          action: "pay_with_saved_card",
+          paymentAsaasId: selectedPayment.asaas_id,
+          cardId: selectedSavedCard,
+          installments: parseInt(cardData.installments),
+        },
+      });
+
+      if (error) {
+        toast.error(data?.error || "Erro ao processar pagamento");
+      } else if (data?.success) {
+        toast.success("Pagamento realizado com sucesso!");
+        setSelectedPayment(null);
+        fetchPayments();
+      } else {
+        toast.error(data?.error || "Erro ao processar pagamento");
+      }
+    } catch (e) {
+      toast.error("Erro ao processar pagamento");
+    }
+    setProcessingPayment(false);
+  };
+
+  const deleteSavedCard = async (cardId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("asaas-payments", {
+        body: { action: "delete_saved_card", cardId },
+      });
+
+      if (!error && data?.success) {
+        toast.success("Cartão removido!");
+        setSavedCards(prev => prev.filter(c => c.id !== cardId));
+        if (selectedSavedCard === cardId) {
+          setSelectedSavedCard(null);
+        }
+      } else {
+        toast.error("Erro ao remover cartão");
+      }
+    } catch (e) {
+      toast.error("Erro ao remover cartão");
+    }
   };
 
   // Format card number with spaces
@@ -222,6 +319,16 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
       parts.push(match.substring(i, i + 4));
     }
     return parts.length ? parts.join(" ") : v;
+  };
+
+  // Get card brand icon/color
+  const getCardBrandColor = (brand: string) => {
+    switch (brand.toLowerCase()) {
+      case "visa": return "text-blue-600";
+      case "mastercard": return "text-red-500";
+      case "amex": return "text-blue-700";
+      default: return "text-gray-600";
+    }
   };
 
   // Calculate totals
@@ -396,17 +503,76 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
                   {/* Payment Options */}
                   {(selectedPayment.status === "pending" || selectedPayment.status === "overdue") && (
                     <div className="space-y-4">
-                      <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "pix" | "card")}>
-                        <TabsList className="grid w-full grid-cols-2">
+                      <Tabs value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "pix" | "card" | "saved")}>
+                        <TabsList className={cn("grid w-full", savedCards.length > 0 ? "grid-cols-3" : "grid-cols-2")}>
                           <TabsTrigger value="pix" className="gap-2">
                             <QrCode className="w-4 h-4" />
                             PIX
                           </TabsTrigger>
+                          {savedCards.length > 0 && (
+                            <TabsTrigger value="saved" className="gap-2">
+                              <Wallet className="w-4 h-4" />
+                              Salvos
+                            </TabsTrigger>
+                          )}
                           <TabsTrigger value="card" className="gap-2">
                             <CreditCard className="w-4 h-4" />
-                            Cartão
+                            Novo
                           </TabsTrigger>
                         </TabsList>
+
+                        {/* Saved Cards Tab */}
+                        {savedCards.length > 0 && (
+                          <TabsContent value="saved" className="space-y-3 mt-4">
+                            <p className="text-sm text-muted-foreground mb-2">Selecione um cartão salvo:</p>
+                            {savedCards.map((card) => (
+                              <div
+                                key={card.id}
+                                onClick={() => setSelectedSavedCard(card.id)}
+                                className={cn(
+                                  "p-3 rounded-lg border cursor-pointer flex items-center justify-between transition-all",
+                                  selectedSavedCard === card.id 
+                                    ? "border-pimpo-blue bg-pimpo-blue/5" 
+                                    : "hover:border-muted-foreground/50"
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <CreditCard className={cn("w-5 h-5", getCardBrandColor(card.card_brand))} />
+                                  <div>
+                                    <p className="font-medium">{card.card_brand} •••• {card.last_four_digits}</p>
+                                    <p className="text-xs text-muted-foreground">{card.holder_name}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {selectedSavedCard === card.id && (
+                                    <Check className="w-4 h-4 text-pimpo-blue" />
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={(e) => { e.stopPropagation(); deleteSavedCard(card.id); }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            <Button
+                              className="w-full gap-2 mt-4"
+                              onClick={payWithSavedCard}
+                              disabled={processingPayment || !selectedSavedCard}
+                            >
+                              {processingPayment ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CreditCard className="w-4 h-4" />
+                              )}
+                              Pagar R$ {Number(selectedPayment.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </Button>
+                          </TabsContent>
+                        )}
 
                         <TabsContent value="pix" className="space-y-3 mt-4">
                           {selectedPayment.pix_code ? (
@@ -565,6 +731,20 @@ export function PaymentsTab({ childId }: PaymentsTabProps) {
                                   ))}
                                 </SelectContent>
                               </Select>
+                            </div>
+
+                            <div className="flex items-center space-x-2 py-2">
+                              <Checkbox
+                                id="saveCard"
+                                checked={saveCardForFuture}
+                                onCheckedChange={(checked) => setSaveCardForFuture(checked === true)}
+                              />
+                              <label
+                                htmlFor="saveCard"
+                                className="text-sm text-muted-foreground cursor-pointer"
+                              >
+                                Salvar cartão para pagamentos futuros
+                              </label>
                             </div>
 
                             <Button
