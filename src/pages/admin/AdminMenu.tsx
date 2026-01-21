@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
+import { MealSuggestions } from "@/components/admin/MealSuggestions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,31 +378,55 @@ export default function AdminMenu() {
     menuType: 'bercario' | 'maternal';
     dayOfWeek: number;
     iconColor?: string;
-  }) => (
-    <div className="space-y-2">
-      <Label className="flex items-center gap-2 text-sm">
-        {icon}
-        {label}
-      </Label>
-      <div className="flex gap-2">
-        <Input
-          value={value}
-          onChange={(e) => updateMenuItem(menuType, dayOfWeek, field, e.target.value)}
-          placeholder={placeholder}
-          className="flex-1"
-        />
-        <div className="relative">
-          <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+  }) => {
+    // Map field names to mealType for suggestions
+    const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
+      breakfast: "breakfast",
+      morning_snack: "morning_snack",
+      lunch: "lunch",
+      bottle: "bottle",
+      snack: "snack",
+      pre_dinner: "pre_dinner",
+      dinner: "dinner",
+    };
+    const mealType = mealTypeMap[field as string];
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="flex items-center gap-2 text-sm">
+            {icon}
+            {label}
+          </Label>
+          {mealType && (
+            <MealSuggestions
+              mealType={mealType}
+              menuType={menuType}
+              dayOfWeek={dayOfWeek}
+              onSelect={(suggestion) => updateMenuItem(menuType, dayOfWeek, field, suggestion)}
+            />
+          )}
+        </div>
+        <div className="flex gap-2">
           <Input
-            type="time"
-            value={timeValue}
-            onChange={(e) => updateMenuItem(menuType, dayOfWeek, timeField, e.target.value)}
-            className="w-24 pl-7 text-sm"
+            value={value}
+            onChange={(e) => updateMenuItem(menuType, dayOfWeek, field, e.target.value)}
+            placeholder={placeholder}
+            className="flex-1"
           />
+          <div className="relative">
+            <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              type="time"
+              value={timeValue}
+              onChange={(e) => updateMenuItem(menuType, dayOfWeek, timeField, e.target.value)}
+              className="w-24 pl-7 text-sm"
+            />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderMenuForm = (items: MenuItem[], menuType: 'bercario' | 'maternal') => (
     <div className="grid gap-6">
