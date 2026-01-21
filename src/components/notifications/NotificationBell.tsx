@@ -175,8 +175,17 @@ export function NotificationBell() {
     if (!notification.is_read) {
       await markAsRead(notification.id);
     }
-    if (notification.link) {
-      navigate(notification.link);
+    
+    // Determine the correct link
+    let targetLink = notification.link;
+    
+    // Fallback for old message notifications that have generic /painel link
+    if (notification.type === "message" && (!targetLink || targetLink === "/painel")) {
+      targetLink = "/painel/mensagens";
+    }
+    
+    if (targetLink) {
+      navigate(targetLink);
       setOpen(false);
     }
   };
