@@ -489,9 +489,46 @@ serve(async (req) => {
         let syncedPayments = 0;
         let syncedSubscriptions = 0;
         let syncedCustomers = 0;
+        let skippedPayments = 0;
 
         try {
-          // 1. Sync customers from Asaas
+          console.log("Starting full Asaas sync...");
+          
+          // 1. First, get all parents with their profiles to map by name/email
+          const { data: allProfiles } = await supabase
+            .from("profiles")
+            .select("user_id, full_name");
+          
+          const profileMap = new Map<string, string>();
+          for (const profile of allProfiles || []) {
+            const normalizedName = profile.full_name.toLowerCase().trim();
+            profileMap.set(normalizedName, profile.user_id);
+          }
+          
+          // 2. Get all children to map by name
+          const { data: allChildren } = await supabase
+            .from("children")
+            .select("id, full_name");
+          
+          const childrenMap = new Map<string, string>();
+          for (const child of allChildren || []) {
+            const normalizedName = child.full_name.toLowerCase().trim();
+            childrenMap.set(normalizedName, child.id);
+          }
+          
+          // Also get parent_children to find child by parent
+          const { data: parentChildren } = await supabase
+            .from("parent_children")
+            .select("parent_id, child_id");
+          
+          const parentToChildren = new Map<string, string[]>();
+          for (const pc of parentChildren || []) {
+            const existing = parentToChildren.get(pc.parent_id) || [];
+            existing.push(pc.child_id);
+            parentToChildren.set(pc.parent_id, existing);
+          }
+
+          // 3. Sync customers from Asaas
           console.log("Fetching customers from Asaas...");
           let offset = 0;
           let hasMore = true;
@@ -499,23 +536,33 @@ serve(async (req) => {
           while (hasMore) {
             const customersResponse = await asaasRequest(`/customers?offset=${offset}&limit=100`, "GET");
             const customers = customersResponse.data || [];
+            console.log(`Processing ${customers.length} customers at offset ${offset}`);
             
             for (const customer of customers) {
-              if (customer.externalReference) {
-                // Check if customer exists locally
-                const { data: existing } = await supabase
-                  .from("payment_customers")
-                  .select("id")
-                  .eq("asaas_customer_id", customer.id)
-                  .single();
+              // Check if customer exists locally by asaas_customer_id
+              const { data: existing } = await supabase
+                .from("payment_customers")
+                .select("id")
+                .eq("asaas_customer_id", customer.id)
+                .single();
 
-                if (!existing) {
-                  // Insert new customer
+              if (!existing) {
+                // Try to find parent by externalReference first
+                let parentId = customer.externalReference;
+                
+                // If no externalReference, try to match by name
+                if (!parentId && customer.name) {
+                  const normalizedName = customer.name.toLowerCase().trim();
+                  parentId = profileMap.get(normalizedName);
+                }
+                
+                if (parentId) {
                   await supabase.from("payment_customers").insert({
-                    parent_id: customer.externalReference,
+                    parent_id: parentId,
                     asaas_customer_id: customer.id,
                   });
                   syncedCustomers++;
+                  console.log(`Synced customer: ${customer.name} -> ${parentId}`);
                 }
               }
             }
@@ -523,8 +570,9 @@ serve(async (req) => {
             hasMore = customersResponse.hasMore;
             offset += 100;
           }
+          console.log(`Customers sync complete: ${syncedCustomers} synced`);
 
-          // 2. Sync subscriptions from Asaas
+          // 4. Sync subscriptions from Asaas
           console.log("Fetching subscriptions from Asaas...");
           offset = 0;
           hasMore = true;
@@ -532,6 +580,7 @@ serve(async (req) => {
           while (hasMore) {
             const subsResponse = await asaasRequest(`/subscriptions?offset=${offset}&limit=100`, "GET");
             const subs = subsResponse.data || [];
+            console.log(`Processing ${subs.length} subscriptions at offset ${offset}`);
             
             for (const sub of subs) {
               // Check if subscription exists locally
@@ -541,7 +590,7 @@ serve(async (req) => {
                 .eq("asaas_subscription_id", sub.id)
                 .single();
 
-              if (!existing && sub.externalReference) {
+              if (!existing) {
                 // Get parent_id from customer
                 const { data: customerData } = await supabase
                   .from("payment_customers")
@@ -550,19 +599,33 @@ serve(async (req) => {
                   .single();
 
                 if (customerData) {
-                  const nextDueDate = new Date(sub.nextDueDate);
+                  // Try to find child by externalReference or by parent's children
+                  let childId = sub.externalReference;
                   
-                  await supabase.from("subscriptions").insert({
-                    child_id: sub.externalReference,
-                    parent_id: customerData.parent_id,
-                    asaas_subscription_id: sub.id,
-                    value: sub.value,
-                    billing_day: nextDueDate.getDate(),
-                    status: sub.status === "ACTIVE" ? "active" : "cancelled",
-                  });
-                  syncedSubscriptions++;
+                  // If no externalReference, use first child of parent
+                  if (!childId) {
+                    const parentChildIds = parentToChildren.get(customerData.parent_id);
+                    if (parentChildIds && parentChildIds.length > 0) {
+                      childId = parentChildIds[0];
+                    }
+                  }
+                  
+                  if (childId) {
+                    const nextDueDate = new Date(sub.nextDueDate);
+                    
+                    await supabase.from("subscriptions").insert({
+                      child_id: childId,
+                      parent_id: customerData.parent_id,
+                      asaas_subscription_id: sub.id,
+                      value: sub.value,
+                      billing_day: nextDueDate.getDate(),
+                      status: sub.status === "ACTIVE" ? "active" : "cancelled",
+                    });
+                    syncedSubscriptions++;
+                    console.log(`Synced subscription: ${sub.id}`);
+                  }
                 }
-              } else if (existing) {
+              } else {
                 // Update existing subscription status
                 await supabase.from("subscriptions").update({
                   status: sub.status === "ACTIVE" ? "active" : "cancelled",
@@ -574,8 +637,9 @@ serve(async (req) => {
             hasMore = subsResponse.hasMore;
             offset += 100;
           }
+          console.log(`Subscriptions sync complete: ${syncedSubscriptions} synced`);
 
-          // 3. Sync payments from Asaas
+          // 5. Sync payments from Asaas
           console.log("Fetching payments from Asaas...");
           offset = 0;
           hasMore = true;
@@ -600,6 +664,7 @@ serve(async (req) => {
           while (hasMore) {
             const paymentsResponse = await asaasRequest(`/payments?offset=${offset}&limit=100`, "GET");
             const payments = paymentsResponse.data || [];
+            console.log(`Processing ${payments.length} payments at offset ${offset}`);
             
             for (const payment of payments) {
               // Check if payment exists locally
@@ -609,7 +674,7 @@ serve(async (req) => {
                 .eq("asaas_payment_id", payment.id)
                 .single();
 
-              if (!existing && payment.externalReference) {
+              if (!existing) {
                 // Get parent_id from customer
                 const { data: customerData } = await supabase
                   .from("payment_customers")
@@ -618,34 +683,42 @@ serve(async (req) => {
                   .single();
 
                 if (customerData) {
-                  // Get PIX code if pending
-                  let pixCode = null;
-                  if (payment.status === "PENDING") {
-                    try {
-                      const pixData = await asaasRequest(`/payments/${payment.id}/pixQrCode`, "GET");
-                      pixCode = pixData.payload;
-                    } catch (e) {
-                      console.log("Could not get PIX code for payment:", payment.id);
+                  // Try to find child by externalReference or by parent's children
+                  let childId = payment.externalReference;
+                  
+                  // If no externalReference, use first child of parent
+                  if (!childId) {
+                    const parentChildIds = parentToChildren.get(customerData.parent_id);
+                    if (parentChildIds && parentChildIds.length > 0) {
+                      childId = parentChildIds[0];
                     }
                   }
-
-                  await supabase.from("invoices").insert({
-                    child_id: payment.externalReference,
-                    parent_id: customerData.parent_id,
-                    asaas_payment_id: payment.id,
-                    description: payment.description || "Cobrança importada do Asaas",
-                    value: payment.value,
-                    due_date: payment.dueDate,
-                    status: statusMap[payment.status] || "pending",
-                    payment_date: payment.paymentDate,
-                    payment_type: payment.billingType,
-                    invoice_url: payment.invoiceUrl,
-                    bank_slip_url: payment.bankSlipUrl,
-                    pix_code: pixCode,
-                  });
-                  syncedPayments++;
+                  
+                  if (childId) {
+                    // Skip getting PIX for each payment to speed up sync
+                    await supabase.from("invoices").insert({
+                      child_id: childId,
+                      parent_id: customerData.parent_id,
+                      asaas_payment_id: payment.id,
+                      description: payment.description || "Cobrança importada do Asaas",
+                      value: payment.value,
+                      due_date: payment.dueDate,
+                      status: statusMap[payment.status] || "pending",
+                      payment_date: payment.paymentDate,
+                      payment_type: payment.billingType,
+                      invoice_url: payment.invoiceUrl,
+                      bank_slip_url: payment.bankSlipUrl,
+                    });
+                    syncedPayments++;
+                  } else {
+                    skippedPayments++;
+                    console.log(`Skipped payment ${payment.id}: no child found for parent ${customerData.parent_id}`);
+                  }
+                } else {
+                  skippedPayments++;
+                  console.log(`Skipped payment ${payment.id}: customer not found`);
                 }
-              } else if (existing) {
+              } else {
                 // Update existing payment status
                 const newStatus = statusMap[payment.status] || existing.status;
                 
@@ -664,23 +737,25 @@ serve(async (req) => {
             offset += 100;
           }
 
-          console.log(`Sync completed: ${syncedCustomers} customers, ${syncedSubscriptions} subscriptions, ${syncedPayments} payments`);
+          console.log(`Sync completed: ${syncedCustomers} customers, ${syncedSubscriptions} subscriptions, ${syncedPayments} payments, ${skippedPayments} skipped`);
 
           return new Response(JSON.stringify({ 
             success: true,
             syncedCustomers,
             syncedSubscriptions,
             syncedPayments,
+            skippedPayments,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         } catch (error) {
           console.error("Error syncing from Asaas:", error);
           return new Response(JSON.stringify({ 
-            error: "Erro ao sincronizar com Asaas",
+            error: error instanceof Error ? error.message : "Erro ao sincronizar com Asaas",
             syncedCustomers,
             syncedSubscriptions,
             syncedPayments,
+            skippedPayments,
           }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
