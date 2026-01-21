@@ -27,6 +27,7 @@ interface ContractRequest {
     parentEmail?: string;
     address?: string;
     emergencyContact?: string;
+    childCpf?: string;
   };
 }
 
@@ -139,16 +140,22 @@ serve(async (req) => {
     // Fetch additional data from child_registrations if available
     let address = overrideData?.address || "";
     let emergencyContact = overrideData?.emergencyContact || "";
+    let childCpf = overrideData?.childCpf || "";
     
-    if (!address && registrationId) {
+    if (registrationId) {
       const { data: regData } = await supabase
         .from('child_registrations')
-        .select('address, city, allergies, medications')
+        .select('address, city, allergies, medications, cpf')
         .eq('id', registrationId)
         .single();
       
       if (regData) {
-        address = regData.address ? `${regData.address}, ${regData.city || 'Canoas/RS'}` : 'Canoas/RS';
+        if (!address) {
+          address = regData.address ? `${regData.address}, ${regData.city || 'Canoas/RS'}` : 'Canoas/RS';
+        }
+        if (!childCpf && regData.cpf) {
+          childCpf = regData.cpf;
+        }
       }
     }
 
@@ -165,6 +172,9 @@ serve(async (req) => {
         emergencyContact = `${pickupData.full_name} (${pickupData.relationship})`;
       }
     }
+
+    // Format child CPF if available
+    const formattedChildCpf = childCpf ? childCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '';
 
     // Format shift hours
     const shiftHours: Record<string, string> = {
@@ -187,7 +197,7 @@ CONTRATADA: ${COMPANY_DATA.name}, pessoa jurídica de direito privado, inscrita 
 
 CONTRATANTE: ${parentName}, inscrito(a) no CPF sob nº ${parentCpf || 'não informado'}${parentRg ? `, RG nº ${parentRg}` : ''}, residente e domiciliado(a) em ${address || 'Canoas/RS'}, telefone: ${parentPhone || 'não informado'}, e-mail: ${parentEmail}, doravante denominado(a) simplesmente CONTRATANTE (responsável legal pelo aluno).
 
-ALUNO(A): ${childName}, nascido(a) em ${formattedBirthDate}.
+ALUNO(A): ${childName}${formattedChildCpf ? `, inscrito(a) no CPF sob nº ${formattedChildCpf}` : ''}, nascido(a) em ${formattedBirthDate}.
 
 As partes acima qualificadas firmam o presente contrato, que se regerá pelas cláusulas e condições a seguir estabelecidas.
 
@@ -311,6 +321,13 @@ CLÁUSULA 14 – DISPOSIÇÕES GERAIS
 14.2. Eventuais comunicados e notificações poderão ser realizados por meio eletrônico (e-mail, WhatsApp ou aplicativo da escola), sendo considerados válidos para todos os efeitos legais.
 
 14.3. Alterações contratuais somente terão validade se formalizadas por escrito.
+
+
+CLÁUSULA 15 – DA MULTA POR RESCISÃO ANTECIPADA
+
+15.1. Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 (trinta) dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.
+
+15.2. A multa será calculada proporcionalmente ao período restante do contrato, quando aplicável.
 
 E, por estarem assim justos e contratados, as partes assinam o presente instrumento digitalmente, produzindo os mesmos efeitos jurídicos de um documento físico assinado de próprio punho.
 
