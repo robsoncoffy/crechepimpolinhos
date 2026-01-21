@@ -336,12 +336,12 @@ export function DemoParentDashboard() {
                         <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <Calendar className="w-4 h-4" />
                         </TabsTrigger>
-                        <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative">
+                        <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-1">
                           <MessageSquare className="w-4 h-4" />
                           {(getUnreadCount("school") + getUnreadCount("nutritionist")) > 0 && (
-                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">
+                            <Badge variant="destructive" className="h-4 min-w-[1rem] px-1 text-[10px]">
                               {getUnreadCount("school") + getUnreadCount("nutritionist")}
-                            </span>
+                            </Badge>
                           )}
                         </TabsTrigger>
                         <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
