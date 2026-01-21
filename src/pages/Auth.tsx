@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2, ArrowLeft, KeyRound, CheckCircle, XCircle } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/logo-pimpolinhos.png";
@@ -35,6 +36,7 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inviteStatus, setInviteStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [inviteData, setInviteData] = useState<{ 
@@ -629,7 +631,20 @@ export default function Auth() {
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
                 {!isSignUp && (
-                  <div className="text-right">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="rememberMe" 
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => setRememberMe(checked === true)}
+                      />
+                      <label 
+                        htmlFor="rememberMe" 
+                        className="text-sm text-muted-foreground cursor-pointer select-none"
+                      >
+                        Lembrar de mim
+                      </label>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setIsForgotPassword(true)}
