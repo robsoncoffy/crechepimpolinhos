@@ -347,7 +347,7 @@ ${COMPANY_DATA.name}
 CNPJ: ${COMPANY_DATA.cnpj}
     `.trim();
 
-    // Step 1: Create document in ZapSign
+    // Step 1: Create document in ZapSign with signer included
     console.log("Creating document in ZapSign...");
     const createDocResponse = await fetch(`${ZAPSIGN_API_URL}/docs/`, {
       method: 'POST',
@@ -358,7 +358,7 @@ CNPJ: ${COMPANY_DATA.cnpj}
       body: JSON.stringify({
         sandbox: true, // Modo de teste - remover quando tiver plano de produção
         name: `Contrato de Matrícula - ${childName}`,
-        url_pdf: "", // We'll use base64 content instead
+        url_pdf: "",
         base64_pdf: btoa(unescape(encodeURIComponent(contractContent))),
         lang: "pt-br",
         disable_signer_emails: false,
@@ -366,6 +366,19 @@ CNPJ: ${COMPANY_DATA.cnpj}
         brand_logo: "",
         brand_primary_color: "#3B82F6",
         external_id: `${registrationId || childId}`,
+        signers: [
+          {
+            name: parentName,
+            email: parentEmail,
+            auth_mode: "assinaturaTela",
+            send_automatic_email: true,
+            send_automatic_whatsapp: false,
+            lock_name: true,
+            lock_email: true,
+            qualification: "Responsável Legal",
+            external_id: parentId,
+          }
+        ],
       }),
     });
 
@@ -379,39 +392,9 @@ CNPJ: ${COMPANY_DATA.cnpj}
     console.log("Document created:", JSON.stringify(docData, null, 2));
 
     const docToken = docData.token;
-
-    // Step 2: Add signer to the document
-    console.log("Adding signer to document...");
-    const addSignerResponse = await fetch(`${ZAPSIGN_API_URL}/docs/${docToken}/signers/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${ZAPSIGN_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: parentName,
-        email: parentEmail,
-        auth_mode: "assinaturaTela",
-        send_automatic_email: true,
-        send_automatic_whatsapp: false,
-        lock_name: true,
-        lock_email: true,
-        qualification: "Responsável Legal",
-        external_id: parentId,
-      }),
-    });
-
-    if (!addSignerResponse.ok) {
-      const errorText = await addSignerResponse.text();
-      console.error("ZapSign add signer error:", errorText);
-      throw new Error(`Failed to add signer in ZapSign: ${errorText}`);
-    }
-
-    const signerData = await addSignerResponse.json();
-    console.log("Signer added:", JSON.stringify(signerData, null, 2));
-
-    const signerToken = signerData.token;
-    const signUrl = signerData.sign_url;
+    const signerData = docData.signers?.[0];
+    const signerToken = signerData?.token || '';
+    const signUrl = signerData?.sign_url || '';
 
     // Step 3: Save contract to database
     console.log("Saving contract to database...");
