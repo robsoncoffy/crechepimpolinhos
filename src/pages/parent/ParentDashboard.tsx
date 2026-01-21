@@ -6,6 +6,7 @@ import { ParentChatTabs } from "@/components/parent/ParentChatTabs";
 import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
 import { GrowthChart } from "@/components/parent/GrowthChart";
 import { PickupNotification } from "@/components/parent/PickupNotification";
+import { AbsenceNotification } from "@/components/parent/AbsenceNotification";
 import { QuickSummaryCards } from "@/components/parent/QuickSummaryCards";
 import { TodayAtSchoolWidget } from "@/components/parent/TodayAtSchoolWidget";
 import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
@@ -525,10 +526,16 @@ export default function ParentDashboard() {
                   <DetailedWeatherWidget pickupTime="17:00" />
                   <AnnouncementsWidget />
                   <TodayAtSchoolWidget childId={selectedChild.id} />
-                  <PickupNotification 
-                    childId={selectedChild.id} 
-                    childName={selectedChild.full_name} 
-                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <PickupNotification 
+                      childId={selectedChild.id} 
+                      childName={selectedChild.full_name} 
+                    />
+                    <AbsenceNotification 
+                      childId={selectedChild.id} 
+                      childName={selectedChild.full_name} 
+                    />
+                  </div>
                   <MiniCalendar />
                 </div>
 

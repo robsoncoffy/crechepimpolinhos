@@ -52,6 +52,7 @@ import {
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
 import { DemoPickupNotification } from "./DemoPickupNotification";
+import { DemoAbsenceNotification } from "./DemoAbsenceNotification";
 import { EvaluationDetailDialog } from "@/components/parent/EvaluationDetailDialog";
 
 // Message interface with read status
@@ -268,8 +269,11 @@ export function DemoParentDashboard() {
             </Card>
           </div>
 
-          {/* Pickup Button - Prominent */}
-          <DemoPickupNotification childName={mockChild.full_name} />
+          {/* Pickup & Absence Buttons - Prominent */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <DemoPickupNotification childName={mockChild.full_name} />
+            <DemoAbsenceNotification childName={mockChild.full_name} />
+          </div>
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -297,6 +297,12 @@ export function TeacherAttendanceTab({ children, selectedDate }: TeacherAttendan
                       {record.arrival_time.slice(0, 5)}
                     </div>
                   )}
+
+                  {record?.notes && (
+                    <div className="w-full sm:w-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                      📝 {record.notes}
+                    </div>
+                  )}
                 </div>
               );
             })

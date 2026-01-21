@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,6 +74,29 @@ const AdminAttendance = () => {
       return data as AttendanceRecord[];
     },
   });
+
+  // Subscribe to realtime changes for sync with parent absence notifications
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-attendance-sync")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "attendance",
+          filter: `date=eq.${formattedDate}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["attendance", formattedDate] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [formattedDate, queryClient]);
 
   // Create attendance map for quick lookup
   const attendanceMap = new Map(
@@ -404,6 +427,12 @@ const AdminAttendance = () => {
                       <div className="text-sm text-muted-foreground">
                         <Clock className="inline h-3 w-3 mr-1" />
                         Entrada: {record.arrival_time.slice(0, 5)}
+                      </div>
+                    )}
+
+                    {record?.notes && (
+                      <div className="w-full md:w-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded mt-2 md:mt-0">
+                        📝 {record.notes}
                       </div>
                     )}
                   </div>
