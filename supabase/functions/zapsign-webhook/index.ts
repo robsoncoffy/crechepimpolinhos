@@ -138,10 +138,37 @@ serve(async (req) => {
         title: notificationTitle,
         message: notificationMessage,
         type: notificationType,
+        link: '/painel-responsavel',
       });
 
     if (parentNotifError) {
       console.warn("Failed to notify parent:", parentNotifError);
+    }
+
+    // Send push notification to parent
+    try {
+      const supabasePublicUrl = Deno.env.get('SUPABASE_URL')!;
+      const pushResponse = await fetch(`${supabasePublicUrl}/functions/v1/send-push-notification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: contract.parent_id,
+          title: notificationTitle,
+          body: notificationMessage,
+          url: '/painel-responsavel',
+        }),
+      });
+      
+      if (!pushResponse.ok) {
+        console.warn("Push notification failed:", await pushResponse.text());
+      } else {
+        console.log("Push notification sent to parent");
+      }
+    } catch (pushError) {
+      console.warn("Failed to send push notification:", pushError);
     }
 
     // Notify all admins
@@ -156,7 +183,7 @@ serve(async (req) => {
         title: notificationTitle,
         message: notificationMessage,
         type: notificationType,
-        link: '/admin/contratos',
+        link: '/painel/contratos',
       }));
 
       const { error: adminNotifError } = await supabase
@@ -165,6 +192,28 @@ serve(async (req) => {
 
       if (adminNotifError) {
         console.warn("Failed to notify admins:", adminNotifError);
+      }
+
+      // Send push notifications to all admins
+      for (const admin of admins) {
+        try {
+          const supabasePublicUrl = Deno.env.get('SUPABASE_URL')!;
+          await fetch(`${supabasePublicUrl}/functions/v1/send-push-notification`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: admin.user_id,
+              title: notificationTitle,
+              body: notificationMessage,
+              url: '/painel/contratos',
+            }),
+          });
+        } catch (pushError) {
+          console.warn("Failed to send push to admin:", pushError);
+        }
       }
     }
 
