@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { BookOpen, ChevronRight, Baby, Calendar, GraduationCap } from "lucide-react";
+import { BookOpen, ChevronRight, Baby, Calendar, GraduationCap, Newspaper } from "lucide-react";
+import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 
 export default function PedagogueDashboard() {
   const { profile } = useAuth();
@@ -148,6 +149,9 @@ export default function PedagogueDashboard() {
         </CardContent>
       </Card>
 
+      {/* Quick Post Creator */}
+      <QuickPostCreator />
+
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -163,9 +167,10 @@ export default function PedagogueDashboard() {
               Ver Lista de Crianças
             </Button>
           </Link>
-          <Link to="/painel/crescimento">
+          <Link to="/painel/feed">
             <Button variant="outline" className="w-full justify-start gap-2">
-              Acompanhamento de Crescimento
+              <Newspaper className="w-4 h-4" />
+              Feed da Escola
             </Button>
           </Link>
           <Link to="/painel/eventos">

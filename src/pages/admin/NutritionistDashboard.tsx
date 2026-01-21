@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { UtensilsCrossed, ChevronRight, AlertTriangle, Calendar } from "lucide-react";
+import { UtensilsCrossed, ChevronRight, AlertTriangle, Calendar, Newspaper } from "lucide-react";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 
 export default function NutritionistDashboard() {
   const { profile } = useAuth();
@@ -115,6 +116,9 @@ export default function NutritionistDashboard() {
           </Link>
         </CardContent>
       </Card>
+
+      {/* Quick Post Creator */}
+      <QuickPostCreator />
 
       {/* Team Chat Preview */}
       <Card>
