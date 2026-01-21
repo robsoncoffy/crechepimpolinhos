@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -123,64 +123,92 @@ function DemoQuickReplySuggestions({
 }) {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [lastProcessedMessage, setLastProcessedMessage] = useState<string | null>(null);
 
   // Get last parent message
   const lastParentMessage = [...messages].reverse().find(m => !m.isOwn);
+  const lastMessage = messages[messages.length - 1];
+  const shouldShow = lastParentMessage && !lastMessage?.isOwn;
   
-  const fetchSuggestions = async () => {
-    if (!lastParentMessage) return;
+  const generateSuggestions = (content: string): string[] => {
+    const lowerContent = content.toLowerCase();
     
-    setLoading(true);
-    
-    // Simulate AI call with demo suggestions based on the last message
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const content = lastParentMessage.content.toLowerCase();
-    let demoSuggestions: string[] = [];
-    
-    if (content.includes("suco") || content.includes("pode") || content.includes("laranja")) {
-      demoSuggestions = [
+    if (lowerContent.includes("suco") || lowerContent.includes("pode") || lowerContent.includes("laranja")) {
+      return [
         `Sim, ${childName} pode tomar suco! 🍊`,
         `Vou verificar a ficha de alergias e confirmo!`,
         `Claro! Daremos suco natural para ele(a). 😊`,
       ];
-    } else if (content.includes("quieto") || content.includes("bem") || content.includes("casa")) {
-      demoSuggestions = [
+    } else if (lowerContent.includes("quieto") || lowerContent.includes("bem") || lowerContent.includes("casa")) {
+      return [
         `${childName} está bem! Só um pouco sonolento hoje. 😊`,
         `Vou ficar de olho e te atualizo mais tarde!`,
         `Está tudo bem! Ele(a) brincou normalmente. ❤️`,
       ];
-    } else if (content.includes("remédio") || content.includes("medicamento")) {
-      demoSuggestions = [
+    } else if (lowerContent.includes("remédio") || lowerContent.includes("medicamento")) {
+      return [
         `Anotado! Vou ficar atenta ao horário. 💊`,
         `Obrigada por avisar! Cuidarei disso.`,
         `Tudo certo, vou acompanhar durante o dia.`,
       ];
-    } else if (content.includes("fralda") || content.includes("trocar")) {
-      demoSuggestions = [
+    } else if (lowerContent.includes("fralda") || lowerContent.includes("trocar")) {
+      return [
         `Entendido! Vou verificar com mais frequência. 👍`,
         `Pode deixar, cuidarei disso!`,
         `Ok! Ficarei atenta às trocas hoje.`,
       ];
-    } else if (content.includes("dormiu") || content.includes("sono")) {
-      demoSuggestions = [
+    } else if (lowerContent.includes("dormiu") || lowerContent.includes("sono")) {
+      return [
         `Vou deixar ${childName} descansar mais se precisar. 😴`,
         `Entendido! Vou observar e deixar sonequinha extra.`,
         `Ok! Se precisar de um cochilo, eu aviso. 💤`,
       ];
     } else {
-      demoSuggestions = [
+      return [
         `Obrigada por avisar! Vou ficar atenta. 😊`,
         `Entendido! Qualquer coisa te aviso.`,
         `${childName} está ótimo(a) hoje! ❤️`,
       ];
     }
-    
-    setSuggestions(demoSuggestions);
-    setLoading(false);
   };
 
-  if (!lastParentMessage || messages[messages.length - 1]?.isOwn) {
+  // Auto-fetch suggestions when last parent message changes
+  useEffect(() => {
+    if (!shouldShow || !lastParentMessage) {
+      setSuggestions([]);
+      return;
+    }
+    
+    // Only fetch if the message changed
+    if (lastParentMessage.content !== lastProcessedMessage) {
+      setLoading(true);
+      setSuggestions([]);
+      
+      // Simulate AI call delay
+      const timer = setTimeout(() => {
+        const newSuggestions = generateSuggestions(lastParentMessage.content);
+        setSuggestions(newSuggestions);
+        setLastProcessedMessage(lastParentMessage.content);
+        setLoading(false);
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [lastParentMessage?.content, shouldShow, childName]);
+
+  const handleRefresh = () => {
+    if (!lastParentMessage) return;
+    setLoading(true);
+    setSuggestions([]);
+    
+    setTimeout(() => {
+      const newSuggestions = generateSuggestions(lastParentMessage.content);
+      setSuggestions(newSuggestions);
+      setLoading(false);
+    }, 800);
+  };
+
+  if (!shouldShow) {
     return null;
   }
 
@@ -189,28 +217,25 @@ function DemoQuickReplySuggestions({
       <div className="flex items-center gap-2 mb-2">
         <Sparkles className="w-4 h-4 text-primary" />
         <span className="text-xs font-medium text-muted-foreground">Sugestões de resposta</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={fetchSuggestions}
-          disabled={loading}
-          className="h-6 px-2 text-xs ml-auto"
-        >
-          {loading ? (
-            <Loader2 className="w-3 h-3 animate-spin" />
-          ) : suggestions.length > 0 ? (
+        {!loading && suggestions.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleRefresh}
+            className="h-6 w-6 p-0 ml-auto"
+          >
             <RefreshCw className="w-3 h-3" />
-          ) : (
-            <>
-              <Sparkles className="w-3 h-3 mr-1" />
-              Gerar
-            </>
-          )}
-        </Button>
+          </Button>
+        )}
       </div>
       
-      {suggestions.length > 0 && (
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Gerando sugestões...
+        </div>
+      ) : suggestions.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {suggestions.map((suggestion, index) => (
             <button
@@ -226,7 +251,7 @@ function DemoQuickReplySuggestions({
             </button>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
