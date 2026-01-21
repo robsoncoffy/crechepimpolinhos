@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Calendar,
   TrendingUp,
@@ -27,6 +28,9 @@ import {
   Droplets,
   GraduationCap,
   Send,
+  Newspaper,
+  Heart,
+  MessageCircle,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
@@ -56,7 +60,7 @@ const shiftLabels: Record<string, string> = {
 };
 
 export function DemoParentDashboard() {
-  const [activeTab, setActiveTab] = useState("agenda");
+  const [activeTab, setActiveTab] = useState("feed");
 
   const calculateAge = (birthDate: string) => {
     const birth = new Date(birthDate);
@@ -260,7 +264,10 @@ export function DemoParentDashboard() {
                 <CardContent className="p-0">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <div className="border-b bg-muted/30">
-                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-7">
+                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-8">
+                        <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <Newspaper className="w-4 h-4" />
+                        </TabsTrigger>
                         <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <Calendar className="w-4 h-4" />
                         </TabsTrigger>
@@ -287,6 +294,96 @@ export function DemoParentDashboard() {
                     </div>
 
                     <div className="p-4">
+                      {/* Feed Tab */}
+                      <TabsContent value="feed" className="mt-0">
+                        <h3 className="font-semibold mb-4">Feed da Escola</h3>
+                        <ScrollArea className="h-[400px] pr-3">
+                          <div className="space-y-4">
+                            {/* Mock Feed Posts */}
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="aspect-video bg-gradient-to-br from-pimpo-blue/20 to-pimpo-green/20 flex items-center justify-center">
+                                <span className="text-4xl">🎨</span>
+                              </div>
+                              <div className="p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">P</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium">Prof. Ana Silva</p>
+                                    <p className="text-xs text-muted-foreground">Há 2 horas</p>
+                                  </div>
+                                </div>
+                                <p className="text-sm mb-3">
+                                  Hoje foi dia de pintura livre! As crianças adoraram explorar as cores e criar suas obras de arte. 🎨✨ #AtividadesCriativas
+                                </p>
+                                <div className="flex items-center gap-4 text-muted-foreground">
+                                  <button className="flex items-center gap-1 text-xs hover:text-pimpo-red transition-colors">
+                                    <Heart className="w-4 h-4" /> 12
+                                  </button>
+                                  <button className="flex items-center gap-1 text-xs hover:text-primary transition-colors">
+                                    <MessageCircle className="w-4 h-4" /> 3
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarFallback className="bg-pimpo-yellow/20 text-pimpo-yellow text-xs">D</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium">Direção</p>
+                                    <p className="text-xs text-muted-foreground">Ontem</p>
+                                  </div>
+                                </div>
+                                <p className="text-sm mb-3">
+                                  📢 Lembramos que na próxima sexta-feira teremos nossa tradicional Festa Junina! Não esqueçam das comidas típicas para a mesa coletiva. Vamos fazer uma festa linda! 🎉🌽
+                                </p>
+                                <div className="flex items-center gap-4 text-muted-foreground">
+                                  <button className="flex items-center gap-1 text-xs hover:text-pimpo-red transition-colors">
+                                    <Heart className="w-4 h-4" /> 28
+                                  </button>
+                                  <button className="flex items-center gap-1 text-xs hover:text-primary transition-colors">
+                                    <MessageCircle className="w-4 h-4" /> 8
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="border rounded-lg overflow-hidden">
+                              <div className="aspect-video bg-gradient-to-br from-pimpo-green/20 to-pimpo-yellow/20 flex items-center justify-center">
+                                <span className="text-4xl">🎶</span>
+                              </div>
+                              <div className="p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">M</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium">Prof. Maria Clara</p>
+                                    <p className="text-xs text-muted-foreground">2 dias atrás</p>
+                                  </div>
+                                </div>
+                                <p className="text-sm mb-3">
+                                  Aula de música com muita diversão! As crianças aprenderam a tocar xilofone e cantaram músicas infantis. Foi lindo ver a alegria de cada um! 🎵
+                                </p>
+                                <div className="flex items-center gap-4 text-muted-foreground">
+                                  <button className="flex items-center gap-1 text-xs hover:text-pimpo-red transition-colors">
+                                    <Heart className="w-4 h-4" /> 19
+                                  </button>
+                                  <button className="flex items-center gap-1 text-xs hover:text-primary transition-colors">
+                                    <MessageCircle className="w-4 h-4" /> 5
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </ScrollArea>
+                      </TabsContent>
+
                       <TabsContent value="agenda" className="mt-0">
                         <h3 className="font-semibold mb-4">Agenda da Semana</h3>
                         <div className="space-y-3">
