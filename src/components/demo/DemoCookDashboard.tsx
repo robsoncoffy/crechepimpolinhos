@@ -26,6 +26,9 @@ import {
   MessageSquare,
   Check,
   CheckCheck,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
@@ -136,11 +139,42 @@ const classLabels: Record<string, string> = {
   jardim: "Jardim",
 };
 
+// Mock weekly menu data
+const mockWeeklyMenu = {
+  bercario: {
+    1: { breakfast: "Mingau de aveia com banana", morningSnack: "Fruta amassada (maçã)", lunch: "Papinha de frango com legumes", bottle: "Fórmula Aptamil", snack: "Iogurte natural", preDinner: "Suco de fruta", dinner: "Sopinha de legumes" },
+    2: { breakfast: "Mingau de maisena", morningSnack: "Banana amassada", lunch: "Papinha de carne com batata", bottle: "Fórmula NAN", snack: "Fruta raspada", preDinner: "Vitamina de frutas", dinner: "Caldo de feijão com arroz" },
+    3: { breakfast: "Mingau de arroz", morningSnack: "Pera amassada", lunch: "Papinha de peixe com cenoura", bottle: "Fórmula Aptamil", snack: "Biscoito de maisena", preDinner: "Suco natural", dinner: "Sopinha de legumes" },
+    4: { breakfast: "Mingau de aveia", morningSnack: "Mamão amassado", lunch: "Papinha de frango com abóbora", bottle: "Fórmula NAN", snack: "Iogurte natural", preDinner: "Fruta amassada", dinner: "Caldo de legumes" },
+    5: { breakfast: "Mingau de maisena com maçã", morningSnack: "Banana", lunch: "Papinha de carne com mandioquinha", bottle: "Fórmula Aptamil", snack: "Fruta raspada", preDinner: "Vitamina", dinner: "Sopinha de frango" },
+  },
+  maternal: {
+    1: { breakfast: "Pão com manteiga e leite", morningSnack: "Fruta (maçã)", lunch: "Arroz, feijão, frango grelhado e salada", snack: "Biscoito integral e suco", dinner: "Macarrão com carne moída" },
+    2: { breakfast: "Biscoito com leite", morningSnack: "Banana", lunch: "Arroz, feijão, carne assada e legumes", snack: "Iogurte com granola", dinner: "Sopa de legumes com frango" },
+    3: { breakfast: "Pão de queijo e vitamina", morningSnack: "Uva", lunch: "Arroz, lentilha, peixe e salada", snack: "Fruta picada", dinner: "Polenta com molho" },
+    4: { breakfast: "Tapioca com queijo", morningSnack: "Melão", lunch: "Arroz, feijão, bife e purê", snack: "Bolo de cenoura", dinner: "Risoto de frango" },
+    5: { breakfast: "Pão integral com geleia", morningSnack: "Morango", lunch: "Macarrão à bolonhesa e salada", snack: "Cookies e leite", dinner: "Sopa de feijão" },
+  },
+};
+
+const daysOfWeek = [
+  { value: 1, label: "Segunda" },
+  { value: 2, label: "Terça" },
+  { value: 3, label: "Quarta" },
+  { value: 4, label: "Quinta" },
+  { value: 5, label: "Sexta" },
+];
+
 export function DemoCookDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("refeicoes");
+  const [activeTab, setActiveTab] = useState("cardapio");
   const [children, setChildren] = useState(mockChildren);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [menuType, setMenuType] = useState<"bercario" | "maternal">("bercario");
+  const [selectedMenuDay, setSelectedMenuDay] = useState(() => {
+    const today = new Date().getDay();
+    return today === 0 || today === 6 ? 1 : today;
+  });
 
   // Staff chat states
   const [selectedStaffChannel, setSelectedStaffChannel] = useState<StaffChannel>("geral");
@@ -319,23 +353,28 @@ export function DemoCookDashboard() {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="border-b bg-muted/30">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4">
-                  <TabsTrigger value="refeicoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+                  <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="hidden sm:inline">Cardápio</span>
+                    <span className="sm:hidden">Menu</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="refeicoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2">
                     <UtensilsCrossed className="w-4 h-4" />
                     <span className="hidden sm:inline">Refeições</span>
                     <span className="sm:hidden">Refeições</span>
                   </TabsTrigger>
-                  <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                  <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2">
                     <AlertTriangle className="w-4 h-4" />
                     <span className="hidden sm:inline">Alergias</span>
                     <span className="sm:hidden">Alergias</span>
                   </TabsTrigger>
-                  <TabsTrigger value="leites" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                  <TabsTrigger value="leites" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2">
                     <Milk className="w-4 h-4" />
                     <span className="hidden sm:inline">Leites</span>
                     <span className="sm:hidden">Leites</span>
                   </TabsTrigger>
-                  <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                  <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2">
                     <MessageSquare className="w-4 h-4" />
                     <span className="hidden sm:inline">Equipe</span>
                     <span className="sm:hidden">Chat</span>
@@ -349,6 +388,286 @@ export function DemoCookDashboard() {
               </div>
 
               <div className="p-4">
+                {/* Weekly Menu Tab */}
+                <TabsContent value="cardapio" className="mt-0">
+                  <div className="space-y-4">
+                    {/* Menu Type Selector */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                      <div className="flex gap-2">
+                        <Button
+                          variant={menuType === "bercario" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setMenuType("bercario")}
+                        >
+                          <Baby className="w-4 h-4 mr-2" />
+                          Berçário
+                        </Button>
+                        <Button
+                          variant={menuType === "maternal" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setMenuType("maternal")}
+                        >
+                          <UtensilsCrossed className="w-4 h-4 mr-2" />
+                          Maternal/Jardim
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedMenuDay(d => d > 1 ? d - 1 : 5)}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="font-medium min-w-[100px] text-center">
+                          {daysOfWeek.find(d => d.value === selectedMenuDay)?.label}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedMenuDay(d => d < 5 ? d + 1 : 1)}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Day Selector Pills */}
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                      {daysOfWeek.map((day) => (
+                        <Button
+                          key={day.value}
+                          variant={selectedMenuDay === day.value ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedMenuDay(day.value)}
+                          className="flex-shrink-0"
+                        >
+                          {day.label}
+                        </Button>
+                      ))}
+                    </div>
+
+                    {/* Menu Content */}
+                    {menuType === "bercario" ? (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <Card className="border-l-4 border-l-amber-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Coffee className="w-4 h-4 text-amber-500" />
+                              Café da Manhã
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.breakfast || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-orange-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Cookie className="w-4 h-4 text-orange-500" />
+                              Lanche da Manhã
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.morningSnack || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-green-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Salad className="w-4 h-4 text-green-500" />
+                              Almoço
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.lunch || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-blue-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Milk className="w-4 h-4 text-blue-500" />
+                              Mamadeira
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.bottle || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-purple-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Apple className="w-4 h-4 text-purple-500" />
+                              Lanche da Tarde
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.snack || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-rose-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Cookie className="w-4 h-4 text-rose-500" />
+                              Pré-Janta
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.preDinner || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-indigo-400 sm:col-span-2 lg:col-span-1">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <MoonIcon className="w-4 h-4 text-indigo-500" />
+                              Jantar/Mamadeira
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.bercario[selectedMenuDay as keyof typeof mockWeeklyMenu.bercario]?.dinner || "—"}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <Card className="border-l-4 border-l-amber-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Coffee className="w-4 h-4 text-amber-500" />
+                              Café da Manhã
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.maternal[selectedMenuDay as keyof typeof mockWeeklyMenu.maternal]?.breakfast || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-orange-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Cookie className="w-4 h-4 text-orange-500" />
+                              Lanche da Manhã
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.maternal[selectedMenuDay as keyof typeof mockWeeklyMenu.maternal]?.morningSnack || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-green-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Salad className="w-4 h-4 text-green-500" />
+                              Almoço
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.maternal[selectedMenuDay as keyof typeof mockWeeklyMenu.maternal]?.lunch || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-purple-400">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Apple className="w-4 h-4 text-purple-500" />
+                              Lanche da Tarde
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.maternal[selectedMenuDay as keyof typeof mockWeeklyMenu.maternal]?.snack || "—"}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-l-4 border-l-indigo-400 sm:col-span-2 lg:col-span-2">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <MoonIcon className="w-4 h-4 text-indigo-500" />
+                              Jantar
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm text-muted-foreground">
+                            {mockWeeklyMenu.maternal[selectedMenuDay as keyof typeof mockWeeklyMenu.maternal]?.dinner || "—"}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Week Overview */}
+                    <Card className="mt-6">
+                      <CardHeader>
+                        <CardTitle className="text-base">Visão Geral da Semana</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b">
+                                <th className="text-left p-2 font-medium">Refeição</th>
+                                {daysOfWeek.map(day => (
+                                  <th key={day.value} className="text-left p-2 font-medium">{day.label}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {menuType === "bercario" ? (
+                                <>
+                                  <tr className="border-b">
+                                    <td className="p-2 font-medium text-amber-600">Café</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.bercario[day.value as keyof typeof mockWeeklyMenu.bercario]?.breakfast?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                  <tr className="border-b">
+                                    <td className="p-2 font-medium text-green-600">Almoço</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.bercario[day.value as keyof typeof mockWeeklyMenu.bercario]?.lunch?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                  <tr>
+                                    <td className="p-2 font-medium text-indigo-600">Jantar</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.bercario[day.value as keyof typeof mockWeeklyMenu.bercario]?.dinner?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                </>
+                              ) : (
+                                <>
+                                  <tr className="border-b">
+                                    <td className="p-2 font-medium text-amber-600">Café</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.maternal[day.value as keyof typeof mockWeeklyMenu.maternal]?.breakfast?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                  <tr className="border-b">
+                                    <td className="p-2 font-medium text-green-600">Almoço</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.maternal[day.value as keyof typeof mockWeeklyMenu.maternal]?.lunch?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                  <tr>
+                                    <td className="p-2 font-medium text-indigo-600">Jantar</td>
+                                    {daysOfWeek.map(day => (
+                                      <td key={day.value} className="p-2 text-muted-foreground">
+                                        {mockWeeklyMenu.maternal[day.value as keyof typeof mockWeeklyMenu.maternal]?.dinner?.slice(0, 20)}...
+                                      </td>
+                                    ))}
+                                  </tr>
+                                </>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
                 {/* Meal Tracking Tab */}
                 <TabsContent value="refeicoes" className="mt-0">
                   <div className="flex flex-col sm:flex-row gap-3 mb-4">
