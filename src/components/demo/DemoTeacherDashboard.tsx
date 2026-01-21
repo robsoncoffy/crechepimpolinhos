@@ -305,12 +305,20 @@ const statusConfig: Record<AttendanceStatus, { label: string; icon: typeof Check
 };
 
 // Demo Attendance Tab Component
+// Mock absence notes (from parent notifications)
+const mockAbsenceNotes: Record<string, string> = {
+  "4": "Doença: Está com febre desde ontem",
+  "6": "Consulta Médica: Exame de rotina agendado",
+};
+
 function DemoAttendanceTab() {
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, AttendanceStatus>>({
     "1": "present",
     "2": "present",
     "3": "late",
+    "4": "excused", // Parent notified absence
     "5": "present",
+    "6": "excused", // Parent notified absence
   });
 
   const handleStatusChange = (childId: string, status: AttendanceStatus) => {
@@ -415,6 +423,12 @@ function DemoAttendanceTab() {
                   <div className="text-xs text-muted-foreground shrink-0">
                     <Clock className="inline h-3 w-3 mr-1" />
                     {currentStatus === "late" ? "08:45" : "07:30"}
+                  </div>
+                )}
+
+                {mockAbsenceNotes[child.id] && currentStatus === "excused" && (
+                  <div className="w-full sm:w-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
+                    📝 {mockAbsenceNotes[child.id]}
                   </div>
                 )}
               </div>
