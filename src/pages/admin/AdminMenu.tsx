@@ -547,12 +547,12 @@ export default function AdminMenu() {
               {/* Jantar */}
               <MealField
                 icon={<Moon className="w-4 h-4 text-pimpo-red" />}
-                label="Jantar"
+                label={menuType === 'bercario' ? "Janta/Mamadeira" : "Jantar"}
                 value={item.dinner}
                 timeValue={item.dinner_time}
                 field="dinner"
                 timeField="dinner_time"
-                placeholder="Ex: Sopa de legumes, pão"
+                placeholder={menuType === 'bercario' ? "Ex: Sopa de legumes ou mamadeira" : "Ex: Sopa de legumes, pão"}
                 menuType={menuType}
                 dayOfWeek={item.day_of_week}
               />
