@@ -198,38 +198,45 @@ export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetPro
 
   return (
     <Card className="bg-gradient-to-br from-pimpo-blue/10 to-primary/5 overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Sun className="w-4 h-4 text-pimpo-yellow" />
-          Previsão do Tempo
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Current Weather */}
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground font-medium">Canoas, RS</p>
-            <p className="text-3xl font-fredoka font-bold">{weather.temp}°C</p>
-            <p className="text-sm text-muted-foreground">{weather.description}</p>
+      <CardContent className="p-4 space-y-4">
+        {/* Header with Location and Time */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium">Canoas, RS</p>
+            <p className="text-2xl font-fredoka font-bold">{currentTime}</p>
+            <p className="text-xs text-muted-foreground capitalize">{getCurrentDate()}</p>
+          </div>
+          {getWeatherIcon(weather.weatherCode)}
+        </div>
+
+        {/* Current Temperature */}
+        <div className="flex items-center justify-between bg-background/50 rounded-lg p-3">
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-fredoka font-bold">{weather.temp}</span>
+            <span className="text-xl">°C</span>
           </div>
           <div className="text-right">
-            {getWeatherIcon(weather.weatherCode)}
-            <p className="text-lg font-semibold mt-1">{currentTime}</p>
+            <p className="text-sm font-medium">{weather.description}</p>
+            <p className="text-xs text-muted-foreground">Sensação: {weather.feelsLike}°C</p>
           </div>
         </div>
 
-        {/* Weather Details */}
-        <div className="flex items-center gap-4 pt-2 border-t border-border/50">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Droplets className="w-3.5 h-3.5" />
-            <span>{weather.humidity}%</span>
+        {/* Weather Details Grid */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col items-center p-2 bg-background/50 rounded-lg">
+            <Droplets className="w-4 h-4 text-pimpo-blue mb-1" />
+            <span className="text-xs text-muted-foreground">Umidade</span>
+            <span className="text-sm font-semibold">{weather.humidity}%</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Wind className="w-3.5 h-3.5" />
-            <span>{weather.wind} km/h</span>
+          <div className="flex flex-col items-center p-2 bg-background/50 rounded-lg">
+            <Wind className="w-4 h-4 text-muted-foreground mb-1" />
+            <span className="text-xs text-muted-foreground">Vento</span>
+            <span className="text-sm font-semibold">{weather.wind} km/h</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Sensação: {weather.feelsLike}°C</span>
+          <div className="flex flex-col items-center p-2 bg-background/50 rounded-lg">
+            <Sun className="w-4 h-4 text-pimpo-yellow mb-1" />
+            <span className="text-xs text-muted-foreground">UV</span>
+            <span className="text-sm font-semibold">Moderado</span>
           </div>
         </div>
 
@@ -249,22 +256,39 @@ export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetPro
           </div>
         )}
 
+        {/* Pickup Hour Highlight (when no rain) */}
+        {pickupWeather && !willRainAtPickup && (
+          <div className="flex items-center gap-2 p-3 bg-pimpo-green/10 border border-pimpo-green/30 rounded-lg">
+            <Sun className="w-5 h-5 text-pimpo-green shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-pimpo-green">
+                Busca às {pickupTime}: {pickupWeather.temp}°C
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Tempo bom para buscar seu filho 🌤️
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Hourly Forecast */}
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Previsão hora a hora</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">📊 Previsão hora a hora</p>
           <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex gap-3 pb-2">
-              {weather.hourlyForecast.map((hour, i) => {
+            <div className="flex gap-2 pb-2">
+              {weather.hourlyForecast.slice(0, 8).map((hour, i) => {
                 const isPickupHour = hour.time === pickupTime || hour.time === `${pickupTime.split(":")[0]}:00`;
                 const hasRain = isRainyWeather(hour.weatherCode) || hour.precipitationProb > 50;
                 
                 return (
                   <div 
                     key={i}
-                    className={`flex flex-col items-center gap-1 p-2 rounded-lg min-w-[60px] ${
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg min-w-[56px] ${
                       isPickupHour 
                         ? "bg-primary/10 border-2 border-primary" 
-                        : "bg-muted/30"
+                        : hasRain
+                        ? "bg-pimpo-blue/10"
+                        : "bg-background/50"
                     }`}
                   >
                     <span className={`text-xs font-medium ${isPickupHour ? "text-primary" : ""}`}>
@@ -273,16 +297,12 @@ export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetPro
                     {getWeatherIcon(hour.weatherCode, "sm")}
                     <span className="text-sm font-semibold">{hour.temp}°</span>
                     {hour.precipitationProb > 0 && (
-                      <Badge 
-                        variant={hasRain ? "destructive" : "secondary"} 
-                        className="text-[10px] px-1 py-0"
-                      >
-                        <Droplets className="w-2.5 h-2.5 mr-0.5" />
-                        {hour.precipitationProb}%
-                      </Badge>
+                      <span className={`text-[10px] ${hasRain ? "text-pimpo-blue font-medium" : "text-muted-foreground"}`}>
+                        💧{hour.precipitationProb}%
+                      </span>
                     )}
                     {isPickupHour && (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary text-primary">
+                      <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary text-primary">
                         Busca
                       </Badge>
                     )}
