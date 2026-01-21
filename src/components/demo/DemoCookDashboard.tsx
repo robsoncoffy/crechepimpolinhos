@@ -9,6 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   UtensilsCrossed,
   Home,
   Bell,
@@ -255,8 +262,24 @@ export function DemoCookDashboard() {
     { id: "5", name: "Leite de aveia", quantity: "4 caixas", checked: false },
   ]);
   const [newShoppingItem, setNewShoppingItem] = useState("");
+  const [newShoppingQuantity, setNewShoppingQuantity] = useState("");
+  const [newShoppingUnit, setNewShoppingUnit] = useState("kg");
   const [isLoadingShoppingSuggestions, setIsLoadingShoppingSuggestions] = useState(false);
   const [shoppingSuggestions, setShoppingSuggestions] = useState<string[]>([]);
+
+  // Unit options for shopping list
+  const unitOptions = [
+    { value: "kg", label: "Kg" },
+    { value: "g", label: "Gramas" },
+    { value: "un", label: "Unidades" },
+    { value: "cx", label: "Caixas" },
+    { value: "pct", label: "Pacotes" },
+    { value: "lt", label: "Litros" },
+    { value: "ml", label: "mL" },
+    { value: "lata", label: "Latas" },
+    { value: "dz", label: "Dúzias" },
+    { value: "maço", label: "Maços" },
+  ];
 
   // Generate staff chat AI suggestions
   const generateStaffSuggestions = () => {
@@ -335,17 +358,34 @@ export function DemoCookDashboard() {
     }, 600);
   };
 
-  const addShoppingItem = (itemText: string) => {
+  const addShoppingItem = (itemText: string, fromSuggestion: boolean = false) => {
     if (!itemText.trim()) return;
-    const parts = itemText.split(" - ");
-    const newItem: ShoppingItem = {
-      id: `item-${Date.now()}`,
-      name: parts[0].trim(),
-      quantity: parts[1]?.trim() || "1 un",
-      checked: false,
-    };
+    
+    let newItem: ShoppingItem;
+    
+    if (fromSuggestion) {
+      // From AI suggestion - parse the text
+      const parts = itemText.split(" - ");
+      newItem = {
+        id: `item-${Date.now()}`,
+        name: parts[0].trim(),
+        quantity: parts[1]?.trim() || "1 un",
+        checked: false,
+      };
+    } else {
+      // From manual input - use the separate fields
+      const qty = newShoppingQuantity.trim() || "1";
+      newItem = {
+        id: `item-${Date.now()}`,
+        name: itemText.trim(),
+        quantity: `${qty} ${newShoppingUnit}`,
+        checked: false,
+      };
+    }
+    
     setShoppingList(prev => [...prev, newItem]);
     setNewShoppingItem("");
+    setNewShoppingQuantity("");
     setShoppingSuggestions(prev => prev.filter(s => s !== itemText));
   };
 
@@ -1325,7 +1365,7 @@ export function DemoCookDashboard() {
                       variant="outline"
                       size="sm"
                       className="h-auto py-1.5 px-3 text-xs gap-1"
-                      onClick={() => addShoppingItem(suggestion)}
+                      onClick={() => addShoppingItem(suggestion, true)}
                     >
                       <Plus className="w-3 h-3" />
                       {suggestion}
@@ -1336,17 +1376,39 @@ export function DemoCookDashboard() {
             </div>
 
             {/* Add new item */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
               <Input
-                placeholder="Adicionar item (ex: Arroz - 5kg)"
+                placeholder="Nome do item"
                 value={newShoppingItem}
                 onChange={(e) => setNewShoppingItem(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addShoppingItem(newShoppingItem)}
-                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && addShoppingItem(newShoppingItem, false)}
+                className="flex-1 min-w-[120px]"
               />
-              <Button onClick={() => addShoppingItem(newShoppingItem)} disabled={!newShoppingItem.trim()}>
-                <Plus className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Qtd"
+                  type="number"
+                  min="1"
+                  value={newShoppingQuantity}
+                  onChange={(e) => setNewShoppingQuantity(e.target.value)}
+                  className="w-20"
+                />
+                <Select value={newShoppingUnit} onValueChange={setNewShoppingUnit}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue placeholder="Unidade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unitOptions.map((unit) => (
+                      <SelectItem key={unit.value} value={unit.value}>
+                        {unit.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => addShoppingItem(newShoppingItem, false)} disabled={!newShoppingItem.trim()}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Shopping List */}
