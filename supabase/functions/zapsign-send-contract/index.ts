@@ -356,7 +356,6 @@ CNPJ: ${COMPANY_DATA.cnpj}
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        sandbox: true, // Modo de teste - remover quando tiver plano de produção
         name: `Contrato de Matrícula - ${childName}`,
         url_pdf: "",
         base64_pdf: btoa(unescape(encodeURIComponent(contractContent))),
