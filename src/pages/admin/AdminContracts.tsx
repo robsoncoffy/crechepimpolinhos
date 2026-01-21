@@ -231,10 +231,10 @@ export default function AdminContracts() {
         .select("user_id, full_name, cpf, rg, phone, email")
         .in("user_id", parentIds);
 
-      // Get child registrations for CPF data
+      // Get child registrations for CPF and address data
       const { data: registrations } = await supabase
         .from("child_registrations")
-        .select("first_name, last_name, cpf, parent_id")
+        .select("first_name, last_name, cpf, parent_id, address, city")
         .in("parent_id", parentIds);
 
       // Build profile map
@@ -247,8 +247,9 @@ export default function AdminContracts() {
         (parentLinks || []).map(p => [p.child_id, p.parent_id])
       );
 
-      // Build child CPF map by matching child name
+      // Build child CPF and address map by matching child name
       const childCpfMap = new Map<string, string>();
+      const childAddressMap = new Map<string, string>();
       if (registrations) {
         for (const child of childrenMissingContracts) {
           const reg = registrations.find(r => 
@@ -256,6 +257,12 @@ export default function AdminContracts() {
           );
           if (reg?.cpf) {
             childCpfMap.set(child.id, reg.cpf);
+          }
+          if (reg?.address) {
+            const fullAddress = reg.city 
+              ? `${reg.address}, ${reg.city}` 
+              : reg.address;
+            childAddressMap.set(child.id, fullAddress);
           }
         }
       }
@@ -280,7 +287,7 @@ export default function AdminContracts() {
           parent_cpf: profile?.cpf || null,
           parent_rg: profile?.rg || null,
           parent_phone: profile?.phone || null,
-          address: null, // Address will be fetched from child_registrations when sending
+          address: childAddressMap.get(child.id) || null,
           child_cpf: childCpfMap.get(child.id) || null,
         };
       });
