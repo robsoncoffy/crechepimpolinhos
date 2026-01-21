@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -78,6 +79,28 @@ interface DemoMessage {
   sender: string;
   isRead: boolean;
 }
+
+// Staff chat channel type
+type StaffChannel = "geral" | "professoras" | "cozinha";
+
+// Initial staff messages
+const initialStaffMessages: Record<StaffChannel, DemoMessage[]> = {
+  geral: [
+    { id: "s1", content: "Bom dia, equipe! Reunião pedagógica amanhã às 14h. Não esqueçam! 📋", sender: "Diretora Maria", isOwn: false, time: "08:30", isRead: false },
+    { id: "s2", content: "Ok, estarei presente!", sender: "Prof. Ana", isOwn: true, time: "08:35", isRead: true },
+    { id: "s3", content: "Confirmado! 👍", sender: "Nutricionista Carla", isOwn: false, time: "08:40", isRead: false },
+  ],
+  professoras: [
+    { id: "p1", content: "Meninas, alguém tem tinta guache verde sobrando?", sender: "Prof. Maria Clara", isOwn: false, time: "09:15", isRead: false },
+    { id: "p2", content: "Tenho sim! Pode pegar na minha sala", sender: "Prof. Ana", isOwn: true, time: "09:20", isRead: true },
+    { id: "p3", content: "Obrigada! Vou passar lá no intervalo 😊", sender: "Prof. Maria Clara", isOwn: false, time: "09:22", isRead: true },
+  ],
+  cozinha: [
+    { id: "c1", content: "Cardápio de hoje: frango grelhado com purê de batata 🍗", sender: "Cozinheira Rosa", isOwn: false, time: "07:00", isRead: true },
+    { id: "c2", content: "A Sofia Santos tem restrição a glúten, lembrar de preparar opção separada!", sender: "Nutricionista Carla", isOwn: false, time: "07:10", isRead: true },
+    { id: "c3", content: "Entendido! Já separei uma porção sem glúten", sender: "Cozinheira Rosa", isOwn: false, time: "07:15", isRead: true },
+  ],
+};
 
 // Mock messages for parent chat with isRead status
 const initialParentMessages: Record<string, DemoMessage[]> = {
@@ -277,6 +300,11 @@ export function DemoTeacherDashboard() {
   const [chatMessages, setChatMessages] = useState<Record<string, DemoMessage[]>>(initialParentMessages);
   const [editMode, setEditMode] = useState(false);
   const [tookMedicine, setTookMedicine] = useState(false);
+  
+  // Staff chat states
+  const [selectedStaffChannel, setSelectedStaffChannel] = useState<StaffChannel>("geral");
+  const [staffChatMessage, setStaffChatMessage] = useState("");
+  const [staffMessages, setStaffMessages] = useState<Record<StaffChannel, DemoMessage[]>>(initialStaffMessages);
 
   // Mark messages as read when selecting a child
   const handleSelectChatChild = (childId: string) => {
@@ -312,6 +340,51 @@ export function DemoTeacherDashboard() {
   // Count only unread messages (not own and not read)
   const getUnreadCount = (childId: string) => {
     return (chatMessages[childId] || []).filter((m) => !m.isOwn && !m.isRead).length;
+  };
+
+  // Staff chat functions
+  const handleStaffChannelChange = (channel: StaffChannel) => {
+    setSelectedStaffChannel(channel);
+    // Mark all messages in that channel as read
+    setStaffMessages((prev) => ({
+      ...prev,
+      [channel]: prev[channel].map((msg) => 
+        msg.isOwn ? msg : { ...msg, isRead: true }
+      ),
+    }));
+  };
+
+  const handleSendStaffMessage = () => {
+    if (!staffChatMessage.trim()) return;
+    
+    const newMessage: DemoMessage = {
+      id: `staff-${Date.now()}`,
+      content: staffChatMessage,
+      sender: "Prof. Ana",
+      isOwn: true,
+      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      isRead: false,
+    };
+    
+    setStaffMessages((prev) => ({
+      ...prev,
+      [selectedStaffChannel]: [...prev[selectedStaffChannel], newMessage],
+    }));
+    setStaffChatMessage("");
+    
+    // Simulate read receipt after 2 seconds
+    setTimeout(() => {
+      setStaffMessages((prev) => ({
+        ...prev,
+        [selectedStaffChannel]: prev[selectedStaffChannel].map((msg) =>
+          msg.id === newMessage.id ? { ...msg, isRead: true } : msg
+        ),
+      }));
+    }, 2000);
+  };
+
+  const getStaffUnreadCount = (channel: StaffChannel) => {
+    return staffMessages[channel].filter((m) => !m.isOwn && !m.isRead).length;
   };
 
   const completedCount = mockChildren.filter((c) => c.hasRecord).length;
@@ -950,25 +1023,104 @@ export function DemoTeacherDashboard() {
                 {/* Chat Equipe Tab */}
                 <TabsContent value="equipe" className="mt-0">
                   <h3 className="font-semibold mb-4">Chat da Equipe</h3>
-                  <div className="space-y-3">
-                    {[
-                      { sender: "Diretora Maria", message: "Reunião pedagógica amanhã às 14h", time: "há 10 min", unread: true },
-                      { sender: "Nutricionista Ana", message: "Cardápio atualizado para a semana", time: "há 1 hora", unread: false },
-                      { sender: "Coordenadora Lucia", message: "Fotos do evento disponíveis na galeria", time: "há 2 horas", unread: false },
-                    ].map((msg, i) => (
-                      <div key={i} className={`p-4 rounded-lg border ${msg.unread ? "bg-primary/5 border-primary/30" : "bg-muted/30"}`}>
-                        <div className="flex items-start justify-between mb-1">
-                          <span className="font-medium text-sm">{msg.sender}</span>
-                          <span className="text-xs text-muted-foreground">{msg.time}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{msg.message}</p>
-                        {msg.unread && (
-                          <Badge variant="secondary" className="mt-2 bg-primary/20 text-primary">
-                            Nova mensagem
+                  <div className="space-y-4">
+                    {/* Channel Selector */}
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        variant={selectedStaffChannel === "geral" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => handleStaffChannelChange("geral")}
+                      >
+                        📢 Geral
+                        {getStaffUnreadCount("geral") > 0 && (
+                          <Badge variant="destructive" className="ml-2 h-5 px-1.5">
+                            {getStaffUnreadCount("geral")}
                           </Badge>
                         )}
+                      </Button>
+                      <Button 
+                        variant={selectedStaffChannel === "professoras" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => handleStaffChannelChange("professoras")}
+                      >
+                        👩‍🏫 Professoras
+                        {getStaffUnreadCount("professoras") > 0 && (
+                          <Badge variant="destructive" className="ml-2 h-5 px-1.5">
+                            {getStaffUnreadCount("professoras")}
+                          </Badge>
+                        )}
+                      </Button>
+                      <Button 
+                        variant={selectedStaffChannel === "cozinha" ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => handleStaffChannelChange("cozinha")}
+                      >
+                        🍽️ Cozinha
+                        {getStaffUnreadCount("cozinha") > 0 && (
+                          <Badge variant="destructive" className="ml-2 h-5 px-1.5">
+                            {getStaffUnreadCount("cozinha")}
+                          </Badge>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Messages */}
+                    <ScrollArea className="h-[280px] border rounded-lg">
+                      <div className="p-3 space-y-3">
+                        {staffMessages[selectedStaffChannel]?.map((msg) => (
+                          <div 
+                            key={msg.id} 
+                            className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
+                          >
+                            <div className={`max-w-[80%] ${msg.isOwn ? "order-2" : ""}`}>
+                              {!msg.isOwn && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                      {msg.sender.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs font-medium">{msg.sender}</span>
+                                </div>
+                              )}
+                              <div className={`p-3 rounded-lg ${
+                                msg.isOwn 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "bg-muted"
+                              }`}>
+                                <p className="text-sm">{msg.content}</p>
+                              </div>
+                              <div className={`flex items-center gap-1 mt-1 ${msg.isOwn ? "justify-end" : ""}`}>
+                                <span className="text-[10px] text-muted-foreground">{msg.time}</span>
+                                {msg.isOwn && (
+                                  <span className={msg.isRead ? "text-pimpo-blue" : "text-muted-foreground"}>
+                                    {msg.isRead ? (
+                                      <CheckCheck className="w-3.5 h-3.5" />
+                                    ) : (
+                                      <Check className="w-3.5 h-3.5" />
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    </ScrollArea>
+
+                    {/* Input */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Digite sua mensagem para a equipe..."
+                        value={staffChatMessage}
+                        onChange={(e) => setStaffChatMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSendStaffMessage()}
+                        className="flex-1"
+                      />
+                      <Button onClick={handleSendStaffMessage} disabled={!staffChatMessage.trim()}>
+                        Enviar
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
               </div>
