@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -297,7 +298,7 @@ export default function TeacherDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4">
+              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
                 <TabsTrigger 
                   value="agenda" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
@@ -310,7 +311,14 @@ export default function TeacherDashboard() {
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Minha Turma</span>
+                  <span className="hidden sm:inline">Turma</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="pais" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="hidden sm:inline">Pais</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="alergias" 
@@ -323,8 +331,8 @@ export default function TeacherDashboard() {
                   value="mensagens" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2 relative"
                 >
-                  <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chat</span>
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">Equipe</span>
                   {unreadMessages > 0 && (
                     <Badge variant="destructive" className="absolute -top-1 right-2 sm:relative sm:top-0 sm:right-0 h-5 px-1.5">
                       {unreadMessages}
@@ -602,7 +610,14 @@ export default function TeacherDashboard() {
                 )}
               </TabsContent>
 
-              {/* Mensagens Tab */}
+              {/* Chat com Pais Tab */}
+              <TabsContent value="pais" className="mt-0">
+                <div className="-mx-4 -mb-4">
+                  <TeacherParentChat />
+                </div>
+              </TabsContent>
+
+              {/* Chat Equipe Tab */}
               <TabsContent value="mensagens" className="mt-0">
                 <div className="h-[500px] -mx-4 -mb-4">
                   <StaffChatWindow />
