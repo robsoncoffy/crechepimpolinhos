@@ -36,6 +36,12 @@ import AdminConfig from "@/pages/admin/AdminConfig";
 import AdminFeed from "@/pages/admin/AdminFeed";
 import AdminEmployees from "@/pages/admin/AdminEmployees";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
+import AdminContactSubmissions from "@/pages/admin/AdminContactSubmissions";
+import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
+import AdminMealTracking from "@/pages/admin/AdminMealTracking";
+import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
+import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
 function RoleBasedDashboard() {
