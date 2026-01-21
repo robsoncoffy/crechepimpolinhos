@@ -95,7 +95,7 @@ const planTypeLabels: Record<string, string> = {
 const DEFAULT_CLAUSES = {
   clauseObject: `O presente contrato tem por objeto a prestação de serviços educacionais e cuidados infantis, compreendendo atividades pedagógicas, recreativas, alimentação e acompanhamento do desenvolvimento da criança durante o período contratado.`,
   
-  clauseEnrollment: `A matrícula será efetivada mediante assinatura deste contrato e pagamento da primeira mensalidade. A vaga é pessoal e intransferível.`,
+  clauseEnrollment: `O presente contrato terá vigência a partir da data de sua assinatura até o dia 31 de dezembro de ${new Date().getFullYear()}. A matrícula será efetivada mediante assinatura deste contrato e pagamento da primeira mensalidade. A vaga é pessoal e intransferível. A renovação para o ano seguinte deverá ser solicitada até 30 de novembro.`,
   
   clauseMonthlyFee: `O valor das mensalidades será conforme tabela de preços vigente, com vencimento sempre no mesmo dia da assinatura deste contrato, a cada mês subsequente. O atraso no pagamento acarretará multa de 2% e juros de 1% ao mês.`,
   
