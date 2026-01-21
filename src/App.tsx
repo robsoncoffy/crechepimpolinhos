@@ -25,6 +25,7 @@ const Install = lazy(() => import("./pages/Install"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const LGPD = lazy(() => import("./pages/LGPD"));
 const TermsOfUse = lazy(() => import("./pages/TermsOfUse"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/redefinir-senha" element={<ResetPassword />} />
             <Route path="/sobre" element={<About />} />
             <Route path="/turmas" element={<Classes />} />
             <Route path="/estrutura" element={<Structure />} />
