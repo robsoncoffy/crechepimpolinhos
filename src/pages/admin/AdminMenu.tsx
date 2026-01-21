@@ -194,78 +194,85 @@ export default function AdminMenu() {
     const fetchMenu = async () => {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('weekly_menus')
-        .select('*')
-        .eq('week_start', weekStartStr)
-        .order('day_of_week');
+      try {
+        const { data, error } = await supabase
+          .from('weekly_menus')
+          .select('*')
+          .eq('week_start', weekStartStr)
+          .order('day_of_week');
 
-      if (error) {
-        toast.error('Erro ao carregar cardápio');
+        if (error) {
+          console.error('Error fetching menu:', error);
+          toast.error('Erro ao carregar cardápio');
+          setLoading(false);
+          return;
+        }
+
+        // Create menu items for all 5 days for each type
+        const bercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+          const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'bercario');
+          if (existing) {
+            return {
+              id: existing.id,
+              week_start: existing.week_start,
+              day_of_week: existing.day_of_week,
+              breakfast: existing.breakfast || '',
+              breakfast_time: existing.breakfast_time || '07:30',
+              morning_snack: existing.morning_snack || '',
+              morning_snack_time: existing.morning_snack_time || '09:30',
+              lunch: existing.lunch || '',
+              lunch_time: existing.lunch_time || '11:00',
+              bottle: existing.bottle || '',
+              bottle_time: existing.bottle_time || '13:00',
+              snack: existing.snack || '',
+              snack_time: existing.snack_time || '15:00',
+              pre_dinner: existing.pre_dinner || '',
+              pre_dinner_time: existing.pre_dinner_time || '16:30',
+              dinner: existing.dinner || '',
+              dinner_time: existing.dinner_time || '17:30',
+              notes: existing.notes || '',
+              menu_type: 'bercario' as const
+            };
+          }
+          return emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
+        });
+
+        const maternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
+          const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'maternal');
+          if (existing) {
+            return {
+              id: existing.id,
+              week_start: existing.week_start,
+              day_of_week: existing.day_of_week,
+              breakfast: existing.breakfast || '',
+              breakfast_time: existing.breakfast_time || '08:00',
+              morning_snack: existing.morning_snack || '',
+              morning_snack_time: existing.morning_snack_time || '09:30',
+              lunch: existing.lunch || '',
+              lunch_time: existing.lunch_time || '11:30',
+              bottle: existing.bottle || '',
+              bottle_time: existing.bottle_time || '13:00',
+              snack: existing.snack || '',
+              snack_time: existing.snack_time || '15:30',
+              pre_dinner: existing.pre_dinner || '',
+              pre_dinner_time: existing.pre_dinner_time || '16:30',
+              dinner: existing.dinner || '',
+              dinner_time: existing.dinner_time || '18:00',
+              notes: existing.notes || '',
+              menu_type: 'maternal' as const
+            };
+          }
+          return emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
+        });
+
+        setBercarioItems(bercario);
+        setMaternalItems(maternal);
+      } catch (err) {
+        console.error('Unexpected error fetching menu:', err);
+        toast.error('Erro inesperado ao carregar cardápio');
+      } finally {
         setLoading(false);
-        return;
       }
-
-      // Create menu items for all 5 days for each type
-      const bercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-        const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'bercario');
-        if (existing) {
-          return {
-            id: existing.id,
-            week_start: existing.week_start,
-            day_of_week: existing.day_of_week,
-            breakfast: existing.breakfast || '',
-            breakfast_time: existing.breakfast_time || '07:30',
-            morning_snack: existing.morning_snack || '',
-            morning_snack_time: existing.morning_snack_time || '09:30',
-            lunch: existing.lunch || '',
-            lunch_time: existing.lunch_time || '11:00',
-            bottle: existing.bottle || '',
-            bottle_time: existing.bottle_time || '13:00',
-            snack: existing.snack || '',
-            snack_time: existing.snack_time || '15:00',
-            pre_dinner: existing.pre_dinner || '',
-            pre_dinner_time: existing.pre_dinner_time || '16:30',
-            dinner: existing.dinner || '',
-            dinner_time: existing.dinner_time || '17:30',
-            notes: existing.notes || '',
-            menu_type: 'bercario' as const
-          };
-        }
-        return emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
-      });
-
-      const maternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-        const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'maternal');
-        if (existing) {
-          return {
-            id: existing.id,
-            week_start: existing.week_start,
-            day_of_week: existing.day_of_week,
-            breakfast: existing.breakfast || '',
-            breakfast_time: existing.breakfast_time || '08:00',
-            morning_snack: existing.morning_snack || '',
-            morning_snack_time: existing.morning_snack_time || '09:30',
-            lunch: existing.lunch || '',
-            lunch_time: existing.lunch_time || '11:30',
-            bottle: existing.bottle || '',
-            bottle_time: existing.bottle_time || '13:00',
-            snack: existing.snack || '',
-            snack_time: existing.snack_time || '15:30',
-            pre_dinner: existing.pre_dinner || '',
-            pre_dinner_time: existing.pre_dinner_time || '16:30',
-            dinner: existing.dinner || '',
-            dinner_time: existing.dinner_time || '18:00',
-            notes: existing.notes || '',
-            menu_type: 'maternal' as const
-          };
-        }
-        return emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
-      });
-
-      setBercarioItems(bercario);
-      setMaternalItems(maternal);
-      setLoading(false);
     };
 
     fetchMenu();
@@ -288,6 +295,7 @@ export default function AdminMenu() {
   const handleSave = async () => {
     setSaving(true);
     const allItems = [...bercarioItems, ...maternalItems];
+    let hasErrors = false;
 
     try {
       for (const item of allItems) {
@@ -297,10 +305,15 @@ export default function AdminMenu() {
         if (!hasContent) {
           // If it existed before, delete it
           if (item.id) {
-            await supabase
+            const { error } = await supabase
               .from('weekly_menus')
               .delete()
               .eq('id', item.id);
+            
+            if (error) {
+              console.error('Error deleting menu item:', error);
+              hasErrors = true;
+            }
           }
           continue;
         }
@@ -333,18 +346,38 @@ export default function AdminMenu() {
             .update(menuData)
             .eq('id', item.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error updating menu item:', error);
+            hasErrors = true;
+          }
         } else {
           // Insert new
-          const { error } = await supabase
+          const { data, error } = await supabase
             .from('weekly_menus')
-            .insert(menuData);
+            .insert(menuData)
+            .select()
+            .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error inserting menu item:', error);
+            hasErrors = true;
+          } else if (data) {
+            // Update the item's id in state so subsequent saves work correctly
+            const updateFn = item.menu_type === 'bercario' ? setBercarioItems : setMaternalItems;
+            updateFn(prev => prev.map(prevItem => 
+              prevItem.day_of_week === item.day_of_week && prevItem.menu_type === item.menu_type
+                ? { ...prevItem, id: data.id }
+                : prevItem
+            ));
+          }
         }
       }
 
-      toast.success('Cardápio salvo com sucesso!');
+      if (hasErrors) {
+        toast.error('Alguns itens não foram salvos. Verifique suas permissões.');
+      } else {
+        toast.success('Cardápio salvo com sucesso!');
+      }
     } catch (error) {
       console.error('Error saving menu:', error);
       toast.error('Erro ao salvar cardápio');
