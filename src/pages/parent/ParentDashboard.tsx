@@ -17,6 +17,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { PaymentsTab } from "@/components/parent/PaymentsTab";
 import { DetailedWeatherWidget } from "@/components/parent/DetailedWeatherWidget";
 import { QuarterlyEvaluationsTab } from "@/components/parent/QuarterlyEvaluationsTab";
+import { ParentSettingsTab } from "@/components/parent/ParentSettingsTab";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
   CalendarDays,
   CreditCard,
   GraduationCap,
+  Settings,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -536,7 +538,7 @@ export default function ParentDashboard() {
                     <CardContent className="p-0">
                       <Tabs value={activeTab} onValueChange={setActiveTab}>
                         <div className="border-b bg-muted/30">
-                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-9' : 'grid-cols-5 sm:grid-cols-8'}`}>
+                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-10' : 'grid-cols-5 sm:grid-cols-9'}`}>
                             <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
                               <Calendar className="w-4 h-4" />
                             </TabsTrigger>
@@ -570,6 +572,9 @@ export default function ParentDashboard() {
                                   {unreadCounts[selectedChild.id]}
                                 </Badge>
                               )}
+                            </TabsTrigger>
+                            <TabsTrigger value="configuracoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
+                              <Settings className="w-4 h-4" />
                             </TabsTrigger>
                           </TabsList>
                         </div>
@@ -623,6 +628,10 @@ export default function ParentDashboard() {
                               childName={selectedChild.full_name}
                             />
                           </div>
+                        </TabsContent>
+
+                        <TabsContent value="configuracoes" className="m-0 p-4 sm:p-6">
+                          <ParentSettingsTab children={children} />
                         </TabsContent>
                       </Tabs>
                     </CardContent>
