@@ -295,7 +295,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Até o fim do mês
+              Até hoje ({format(new Date(), "dd/MM", { locale: ptBR })})
             </p>
           </CardContent>
         </Card>
@@ -314,7 +314,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Projeção baseada em taxa de pagamento
+              Até {format(endOfMonth(new Date()), "dd/MM", { locale: ptBR })}
             </p>
           </CardContent>
         </Card>
