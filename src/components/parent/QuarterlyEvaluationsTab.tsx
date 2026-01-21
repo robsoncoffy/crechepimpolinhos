@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { Loader2, GraduationCap, Brain, Heart, MessageCircle, Palette, Target, ArrowRight, Star } from "lucide-react";
+import { EvaluationDetailDialog } from "./EvaluationDetailDialog";
 
 interface QuarterlyEvaluation {
   id: string;
@@ -36,6 +38,8 @@ const quarterLabels: Record<number, string> = {
 export function QuarterlyEvaluationsTab({ childId, childName }: QuarterlyEvaluationsTabProps) {
   const [evaluations, setEvaluations] = useState<QuarterlyEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<QuarterlyEvaluation | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchEvaluations = async () => {
@@ -118,120 +122,91 @@ export function QuarterlyEvaluationsTab({ childId, childName }: QuarterlyEvaluat
       </div>
 
       {evaluations.map((evaluation) => (
-        <Card key={evaluation.id} className="overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
-            <div className="flex items-center justify-between">
+        <Card key={evaluation.id} className="border-l-4 border-l-green-500">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-start mb-3">
               <div>
-                <CardTitle className="text-lg">
+                <p className="font-medium">
                   {quarterLabels[evaluation.quarter]} de {evaluation.year}
-                </CardTitle>
-                <CardDescription>
-                  Avaliação realizada por {evaluation.pedagogue_name}
-                </CardDescription>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Pedagoga {evaluation.pedagogue_name}
+                </p>
               </div>
-              <Badge>{quarterLabels[evaluation.quarter]}</Badge>
+              <Badge className="bg-green-500 hover:bg-green-600">Disponível</Badge>
             </div>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            {/* Development Areas */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {evaluation.cognitive_development && (
-                <div className="p-4 rounded-lg bg-pimpo-blue/5 border border-pimpo-blue/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Brain className="w-4 h-4 text-pimpo-blue" />
-                    <span className="font-medium text-sm">Desenvolvimento Cognitivo</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{evaluation.cognitive_development}</p>
-                </div>
-              )}
-
+            
+            <div className="space-y-2 text-sm">
               {evaluation.motor_development && (
-                <div className="p-4 rounded-lg bg-pimpo-green/5 border border-pimpo-green/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="w-4 h-4 text-pimpo-green" />
-                    <span className="font-medium text-sm">Desenvolvimento Motor</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{evaluation.motor_development}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5" />
+                    Desenvolvimento Motor
+                  </span>
+                  <Badge variant="outline" className="text-xs">Avaliado</Badge>
                 </div>
               )}
-
               {evaluation.social_emotional && (
-                <div className="p-4 rounded-lg bg-pimpo-red/5 border border-pimpo-red/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Heart className="w-4 h-4 text-pimpo-red" />
-                    <span className="font-medium text-sm">Socioemocional</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{evaluation.social_emotional}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Heart className="w-3.5 h-3.5" />
+                    Socioemocional
+                  </span>
+                  <Badge variant="outline" className="text-xs">Avaliado</Badge>
                 </div>
               )}
-
               {evaluation.language_development && (
-                <div className="p-4 rounded-lg bg-pimpo-yellow/5 border border-pimpo-yellow/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <MessageCircle className="w-4 h-4 text-pimpo-yellow" />
-                    <span className="font-medium text-sm">Linguagem</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{evaluation.language_development}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Linguagem
+                  </span>
+                  <Badge variant="outline" className="text-xs">Avaliado</Badge>
                 </div>
               )}
-
+              {evaluation.cognitive_development && (
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Brain className="w-3.5 h-3.5" />
+                    Cognitivo
+                  </span>
+                  <Badge variant="outline" className="text-xs">Avaliado</Badge>
+                </div>
+              )}
               {evaluation.creativity_arts && (
-                <div className="p-4 rounded-lg bg-purple-50 border border-purple-200 sm:col-span-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Palette className="w-4 h-4 text-purple-600" />
-                    <span className="font-medium text-sm">Criatividade e Artes</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{evaluation.creativity_arts}</p>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5" />
+                    Criatividade
+                  </span>
+                  <Badge variant="outline" className="text-xs">Avaliado</Badge>
                 </div>
               )}
             </div>
 
-            {/* Summary and Recommendations */}
-            {(evaluation.overall_summary || evaluation.recommendations || evaluation.next_steps) && (
-              <>
-                <Separator />
-                <div className="space-y-4">
-                  {evaluation.overall_summary && (
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <Star className="w-4 h-4 text-primary" />
-                        Resumo Geral
-                      </h4>
-                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                        {evaluation.overall_summary}
-                      </p>
-                    </div>
-                  )}
-
-                  {evaluation.recommendations && (
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <Target className="w-4 h-4 text-primary" />
-                        Recomendações
-                      </h4>
-                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                        {evaluation.recommendations}
-                      </p>
-                    </div>
-                  )}
-
-                  {evaluation.next_steps && (
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <ArrowRight className="w-4 h-4 text-primary" />
-                        Próximos Passos
-                      </h4>
-                      <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                        {evaluation.next_steps}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full mt-4 border-primary/50 text-primary hover:bg-primary/5"
+              onClick={() => {
+                setSelectedEvaluation(evaluation);
+                setDialogOpen(true);
+              }}
+            >
+              <ArrowRight className="w-4 h-4 mr-2" />
+              Ver Avaliação Completa
+            </Button>
           </CardContent>
         </Card>
       ))}
+
+      {/* Evaluation Detail Dialog */}
+      <EvaluationDetailDialog
+        evaluation={selectedEvaluation}
+        childName={childName}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
     </div>
   );
 }
