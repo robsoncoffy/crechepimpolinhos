@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
+import { QuickReplySuggestions } from "./QuickReplySuggestions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -226,6 +227,16 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
           </div>
         )}
       </ScrollArea>
+
+      {/* AI Quick Reply Suggestions */}
+      {user && (
+        <QuickReplySuggestions
+          messages={messages}
+          currentUserId={user.id}
+          childName={childName.split(" ")[0]}
+          onSelect={(suggestion) => handleSend(suggestion)}
+        />
+      )}
 
       {/* Input */}
       <ChatInput onSend={handleSend} disabled={sending} />
