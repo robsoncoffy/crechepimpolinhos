@@ -36,10 +36,35 @@ interface DemoWeatherWidgetProps {
   pickupTime?: string; // e.g., "17:00"
 }
 
+// Mock weather data for demo (used as fallback)
+function getMockWeatherData(): WeatherData {
+  const now = new Date();
+  const currentHour = now.getHours();
+  
+  const hourlyForecast: HourlyForecast[] = [];
+  for (let i = currentHour; i < 24 && hourlyForecast.length < 12; i++) {
+    hourlyForecast.push({
+      time: `${String(i).padStart(2, "0")}:00`,
+      temp: 22 + Math.floor(Math.random() * 8) - 4,
+      weatherCode: i >= 14 && i <= 16 ? 61 : 2,
+      precipitationProb: i >= 14 && i <= 16 ? 65 : Math.floor(Math.random() * 20),
+    });
+  }
+  
+  return {
+    temp: 24,
+    description: "Parcialmente nublado",
+    weatherCode: 2,
+    humidity: 68,
+    wind: 12,
+    feelsLike: 25,
+    hourlyForecast,
+  };
+}
+
 export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [currentTime, setCurrentTime] = useState(getCurrentTime());
 
   function getCurrentTime() {
@@ -133,7 +158,8 @@ export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetPro
         });
       } catch (err) {
         console.error("Weather error:", err);
-        setError(true);
+        // Use mock data on error for demo purposes
+        setWeather(getMockWeatherData());
       } finally {
         setLoading(false);
       }
@@ -179,7 +205,7 @@ export function DemoWeatherWidget({ pickupTime = "17:00" }: DemoWeatherWidgetPro
     );
   }
 
-  if (error || !weather) {
+  if (!weather) {
     return (
       <Card className="bg-gradient-to-br from-pimpo-blue/10 to-primary/5">
         <CardContent className="p-4">
