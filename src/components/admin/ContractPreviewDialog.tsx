@@ -50,6 +50,7 @@ export interface ContractData {
   clauseForum?: string;
   clausePenalty?: string;
   clauseSocialMedia?: string;
+  clauseValidity?: string;
 }
 
 interface ContractPreviewDialogProps {
@@ -123,6 +124,8 @@ const DEFAULT_CLAUSES = {
   clausePenalty: `Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.`,
 
   clauseSocialMedia: `O CONTRATANTE autoriza expressamente a CONTRATADA a capturar, utilizar e divulgar imagens (fotos e vídeos) da criança matriculada para fins de publicação em redes sociais oficiais da creche (Instagram, Facebook, WhatsApp e demais plataformas), com objetivo exclusivamente institucional, pedagógico e promocional, sem qualquer remuneração ou compensação. A autorização poderá ser revogada a qualquer momento mediante solicitação por escrito.`,
+
+  clauseValidity: `O presente contrato somente terá validade e eficácia após a confirmação do pagamento da primeira mensalidade (taxa de matrícula). Sem a comprovação deste pagamento, a vaga não será garantida e o contrato será considerado nulo de pleno direito.`,
 };
 
 export function ContractPreviewDialog({
@@ -157,6 +160,7 @@ export function ContractPreviewDialog({
       clauseForum: contractData.clauseForum || DEFAULT_CLAUSES.clauseForum,
       clausePenalty: contractData.clausePenalty || DEFAULT_CLAUSES.clausePenalty,
       clauseSocialMedia: contractData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia,
+      clauseValidity: contractData.clauseValidity || DEFAULT_CLAUSES.clauseValidity,
     });
     setActiveTab("preview");
     setOpenClauses({});
@@ -398,6 +402,12 @@ export function ContractPreviewDialog({
                   <p>{editedData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia}</p>
                 </div>
 
+                {/* Cláusula 17 - Validade */}
+                <div className="bg-card p-4 rounded-lg border mb-4">
+                  <h4 className="font-semibold mb-2">CLÁUSULA 17 – DA VALIDADE DO CONTRATO</h4>
+                  <p>{editedData.clauseValidity || DEFAULT_CLAUSES.clauseValidity}</p>
+                </div>
+
                 {/* Disposições Gerais */}
                 <div className="bg-card p-4 rounded-lg border mb-4">
                   <h4 className="font-semibold mb-2">DISPOSIÇÕES GERAIS</h4>
@@ -610,6 +620,11 @@ export function ContractPreviewDialog({
                       clauseKey="clauseSocialMedia" 
                       title="AUTORIZAÇÃO PARA REDES SOCIAIS" 
                       clauseNumber={16} 
+                    />
+                    <ClauseEditor 
+                      clauseKey="clauseValidity" 
+                      title="DA VALIDADE DO CONTRATO" 
+                      clauseNumber={17} 
                     />
                     <ClauseEditor 
                       clauseKey="clauseGeneral" 
