@@ -65,6 +65,17 @@ serve(async (req) => {
     // Check if user is staff
     const { data: isStaff } = await supabase.rpc("is_staff", { _user_id: user.id });
 
+    // Helper to normalize phone/cpf for comparison
+    const normalize = (val: string | null | undefined): string => {
+      if (!val) return "";
+      return val.replace(/\D/g, "").trim();
+    };
+
+    const normalizeEmail = (val: string | null | undefined): string => {
+      if (!val) return "";
+      return val.toLowerCase().trim();
+    };
+
     switch (action) {
       case "create_customer": {
         if (!isStaff) {
@@ -149,7 +160,7 @@ serve(async (req) => {
 
         const subscription = await asaasRequest("/subscriptions", "POST", {
           customer: customer.asaas_customer_id,
-          billingType: "UNDEFINED", // Will generate boleto and pix
+          billingType: "UNDEFINED",
           value,
           nextDueDate: nextDueDate.toISOString().split("T")[0],
           cycle: "MONTHLY",
@@ -214,12 +225,10 @@ serve(async (req) => {
         if (installmentCount && installmentCount > 1) {
           paymentRequest.installmentCount = installmentCount;
           paymentRequest.installmentValue = value / installmentCount;
-          console.log(`Creating installment payment: ${installmentCount}x of R$ ${paymentRequest.installmentValue}`);
         }
 
         // Create payment in Asaas
         const payment = await asaasRequest("/payments", "POST", paymentRequest);
-        console.log("Asaas payment created:", payment.id, payment.installment ? `(installment ${payment.installment})` : "");
 
         // Get payment details with pix code
         let pixCode = null;
@@ -248,13 +257,9 @@ serve(async (req) => {
 
         // If installment, fetch and save remaining installments
         if (installmentCount && installmentCount > 1 && payment.installment) {
-          console.log(`Fetching remaining installments for installment group...`);
-          
-          // Get all payments for this installment
           const installmentPayments = await asaasRequest(`/payments?installment=${payment.installment}`, "GET");
           
           if (installmentPayments.data && installmentPayments.data.length > 1) {
-            // Save remaining installments (skip the first one we already saved)
             for (let i = 1; i < installmentPayments.data.length; i++) {
               const installmentPayment = installmentPayments.data[i];
               
@@ -270,7 +275,6 @@ serve(async (req) => {
                 bank_slip_url: installmentPayment.bankSlipUrl,
               });
             }
-            console.log(`Saved ${installmentPayments.data.length} installment invoices`);
           }
         }
 
@@ -279,170 +283,6 @@ serve(async (req) => {
           invoice,
           installmentCount: installmentCount || 1,
         }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      case "get_payment_info": {
-        const { paymentId } = payload;
-
-        // Check if user owns this invoice or is staff
-        const { data: invoice } = await supabase
-          .from("invoices")
-          .select("*")
-          .eq("id", paymentId)
-          .single();
-
-        if (!invoice) {
-          return new Response(JSON.stringify({ error: "Fatura não encontrada" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (invoice.parent_id !== user.id && !isStaff) {
-          return new Response(JSON.stringify({ error: "Sem permissão" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        // Get fresh data from Asaas
-        if (invoice.asaas_payment_id) {
-          try {
-            const payment = await asaasRequest(`/payments/${invoice.asaas_payment_id}`, "GET");
-            
-            // Update local status
-            const statusMap: Record<string, string> = {
-              PENDING: "pending",
-              RECEIVED: "paid",
-              CONFIRMED: "paid",
-              OVERDUE: "overdue",
-              REFUNDED: "refunded",
-              RECEIVED_IN_CASH: "paid",
-            };
-
-            await supabase.from("invoices").update({
-              status: statusMap[payment.status] || invoice.status,
-              payment_date: payment.paymentDate,
-              payment_type: payment.billingType,
-            }).eq("id", paymentId);
-
-            // Get PIX QR code if still pending
-            let pixCode = invoice.pix_code;
-            if (payment.status === "PENDING" && !pixCode) {
-              try {
-                const pixData = await asaasRequest(`/payments/${invoice.asaas_payment_id}/pixQrCode`, "GET");
-                pixCode = pixData.payload;
-                await supabase.from("invoices").update({ pix_code: pixCode }).eq("id", paymentId);
-              } catch (e) {
-                console.log("Could not get PIX code:", e);
-              }
-            }
-
-            return new Response(JSON.stringify({ 
-              ...invoice,
-              status: statusMap[payment.status] || invoice.status,
-              pix_code: pixCode,
-              invoice_url: payment.invoiceUrl,
-              bank_slip_url: payment.bankSlipUrl,
-            }), {
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          } catch (e) {
-            console.error("Error fetching from Asaas:", e);
-          }
-        }
-
-        return new Response(JSON.stringify(invoice), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      case "sync_payments": {
-        if (!isStaff) {
-          return new Response(JSON.stringify({ error: "Sem permissão" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        // Get all pending invoices
-        const { data: pendingInvoices } = await supabase
-          .from("invoices")
-          .select("*")
-          .in("status", ["pending", "overdue"]);
-
-        let updated = 0;
-        
-        for (const invoice of pendingInvoices || []) {
-          if (!invoice.asaas_payment_id) continue;
-
-          try {
-            const payment = await asaasRequest(`/payments/${invoice.asaas_payment_id}`, "GET");
-            
-            const statusMap: Record<string, string> = {
-              PENDING: "pending",
-              RECEIVED: "paid",
-              CONFIRMED: "paid",
-              OVERDUE: "overdue",
-              REFUNDED: "refunded",
-              RECEIVED_IN_CASH: "paid",
-            };
-
-            const newStatus = statusMap[payment.status] || invoice.status;
-            
-            if (newStatus !== invoice.status) {
-              await supabase.from("invoices").update({
-                status: newStatus,
-                payment_date: payment.paymentDate,
-                payment_type: payment.billingType,
-              }).eq("id", invoice.id);
-              updated++;
-            }
-          } catch (e) {
-            console.error(`Error syncing payment ${invoice.id}:`, e);
-          }
-        }
-
-        return new Response(JSON.stringify({ 
-          success: true, 
-          updated 
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      case "cancel_subscription": {
-        if (!isStaff) {
-          return new Response(JSON.stringify({ error: "Sem permissão" }), {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const { subscriptionId } = payload;
-
-        const { data: sub } = await supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("id", subscriptionId)
-          .single();
-
-        if (!sub) {
-          return new Response(JSON.stringify({ error: "Assinatura não encontrada" }), {
-            status: 404,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        if (sub.asaas_subscription_id) {
-          await asaasRequest(`/subscriptions/${sub.asaas_subscription_id}`, "DELETE");
-        }
-
-        await supabase.from("subscriptions").update({ status: "cancelled" }).eq("id", subscriptionId);
-
-        return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -456,7 +296,6 @@ serve(async (req) => {
         }
 
         try {
-          // Get account balance from Asaas
           const balance = await asaasRequest("/finance/balance", "GET");
           
           return new Response(JSON.stringify({ 
@@ -486,51 +325,35 @@ serve(async (req) => {
           });
         }
 
-        let syncedPayments = 0;
-        let syncedSubscriptions = 0;
         let syncedCustomers = 0;
-        let skippedPayments = 0;
+        let syncedSubscriptions = 0;
+        let syncedPayments = 0;
+        let linkedCustomers = 0;
 
         try {
-          console.log("Starting full Asaas sync...");
-          
-          // 1. First, get all parents with their profiles to map by name/email
+          console.log("Starting full Asaas sync to new tables...");
+
+          // 1. Load all profiles for matching by cpf/phone/email
           const { data: allProfiles } = await supabase
             .from("profiles")
-            .select("user_id, full_name");
-          
-          const profileMap = new Map<string, string>();
-          const profileFirstNames = new Map<string, string[]>(); // firstName -> [user_ids]
-          
-          for (const profile of allProfiles || []) {
-            const normalizedName = profile.full_name.toLowerCase().trim();
-            profileMap.set(normalizedName, profile.user_id);
-            
-            // Also map by first name for partial matching
-            const firstName = normalizedName.split(' ')[0];
-            const existing = profileFirstNames.get(firstName) || [];
-            existing.push(profile.user_id);
-            profileFirstNames.set(firstName, existing);
+            .select("user_id, full_name, cpf, phone");
+
+          // Build lookup maps
+          const profileByCpf = new Map<string, string>();
+          const profileByPhone = new Map<string, string>();
+          const profileByName = new Map<string, string>();
+
+          for (const p of allProfiles || []) {
+            if (p.cpf) profileByCpf.set(normalize(p.cpf), p.user_id);
+            if (p.phone) profileByPhone.set(normalize(p.phone), p.user_id);
+            if (p.full_name) profileByName.set(p.full_name.toLowerCase().trim(), p.user_id);
           }
-          
-          console.log(`Loaded ${allProfiles?.length || 0} profiles for matching`);
-          
-          // 2. Get all children to map by name
-          const { data: allChildren } = await supabase
-            .from("children")
-            .select("id, full_name");
-          
-          const childrenMap = new Map<string, string>();
-          for (const child of allChildren || []) {
-            const normalizedName = child.full_name.toLowerCase().trim();
-            childrenMap.set(normalizedName, child.id);
-          }
-          
-          // Also get parent_children to find child by parent
+
+          // Load parent_children for linking
           const { data: parentChildren } = await supabase
             .from("parent_children")
             .select("parent_id, child_id");
-          
+
           const parentToChildren = new Map<string, string[]>();
           for (const pc of parentChildren || []) {
             const existing = parentToChildren.get(pc.parent_id) || [];
@@ -538,185 +361,135 @@ serve(async (req) => {
             parentToChildren.set(pc.parent_id, existing);
           }
 
-          // Helper to find profile by partial name match
-          const findProfileByName = (customerName: string): string | null => {
-            const normalizedName = customerName.toLowerCase().trim();
-            
-            // 1. Exact match
-            if (profileMap.has(normalizedName)) {
-              return profileMap.get(normalizedName)!;
+          // Helper to find parent by customer data
+          const findLinkedParent = (customer: any): string | null => {
+            // 1. By externalReference
+            if (customer.externalReference) {
+              return customer.externalReference;
             }
             
-            // 2. Try matching by first name (if unique)
-            const firstName = normalizedName.split(' ')[0];
-            const candidates = profileFirstNames.get(firstName);
-            if (candidates && candidates.length === 1) {
-              console.log(`Matched by first name: ${customerName} -> ${firstName}`);
-              return candidates[0];
+            // 2. By CPF
+            if (customer.cpfCnpj) {
+              const normalizedCpf = normalize(customer.cpfCnpj);
+              const parentId = profileByCpf.get(normalizedCpf);
+              if (parentId) return parentId;
             }
             
-            // 3. Try partial match (customer name contains profile name or vice versa)
-            for (const [profileName, userId] of profileMap.entries()) {
-              if (normalizedName.includes(profileName) || profileName.includes(normalizedName)) {
-                console.log(`Matched by partial: ${customerName} -> ${profileName}`);
-                return userId;
-              }
+            // 3. By phone
+            if (customer.phone || customer.mobilePhone) {
+              const phone = customer.phone || customer.mobilePhone;
+              const normalizedPhone = normalize(phone);
+              // Try with and without country code
+              const parentId = profileByPhone.get(normalizedPhone) || 
+                              profileByPhone.get(normalizedPhone.slice(-11)) ||
+                              profileByPhone.get(normalizedPhone.slice(-10));
+              if (parentId) return parentId;
             }
             
+            // 4. By name (exact match)
+            if (customer.name) {
+              const normalizedName = customer.name.toLowerCase().trim();
+              const parentId = profileByName.get(normalizedName);
+              if (parentId) return parentId;
+            }
+
             return null;
           };
 
-          // Store asaas customer id -> local customer mapping for later use
-          const asaasToLocalCustomer = new Map<string, string>();
-
-          // 3. Sync customers from Asaas
+          // 2. Sync all customers from Asaas
           console.log("Fetching customers from Asaas...");
           let offset = 0;
           let hasMore = true;
-          let unmatchedCustomers: string[] = [];
-          
-          while (hasMore) {
-            const customersResponse = await asaasRequest(`/customers?offset=${offset}&limit=100`, "GET");
-            const customers = customersResponse.data || [];
-            console.log(`Processing ${customers.length} customers at offset ${offset}`);
-            
-            for (const customer of customers) {
-              // Check if customer exists locally by asaas_customer_id
-              const { data: existing } = await supabase
-                .from("payment_customers")
-                .select("id, parent_id")
-                .eq("asaas_customer_id", customer.id)
-                .single();
 
-              if (existing) {
-                asaasToLocalCustomer.set(customer.id, existing.parent_id);
-              } else {
-                // Try to find parent by externalReference first
-                let parentId = customer.externalReference;
-                
-                // If no externalReference, try to match by name
-                if (!parentId && customer.name) {
-                  parentId = findProfileByName(customer.name);
-                }
-                
-                if (parentId) {
-                  const { error: insertError } = await supabase.from("payment_customers").insert({
-                    parent_id: parentId,
-                    asaas_customer_id: customer.id,
-                  });
-                  
-                  if (!insertError) {
-                    syncedCustomers++;
-                    asaasToLocalCustomer.set(customer.id, parentId);
-                    console.log(`Synced customer: ${customer.name} -> ${parentId}`);
-                  }
-                } else {
-                  unmatchedCustomers.push(customer.name);
-                }
+          while (hasMore) {
+            const response = await asaasRequest(`/customers?offset=${offset}&limit=100`, "GET");
+            const customers = response.data || [];
+            console.log(`Processing ${customers.length} customers at offset ${offset}`);
+
+            for (const customer of customers) {
+              const linkedParentId = findLinkedParent(customer);
+              
+              const { error } = await supabase.from("asaas_customers").upsert({
+                asaas_id: customer.id,
+                name: customer.name,
+                email: customer.email,
+                cpf_cnpj: customer.cpfCnpj,
+                phone: customer.phone || customer.mobilePhone,
+                external_reference: customer.externalReference,
+                linked_parent_id: linkedParentId,
+              }, { onConflict: "asaas_id" });
+
+              if (!error) {
+                syncedCustomers++;
+                if (linkedParentId) linkedCustomers++;
               }
             }
 
-            hasMore = customersResponse.hasMore;
+            hasMore = response.hasMore;
             offset += 100;
           }
-          
-          if (unmatchedCustomers.length > 0) {
-            console.log(`Unmatched customers (${unmatchedCustomers.length}): ${unmatchedCustomers.join(', ')}`);
-          }
-          console.log(`Customers sync complete: ${syncedCustomers} synced, ${asaasToLocalCustomer.size} total mapped`);
+          console.log(`Customers synced: ${syncedCustomers}, linked: ${linkedCustomers}`);
 
-          // 4. Sync subscriptions from Asaas
+          // 3. Build customer mapping for subscriptions/payments
+          const { data: asaasCustomers } = await supabase
+            .from("asaas_customers")
+            .select("asaas_id, linked_parent_id");
+
+          const customerToParent = new Map<string, string | null>();
+          for (const c of asaasCustomers || []) {
+            customerToParent.set(c.asaas_id, c.linked_parent_id);
+          }
+
+          // 4. Sync all subscriptions from Asaas
           console.log("Fetching subscriptions from Asaas...");
           offset = 0;
           hasMore = true;
-          let skippedSubscriptions = 0;
-          
+
           while (hasMore) {
-            const subsResponse = await asaasRequest(`/subscriptions?offset=${offset}&limit=100`, "GET");
-            const subs = subsResponse.data || [];
+            const response = await asaasRequest(`/subscriptions?offset=${offset}&limit=100`, "GET");
+            const subs = response.data || [];
             console.log(`Processing ${subs.length} subscriptions at offset ${offset}`);
-            
+
             for (const sub of subs) {
-              // Check if subscription exists locally
-              const { data: existing } = await supabase
-                .from("subscriptions")
-                .select("id")
-                .eq("asaas_subscription_id", sub.id)
-                .single();
+              const linkedParentId = customerToParent.get(sub.customer);
+              let linkedChildId: string | null = null;
 
-              if (!existing) {
-                // Get parent_id from our cache first, then from DB
-                let parentId = asaasToLocalCustomer.get(sub.customer);
-                
-                if (!parentId) {
-                  const { data: customerData } = await supabase
-                    .from("payment_customers")
-                    .select("parent_id")
-                    .eq("asaas_customer_id", sub.customer)
-                    .single();
-                  
-                  if (customerData) {
-                    parentId = customerData.parent_id;
-                  }
+              // Try to find child
+              if (sub.externalReference) {
+                linkedChildId = sub.externalReference;
+              } else if (linkedParentId) {
+                const children = parentToChildren.get(linkedParentId);
+                if (children && children.length > 0) {
+                  linkedChildId = children[0];
                 }
-
-                if (parentId) {
-                  // Try to find child by externalReference or by parent's children
-                  let childId = sub.externalReference;
-                  
-                  // If no externalReference, use first child of parent
-                  if (!childId) {
-                    const parentChildIds = parentToChildren.get(parentId);
-                    if (parentChildIds && parentChildIds.length > 0) {
-                      childId = parentChildIds[0];
-                    }
-                  }
-                  
-                  if (childId) {
-                    const nextDueDate = new Date(sub.nextDueDate);
-                    
-                    const { error: insertError } = await supabase.from("subscriptions").insert({
-                      child_id: childId,
-                      parent_id: parentId,
-                      asaas_subscription_id: sub.id,
-                      value: sub.value,
-                      billing_day: nextDueDate.getDate(),
-                      status: sub.status === "ACTIVE" ? "active" : "cancelled",
-                    });
-                    
-                    if (!insertError) {
-                      syncedSubscriptions++;
-                      console.log(`Synced subscription: ${sub.id} for parent ${parentId}`);
-                    } else {
-                      console.log(`Error inserting subscription ${sub.id}: ${insertError.message}`);
-                    }
-                  } else {
-                    skippedSubscriptions++;
-                    console.log(`Skipped subscription ${sub.id}: no child found for parent ${parentId}`);
-                  }
-                } else {
-                  skippedSubscriptions++;
-                  console.log(`Skipped subscription ${sub.id}: customer ${sub.customer} not mapped`);
-                }
-              } else {
-                // Update existing subscription status
-                await supabase.from("subscriptions").update({
-                  status: sub.status === "ACTIVE" ? "active" : "cancelled",
-                  value: sub.value,
-                }).eq("id", existing.id);
               }
+
+              const { error } = await supabase.from("asaas_subscriptions").upsert({
+                asaas_id: sub.id,
+                asaas_customer_id: sub.customer,
+                value: sub.value,
+                next_due_date: sub.nextDueDate,
+                billing_cycle: sub.cycle,
+                description: sub.description,
+                status: sub.status === "ACTIVE" ? "active" : sub.status?.toLowerCase() || "inactive",
+                external_reference: sub.externalReference,
+                linked_parent_id: linkedParentId,
+                linked_child_id: linkedChildId,
+              }, { onConflict: "asaas_id" });
+
+              if (!error) syncedSubscriptions++;
             }
 
-            hasMore = subsResponse.hasMore;
+            hasMore = response.hasMore;
             offset += 100;
           }
-          console.log(`Subscriptions sync complete: ${syncedSubscriptions} synced, ${skippedSubscriptions} skipped`);
+          console.log(`Subscriptions synced: ${syncedSubscriptions}`);
 
-          // 5. Sync payments from Asaas
+          // 5. Sync all payments from Asaas
           console.log("Fetching payments from Asaas...");
           offset = 0;
           hasMore = true;
-          
+
           const statusMap: Record<string, string> = {
             PENDING: "pending",
             RECEIVED: "paid",
@@ -735,102 +508,57 @@ serve(async (req) => {
           };
 
           while (hasMore) {
-            const paymentsResponse = await asaasRequest(`/payments?offset=${offset}&limit=100`, "GET");
-            const payments = paymentsResponse.data || [];
+            const response = await asaasRequest(`/payments?offset=${offset}&limit=100`, "GET");
+            const payments = response.data || [];
             console.log(`Processing ${payments.length} payments at offset ${offset}`);
-            
+
             for (const payment of payments) {
-              // Check if payment exists locally
-              const { data: existing } = await supabase
-                .from("invoices")
-                .select("id, status")
-                .eq("asaas_payment_id", payment.id)
-                .single();
+              const linkedParentId = customerToParent.get(payment.customer);
+              let linkedChildId: string | null = null;
 
-              if (!existing) {
-                // Get parent_id from our cache first, then from DB
-                let parentId = asaasToLocalCustomer.get(payment.customer);
-                
-                if (!parentId) {
-                  const { data: customerData } = await supabase
-                    .from("payment_customers")
-                    .select("parent_id")
-                    .eq("asaas_customer_id", payment.customer)
-                    .single();
-                  
-                  if (customerData) {
-                    parentId = customerData.parent_id;
-                  }
-                }
-
-                if (parentId) {
-                  // Try to find child by externalReference or by parent's children
-                  let childId = payment.externalReference;
-                  
-                  // If no externalReference, use first child of parent
-                  if (!childId) {
-                    const parentChildIds = parentToChildren.get(parentId);
-                    if (parentChildIds && parentChildIds.length > 0) {
-                      childId = parentChildIds[0];
-                    }
-                  }
-                  
-                  if (childId) {
-                    // Skip getting PIX for each payment to speed up sync
-                    const { error: insertError } = await supabase.from("invoices").insert({
-                      child_id: childId,
-                      parent_id: parentId,
-                      asaas_payment_id: payment.id,
-                      description: payment.description || "Cobrança importada do Asaas",
-                      value: payment.value,
-                      due_date: payment.dueDate,
-                      status: statusMap[payment.status] || "pending",
-                      payment_date: payment.paymentDate,
-                      payment_type: payment.billingType,
-                      invoice_url: payment.invoiceUrl,
-                      bank_slip_url: payment.bankSlipUrl,
-                    });
-                    
-                    if (!insertError) {
-                      syncedPayments++;
-                    } else {
-                      console.log(`Error inserting payment ${payment.id}: ${insertError.message}`);
-                    }
-                  } else {
-                    skippedPayments++;
-                    console.log(`Skipped payment ${payment.id}: no child found for parent ${parentId}`);
-                  }
-                } else {
-                  skippedPayments++;
-                  console.log(`Skipped payment ${payment.id}: customer ${payment.customer} not mapped`);
-                }
-              } else {
-                // Update existing payment status
-                const newStatus = statusMap[payment.status] || existing.status;
-                
-                if (newStatus !== existing.status) {
-                  await supabase.from("invoices").update({
-                    status: newStatus,
-                    payment_date: payment.paymentDate,
-                    payment_type: payment.billingType,
-                  }).eq("id", existing.id);
-                  syncedPayments++;
+              if (payment.externalReference) {
+                linkedChildId = payment.externalReference;
+              } else if (linkedParentId) {
+                const children = parentToChildren.get(linkedParentId);
+                if (children && children.length > 0) {
+                  linkedChildId = children[0];
                 }
               }
+
+              const { error } = await supabase.from("asaas_payments").upsert({
+                asaas_id: payment.id,
+                asaas_customer_id: payment.customer,
+                asaas_subscription_id: payment.subscription,
+                value: payment.value,
+                net_value: payment.netValue,
+                due_date: payment.dueDate,
+                payment_date: payment.paymentDate,
+                billing_type: payment.billingType,
+                status: statusMap[payment.status] || "pending",
+                description: payment.description,
+                invoice_url: payment.invoiceUrl,
+                bank_slip_url: payment.bankSlipUrl,
+                external_reference: payment.externalReference,
+                linked_parent_id: linkedParentId,
+                linked_child_id: linkedChildId,
+              }, { onConflict: "asaas_id" });
+
+              if (!error) syncedPayments++;
             }
 
-            hasMore = paymentsResponse.hasMore;
+            hasMore = response.hasMore;
             offset += 100;
           }
+          console.log(`Payments synced: ${syncedPayments}`);
 
-          console.log(`Sync completed: ${syncedCustomers} customers, ${syncedSubscriptions} subscriptions, ${syncedPayments} payments, ${skippedPayments} skipped`);
+          console.log(`Sync completed: ${syncedCustomers} customers (${linkedCustomers} linked), ${syncedSubscriptions} subscriptions, ${syncedPayments} payments`);
 
           return new Response(JSON.stringify({ 
             success: true,
             syncedCustomers,
+            linkedCustomers,
             syncedSubscriptions,
             syncedPayments,
-            skippedPayments,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -841,12 +569,41 @@ serve(async (req) => {
             syncedCustomers,
             syncedSubscriptions,
             syncedPayments,
-            skippedPayments,
           }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+      }
+
+      case "link_customer": {
+        if (!isStaff) {
+          return new Response(JSON.stringify({ error: "Sem permissão" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { asaasCustomerId, parentId, childId } = payload;
+
+        // Update customer link
+        await supabase.from("asaas_customers")
+          .update({ linked_parent_id: parentId })
+          .eq("asaas_id", asaasCustomerId);
+
+        // Update subscriptions
+        await supabase.from("asaas_subscriptions")
+          .update({ linked_parent_id: parentId, linked_child_id: childId })
+          .eq("asaas_customer_id", asaasCustomerId);
+
+        // Update payments
+        await supabase.from("asaas_payments")
+          .update({ linked_parent_id: parentId, linked_child_id: childId })
+          .eq("asaas_customer_id", asaasCustomerId);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       default:
