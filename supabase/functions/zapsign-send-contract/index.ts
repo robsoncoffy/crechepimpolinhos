@@ -381,13 +381,16 @@ CNPJ: ${COMPANY_DATA.cnpj}
         {
           name: parentName,
           email: parentEmail,
-          auth_mode: "assinaturaTela",
+          auth_mode: "assinaturaTela-tokenEmail",
           send_automatic_email: true,
           send_automatic_whatsapp: false,
           lock_name: true,
           lock_email: true,
           qualification: "Responsável Legal",
           external_id: parentId,
+          // Verificação com selfie obrigatória
+          require_selfie_photo: true,
+          selfie_validation_type: "liveness-document-match",
         },
       ],
     };

@@ -41,7 +41,8 @@ import {
   Eye,
   Send,
   AlertCircle,
-  Download
+  Download,
+  Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -145,6 +146,9 @@ export default function AdminContracts() {
   const [selectedChildForContract, setSelectedChildForContract] = useState<ChildWithoutContract | null>(null);
   const [sendingContract, setSendingContract] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [deletingContract, setDeletingContract] = useState<string | null>(null);
+  const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchContracts();
@@ -457,6 +461,36 @@ export default function AdminContracts() {
     }
   }
 
+  function confirmDeleteContract(contract: Contract) {
+    setContractToDelete(contract);
+    setDeleteDialogOpen(true);
+  }
+
+  async function handleDeleteContract() {
+    if (!contractToDelete) return;
+    
+    setDeletingContract(contractToDelete.id);
+    try {
+      const { error } = await supabase
+        .from("enrollment_contracts")
+        .delete()
+        .eq("id", contractToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Contrato excluído com sucesso!");
+      setDeleteDialogOpen(false);
+      setContractToDelete(null);
+      fetchContracts();
+      fetchChildrenWithoutContract();
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      toast.error("Erro ao excluir contrato");
+    } finally {
+      setDeletingContract(null);
+    }
+  }
+
   const filteredContracts = contracts.filter((contract) => {
     if (statusFilter === "all") return true;
     return contract.status === statusFilter;
@@ -712,6 +746,20 @@ export default function AdminContracts() {
                                     )}
                                   </Button>
                                 )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => confirmDeleteContract(contract)}
+                                  disabled={deletingContract === contract.id}
+                                  title="Excluir contrato"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  {deletingContract === contract.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -904,6 +952,51 @@ export default function AdminContracts() {
           loading={sendingContract}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Excluir Contrato
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir o contrato de matrícula de{" "}
+              <strong>{contractToDelete?.child_name}</strong>?
+              <br /><br />
+              Esta ação não pode ser desfeita. O documento no ZapSign não será afetado, 
+              apenas o registro será removido do sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={!!deletingContract}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteContract}
+              disabled={!!deletingContract}
+            >
+              {deletingContract ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
