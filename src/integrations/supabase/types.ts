@@ -138,6 +138,197 @@ export type Database = {
           },
         ]
       }
+      asaas_customers: {
+        Row: {
+          asaas_id: string
+          cpf_cnpj: string | null
+          created_at: string
+          email: string | null
+          external_reference: string | null
+          id: string
+          linked_parent_id: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          asaas_id: string
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          external_reference?: string | null
+          id?: string
+          linked_parent_id?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asaas_id?: string
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          external_reference?: string | null
+          id?: string
+          linked_parent_id?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_customers_linked_parent_id_fkey"
+            columns: ["linked_parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      asaas_payments: {
+        Row: {
+          asaas_customer_id: string
+          asaas_id: string
+          asaas_subscription_id: string | null
+          bank_slip_url: string | null
+          billing_type: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          external_reference: string | null
+          id: string
+          invoice_url: string | null
+          linked_child_id: string | null
+          linked_parent_id: string | null
+          net_value: number | null
+          payment_date: string | null
+          pix_code: string | null
+          status: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          asaas_customer_id: string
+          asaas_id: string
+          asaas_subscription_id?: string | null
+          bank_slip_url?: string | null
+          billing_type?: string | null
+          created_at?: string
+          description?: string | null
+          due_date: string
+          external_reference?: string | null
+          id?: string
+          invoice_url?: string | null
+          linked_child_id?: string | null
+          linked_parent_id?: string | null
+          net_value?: number | null
+          payment_date?: string | null
+          pix_code?: string | null
+          status?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          asaas_customer_id?: string
+          asaas_id?: string
+          asaas_subscription_id?: string | null
+          bank_slip_url?: string | null
+          billing_type?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          external_reference?: string | null
+          id?: string
+          invoice_url?: string | null
+          linked_child_id?: string | null
+          linked_parent_id?: string | null
+          net_value?: number | null
+          payment_date?: string | null
+          pix_code?: string | null
+          status?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_payments_linked_child_id_fkey"
+            columns: ["linked_child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asaas_payments_linked_parent_id_fkey"
+            columns: ["linked_parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      asaas_subscriptions: {
+        Row: {
+          asaas_customer_id: string
+          asaas_id: string
+          billing_cycle: string | null
+          created_at: string
+          description: string | null
+          external_reference: string | null
+          id: string
+          linked_child_id: string | null
+          linked_parent_id: string | null
+          next_due_date: string | null
+          status: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          asaas_customer_id: string
+          asaas_id: string
+          billing_cycle?: string | null
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          id?: string
+          linked_child_id?: string | null
+          linked_parent_id?: string | null
+          next_due_date?: string | null
+          status?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          asaas_customer_id?: string
+          asaas_id?: string
+          billing_cycle?: string | null
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          id?: string
+          linked_child_id?: string | null
+          linked_parent_id?: string | null
+          next_due_date?: string | null
+          status?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_subscriptions_linked_child_id_fkey"
+            columns: ["linked_child_id"]
+            isOneToOne: false
+            referencedRelation: "children"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asaas_subscriptions_linked_parent_id_fkey"
+            columns: ["linked_parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           arrival_time: string | null

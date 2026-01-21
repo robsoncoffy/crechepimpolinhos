@@ -105,13 +105,52 @@ interface Subscription {
   children?: { full_name: string };
 }
 
+// Types for Asaas imported data
+interface AsaasPayment {
+  id: string;
+  asaas_id: string;
+  asaas_customer_id: string;
+  value: number;
+  due_date: string;
+  payment_date: string | null;
+  status: string;
+  description: string | null;
+  linked_parent_id: string | null;
+  linked_child_id: string | null;
+}
+
+interface AsaasSubscription {
+  id: string;
+  asaas_id: string;
+  asaas_customer_id: string;
+  value: number;
+  next_due_date: string | null;
+  status: string;
+  description: string | null;
+  linked_parent_id: string | null;
+  linked_child_id: string | null;
+}
+
+interface AsaasCustomer {
+  id: string;
+  asaas_id: string;
+  name: string;
+  email: string | null;
+  cpf_cnpj: string | null;
+  phone: string | null;
+  linked_parent_id: string | null;
+}
+
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: "Pendente", color: "bg-yellow-500", icon: Clock },
   paid: { label: "Pago", color: "bg-green-500", icon: CheckCircle },
   overdue: { label: "Vencido", color: "bg-red-500", icon: AlertCircle },
   cancelled: { label: "Cancelado", color: "bg-gray-500", icon: XCircle },
   refunded: { label: "Estornado", color: "bg-purple-500", icon: RefreshCw },
+  active: { label: "Ativo", color: "bg-green-500", icon: CheckCircle },
+  inactive: { label: "Inativo", color: "bg-gray-500", icon: XCircle },
 };
+
 
 export default function AdminPayments() {
   const { user } = useAuth();
@@ -126,6 +165,11 @@ export default function AdminPayments() {
   const [saving, setSaving] = useState(false);
   const [asaasBalance, setAsaasBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
+  
+  // Asaas imported data
+  const [asaasPayments, setAsaasPayments] = useState<AsaasPayment[]>([]);
+  const [asaasSubscriptions, setAsaasSubscriptions] = useState<AsaasSubscription[]>([]);
+  const [asaasCustomers, setAsaasCustomers] = useState<AsaasCustomer[]>([]);
   
   const [formData, setFormData] = useState({
     parentChildId: "",
@@ -153,7 +197,7 @@ export default function AdminPayments() {
       setParentChildren(pcData);
     }
 
-    // Fetch invoices
+    // Fetch invoices (legacy)
     const { data: invData } = await supabase
       .from("invoices")
       .select("*, children(full_name)")
@@ -164,7 +208,7 @@ export default function AdminPayments() {
       setInvoices(invData as Invoice[]);
     }
 
-    // Fetch subscriptions
+    // Fetch subscriptions (legacy)
     const { data: subData } = await supabase
       .from("subscriptions")
       .select("*, children(full_name)")
@@ -172,6 +216,35 @@ export default function AdminPayments() {
 
     if (subData) {
       setSubscriptions(subData as Subscription[]);
+    }
+
+    // Fetch Asaas imported data
+    const { data: asaasPaymentsData } = await supabase
+      .from("asaas_payments")
+      .select("*")
+      .order("due_date", { ascending: false })
+      .limit(200);
+
+    if (asaasPaymentsData) {
+      setAsaasPayments(asaasPaymentsData as any[]);
+    }
+
+    const { data: asaasSubsData } = await supabase
+      .from("asaas_subscriptions")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (asaasSubsData) {
+      setAsaasSubscriptions(asaasSubsData as any[]);
+    }
+
+    const { data: asaasCustomersData } = await supabase
+      .from("asaas_customers")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (asaasCustomersData) {
+      setAsaasCustomers(asaasCustomersData as AsaasCustomer[]);
     }
 
     setLoading(false);
@@ -385,23 +458,61 @@ export default function AdminPayments() {
     }
   };
 
-  // Calculate stats
-  const pendingTotal = invoices
-    .filter(i => i.status === "pending")
-    .reduce((sum, i) => sum + Number(i.value), 0);
+  // Helper to get customer name from asaas_customer_id
+  const getCustomerName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of asaasCustomers) {
+      map.set(c.asaas_id, c.name);
+    }
+    return (asaasCustomerId: string) => map.get(asaasCustomerId) || "—";
+  }, [asaasCustomers]);
+
+  // Calculate stats from Asaas data (primary) or fallback to legacy
+  const pendingTotal = useMemo(() => {
+    const asaasTotal = asaasPayments
+      .filter(p => p.status === "pending")
+      .reduce((sum, p) => sum + Number(p.value), 0);
+    if (asaasTotal > 0) return asaasTotal;
+    return invoices.filter(i => i.status === "pending").reduce((sum, i) => sum + Number(i.value), 0);
+  }, [asaasPayments, invoices]);
   
-  const overdueTotal = invoices
-    .filter(i => i.status === "overdue")
-    .reduce((sum, i) => sum + Number(i.value), 0);
+  const overdueTotal = useMemo(() => {
+    const asaasTotal = asaasPayments
+      .filter(p => p.status === "overdue")
+      .reduce((sum, p) => sum + Number(p.value), 0);
+    if (asaasTotal > 0) return asaasTotal;
+    return invoices.filter(i => i.status === "overdue").reduce((sum, i) => sum + Number(i.value), 0);
+  }, [asaasPayments, invoices]);
   
-  const paidThisMonth = invoices
-    .filter(i => {
-      if (i.status !== "paid" || !i.payment_date) return false;
-      const paymentDate = new Date(i.payment_date);
-      const now = new Date();
-      return paymentDate.getMonth() === now.getMonth() && paymentDate.getFullYear() === now.getFullYear();
-    })
-    .reduce((sum, i) => sum + Number(i.value), 0);
+  const paidThisMonth = useMemo(() => {
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    const asaasTotal = asaasPayments
+      .filter(p => {
+        if (p.status !== "paid" || !p.payment_date) return false;
+        const paymentDate = new Date(p.payment_date);
+        return paymentDate.getMonth() === thisMonth && paymentDate.getFullYear() === thisYear;
+      })
+      .reduce((sum, p) => sum + Number(p.value), 0);
+    
+    if (asaasTotal > 0) return asaasTotal;
+    
+    return invoices
+      .filter(i => {
+        if (i.status !== "paid" || !i.payment_date) return false;
+        const paymentDate = new Date(i.payment_date);
+        return paymentDate.getMonth() === thisMonth && paymentDate.getFullYear() === thisYear;
+      })
+      .reduce((sum, i) => sum + Number(i.value), 0);
+  }, [asaasPayments, invoices]);
+
+  const activeSubscriptionsCount = useMemo(() => {
+    const asaasCount = asaasSubscriptions.filter(s => s.status === "active").length;
+    if (asaasCount > 0) return asaasCount;
+    return subscriptions.filter(s => s.status === "active").length;
+  }, [asaasSubscriptions, subscriptions]);
 
   return (
     <div className="space-y-6">
@@ -524,7 +635,7 @@ export default function AdminPayments() {
               <div>
                 <p className="text-sm text-muted-foreground">Assinaturas Ativas</p>
                 <p className="text-xl font-bold">
-                  {subscriptions.filter(s => s.status === "active").length}
+                  {activeSubscriptionsCount}
                 </p>
               </div>
             </div>
@@ -571,16 +682,16 @@ export default function AdminPayments() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-pimpo-blue" />
                 </div>
-              ) : invoices.length === 0 ? (
+              ) : asaasPayments.length === 0 && invoices.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p>Nenhuma cobrança encontrada</p>
+                  <p>Nenhuma cobrança encontrada. Clique em "Importar do Asaas" para sincronizar.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Criança</TableHead>
+                      <TableHead>Cliente</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Vencimento</TableHead>
@@ -588,21 +699,24 @@ export default function AdminPayments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices.map((invoice) => {
-                      const status = statusConfig[invoice.status] || statusConfig.pending;
+                    {(asaasPayments.length > 0 ? asaasPayments : []).map((payment) => {
+                      const status = statusConfig[payment.status] || statusConfig.pending;
                       const StatusIcon = status.icon;
                       
                       return (
-                        <TableRow key={invoice.id}>
+                        <TableRow key={payment.id}>
                           <TableCell className="font-medium">
-                            {invoice.children?.full_name || "—"}
+                            {getCustomerName(payment.asaas_customer_id)}
+                            {!payment.linked_parent_id && (
+                              <Badge variant="outline" className="ml-2 text-xs">Não vinculado</Badge>
+                            )}
                           </TableCell>
-                          <TableCell>{invoice.description}</TableCell>
+                          <TableCell>{payment.description || "—"}</TableCell>
                           <TableCell>
-                            R$ {Number(invoice.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            R$ {Number(payment.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>
-                            {format(new Date(invoice.due_date), "dd/MM/yyyy")}
+                            {format(new Date(payment.due_date), "dd/MM/yyyy")}
                           </TableCell>
                           <TableCell>
                             <Badge className={`${status.color} text-white gap-1`}>
