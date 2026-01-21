@@ -84,7 +84,7 @@ interface WeeklyCashFlowTabProps {
   asaasCustomers: AsaasCustomer[];
 }
 
-const WEEK_COUNT = 12;
+const WEEK_COUNT = 1;
 
 export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, asaasCustomers }: WeeklyCashFlowTabProps) {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -125,20 +125,39 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
   }, [employeeSalaries]);
 
   const totalMonthlyCosts = totalMonthlyFixedExpenses + totalMonthlySalaries;
-  const weeklyFixedCost = totalMonthlyCosts / 4;
 
-  // Helper function to check if a due day falls within a week
-  const getDueInWeek = (dueDay: number, weekStart: Date, weekEnd: Date) => {
-    const month = weekStart.getMonth();
-    const year = weekStart.getFullYear();
-    const dueDate = new Date(year, month, dueDay);
+  // Helper function to check if a due day falls within a week and return the actual cost
+  const getExitsForWeek = (weekStart: Date, weekEnd: Date): number => {
+    let totalExits = 0;
     
-    // Handle due days that don't exist in certain months (e.g., 31 in February)
-    if (dueDate.getMonth() !== month) {
-      return false;
-    }
+    // Check fixed expenses
+    fixedExpenses.forEach((expense) => {
+      const dueDay = expense.due_day;
+      const month = weekStart.getMonth();
+      const year = weekStart.getFullYear();
+      const dueDate = new Date(year, month, dueDay);
+      
+      // Handle due days that don't exist in certain months
+      if (dueDate.getMonth() === month && isWithinInterval(dueDate, { start: weekStart, end: weekEnd })) {
+        totalExits += expense.value;
+      }
+    });
     
-    return isWithinInterval(dueDate, { start: weekStart, end: weekEnd });
+    // Check employee salaries
+    employeeSalaries.forEach((employee) => {
+      if (employee.salary_payment_day && employee.net_salary) {
+        const dueDay = employee.salary_payment_day;
+        const month = weekStart.getMonth();
+        const year = weekStart.getFullYear();
+        const dueDate = new Date(year, month, dueDay);
+        
+        if (dueDate.getMonth() === month && isWithinInterval(dueDate, { start: weekStart, end: weekEnd })) {
+          totalExits += employee.net_salary;
+        }
+      }
+    });
+    
+    return totalExits;
   };
   const customerNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -225,7 +244,8 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
         }
       });
 
-      const exits = weeklyFixedCost;
+      // Calculate actual exits for this specific week based on due dates
+      const exits = getExitsForWeek(weekStart, weekEnd);
 
       weeks.push({
         weekStart,
@@ -241,7 +261,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
     }
 
     return weeks;
-  }, [asaasPayments, asaasSubscriptions, customerNameMap, weeklyFixedCost, weekOffset, fixedExpenses, employeeSalaries]);
+  }, [asaasPayments, asaasSubscriptions, customerNameMap, weekOffset, fixedExpenses, employeeSalaries]);
 
   const stats = useMemo(() => {
     const totalEntries = weeklyData.reduce((sum, w) => sum + w.entries, 0);
@@ -336,7 +356,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Até hoje ({format(new Date(), "dd/MM", { locale: ptBR })})
+              Nesta semana
             </p>
           </CardContent>
         </Card>
@@ -355,7 +375,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Até {format(endOfMonth(new Date()), "dd/MM", { locale: ptBR })}
+              Pendentes na semana
             </p>
           </CardContent>
         </Card>
@@ -374,7 +394,7 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Custos mensais distribuídos
+              Vencimentos na semana
             </p>
           </CardContent>
         </Card>
@@ -403,24 +423,26 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
         </Card>
       </div>
 
-      {/* Chart */}
+      {/* Week Navigation */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              Fluxo de Caixa Semanal
+              Fluxo de Caixa - Semana Atual
             </CardTitle>
-            <CardDescription>Projeção de entradas e saídas por semana</CardDescription>
+            <CardDescription>
+              {weeklyData[0] ? weeklyData[0].label : "Carregando..."}
+            </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset - 4)}>
+            <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset - 1)}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={() => setWeekOffset(0)}>
-              Hoje
+              Semana Atual
             </Button>
-            <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset + 4)}>
+            <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset + 1)}>
               <ChevronRight className="w-4 h-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={exportToCSV} className="ml-2 gap-2">
@@ -525,9 +547,9 @@ export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, a
                       {formatCurrency(balance)}
                     </TableCell>
                     <TableCell className="text-center">
-                      {balance > weeklyFixedCost * 0.5 ? (
+                      {balance > 0 ? (
                         <Badge className="bg-green-500">Positivo</Badge>
-                      ) : balance > 0 ? (
+                      ) : balance === 0 ? (
                         <Badge className="bg-yellow-500">Neutro</Badge>
                       ) : (
                         <Badge className="bg-red-500">Negativo</Badge>
