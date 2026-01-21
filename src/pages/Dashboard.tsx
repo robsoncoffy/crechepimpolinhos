@@ -34,6 +34,7 @@ import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
 import AdminEmails from "@/pages/admin/AdminEmails";
 import AdminConfig from "@/pages/admin/AdminConfig";
 import AdminFeed from "@/pages/admin/AdminFeed";
+import AdminEmployees from "@/pages/admin/AdminEmployees";
 import ParentDashboard from "@/pages/parent/ParentDashboard";
 import { Loader2 } from "lucide-react";
 // Component to select the right dashboard based on role
@@ -137,6 +138,11 @@ function DashboardContent() {
           <Route path="/config" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminConfig />
+            </ProtectedRoute>
+          } />
+          <Route path="/funcionarios" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminEmployees />
             </ProtectedRoute>
           } />
           

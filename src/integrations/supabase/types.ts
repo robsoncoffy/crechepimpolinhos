@@ -924,6 +924,7 @@ export type Database = {
           mother_name: string | null
           nationality: string | null
           neighborhood: string | null
+          net_salary: number | null
           phone: string | null
           photo_url: string | null
           pis_pasep: string | null
@@ -933,6 +934,7 @@ export type Database = {
           rg_issue_date: string | null
           rg_issuer: string | null
           salary: number | null
+          salary_payment_day: number | null
           specialization: string | null
           state: string | null
           street: string | null
@@ -975,6 +977,7 @@ export type Database = {
           mother_name?: string | null
           nationality?: string | null
           neighborhood?: string | null
+          net_salary?: number | null
           phone?: string | null
           photo_url?: string | null
           pis_pasep?: string | null
@@ -984,6 +987,7 @@ export type Database = {
           rg_issue_date?: string | null
           rg_issuer?: string | null
           salary?: number | null
+          salary_payment_day?: number | null
           specialization?: string | null
           state?: string | null
           street?: string | null
@@ -1026,6 +1030,7 @@ export type Database = {
           mother_name?: string | null
           nationality?: string | null
           neighborhood?: string | null
+          net_salary?: number | null
           phone?: string | null
           photo_url?: string | null
           pis_pasep?: string | null
@@ -1035,6 +1040,7 @@ export type Database = {
           rg_issue_date?: string | null
           rg_issuer?: string | null
           salary?: number | null
+          salary_payment_day?: number | null
           specialization?: string | null
           state?: string | null
           street?: string | null
@@ -1179,6 +1185,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fixed_expenses: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          due_day: number
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          due_day: number
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          due_day?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
       }
       gallery_photos: {
         Row: {

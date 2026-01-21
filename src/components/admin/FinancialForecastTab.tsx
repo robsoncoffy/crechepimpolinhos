@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AreaChart,
   Area,
@@ -42,15 +30,12 @@ import { ptBR } from "date-fns/locale";
 import {
   TrendingUp,
   TrendingDown,
-  Plus,
-  Trash2,
   Calculator,
   PiggyBank,
   Receipt,
   AlertTriangle,
+  Users,
 } from "lucide-react";
-import { useSystemSettings } from "@/hooks/useSystemSettings";
-import { toast } from "sonner";
 
 interface AsaasPayment {
   id: string;
@@ -72,70 +57,64 @@ interface FinancialForecastTabProps {
   asaasSubscriptions: AsaasSubscription[];
 }
 
-interface MonthlyCost {
+interface FixedExpense {
   id: string;
   name: string;
   value: number;
   category: string;
+  due_day: number;
+}
+
+interface EmployeeSalary {
+  id: string;
+  full_name: string;
+  salary: number | null;
+  net_salary: number | null;
 }
 
 const COST_CATEGORIES = [
-  { value: "salarios", label: "Salários e Encargos" },
-  { value: "aluguel", label: "Aluguel e Condomínio" },
-  { value: "utilidades", label: "Água, Luz, Internet" },
-  { value: "alimentacao", label: "Alimentação" },
-  { value: "materiais", label: "Materiais e Suprimentos" },
-  { value: "manutencao", label: "Manutenção" },
-  { value: "marketing", label: "Marketing" },
-  { value: "outros", label: "Outros" },
+  { value: "salarios", label: "Salários (Funcionários)" },
+  { value: "rent", label: "Aluguel" },
+  { value: "utilities", label: "Utilidades (Água, Luz, Gás)" },
+  { value: "internet", label: "Internet/Telefone" },
+  { value: "insurance", label: "Seguros" },
+  { value: "maintenance", label: "Manutenção" },
+  { value: "taxes", label: "Impostos/Taxas" },
+  { value: "supplies", label: "Materiais/Suprimentos" },
+  { value: "software", label: "Software/Sistemas" },
+  { value: "other", label: "Outros" },
 ];
 
 export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions }: FinancialForecastTabProps) {
-  const { getSetting, updateSetting } = useSystemSettings();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newCost, setNewCost] = useState({ name: "", value: "", category: "outros" });
+  // Fetch fixed expenses from database
+  const { data: fixedExpenses = [] } = useQuery({
+    queryKey: ["fixed-expenses-forecast"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fixed_expenses")
+        .select("id, name, value, category, due_day")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data as FixedExpense[];
+    },
+  });
 
-  const monthlyCosts: MonthlyCost[] = useMemo(() => {
-    const saved = getSetting("monthly_costs");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  }, [getSetting]);
+  // Fetch employee salaries from database
+  const { data: employeeSalaries = [] } = useQuery({
+    queryKey: ["employee-salaries-forecast"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("employee_profiles")
+        .select("id, full_name, salary, net_salary");
+      if (error) throw error;
+      return data as EmployeeSalary[];
+    },
+  });
 
-  const saveCosts = async (costs: MonthlyCost[]) => {
-    await updateSetting({ key: "monthly_costs", value: JSON.stringify(costs) });
-  };
-
-  const addCost = async () => {
-    if (!newCost.name || !newCost.value) {
-      toast.error("Preencha todos os campos");
-      return;
-    }
-
-    const cost: MonthlyCost = {
-      id: crypto.randomUUID(),
-      name: newCost.name,
-      value: parseFloat(newCost.value),
-      category: newCost.category,
-    };
-
-    await saveCosts([...monthlyCosts, cost]);
-    setNewCost({ name: "", value: "", category: "outros" });
-    setDialogOpen(false);
-    toast.success("Custo adicionado!");
-  };
-
-  const removeCost = async (id: string) => {
-    await saveCosts(monthlyCosts.filter((c) => c.id !== id));
-    toast.success("Custo removido!");
-  };
-
-  const totalMonthlyCosts = monthlyCosts.reduce((sum, c) => sum + c.value, 0);
+  // Calculate totals
+  const totalFixedExpenses = fixedExpenses.reduce((sum, exp) => sum + exp.value, 0);
+  const totalNetSalaries = employeeSalaries.reduce((sum, emp) => sum + (emp.net_salary || 0), 0);
+  const totalMonthlyCosts = totalFixedExpenses + totalNetSalaries;
 
   // Active subscriptions revenue
   const activeSubscriptions = asaasSubscriptions.filter((s) => s.status === "active" || s.status === "ACTIVE");
@@ -207,15 +186,23 @@ export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions
 
   const costsByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
-    monthlyCosts.forEach((cost) => {
-      grouped[cost.category] = (grouped[cost.category] || 0) + cost.value;
+    
+    // Add fixed expenses by category
+    fixedExpenses.forEach((exp) => {
+      grouped[exp.category] = (grouped[exp.category] || 0) + exp.value;
     });
+    
+    // Add salaries as a category
+    if (totalNetSalaries > 0) {
+      grouped["salarios"] = totalNetSalaries;
+    }
+    
     return Object.entries(grouped).map(([category, value]) => ({
       category,
       label: COST_CATEGORIES.find((c) => c.value === category)?.label || category,
       value,
     }));
-  }, [monthlyCosts]);
+  }, [fixedExpenses, totalNetSalaries]);
 
   return (
     <div className="space-y-6">
