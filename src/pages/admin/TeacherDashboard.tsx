@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
+import { TeacherAttendanceTab } from "@/components/teacher/TeacherAttendanceTab";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,6 +31,7 @@ import {
   UserCheck,
   Bell,
   Newspaper,
+  ClipboardCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
@@ -301,13 +303,20 @@ export default function TeacherDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-6">
                 <TabsTrigger 
                   value="agenda" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
                 >
                   <Calendar className="w-4 h-4" />
                   <span className="hidden sm:inline">Agenda</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="chamada" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                >
+                  <ClipboardCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Chamada</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="turma" 
@@ -484,6 +493,11 @@ export default function TeacherDashboard() {
                     )}
                   </div>
                 </ScrollArea>
+              </TabsContent>
+
+              {/* Chamada Tab */}
+              <TabsContent value="chamada" className="mt-0">
+                <TeacherAttendanceTab children={children} selectedDate={selectedDate} />
               </TabsContent>
 
               {/* Minha Turma Tab */}
