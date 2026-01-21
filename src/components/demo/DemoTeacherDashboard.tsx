@@ -62,6 +62,28 @@ const getPickupBadgeInfo = (notification: typeof mockChildren[0]["pickupNotifica
   }
 };
 
+// Mock messages for parent chat
+const mockParentMessages: Record<string, Array<{ id: string; content: string; isOwn: boolean; time: string; sender: string }>> = {
+  "1": [
+    { id: "m1", content: "Bom dia, professora! A Maria tomou remédio hoje de manhã.", sender: "Mãe da Maria", isOwn: false, time: "08:15" },
+    { id: "m2", content: "Ok, obrigada por avisar! Vou ficar atenta.", sender: "Prof. Ana", isOwn: true, time: "08:20" },
+    { id: "m3", content: "Ela está mais animada hoje! ❤️", sender: "Prof. Ana", isOwn: true, time: "14:30" },
+  ],
+  "2": [
+    { id: "m4", content: "Professora, o João pode beber suco de laranja?", sender: "Pai do João", isOwn: false, time: "09:00" },
+    { id: "m5", content: "João está muito quieto hoje, está tudo bem em casa?", sender: "Pai do João", isOwn: false, time: "11:30" },
+  ],
+  "3": [],
+  "4": [
+    { id: "m6", content: "Lucas vai precisar trocar a fralda com mais frequência hoje.", sender: "Mãe do Lucas", isOwn: false, time: "07:45" },
+    { id: "m7", content: "Entendido! Cuidarei disso. 👍", sender: "Prof. Ana", isOwn: true, time: "07:50" },
+  ],
+  "5": [
+    { id: "m8", content: "Sofia dormiu tarde ontem, pode ficar sonolenta.", sender: "Pai da Sofia", isOwn: false, time: "08:00" },
+  ],
+  "6": [],
+};
+
 const mealOptions = [
   { value: "tudo", label: "Comeu tudo" },
   { value: "quase_tudo", label: "Quase tudo" },
@@ -88,8 +110,33 @@ const moodOptions = [
 export function DemoTeacherDashboard() {
   const [activeTab, setActiveTab] = useState("agenda");
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
+  const [selectedChatChild, setSelectedChatChild] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState(mockParentMessages);
   const [editMode, setEditMode] = useState(false);
   const [tookMedicine, setTookMedicine] = useState(false);
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim() || !selectedChatChild) return;
+    
+    const newMessage = {
+      id: `new-${Date.now()}`,
+      content: chatMessage,
+      sender: "Prof. Ana",
+      isOwn: true,
+      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    };
+    
+    setChatMessages((prev) => ({
+      ...prev,
+      [selectedChatChild]: [...(prev[selectedChatChild] || []), newMessage],
+    }));
+    setChatMessage("");
+  };
+
+  const getUnreadCount = (childId: string) => {
+    return (chatMessages[childId] || []).filter((m) => !m.isOwn).length;
+  };
 
   const completedCount = mockChildren.filter((c) => c.hasRecord).length;
   const totalCount = mockChildren.length;
@@ -527,38 +574,120 @@ export function DemoTeacherDashboard() {
                 {/* Chat com Pais Tab */}
                 <TabsContent value="pais" className="mt-0">
                   <h3 className="font-semibold mb-4">Chat com Pais</h3>
-                  <div className="grid md:grid-cols-3 gap-4">
+                  <div className="grid md:grid-cols-3 gap-4 h-[400px]">
                     {/* Children List */}
-                    <div className="md:col-span-1 space-y-2">
+                    <div className="md:col-span-1 space-y-2 overflow-y-auto">
                       <p className="text-sm text-muted-foreground mb-2">Selecione uma criança:</p>
-                      {mockChildren.map((child) => (
-                        <div
-                          key={child.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={child.photo} alt={child.name} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {child.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{child.name}</p>
+                      {mockChildren.map((child) => {
+                        const unread = getUnreadCount(child.id);
+                        return (
+                          <div
+                            key={child.id}
+                            onClick={() => setSelectedChatChild(child.id)}
+                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                              selectedChatChild === child.id 
+                                ? "bg-primary/10 border-primary" 
+                                : "hover:bg-muted/50"
+                            }`}
+                          >
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={child.photo} alt={child.name} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {child.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{child.name}</p>
+                              {(chatMessages[child.id] || []).length > 0 && (
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {(chatMessages[child.id] || []).slice(-1)[0]?.content}
+                                </p>
+                              )}
+                            </div>
+                            {unread > 0 && (
+                              <Badge variant="destructive" className="h-5 px-1.5 text-xs">{unread}</Badge>
+                            )}
                           </div>
-                          {child.id === "2" && (
-                            <Badge variant="destructive" className="h-5 px-1.5 text-xs">2</Badge>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     
                     {/* Chat Area */}
-                    <div className="md:col-span-2 border rounded-lg p-4 min-h-[300px] flex flex-col">
-                      <div className="text-center text-muted-foreground py-12">
-                        <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                        <h4 className="font-semibold mb-1">Selecione uma criança</h4>
-                        <p className="text-sm">Escolha uma criança para ver as mensagens dos pais</p>
-                      </div>
+                    <div className="md:col-span-2 border rounded-lg flex flex-col overflow-hidden">
+                      {selectedChatChild ? (
+                        <>
+                          {/* Chat Header */}
+                          <div className="p-3 border-b bg-muted/30 flex items-center gap-3">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={mockChildren.find(c => c.id === selectedChatChild)?.photo} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                                {mockChildren.find(c => c.id === selectedChatChild)?.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{mockChildren.find(c => c.id === selectedChatChild)?.name}</p>
+                              <p className="text-xs text-muted-foreground">Conversa com os pais</p>
+                            </div>
+                          </div>
+                          
+                          {/* Messages */}
+                          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {(chatMessages[selectedChatChild] || []).length === 0 ? (
+                              <div className="text-center text-muted-foreground py-8">
+                                <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                <p className="text-sm">Nenhuma mensagem ainda</p>
+                              </div>
+                            ) : (
+                              (chatMessages[selectedChatChild] || []).map((msg) => (
+                                <div
+                                  key={msg.id}
+                                  className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
+                                >
+                                  <div
+                                    className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                                      msg.isOwn
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted"
+                                    }`}
+                                  >
+                                    {!msg.isOwn && (
+                                      <p className="text-xs font-medium mb-1 opacity-70">{msg.sender}</p>
+                                    )}
+                                    <p className="text-sm">{msg.content}</p>
+                                    <p className={`text-xs mt-1 ${msg.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                      {msg.time}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          
+                          {/* Input */}
+                          <div className="p-3 border-t bg-background">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Digite sua mensagem..."
+                                value={chatMessage}
+                                onChange={(e) => setChatMessage(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                                className="flex-1"
+                              />
+                              <Button onClick={handleSendMessage} disabled={!chatMessage.trim()}>
+                                Enviar
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                          <div className="text-center">
+                            <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                            <h4 className="font-semibold mb-1">Selecione uma criança</h4>
+                            <p className="text-sm">Escolha uma criança para ver as mensagens dos pais</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
