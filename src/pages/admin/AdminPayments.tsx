@@ -47,10 +47,12 @@ import {
   BarChart3,
   Lightbulb,
   Wallet,
+  ArrowLeftRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
+import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
 import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
@@ -497,7 +499,7 @@ export default function AdminPayments() {
 
       {/* Tabs */}
       <Tabs defaultValue="invoices">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="invoices" className="gap-2">
             <FileText className="w-4 h-4" />
             Cobranças
@@ -505,6 +507,10 @@ export default function AdminPayments() {
           <TabsTrigger value="subscriptions" className="gap-2">
             <Repeat className="w-4 h-4" />
             Assinaturas
+          </TabsTrigger>
+          <TabsTrigger value="movements" className="gap-2">
+            <ArrowLeftRight className="w-4 h-4" />
+            Movimentações
           </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <BarChart3 className="w-4 h-4" />
@@ -625,6 +631,10 @@ export default function AdminPayments() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="movements" className="mt-4">
+          <FinancialMovementsTab invoices={invoices} />
         </TabsContent>
 
         <TabsContent value="reports" className="mt-4">
