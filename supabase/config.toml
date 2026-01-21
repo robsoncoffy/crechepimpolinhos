@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.staff-chat-suggestions]
 verify_jwt = false
+
+[functions.check-payment-reminders]
+verify_jwt = false

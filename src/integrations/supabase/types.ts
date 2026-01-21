@@ -1692,6 +1692,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_notification_log: {
+        Row: {
+          id: string
+          notification_type: string
+          payment_asaas_id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          notification_type: string
+          payment_asaas_id: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          notification_type?: string
+          payment_asaas_id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pickup_notifications: {
         Row: {
           child_id: string
@@ -1928,6 +1952,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      saved_cards: {
+        Row: {
+          asaas_customer_id: string
+          card_brand: string | null
+          created_at: string
+          credit_card_token: string
+          holder_name: string | null
+          id: string
+          is_default: boolean | null
+          last_four_digits: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asaas_customer_id: string
+          card_brand?: string | null
+          created_at?: string
+          credit_card_token: string
+          holder_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          last_four_digits?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asaas_customer_id?: string
+          card_brand?: string | null
+          created_at?: string
+          credit_card_token?: string
+          holder_name?: string | null
+          id?: string
+          is_default?: boolean | null
+          last_four_digits?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       school_events: {
         Row: {
