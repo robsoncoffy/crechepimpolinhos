@@ -98,6 +98,11 @@ export default function AdminChildren() {
     relationship: "responsável",
   });
 
+  // For multiple guardian linking
+  const [multiLinkData, setMultiLinkData] = useState<Array<{ parent_id: string; relationship: string }>>([
+    { parent_id: "", relationship: "responsável" }
+  ]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -185,7 +190,34 @@ export default function AdminChildren() {
   function openLinkDialog(child: Child) {
     setSelectedChild(child);
     setLinkData({ parent_id: "", relationship: "responsável" });
+    setMultiLinkData([{ parent_id: "", relationship: "responsável" }]);
     setLinkDialogOpen(true);
+  }
+
+  function getAvailableParentsForChild(childId: string) {
+    // Get IDs of parents already linked to this child
+    const linkedParentIds = parentLinks
+      .filter((l) => l.child_id === childId)
+      .map((l) => l.parent_id);
+    
+    // Filter out already linked parents
+    return parents.filter((p) => !linkedParentIds.includes(p.user_id));
+  }
+
+  function addGuardianRow() {
+    setMultiLinkData([...multiLinkData, { parent_id: "", relationship: "responsável" }]);
+  }
+
+  function removeGuardianRow(index: number) {
+    if (multiLinkData.length > 1) {
+      setMultiLinkData(multiLinkData.filter((_, i) => i !== index));
+    }
+  }
+
+  function updateGuardianRow(index: number, field: 'parent_id' | 'relationship', value: string) {
+    const updated = [...multiLinkData];
+    updated[index][field] = value;
+    setMultiLinkData(updated);
   }
 
   function openClassDialog(child: Child) {
@@ -267,19 +299,33 @@ export default function AdminChildren() {
   }
 
   async function handleLinkParent() {
-    if (!selectedChild || !linkData.parent_id) return;
+    if (!selectedChild) return;
+
+    // Filter valid entries (those with a parent selected)
+    const validLinks = multiLinkData.filter((link) => link.parent_id);
+    
+    if (validLinks.length === 0) {
+      toast.error("Selecione ao menos um responsável");
+      return;
+    }
 
     setFormLoading(true);
     try {
-      const { error } = await supabase.from("parent_children").insert({
+      const insertData = validLinks.map((link) => ({
         child_id: selectedChild.id,
-        parent_id: linkData.parent_id,
-        relationship: linkData.relationship,
-      });
+        parent_id: link.parent_id,
+        relationship: link.relationship,
+      }));
+
+      const { error } = await supabase.from("parent_children").insert(insertData);
 
       if (error) throw error;
 
-      toast.success("Responsável vinculado com sucesso!");
+      toast.success(
+        validLinks.length === 1
+          ? "Responsável vinculado com sucesso!"
+          : `${validLinks.length} responsáveis vinculados com sucesso!`
+      );
       setLinkDialogOpen(false);
       fetchData();
     } catch (error: any) {
@@ -725,54 +771,123 @@ export default function AdminChildren() {
 
       {/* Link Parent Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Vincular Responsável</DialogTitle>
+            <DialogTitle>Vincular Responsáveis</DialogTitle>
             <DialogDescription>
-              Vincule um responsável aprovado à criança {selectedChild?.full_name}
+              Vincule um ou mais responsáveis à criança {selectedChild?.full_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Responsável</Label>
-              <Select value={linkData.parent_id} onValueChange={(v) => setLinkData({ ...linkData, parent_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {parents.map((parent) => (
-                    <SelectItem key={parent.user_id} value={parent.user_id}>
-                      {parent.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Relacionamento</Label>
-              <Select
-                value={linkData.relationship}
-                onValueChange={(v) => setLinkData({ ...linkData, relationship: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mãe">Mãe</SelectItem>
-                  <SelectItem value="pai">Pai</SelectItem>
-                  <SelectItem value="avô">Avô</SelectItem>
-                  <SelectItem value="avó">Avó</SelectItem>
-                  <SelectItem value="responsável">Responsável</SelectItem>
-                  <SelectItem value="outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {(() => {
+              const availableParents = selectedChild 
+                ? getAvailableParentsForChild(selectedChild.id)
+                : parents;
+              
+              // Also filter out parents already selected in other rows
+              const getFilteredParents = (currentIndex: number) => {
+                const selectedInOtherRows = multiLinkData
+                  .filter((_, i) => i !== currentIndex)
+                  .map((link) => link.parent_id)
+                  .filter(Boolean);
+                return availableParents.filter((p) => !selectedInOtherRows.includes(p.user_id));
+              };
+
+              if (availableParents.length === 0) {
+                return (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>Todos os responsáveis disponíveis já estão vinculados a esta criança.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  {multiLinkData.map((link, index) => {
+                    const filteredParents = getFilteredParents(index);
+                    return (
+                      <div key={index} className="flex items-end gap-2 p-3 border rounded-lg bg-muted/30">
+                        <div className="flex-1 space-y-2">
+                          <Label>Responsável</Label>
+                          <Select 
+                            value={link.parent_id} 
+                            onValueChange={(v) => updateGuardianRow(index, 'parent_id', v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um responsável" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredParents.map((parent) => (
+                                <SelectItem key={parent.user_id} value={parent.user_id}>
+                                  {parent.full_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="w-36 space-y-2">
+                          <Label>Relacionamento</Label>
+                          <Select
+                            value={link.relationship}
+                            onValueChange={(v) => updateGuardianRow(index, 'relationship', v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="mãe">Mãe</SelectItem>
+                              <SelectItem value="pai">Pai</SelectItem>
+                              <SelectItem value="avô">Avô</SelectItem>
+                              <SelectItem value="avó">Avó</SelectItem>
+                              <SelectItem value="responsável">Responsável</SelectItem>
+                              <SelectItem value="outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {multiLinkData.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeGuardianRow(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Add more button - only show if there are more parents available */}
+                  {(() => {
+                    const selectedCount = multiLinkData.filter((l) => l.parent_id).length;
+                    const canAddMore = selectedCount < availableParents.length;
+                    return canAddMore && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={addGuardianRow}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Adicionar outro responsável
+                      </Button>
+                    );
+                  })()}
+                </>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleLinkParent} disabled={formLoading || !linkData.parent_id}>
+            <Button 
+              onClick={handleLinkParent} 
+              disabled={formLoading || multiLinkData.every((l) => !l.parent_id)}
+            >
               {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Vincular
             </Button>
