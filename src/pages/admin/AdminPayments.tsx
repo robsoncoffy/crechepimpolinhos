@@ -49,12 +49,15 @@ import {
   Wallet,
   ArrowLeftRight,
   Calculator,
+  TrendingUp,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
 import FinancialForecastTab from "@/components/admin/FinancialForecastTab";
+import WeeklyCashFlowTab from "@/components/admin/WeeklyCashFlowTab";
 import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
@@ -114,6 +117,7 @@ export default function AdminPayments() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [parentChildren, setParentChildren] = useState<ParentChild[]>([]);
@@ -210,6 +214,27 @@ export default function AdminPayments() {
     }
 
     setSyncing(false);
+  };
+
+  const syncAllFromAsaas = async () => {
+    setSyncingAll(true);
+    toast.info("Sincronizando com Asaas... Isso pode levar alguns minutos.");
+    
+    const { data, error } = await supabase.functions.invoke("asaas-payments", {
+      body: { action: "sync_all_from_asaas" },
+    });
+
+    if (error) {
+      toast.error("Erro ao sincronizar com Asaas");
+    } else {
+      toast.success(
+        `Sincronização concluída! ${data.syncedCustomers} clientes, ${data.syncedSubscriptions} assinaturas, ${data.syncedPayments} cobranças`
+      );
+      fetchData();
+      fetchBalance();
+    }
+
+    setSyncingAll(false);
   };
 
   const ensureCustomerExists = async (parentId: string, name: string, phone: string | null) => {
@@ -391,14 +416,22 @@ export default function AdminPayments() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={syncAllFromAsaas} disabled={syncingAll} className="gap-2">
+            {syncingAll ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Importar do Asaas
+          </Button>
           <Button variant="outline" onClick={syncPayments} disabled={syncing}>
             {syncing ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <RefreshCw className="w-4 h-4 mr-2" />
             )}
-            Sincronizar
+            Atualizar Status
           </Button>
           <Button onClick={() => openDialog("invoice")} className="gap-2">
             <Plus className="w-4 h-4" />
@@ -513,6 +546,10 @@ export default function AdminPayments() {
           <TabsTrigger value="movements" className="gap-2">
             <ArrowLeftRight className="w-4 h-4" />
             Movimentações
+          </TabsTrigger>
+          <TabsTrigger value="cashflow" className="gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Fluxo Semanal
           </TabsTrigger>
           <TabsTrigger value="forecast" className="gap-2">
             <Calculator className="w-4 h-4" />
@@ -641,6 +678,10 @@ export default function AdminPayments() {
 
         <TabsContent value="movements" className="mt-4">
           <FinancialMovementsTab invoices={invoices} />
+        </TabsContent>
+
+        <TabsContent value="cashflow" className="mt-4">
+          <WeeklyCashFlowTab invoices={invoices} subscriptions={subscriptions} />
         </TabsContent>
 
         <TabsContent value="forecast" className="mt-4">
