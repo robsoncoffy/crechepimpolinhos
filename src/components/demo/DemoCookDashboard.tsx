@@ -29,9 +29,22 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  ShoppingCart,
+  Plus,
+  Trash2,
+  Wand2,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
+
+// Shopping list item interface
+interface ShoppingItem {
+  id: string;
+  name: string;
+  quantity: string;
+  checked: boolean;
+}
 
 // Staff chat message interface
 interface DemoMessage {
@@ -180,10 +193,126 @@ export function DemoCookDashboard() {
   const [selectedStaffChannel, setSelectedStaffChannel] = useState<StaffChannel>("geral");
   const [staffChatMessage, setStaffChatMessage] = useState("");
   const [staffMessages, setStaffMessages] = useState<Record<StaffChannel, DemoMessage[]>>(initialStaffMessages);
+  const [isLoadingStaffSuggestions, setIsLoadingStaffSuggestions] = useState(false);
+  const [staffSuggestions, setStaffSuggestions] = useState<string[]>([]);
+
+  // Shopping list states
+  const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([
+    { id: "1", name: "Leite Aptamil HA", quantity: "6 latas", checked: false },
+    { id: "2", name: "Banana", quantity: "3 kg", checked: true },
+    { id: "3", name: "Maçã", quantity: "2 kg", checked: false },
+    { id: "4", name: "Aveia em flocos", quantity: "2 pacotes", checked: false },
+    { id: "5", name: "Leite de aveia", quantity: "4 caixas", checked: false },
+  ]);
+  const [newShoppingItem, setNewShoppingItem] = useState("");
+  const [isLoadingShoppingSuggestions, setIsLoadingShoppingSuggestions] = useState(false);
+  const [shoppingSuggestions, setShoppingSuggestions] = useState<string[]>([]);
+
+  // Generate staff chat AI suggestions
+  const generateStaffSuggestions = () => {
+    setIsLoadingStaffSuggestions(true);
+    const lastMessages = staffMessages[selectedStaffChannel];
+    const lastMessage = lastMessages[lastMessages.length - 1];
+    
+    setTimeout(() => {
+      let suggestions: string[] = [];
+      
+      if (lastMessage && !lastMessage.isOwn) {
+        const content = lastMessage.content.toLowerCase();
+        if (content.includes("leite") || content.includes("aptamil")) {
+          suggestions = [
+            "Sim, temos estoque suficiente para a semana! 👍",
+            "Preciso verificar o estoque, já confirmo.",
+            "Acabou ontem, vou adicionar na lista de compras.",
+          ];
+        } else if (content.includes("glúten") || content.includes("alergia")) {
+          suggestions = [
+            "Anotado! Vou separar uma porção especial sem glúten.",
+            "Entendido, já estou preparando opção alternativa.",
+            "Ok, vou redobrar a atenção com os ingredientes!",
+          ];
+        } else if (content.includes("cardápio") || content.includes("menu")) {
+          suggestions = [
+            "O cardápio de hoje está pronto! Posso enviar foto?",
+            "Vou verificar os ingredientes e já confirmo.",
+            "Já estou preparando conforme o planejado!",
+          ];
+        } else {
+          suggestions = [
+            "Entendido, já vou providenciar! 👩‍🍳",
+            "Ok, obrigada pelo aviso!",
+            "Perfeito, pode deixar comigo!",
+          ];
+        }
+      } else {
+        suggestions = [
+          "Bom dia, equipe! O café da manhã está pronto! ☕",
+          "Alguém sabe se há alguma criança nova com restrição?",
+          "Precisamos repor alguns ingredientes essa semana.",
+        ];
+      }
+      
+      setStaffSuggestions(suggestions);
+      setIsLoadingStaffSuggestions(false);
+    }, 800);
+  };
+
+  // Generate shopping list AI suggestions
+  const generateShoppingSuggestions = () => {
+    setIsLoadingShoppingSuggestions(true);
+    
+    setTimeout(() => {
+      // Base suggestions on menu and children's needs
+      const baseSuggestions = [
+        "Frango desfiado - 3kg (para papinhas)",
+        "Cenoura - 2kg",
+        "Batata - 3kg",
+        "Biscoito de maisena sem glúten - 4 pacotes",
+        "Iogurte natural - 12 unidades",
+        "Fórmula NAN Supreme - 4 latas",
+        "Mamão - 2kg",
+        "Feijão - 2kg",
+      ];
+      
+      // Filter out items already in the list
+      const existingNames = shoppingList.map(item => item.name.toLowerCase());
+      const filtered = baseSuggestions.filter(
+        s => !existingNames.some(name => s.toLowerCase().includes(name))
+      ).slice(0, 4);
+      
+      setShoppingSuggestions(filtered);
+      setIsLoadingShoppingSuggestions(false);
+    }, 600);
+  };
+
+  const addShoppingItem = (itemText: string) => {
+    if (!itemText.trim()) return;
+    const parts = itemText.split(" - ");
+    const newItem: ShoppingItem = {
+      id: `item-${Date.now()}`,
+      name: parts[0].trim(),
+      quantity: parts[1]?.trim() || "1 un",
+      checked: false,
+    };
+    setShoppingList(prev => [...prev, newItem]);
+    setNewShoppingItem("");
+    setShoppingSuggestions(prev => prev.filter(s => s !== itemText));
+  };
+
+  const toggleShoppingItem = (id: string) => {
+    setShoppingList(prev => prev.map(item => 
+      item.id === id ? { ...item, checked: !item.checked } : item
+    ));
+  };
+
+  const removeShoppingItem = (id: string) => {
+    setShoppingList(prev => prev.filter(item => item.id !== id));
+  };
 
   // Staff chat functions
   const handleStaffChannelChange = (channel: StaffChannel) => {
     setSelectedStaffChannel(channel);
+    setStaffSuggestions([]);
     setStaffMessages((prev) => ({
       ...prev,
       [channel]: prev[channel].map((msg) => msg.isOwn ? msg : { ...msg, isRead: true }),
@@ -205,6 +334,7 @@ export function DemoCookDashboard() {
       [selectedStaffChannel]: [...prev[selectedStaffChannel], newMessage],
     }));
     setStaffChatMessage("");
+    setStaffSuggestions([]);
     setTimeout(() => {
       setStaffMessages((prev) => ({
         ...prev,
@@ -933,6 +1063,50 @@ export function DemoCookDashboard() {
                       </div>
                     </ScrollArea>
 
+                    {/* AI Suggestions */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          Sugestões de IA
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={generateStaffSuggestions}
+                          disabled={isLoadingStaffSuggestions}
+                          className="h-7 text-xs"
+                        >
+                          {isLoadingStaffSuggestions ? (
+                            <>
+                              <Sparkles className="w-3 h-3 mr-1 animate-pulse" />
+                              Gerando...
+                            </>
+                          ) : (
+                            <>
+                              <Wand2 className="w-3 h-3 mr-1" />
+                              Sugerir
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {staffSuggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {staffSuggestions.map((suggestion, idx) => (
+                            <Button
+                              key={idx}
+                              variant="outline"
+                              size="sm"
+                              className="h-auto py-1.5 px-3 text-xs text-left whitespace-normal"
+                              onClick={() => setStaffChatMessage(suggestion)}
+                            >
+                              {suggestion}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Input */}
                     <div className="flex gap-2">
                       <Input
@@ -948,6 +1122,126 @@ export function DemoCookDashboard() {
                 </TabsContent>
               </div>
             </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Shopping List Widget */}
+        <Card className="shadow-lg mt-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-primary" />
+                Lista de Compras
+              </div>
+              <Badge variant="secondary">
+                {shoppingList.filter(item => !item.checked).length} pendentes
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* AI Suggestions for Shopping */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Sugestões baseadas no cardápio e restrições
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={generateShoppingSuggestions}
+                  disabled={isLoadingShoppingSuggestions}
+                  className="h-7 text-xs"
+                >
+                  {isLoadingShoppingSuggestions ? (
+                    <>
+                      <Sparkles className="w-3 h-3 mr-1 animate-pulse" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3 h-3 mr-1" />
+                      Sugerir itens
+                    </>
+                  )}
+                </Button>
+              </div>
+              {shoppingSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {shoppingSuggestions.map((suggestion, idx) => (
+                    <Button
+                      key={idx}
+                      variant="outline"
+                      size="sm"
+                      className="h-auto py-1.5 px-3 text-xs gap-1"
+                      onClick={() => addShoppingItem(suggestion)}
+                    >
+                      <Plus className="w-3 h-3" />
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add new item */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Adicionar item (ex: Arroz - 5kg)"
+                value={newShoppingItem}
+                onChange={(e) => setNewShoppingItem(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addShoppingItem(newShoppingItem)}
+                className="flex-1"
+              />
+              <Button onClick={() => addShoppingItem(newShoppingItem)} disabled={!newShoppingItem.trim()}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Shopping List */}
+            <ScrollArea className="h-[250px]">
+              <div className="space-y-2">
+                {shoppingList.map((item) => (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      item.checked ? "bg-muted/50 opacity-60" : "bg-card"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={item.checked}
+                        onCheckedChange={() => toggleShoppingItem(item.id)}
+                      />
+                      <div>
+                        <p className={`text-sm font-medium ${item.checked ? "line-through" : ""}`}>
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{item.quantity}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => removeShoppingItem(item.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+
+            {/* Summary */}
+            <div className="flex justify-between text-sm pt-2 border-t">
+              <span className="text-muted-foreground">
+                Total: {shoppingList.length} itens
+              </span>
+              <span className="text-primary font-medium">
+                Comprados: {shoppingList.filter(item => item.checked).length}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
