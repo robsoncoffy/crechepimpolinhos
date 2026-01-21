@@ -178,21 +178,29 @@ export function DemoTeacherDashboard() {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="border-b bg-muted/30">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-3">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
                   <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <Calendar className="w-4 h-4" />
                     <span className="hidden sm:inline">Agenda</span>
                   </TabsTrigger>
                   <TabsTrigger value="chamada" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <Users className="w-4 h-4" />
-                    <span className="hidden sm:inline">Chamada</span>
+                    <span className="hidden sm:inline">Turma</span>
                   </TabsTrigger>
-                  <TabsTrigger value="mensagens" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2 relative">
+                  <TabsTrigger value="pais" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2 relative">
                     <MessageSquare className="w-4 h-4" />
-                    <span className="hidden sm:inline">Mensagens</span>
-                    <Badge variant="destructive" className="absolute -top-1 right-2 sm:relative sm:top-0 sm:right-0">
+                    <span className="hidden sm:inline">Pais</span>
+                    <Badge variant="destructive" className="absolute -top-1 right-2 sm:relative sm:top-0 sm:right-0 h-5 px-1.5">
                       3
                     </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="hidden sm:inline">Alergias</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline">Equipe</span>
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -516,23 +524,101 @@ export function DemoTeacherDashboard() {
                   </div>
                 </TabsContent>
 
-                {/* Mensagens Tab */}
-                <TabsContent value="mensagens" className="mt-0">
-                  <h3 className="font-semibold mb-4">Central de Mensagens</h3>
+                {/* Chat com Pais Tab */}
+                <TabsContent value="pais" className="mt-0">
+                  <h3 className="font-semibold mb-4">Chat com Pais</h3>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    {/* Children List */}
+                    <div className="md:col-span-1 space-y-2">
+                      <p className="text-sm text-muted-foreground mb-2">Selecione uma criança:</p>
+                      {mockChildren.map((child) => (
+                        <div
+                          key={child.id}
+                          className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={child.photo} alt={child.name} />
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                              {child.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{child.name}</p>
+                          </div>
+                          {child.id === "2" && (
+                            <Badge variant="destructive" className="h-5 px-1.5 text-xs">2</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Chat Area */}
+                    <div className="md:col-span-2 border rounded-lg p-4 min-h-[300px] flex flex-col">
+                      <div className="text-center text-muted-foreground py-12">
+                        <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                        <h4 className="font-semibold mb-1">Selecione uma criança</h4>
+                        <p className="text-sm">Escolha uma criança para ver as mensagens dos pais</p>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Alergias Tab */}
+                <TabsContent value="alergias" className="mt-0">
+                  <h3 className="font-semibold flex items-center gap-2 mb-4">
+                    <AlertTriangle className="w-5 h-5 text-destructive" />
+                    Alergias e Restrições Alimentares
+                  </h3>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {[
+                      { name: "Lucas Oliveira", allergies: "Amendoim, Leite", restrictions: "Sem glúten" },
+                      { name: "Sofia Santos", allergies: "Frutos do mar", restrictions: null },
+                    ].map((child, i) => (
+                      <Card key={i} className="border-destructive/30 bg-destructive/5">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarFallback className="bg-destructive/10 text-destructive">
+                                {child.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {child.name}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div>
+                            <p className="text-xs font-medium text-destructive">Alergias:</p>
+                            <p className="text-sm">{child.allergies}</p>
+                          </div>
+                          {child.restrictions && (
+                            <div>
+                              <p className="text-xs font-medium text-amber-600">Restrições:</p>
+                              <p className="text-sm">{child.restrictions}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* Chat Equipe Tab */}
+                <TabsContent value="equipe" className="mt-0">
+                  <h3 className="font-semibold mb-4">Chat da Equipe</h3>
                   <div className="space-y-3">
                     {[
-                      { parent: "João Silva (pai da Maria)", message: "Maria está de parabéns!", time: "há 10 min", unread: true },
-                      { parent: "Ana Oliveira (mãe do Lucas)", message: "Lucas pode sair mais cedo hoje?", time: "há 30 min", unread: true },
-                      { parent: "Pedro Santos (pai da Sofia)", message: "Obrigado pelo relatório!", time: "há 2 horas", unread: false },
+                      { sender: "Diretora Maria", message: "Reunião pedagógica amanhã às 14h", time: "há 10 min", unread: true },
+                      { sender: "Nutricionista Ana", message: "Cardápio atualizado para a semana", time: "há 1 hora", unread: false },
+                      { sender: "Coordenadora Lucia", message: "Fotos do evento disponíveis na galeria", time: "há 2 horas", unread: false },
                     ].map((msg, i) => (
-                      <div key={i} className={`p-4 rounded-lg border ${msg.unread ? "bg-pimpo-blue/5 border-pimpo-blue/30" : "bg-muted/30"}`}>
+                      <div key={i} className={`p-4 rounded-lg border ${msg.unread ? "bg-primary/5 border-primary/30" : "bg-muted/30"}`}>
                         <div className="flex items-start justify-between mb-1">
-                          <span className="font-medium text-sm">{msg.parent}</span>
+                          <span className="font-medium text-sm">{msg.sender}</span>
                           <span className="text-xs text-muted-foreground">{msg.time}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">{msg.message}</p>
                         {msg.unread && (
-                          <Badge variant="secondary" className="mt-2 bg-pimpo-blue/20 text-pimpo-blue">
+                          <Badge variant="secondary" className="mt-2 bg-primary/20 text-primary">
                             Nova mensagem
                           </Badge>
                         )}
