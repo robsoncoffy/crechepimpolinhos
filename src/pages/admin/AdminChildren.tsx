@@ -42,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList } from "lucide-react";
+import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
 import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
 import ChildAttendanceTab from "@/components/admin/ChildAttendanceTab";
@@ -73,10 +73,13 @@ export default function AdminChildren() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [classDialogOpen, setClassDialogOpen] = useState(false);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState("lista");
+  const [newClassType, setNewClassType] = useState<ClassType>("bercario");
+  const [newShiftType, setNewShiftType] = useState<ShiftType>("integral");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -101,15 +104,43 @@ export default function AdminChildren() {
 
   async function fetchData() {
     try {
-      const [childrenRes, parentsRes, linksRes] = await Promise.all([
+      // Fetch children, profiles, parent-child links, and user roles in parallel
+      const [childrenRes, parentsRes, linksRes, rolesRes] = await Promise.all([
         supabase.from("children").select("*").order("full_name"),
         supabase.from("profiles").select("id, user_id, full_name").eq("status", "approved"),
         supabase.from("parent_children").select("*"),
+        supabase.from("user_roles").select("user_id, role"),
       ]);
 
       if (childrenRes.data) setChildren(childrenRes.data);
-      if (parentsRes.data) setParents(parentsRes.data);
       if (linksRes.data) setParentLinks(linksRes.data);
+      
+      // Filter parents: only include users who have the 'parent' role and NO staff roles
+      if (parentsRes.data && rolesRes.data) {
+        const staffRoles = ['admin', 'teacher', 'cook', 'nutritionist', 'pedagogue', 'auxiliar'];
+        
+        // Create a map of user_id to their roles
+        const userRolesMap = new Map<string, string[]>();
+        rolesRes.data.forEach((r) => {
+          const existing = userRolesMap.get(r.user_id) || [];
+          existing.push(r.role);
+          userRolesMap.set(r.user_id, existing);
+        });
+        
+        // Filter to only include users who:
+        // 1. Have the 'parent' role
+        // 2. Do NOT have any staff roles
+        const filteredParents = parentsRes.data.filter((p) => {
+          const roles = userRolesMap.get(p.user_id) || [];
+          const hasParentRole = roles.includes('parent');
+          const hasStaffRole = roles.some((r) => staffRoles.includes(r));
+          return hasParentRole && !hasStaffRole;
+        });
+        
+        setParents(filteredParents);
+      } else if (parentsRes.data) {
+        setParents(parentsRes.data);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Erro ao carregar dados");
@@ -155,6 +186,39 @@ export default function AdminChildren() {
     setSelectedChild(child);
     setLinkData({ parent_id: "", relationship: "responsável" });
     setLinkDialogOpen(true);
+  }
+
+  function openClassDialog(child: Child) {
+    setSelectedChild(child);
+    setNewClassType(child.class_type);
+    setNewShiftType(child.shift_type);
+    setClassDialogOpen(true);
+  }
+
+  async function handleChangeClass() {
+    if (!selectedChild) return;
+
+    setFormLoading(true);
+    try {
+      const { error } = await supabase
+        .from("children")
+        .update({
+          class_type: newClassType,
+          shift_type: newShiftType,
+        })
+        .eq("id", selectedChild.id);
+
+      if (error) throw error;
+
+      toast.success("Turma atualizada com sucesso!");
+      setClassDialogOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error("Error changing class:", error);
+      toast.error(error.message || "Erro ao atualizar turma");
+    } finally {
+      setFormLoading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -603,6 +667,14 @@ export default function AdminChildren() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            onClick={() => openClassDialog(child)}
+                            title="Mudar Turma/Turno"
+                          >
+                            <GraduationCap className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             onClick={() => openLinkDialog(child)}
                             title="Vincular Responsável"
                           >
@@ -612,6 +684,7 @@ export default function AdminChildren() {
                             size="sm"
                             variant="ghost"
                             onClick={() => openEditDialog(child)}
+                            title="Editar Dados"
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -623,6 +696,7 @@ export default function AdminChildren() {
                               setSelectedChild(child);
                               setDeleteDialogOpen(true);
                             }}
+                            title="Remover"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -727,6 +801,59 @@ export default function AdminChildren() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Class Dialog */}
+      <Dialog open={classDialogOpen} onOpenChange={setClassDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mudar Turma/Turno</DialogTitle>
+            <DialogDescription>
+              Altere a turma e o turno de {selectedChild?.full_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Turma</Label>
+              <Select value={newClassType} onValueChange={(v) => setNewClassType(v as ClassType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Constants.public.Enums.class_type.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {classTypeLabels[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Turno</Label>
+              <Select value={newShiftType} onValueChange={(v) => setNewShiftType(v as ShiftType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Constants.public.Enums.shift_type.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {shiftTypeLabels[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClassDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleChangeClass} disabled={formLoading}>
+              {formLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
