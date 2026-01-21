@@ -27,6 +27,7 @@ export interface ContractData {
   parentRelationship?: string;
   address: string;
   childName: string;
+  childCpf?: string;
   birthDate: string;
   classType: string;
   shiftType: string;
@@ -47,6 +48,7 @@ export interface ContractData {
   clauseLGPD?: string;
   clauseGeneral?: string;
   clauseForum?: string;
+  clausePenalty?: string;
 }
 
 interface ContractPreviewDialogProps {
@@ -116,6 +118,8 @@ const DEFAULT_CLAUSES = {
   clauseGeneral: `Os casos omissos serão resolvidos de comum acordo entre as partes, prevalecendo sempre o melhor interesse da criança.`,
   
   clauseForum: `Fica eleito o Foro da Comarca de Canoas/RS para dirimir quaisquer questões oriundas do presente contrato.`,
+
+  clausePenalty: `Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.`,
 };
 
 export function ContractPreviewDialog({
@@ -148,6 +152,7 @@ export function ContractPreviewDialog({
       clauseLGPD: contractData.clauseLGPD || DEFAULT_CLAUSES.clauseLGPD,
       clauseGeneral: contractData.clauseGeneral || DEFAULT_CLAUSES.clauseGeneral,
       clauseForum: contractData.clauseForum || DEFAULT_CLAUSES.clauseForum,
+      clausePenalty: contractData.clausePenalty || DEFAULT_CLAUSES.clausePenalty,
     });
     setActiveTab("preview");
     setOpenClauses({});
@@ -263,7 +268,9 @@ export function ContractPreviewDialog({
                   </p>
                   
                   <p>
-                    <strong>ALUNO(A):</strong> {editedData.childName}, nascido(a) em {editedData.birthDate}.
+                    <strong>ALUNO(A):</strong> {editedData.childName}
+                    {editedData.childCpf ? `, inscrito(a) no CPF sob nº ${formatCPF(editedData.childCpf)}` : ''}
+                    , nascido(a) em {editedData.birthDate}.
                   </p>
                 </div>
 
@@ -373,6 +380,12 @@ export function ContractPreviewDialog({
                 <div className="bg-card p-4 rounded-lg border mb-4">
                   <h4 className="font-semibold mb-2">CLÁUSULA 14 – DO FORO</h4>
                   <p>{editedData.clauseForum || DEFAULT_CLAUSES.clauseForum}</p>
+                </div>
+
+                {/* Cláusula 15 - Multa */}
+                <div className="bg-card p-4 rounded-lg border mb-4">
+                  <h4 className="font-semibold mb-2">CLÁUSULA 15 – DA MULTA POR RESCISÃO</h4>
+                  <p>{editedData.clausePenalty || DEFAULT_CLAUSES.clausePenalty}</p>
                 </div>
 
                 {/* Disposições Gerais */}
@@ -577,6 +590,11 @@ export function ContractPreviewDialog({
                       clauseKey="clauseForum" 
                       title="DO FORO" 
                       clauseNumber={14} 
+                    />
+                    <ClauseEditor 
+                      clauseKey="clausePenalty" 
+                      title="DA MULTA POR RESCISÃO" 
+                      clauseNumber={15} 
                     />
                     <ClauseEditor 
                       clauseKey="clauseGeneral" 

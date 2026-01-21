@@ -502,6 +502,7 @@ export default function AdminApprovals() {
         parentRelationship: parentRelationship,
         address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
         childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+        childCpf: selectedRegistration.cpf || '',
         birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
         classType: selectedClassType,
         shiftType: selectedShiftType,

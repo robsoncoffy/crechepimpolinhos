@@ -82,6 +82,7 @@ interface ChildWithoutContract {
   parent_rg: string | null;
   parent_phone: string | null;
   address: string | null;
+  child_cpf: string | null;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
@@ -230,6 +231,12 @@ export default function AdminContracts() {
         .select("user_id, full_name, cpf, rg, phone, email")
         .in("user_id", parentIds);
 
+      // Get child registrations for CPF data
+      const { data: registrations } = await supabase
+        .from("child_registrations")
+        .select("first_name, last_name, cpf, parent_id")
+        .in("parent_id", parentIds);
+
       // Build profile map
       const profileMap = new Map(
         (profiles || []).map(p => [p.user_id, p])
@@ -239,6 +246,19 @@ export default function AdminContracts() {
       const parentLinkMap = new Map(
         (parentLinks || []).map(p => [p.child_id, p.parent_id])
       );
+
+      // Build child CPF map by matching child name
+      const childCpfMap = new Map<string, string>();
+      if (registrations) {
+        for (const child of childrenMissingContracts) {
+          const reg = registrations.find(r => 
+            `${r.first_name} ${r.last_name}`.toLowerCase() === child.full_name.toLowerCase()
+          );
+          if (reg?.cpf) {
+            childCpfMap.set(child.id, reg.cpf);
+          }
+        }
+      }
 
       // Combine data
       const result: ChildWithoutContract[] = childrenMissingContracts.map(child => {
@@ -261,6 +281,7 @@ export default function AdminContracts() {
           parent_rg: profile?.rg || null,
           parent_phone: profile?.phone || null,
           address: null, // Address will be fetched from child_registrations when sending
+          child_cpf: childCpfMap.get(child.id) || null,
         };
       });
 
@@ -315,6 +336,7 @@ export default function AdminContracts() {
             parentEmail: editedData.parentEmail,
             address: editedData.address,
             emergencyContact: editedData.emergencyContact,
+            childCpf: editedData.childCpf,
           },
         },
       });
@@ -345,6 +367,7 @@ export default function AdminContracts() {
       parentEmail: child.parent_email,
       address: child.address || "",
       childName: child.full_name,
+      childCpf: child.child_cpf || "",
       birthDate: format(new Date(child.birth_date), "dd/MM/yyyy"),
       classType: child.class_type,
       shiftType: child.shift_type,
