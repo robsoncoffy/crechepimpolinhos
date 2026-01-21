@@ -152,6 +152,7 @@ export default function AdminContracts() {
   const [childToDelete, setChildToDelete] = useState<ChildWithoutContract | null>(null);
   const [deleteChildDialogOpen, setDeleteChildDialogOpen] = useState(false);
   const [deletingChild, setDeletingChild] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   useEffect(() => {
     fetchContracts();
@@ -532,6 +533,45 @@ export default function AdminContracts() {
     }
   }
 
+  async function syncAllContracts() {
+    setSyncingAll(true);
+    let syncedCount = 0;
+    
+    try {
+      // Sync all contracts that are not signed yet
+      const pendingContracts = contracts.filter(c => 
+        c.status === "sent" || c.status === "pending"
+      );
+
+      for (const contract of pendingContracts) {
+        try {
+          const response = await supabase.functions.invoke("zapsign-sync-status", {
+            body: { contractId: contract.id },
+          });
+          
+          if (response.data?.newStatus && response.data.newStatus !== response.data.previousStatus) {
+            syncedCount++;
+          }
+        } catch (e) {
+          console.warn(`Failed to sync contract ${contract.id}:`, e);
+        }
+      }
+
+      if (syncedCount > 0) {
+        toast.success(`${syncedCount} contrato(s) atualizado(s) com sucesso!`);
+      } else {
+        toast.info("Todos os contratos já estão atualizados");
+      }
+
+      fetchContracts();
+    } catch (error) {
+      console.error("Error syncing contracts:", error);
+      toast.error("Erro ao sincronizar contratos");
+    } finally {
+      setSyncingAll(false);
+    }
+  }
+
   const filteredContracts = contracts.filter((contract) => {
     if (statusFilter === "all") return true;
     return contract.status === statusFilter;
@@ -564,10 +604,24 @@ export default function AdminContracts() {
             Gerencie os contratos enviados via ZapSign
           </p>
         </div>
-        <Button variant="outline" onClick={() => { fetchContracts(); fetchChildrenWithoutContract(); }}>
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Atualizar
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={syncAllContracts}
+            disabled={syncingAll}
+          >
+            {syncingAll ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            Sincronizar ZapSign
+          </Button>
+          <Button variant="outline" onClick={() => { fetchContracts(); fetchChildrenWithoutContract(); }}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
