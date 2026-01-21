@@ -168,22 +168,22 @@ export function DemoParentDashboard() {
               <DemoWeatherWidget pickupTime="17:00" />
 
               {/* Announcements */}
-              <Card className="border-l-4 border-l-pimpo-yellow">
+              <Card className="border-l-4 border-l-pimpo-yellow overflow-hidden">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-pimpo-yellow" />
                     Avisos Recentes
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-hidden">
                   <div className="space-y-2">
                     <div className="p-2 bg-muted/50 rounded text-sm">
-                      <p className="font-medium">Reunião de Pais</p>
-                      <p className="text-xs text-muted-foreground">Sexta-feira às 18h</p>
+                      <p className="font-medium truncate">Reunião de Pais</p>
+                      <p className="text-xs text-muted-foreground truncate">Sexta-feira às 18h</p>
                     </div>
                     <div className="p-2 bg-muted/50 rounded text-sm">
-                      <p className="font-medium">Festa Junina</p>
-                      <p className="text-xs text-muted-foreground">24 de Junho</p>
+                      <p className="font-medium truncate">Festa Junina</p>
+                      <p className="text-xs text-muted-foreground truncate">24 de Junho</p>
                     </div>
                   </div>
                 </CardContent>
@@ -361,24 +361,39 @@ export function DemoParentDashboard() {
 
                       <TabsContent value="cardapio" className="mt-0">
                         <h3 className="font-semibold mb-4">Cardápio Semanal</h3>
-                        <div className="space-y-3">
-                          <div className="p-3 bg-pimpo-yellow/10 rounded-lg">
-                            <p className="font-medium">☕ Café da Manhã</p>
-                            <p className="text-sm text-muted-foreground">Pão integral, leite com achocolatado, fruta</p>
-                          </div>
-                          <div className="p-3 bg-pimpo-green/10 rounded-lg">
-                            <p className="font-medium">🍽️ Almoço</p>
-                            <p className="text-sm text-muted-foreground">Arroz, feijão, frango grelhado, salada</p>
-                          </div>
-                          <div className="p-3 bg-primary/10 rounded-lg">
-                            <p className="font-medium">🍪 Lanche da Tarde</p>
-                            <p className="text-sm text-muted-foreground">Iogurte natural com mel e granola</p>
-                          </div>
-                          <div className="p-3 bg-pimpo-red/10 rounded-lg">
-                            <p className="font-medium">🌙 Jantar</p>
-                            <p className="text-sm text-muted-foreground">Sopa de legumes com macarrão</p>
+                        
+                        {/* Today's Menu Highlight */}
+                        <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                          <p className="text-xs font-medium text-primary mb-2">📅 Cardápio de Hoje (Terça-feira)</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div><span className="text-muted-foreground">☕ Café:</span> Pão integral, leite</div>
+                            <div><span className="text-muted-foreground">🍽️ Almoço:</span> Arroz, frango</div>
+                            <div><span className="text-muted-foreground">🍪 Lanche:</span> Iogurte natural</div>
+                            <div><span className="text-muted-foreground">🌙 Jantar:</span> Sopa de legumes</div>
                           </div>
                         </div>
+
+                        {/* Weekly Menu */}
+                        <div className="space-y-2">
+                          {[
+                            { day: "Segunda", cafe: "Pão com queijo, leite", almoco: "Arroz, feijão, carne moída", lanche: "Fruta picada", janta: "Canja de galinha" },
+                            { day: "Terça", cafe: "Pão integral, achocolatado", almoco: "Arroz, frango grelhado, salada", lanche: "Iogurte natural", janta: "Sopa de legumes" },
+                            { day: "Quarta", cafe: "Biscoito, leite", almoco: "Macarrão com molho, carne", lanche: "Bolo de cenoura", janta: "Purê de batata" },
+                            { day: "Quinta", cafe: "Pão, manteiga, leite", almoco: "Arroz, feijão, peixe", lanche: "Fruta com granola", janta: "Sopa de feijão" },
+                            { day: "Sexta", cafe: "Mingau de aveia", almoco: "Arroz, strogonoff de frango", lanche: "Biscoito integral", janta: "Caldo verde" },
+                          ].map((item, i) => (
+                            <div key={item.day} className={`p-3 rounded-lg border ${i === 1 ? "bg-primary/5 border-primary" : ""}`}>
+                              <p className="font-medium text-sm mb-1">{item.day}</p>
+                              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                                <span>☕ {item.cafe}</span>
+                                <span>🍽️ {item.almoco}</span>
+                                <span>🍪 {item.lanche}</span>
+                                <span>🌙 {item.janta}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
                         {mockChild.allergies && (
                           <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                             <p className="text-sm text-destructive font-medium">
