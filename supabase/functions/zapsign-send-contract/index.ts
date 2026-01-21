@@ -358,38 +358,63 @@ CNPJ: ${COMPANY_DATA.cnpj}
 
     // Step 1: Create document in ZapSign with signer included
     console.log("Creating document in ZapSign...");
-    const createDocResponse = await fetch(`${ZAPSIGN_API_URL}/docs/`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${zapsignToken}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: `Contrato de Matrícula - ${childName}`,
-        url_pdf: "",
-        base64_pdf: btoa(unescape(encodeURIComponent(contractContent))),
-        lang: "pt-br",
-        disable_signer_emails: false,
-        signed_file_only_finished: true,
-        brand_logo: "",
-        brand_primary_color: "#3B82F6",
-        external_id: `${registrationId || childId}`,
-        signers: [
-          {
-            name: parentName,
-            email: parentEmail,
-            auth_mode: "assinaturaTela",
-            send_automatic_email: true,
-            send_automatic_whatsapp: false,
-            lock_name: true,
-            lock_email: true,
-            qualification: "Responsável Legal",
-            external_id: parentId,
-          }
-        ],
-      }),
-    });
+    // Some ZapSign setups accept the token only via Authorization header, others also via query param.
+    // We send both to maximize compatibility.
+    const createDocUrl = new URL(`${ZAPSIGN_API_URL}/docs/`);
+    createDocUrl.searchParams.set('api_token', zapsignToken);
+
+    const createDocPayload = {
+      name: `Contrato de Matrícula - ${childName}`,
+      url_pdf: "",
+      base64_pdf: btoa(unescape(encodeURIComponent(contractContent))),
+      lang: "pt-br",
+      disable_signer_emails: false,
+      signed_file_only_finished: true,
+      brand_logo: "",
+      brand_primary_color: "#3B82F6",
+      external_id: `${registrationId || childId}`,
+      signers: [
+        {
+          name: parentName,
+          email: parentEmail,
+          auth_mode: "assinaturaTela",
+          send_automatic_email: true,
+          send_automatic_whatsapp: false,
+          lock_name: true,
+          lock_email: true,
+          qualification: "Responsável Legal",
+          external_id: parentId,
+        },
+      ],
+    };
+
+    const doCreateDocRequest = async (authorizationValue: string) =>
+      await fetch(createDocUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Authorization': authorizationValue,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(createDocPayload),
+      });
+
+    // ZapSign docs say "Authorization: Bearer <api_token>".
+    // We also retry with raw token (some accounts/environment setups accept it without prefix).
+    let createDocResponse = await doCreateDocRequest(`Bearer ${zapsignToken}`);
+
+    if (!createDocResponse.ok) {
+      const errorText = await createDocResponse.text();
+      const shouldRetry = /API token not found/i.test(errorText) || /Token da API n[aã]o encontrado/i.test(errorText);
+
+      if (shouldRetry) {
+        console.warn("ZapSign auth failed with Bearer prefix; retrying with raw token...");
+        createDocResponse = await doCreateDocRequest(zapsignToken);
+      } else {
+        console.error("ZapSign create doc error:", errorText);
+        throw new Error(`Failed to create document in ZapSign: ${errorText}`);
+      }
+    }
 
     if (!createDocResponse.ok) {
       const errorText = await createDocResponse.text();
