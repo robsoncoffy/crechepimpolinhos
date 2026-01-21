@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,14 +44,7 @@ import {
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
-
-// Shopping list item interface
-interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity: string;
-  checked: boolean;
-}
+import { useDemoShoppingList } from "./DemoShoppingListContext";
 
 // Staff chat message interface
 interface DemoMessage {
@@ -253,14 +246,8 @@ export function DemoCookDashboard() {
   const [isLoadingStaffSuggestions, setIsLoadingStaffSuggestions] = useState(false);
   const [staffSuggestions, setStaffSuggestions] = useState<string[]>([]);
 
-  // Shopping list states
-  const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([
-    { id: "1", name: "Leite Aptamil HA", quantity: "6 latas", checked: false },
-    { id: "2", name: "Banana", quantity: "3 kg", checked: true },
-    { id: "3", name: "Maçã", quantity: "2 kg", checked: false },
-    { id: "4", name: "Aveia em flocos", quantity: "2 pacotes", checked: false },
-    { id: "5", name: "Leite de aveia", quantity: "4 caixas", checked: false },
-  ]);
+  // Shopping list from shared context
+  const { shoppingList, addShoppingItem: addShoppingItemToContext, toggleShoppingItem, removeShoppingItem } = useDemoShoppingList();
   const [newShoppingItem, setNewShoppingItem] = useState("");
   const [newShoppingQuantity, setNewShoppingQuantity] = useState("");
   const [newShoppingUnit, setNewShoppingUnit] = useState("kg");
@@ -358,46 +345,38 @@ export function DemoCookDashboard() {
     }, 600);
   };
 
-  const addShoppingItem = (itemText: string, fromSuggestion: boolean = false) => {
+  const handleAddShoppingItem = (itemText: string, fromSuggestion: boolean = false) => {
     if (!itemText.trim()) return;
-    
-    let newItem: ShoppingItem;
     
     if (fromSuggestion) {
       // From AI suggestion - parse the text
       const parts = itemText.split(" - ");
-      newItem = {
-        id: `item-${Date.now()}`,
-        name: parts[0].trim(),
-        quantity: parts[1]?.trim() || "1 un",
-        checked: false,
-      };
+      addShoppingItemToContext(parts[0].trim(), parts[1]?.trim() || "1 un", "cook");
     } else {
       // From manual input - use the separate fields
       const qty = newShoppingQuantity.trim() || "1";
-      newItem = {
-        id: `item-${Date.now()}`,
-        name: itemText.trim(),
-        quantity: `${qty} ${newShoppingUnit}`,
-        checked: false,
-      };
+      addShoppingItemToContext(itemText.trim(), `${qty} ${newShoppingUnit}`, "cook");
     }
     
-    setShoppingList(prev => [...prev, newItem]);
     setNewShoppingItem("");
     setNewShoppingQuantity("");
     setShoppingSuggestions(prev => prev.filter(s => s !== itemText));
   };
 
-  const toggleShoppingItem = (id: string) => {
-    setShoppingList(prev => prev.map(item => 
-      item.id === id ? { ...item, checked: !item.checked } : item
-    ));
-  };
-
-  const removeShoppingItem = (id: string) => {
-    setShoppingList(prev => prev.filter(item => item.id !== id));
-  };
+  // Auto-generate AI suggestions when staff channel changes or new message arrives
+  useEffect(() => {
+    const lastMessages = staffMessages[selectedStaffChannel];
+    const lastMessage = lastMessages[lastMessages.length - 1];
+    
+    // Only auto-generate if last message is not from self
+    if (lastMessage && !lastMessage.isOwn && !lastMessage.isRead) {
+      // Small delay to simulate AI processing
+      const timer = setTimeout(() => {
+        generateStaffSuggestions();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [staffMessages, selectedStaffChannel]);
 
   // Staff chat functions
   const handleStaffChannelChange = (channel: StaffChannel) => {
@@ -1365,7 +1344,7 @@ export function DemoCookDashboard() {
                       variant="outline"
                       size="sm"
                       className="h-auto py-1.5 px-3 text-xs gap-1"
-                      onClick={() => addShoppingItem(suggestion, true)}
+                      onClick={() => handleAddShoppingItem(suggestion, true)}
                     >
                       <Plus className="w-3 h-3" />
                       {suggestion}
@@ -1381,7 +1360,7 @@ export function DemoCookDashboard() {
                 placeholder="Nome do item"
                 value={newShoppingItem}
                 onChange={(e) => setNewShoppingItem(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addShoppingItem(newShoppingItem, false)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddShoppingItem(newShoppingItem, false)}
                 className="flex-1 min-w-[120px]"
               />
               <div className="flex gap-2">
@@ -1405,7 +1384,7 @@ export function DemoCookDashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={() => addShoppingItem(newShoppingItem, false)} disabled={!newShoppingItem.trim()}>
+                <Button onClick={() => handleAddShoppingItem(newShoppingItem, false)} disabled={!newShoppingItem.trim()}>
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>

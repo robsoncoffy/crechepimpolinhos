@@ -4,6 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Users,
   Baby,
@@ -25,11 +34,16 @@ import {
   Megaphone,
   CreditCard,
   BookOpen,
+  ShoppingCart,
+  Plus,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { useDemoShoppingList } from "./DemoShoppingListContext";
 
 // Mock stats
 const mockStats = {
@@ -120,6 +134,30 @@ function Sidebar({ isMobile = false }: { isMobile?: boolean }) {
 }
 
 export function DemoAdminDashboard() {
+  // Shopping list from shared context
+  const { shoppingList, addShoppingItem, toggleShoppingItem, removeShoppingItem, getPendingCount, getCompletedCount } = useDemoShoppingList();
+  const [newShoppingItem, setNewShoppingItem] = useState("");
+  const [newShoppingQuantity, setNewShoppingQuantity] = useState("");
+  const [newShoppingUnit, setNewShoppingUnit] = useState("kg");
+
+  const unitOptions = [
+    { value: "kg", label: "Kg" },
+    { value: "g", label: "Gramas" },
+    { value: "un", label: "Unidades" },
+    { value: "cx", label: "Caixas" },
+    { value: "pct", label: "Pacotes" },
+    { value: "lt", label: "Litros" },
+    { value: "lata", label: "Latas" },
+  ];
+
+  const handleAddItem = () => {
+    if (!newShoppingItem.trim()) return;
+    const qty = newShoppingQuantity.trim() || "1";
+    addShoppingItem(newShoppingItem.trim(), `${qty} ${newShoppingUnit}`, "admin");
+    setNewShoppingItem("");
+    setNewShoppingQuantity("");
+  };
+
   const statCards = [
     {
       title: "Total de Crianças",
@@ -301,30 +339,141 @@ export function DemoAdminDashboard() {
             </Card>
           </div>
 
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-pimpo-blue" />
-                Atividade Recente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {[
-                  { action: "Nova pré-matrícula recebida", time: "há 5 min", type: "new" },
-                  { action: "Agenda de Maria Silva atualizada", time: "há 15 min", type: "update" },
-                  { action: "Professor João enviou mensagem", time: "há 30 min", type: "message" },
-                  { action: "Pagamento confirmado - João Pedro", time: "há 1 hora", type: "payment" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <span className="text-sm">{item.action}</span>
-                    <span className="text-xs text-muted-foreground">{item.time}</span>
+          {/* Shopping List and Recent Activity Grid */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Shopping List Widget */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5 text-pimpo-green" />
+                    Lista de Compras
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {getPendingCount()} pendentes
+                    </Badge>
+                    <Badge variant="outline" className="text-pimpo-green border-pimpo-green">
+                      {getCompletedCount()} comprados
+                    </Badge>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add new item */}
+                <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                  <Input
+                    placeholder="Nome do item"
+                    value={newShoppingItem}
+                    onChange={(e) => setNewShoppingItem(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
+                    className="flex-1 min-w-[100px]"
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Qtd"
+                      type="number"
+                      min="1"
+                      value={newShoppingQuantity}
+                      onChange={(e) => setNewShoppingQuantity(e.target.value)}
+                      className="w-16"
+                    />
+                    <Select value={newShoppingUnit} onValueChange={setNewShoppingUnit}>
+                      <SelectTrigger className="w-[80px]">
+                        <SelectValue placeholder="Un" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unitOptions.map((unit) => (
+                          <SelectItem key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleAddItem} disabled={!newShoppingItem.trim()} size="icon">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Shopping List */}
+                <ScrollArea className="h-[200px]">
+                  <div className="space-y-2">
+                    {shoppingList.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                          item.checked ? "bg-muted/50 opacity-60" : "bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={item.checked}
+                            onCheckedChange={() => toggleShoppingItem(item.id)}
+                          />
+                          <div>
+                            <p className={`text-sm font-medium ${item.checked ? "line-through" : ""}`}>
+                              {item.name}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{item.quantity}</span>
+                              <Badge variant="outline" className="text-[10px] h-4 px-1">
+                                {item.addedBy === "admin" ? "Admin" : "Cozinha"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => removeShoppingItem(item.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+
+                {/* Summary */}
+                <div className="flex justify-between text-sm pt-2 border-t">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <RefreshCw className="w-3 h-3" />
+                    Sincronizado com cozinha
+                  </span>
+                  <span className="text-primary font-medium">
+                    Total: {shoppingList.length} itens
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-pimpo-blue" />
+                  Atividade Recente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { action: "Nova pré-matrícula recebida", time: "há 5 min", type: "new" },
+                    { action: "Agenda de Maria Silva atualizada", time: "há 15 min", type: "update" },
+                    { action: "Professor João enviou mensagem", time: "há 30 min", type: "message" },
+                    { action: "Pagamento confirmado - João Pedro", time: "há 1 hora", type: "payment" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <span className="text-sm">{item.action}</span>
+                      <span className="text-xs text-muted-foreground">{item.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </main>
       </div>
     </div>

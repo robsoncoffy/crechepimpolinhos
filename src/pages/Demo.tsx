@@ -7,6 +7,7 @@ import { DemoAdminDashboard } from "@/components/demo/DemoAdminDashboard";
 import { DemoCookDashboard } from "@/components/demo/DemoCookDashboard";
 import { DemoNutritionistDashboard } from "@/components/demo/DemoNutritionistDashboard";
 import { DemoPedagogueDashboard } from "@/components/demo/DemoPedagogueDashboard";
+import { DemoShoppingListProvider } from "@/components/demo/DemoShoppingListContext";
 
 export default function Demo() {
   const [searchParams] = useSearchParams();
@@ -29,7 +30,7 @@ export default function Demo() {
   }, [roleFromUrl]);
 
   return (
-    <>
+    <DemoShoppingListProvider>
       {currentRole === "parent" && <DemoParentDashboard />}
       {currentRole === "teacher" && <DemoTeacherDashboard />}
       {currentRole === "admin" && <DemoAdminDashboard />}
@@ -41,6 +42,6 @@ export default function Demo() {
         currentRole={currentRole} 
         onRoleChange={setCurrentRole} 
       />
-    </>
+    </DemoShoppingListProvider>
   );
 }
