@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -161,11 +162,23 @@ export function NotificationBell() {
   };
 
   const markAllAsRead = async () => {
-    await supabase
+    if (!userId) {
+      toast.error("Não foi possível identificar o usuário.");
+      return;
+    }
+
+    const { error } = await supabase
       .from("notifications")
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq("user_id", userId)
-      .eq("is_read", false);
+      // is_read pode ser NULL no banco, e o app considera NULL como não lida
+      .or("is_read.eq.false,is_read.is.null");
+
+    if (error) {
+      console.error("markAllAsRead error:", error);
+      toast.error("Não foi possível marcar todas como lidas.");
+      return;
+    }
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
@@ -216,7 +229,11 @@ export function NotificationBell() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={markAllAsRead}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void markAllAsRead();
+              }}
               className="text-xs text-pimpo-blue hover:text-pimpo-blue/80"
             >
               Marcar todas como lidas
