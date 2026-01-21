@@ -63,11 +63,20 @@ serve(async (req) => {
   }
 
   try {
-    const ZAPSIGN_API_KEY = Deno.env.get('ZAPSIGN_API_KEY');
+    const rawZapSignKey = Deno.env.get('ZAPSIGN_API_KEY');
+    const ZAPSIGN_API_KEY = rawZapSignKey?.trim();
     if (!ZAPSIGN_API_KEY) {
       console.error("ZAPSIGN_API_KEY not configured");
       throw new Error("ZAPSIGN_API_KEY not configured");
     }
+
+    // Normalize token in case it was saved with a prefix like "Bearer ..."
+    const zapsignToken = ZAPSIGN_API_KEY
+      .replace(/^Bearer\s+/i, "")
+      .replace(/^Token\s+/i, "")
+      .trim();
+
+    console.log("ZapSign token loaded (len):", zapsignToken.length);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -352,7 +361,8 @@ CNPJ: ${COMPANY_DATA.cnpj}
     const createDocResponse = await fetch(`${ZAPSIGN_API_URL}/docs/`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${ZAPSIGN_API_KEY}`,
+        'Authorization': `Bearer ${zapsignToken}`,
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
