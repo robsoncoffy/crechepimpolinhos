@@ -606,6 +606,257 @@ serve(async (req) => {
         });
       }
 
+      // Parent-facing actions (no staff required)
+      case "get_my_payments": {
+        // Get payments for the logged-in parent
+        const { childId } = payload;
+        
+        // Get payments linked to this parent
+        let query = supabase
+          .from("asaas_payments")
+          .select("*")
+          .eq("linked_parent_id", user.id)
+          .order("due_date", { ascending: false });
+        
+        if (childId) {
+          query = query.eq("linked_child_id", childId);
+        }
+        
+        const { data: payments, error } = await query;
+        
+        if (error) {
+          console.error("Error fetching payments:", error);
+          return new Response(JSON.stringify({ error: "Erro ao buscar cobranças" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // Also fetch from subscriptions table (for contracts)
+        const { data: subscriptions } = await supabase
+          .from("subscriptions")
+          .select("*, children(full_name)")
+          .eq("parent_id", user.id)
+          .eq("status", "active");
+        
+        return new Response(JSON.stringify({ 
+          success: true,
+          payments: payments || [],
+          subscriptions: subscriptions || [],
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      case "get_payment_details": {
+        // Get fresh details for a specific payment from Asaas
+        const { paymentAsaasId } = payload;
+        
+        // First verify this payment belongs to the user
+        const { data: payment } = await supabase
+          .from("asaas_payments")
+          .select("*")
+          .eq("asaas_id", paymentAsaasId)
+          .eq("linked_parent_id", user.id)
+          .single();
+        
+        if (!payment) {
+          return new Response(JSON.stringify({ error: "Cobrança não encontrada" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        try {
+          // Fetch from Asaas
+          const asaasPayment = await asaasRequest(`/payments/${paymentAsaasId}`, "GET");
+          
+          // Get PIX code if pending/overdue
+          let pixCode = payment.pix_code;
+          if ((asaasPayment.status === "PENDING" || asaasPayment.status === "OVERDUE") && !pixCode) {
+            try {
+              const pixData = await asaasRequest(`/payments/${paymentAsaasId}/pixQrCode`, "GET");
+              pixCode = pixData.payload;
+              
+              // Update in database
+              await supabase.from("asaas_payments")
+                .update({ pix_code: pixCode })
+                .eq("asaas_id", paymentAsaasId);
+            } catch (e) {
+              console.log("Could not get PIX code:", e);
+            }
+          }
+          
+          const statusMap: Record<string, string> = {
+            PENDING: "pending",
+            RECEIVED: "paid",
+            CONFIRMED: "paid",
+            OVERDUE: "overdue",
+            REFUNDED: "refunded",
+            RECEIVED_IN_CASH: "paid",
+          };
+          
+          // Update local record
+          await supabase.from("asaas_payments").update({
+            status: statusMap[asaasPayment.status] || "pending",
+            payment_date: asaasPayment.paymentDate,
+            invoice_url: asaasPayment.invoiceUrl,
+            bank_slip_url: asaasPayment.bankSlipUrl,
+          }).eq("asaas_id", paymentAsaasId);
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            payment: {
+              ...payment,
+              status: statusMap[asaasPayment.status] || payment.status,
+              payment_date: asaasPayment.paymentDate,
+              invoice_url: asaasPayment.invoiceUrl,
+              bank_slip_url: asaasPayment.bankSlipUrl,
+              pix_code: pixCode,
+            },
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("Error fetching from Asaas:", e);
+          // Return cached data
+          return new Response(JSON.stringify({ 
+            success: true,
+            payment,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      case "generate_pix": {
+        // Generate PIX code for a pending payment
+        const { paymentAsaasId } = payload;
+        
+        // Verify ownership
+        const { data: payment } = await supabase
+          .from("asaas_payments")
+          .select("*")
+          .eq("asaas_id", paymentAsaasId)
+          .eq("linked_parent_id", user.id)
+          .single();
+        
+        if (!payment) {
+          return new Response(JSON.stringify({ error: "Cobrança não encontrada" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        try {
+          const pixData = await asaasRequest(`/payments/${paymentAsaasId}/pixQrCode`, "GET");
+          
+          // Update in database
+          await supabase.from("asaas_payments")
+            .update({ pix_code: pixData.payload })
+            .eq("asaas_id", paymentAsaasId);
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            pixCode: pixData.payload,
+            qrCodeImage: pixData.encodedImage,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("Error generating PIX:", e);
+          return new Response(JSON.stringify({ error: "Erro ao gerar código PIX" }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      case "pay_with_card": {
+        // Pay a pending payment with credit card
+        const { paymentAsaasId, cardHolderName, cardNumber, expiryMonth, expiryYear, ccv, installments } = payload;
+        
+        // Verify ownership
+        const { data: payment } = await supabase
+          .from("asaas_payments")
+          .select("*")
+          .eq("asaas_id", paymentAsaasId)
+          .eq("linked_parent_id", user.id)
+          .single();
+        
+        if (!payment) {
+          return new Response(JSON.stringify({ error: "Cobrança não encontrada" }), {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // Get user profile for billing info
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, email, cpf, phone")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (!profile) {
+          return new Response(JSON.stringify({ error: "Perfil não encontrado" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        try {
+          // Pay with card using Asaas
+          const paymentData = await asaasRequest(`/payments/${paymentAsaasId}/payWithCreditCard`, "POST", {
+            creditCard: {
+              holderName: cardHolderName,
+              number: cardNumber.replace(/\s/g, ""),
+              expiryMonth: expiryMonth,
+              expiryYear: expiryYear,
+              ccv: ccv,
+            },
+            creditCardHolderInfo: {
+              name: profile.full_name,
+              email: profile.email,
+              cpfCnpj: profile.cpf?.replace(/\D/g, ""),
+              phone: profile.phone?.replace(/\D/g, "") || undefined,
+              postalCode: "00000000", // Asaas requires this but we don't have it
+              addressNumber: "0",
+            },
+            installmentCount: installments || 1,
+          });
+          
+          // Update local record
+          await supabase.from("asaas_payments").update({
+            status: "paid",
+            payment_date: new Date().toISOString().split("T")[0],
+          }).eq("asaas_id", paymentAsaasId);
+          
+          // Create notification
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            title: "✅ Pagamento Confirmado!",
+            message: `Seu pagamento de R$ ${Number(payment.value).toFixed(2).replace(".", ",")} foi processado com sucesso.`,
+            type: "payment_confirmed",
+            link: "/painel-responsavel",
+          });
+          
+          return new Response(JSON.stringify({ 
+            success: true,
+            message: "Pagamento realizado com sucesso!",
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch (e) {
+          console.error("Error paying with card:", e);
+          const errorMsg = e instanceof Error ? e.message : "Erro ao processar pagamento";
+          return new Response(JSON.stringify({ error: errorMsg }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Ação inválida" }), {
           status: 400,
