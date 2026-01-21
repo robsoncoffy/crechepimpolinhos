@@ -247,22 +247,26 @@ export default function AdminContracts() {
         (parentLinks || []).map(p => [p.child_id, p.parent_id])
       );
 
-      // Build child CPF and address map by matching child name
+      // Build child CPF and address map by matching child name OR parent_id
       const childCpfMap = new Map<string, string>();
       const childAddressMap = new Map<string, string>();
       if (registrations) {
         for (const child of childrenMissingContracts) {
-          const reg = registrations.find(r => 
+          const parentId = parentLinkMap.get(child.id);
+          // Try to match by name first, then by parent_id
+          let reg = registrations.find(r => 
             `${r.first_name} ${r.last_name}`.toLowerCase() === child.full_name.toLowerCase()
           );
+          // If no match by name, try to find by parent_id
+          if (!reg && parentId) {
+            reg = registrations.find(r => r.parent_id === parentId);
+          }
           if (reg?.cpf) {
             childCpfMap.set(child.id, reg.cpf);
           }
           if (reg?.address) {
-            const fullAddress = reg.city 
-              ? `${reg.address}, ${reg.city}` 
-              : reg.address;
-            childAddressMap.set(child.id, fullAddress);
+            // Address already includes city in most cases
+            childAddressMap.set(child.id, reg.address);
           }
         }
       }
