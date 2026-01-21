@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -30,6 +32,9 @@ import {
   ChevronRight,
   Leaf,
   Edit,
+  MessageSquare,
+  Sparkles,
+  Send,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 
@@ -98,6 +103,8 @@ export function DemoNutritionistDashboard() {
   const [isEditing, setIsEditing] = useState(false);
   const [menu, setMenu] = useState(mockWeeklyMenu);
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [activeTab, setActiveTab] = useState("cardapio");
+  const [chatMessage, setChatMessage] = useState("");
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date);
@@ -177,12 +184,92 @@ export function DemoNutritionistDashboard() {
         <div className="mb-6">
           <h1 className="font-fredoka text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <Leaf className="w-8 h-8 text-pimpo-green" />
-            Cardápio Semanal
+            Painel da Nutricionista
           </h1>
           <p className="text-muted-foreground">
-            Planeje as refeições da semana para todas as turmas
+            Gerencie cardápios e responda dúvidas dos pais
           </p>
         </div>
+
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="cardapio" className="gap-2">
+              <UtensilsCrossed className="w-4 h-4" />
+              Cardápio
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="gap-2 relative">
+              <MessageSquare className="w-4 h-4" />
+              Chat com Pais
+              <Badge variant="destructive" className="ml-1 h-5 px-1.5">2</Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="chat" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-pimpo-green" />
+                  Dúvidas sobre Nutrição
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[300px] mb-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-lg px-3 py-2 max-w-[80%]">
+                        <p className="text-xs font-medium text-primary mb-1">Mãe do João</p>
+                        <p className="text-sm">O João pode comer ovo? Ele tem 10 meses.</p>
+                        <p className="text-xs text-muted-foreground mt-1">09:30</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <div className="bg-pimpo-green text-white rounded-lg px-3 py-2 max-w-[80%]">
+                        <p className="text-sm">Sim! A partir dos 9 meses o ovo pode ser introduzido. Comece com a gema bem cozida 🥚</p>
+                        <p className="text-xs opacity-70 mt-1">09:45</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <div className="bg-muted rounded-lg px-3 py-2 max-w-[80%]">
+                        <p className="text-xs font-medium text-primary mb-1">Pai da Maria</p>
+                        <p className="text-sm">A Maria pode comer mel? Ela tem 1 ano e 2 meses.</p>
+                        <p className="text-xs text-muted-foreground mt-1">10:15</p>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+
+                {/* AI Suggestions */}
+                <div className="mb-3 p-3 bg-pimpo-green/5 rounded-lg border border-pimpo-green/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-pimpo-green" />
+                    <span className="text-xs font-medium">Sugestões de resposta</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setChatMessage("Sim, a partir de 1 ano o mel pode ser oferecido com segurança! 🍯")}>
+                      Sim, após 1 ano é seguro 🍯
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setChatMessage("Pode sim! O mel só é contraindicado antes de 1 ano devido ao risco de botulismo.")}>
+                      Pode sim, sem riscos
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Digite sua resposta..."
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                  />
+                  <Button className="bg-pimpo-green hover:bg-pimpo-green/90">
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="cardapio" className="mt-4">
 
         {/* Week Navigation */}
         <Card className="mb-6">
@@ -333,6 +420,8 @@ export function DemoNutritionistDashboard() {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
