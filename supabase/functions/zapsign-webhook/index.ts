@@ -8,10 +8,21 @@ const corsHeaders = {
 
 interface ZapSignWebhookPayload {
   event_type: string;
-  doc_token: string;
+  // ZapSign sends doc token as "token", not "doc_token"
+  token: string;
+  doc_token?: string; // fallback for backwards compatibility
   signer_token?: string;
   signed_at?: string;
   refused_at?: string;
+  status?: string;
+  signers?: Array<{
+    token: string;
+    signed_at?: string;
+  }>;
+  signer_who_signed?: {
+    token: string;
+    signed_at?: string;
+  };
   signer?: {
     name: string;
     email: string;
@@ -41,15 +52,24 @@ serve(async (req) => {
     const payload: ZapSignWebhookPayload = await req.json();
     console.log("Received ZapSign webhook:", JSON.stringify(payload, null, 2));
 
-    const { event_type, doc_token, signer_token, signed_at, refused_at } = payload;
+    // ZapSign sends doc token as "token", not "doc_token"
+    const doc_token = payload.token || payload.doc_token;
+    const event_type = payload.event_type;
+    
+    // Get signed_at from signer_who_signed or signers array
+    const signed_at = payload.signer_who_signed?.signed_at || 
+                      payload.signers?.[0]?.signed_at ||
+                      payload.signed_at;
 
     if (!doc_token) {
-      console.error("Missing doc_token in webhook payload");
+      console.error("Missing token in webhook payload");
       return new Response(
-        JSON.stringify({ error: 'Missing doc_token' }),
+        JSON.stringify({ error: 'Missing token' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`Processing webhook: event_type=${event_type}, doc_token=${doc_token}`);
 
     // Find the contract by doc_token
     const { data: contract, error: findError } = await supabase
