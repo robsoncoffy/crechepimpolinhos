@@ -42,10 +42,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap, Search, X } from "lucide-react";
+import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap, Search, X, FileDown } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
 import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
 import ChildAttendanceTab from "@/components/admin/ChildAttendanceTab";
+import { ChildPdfExport } from "@/components/admin/ChildPdfExport";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type ClassType = Database["public"]["Enums"]["class_type"];
@@ -780,6 +781,7 @@ export default function AdminChildren() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <ChildPdfExport child={child} />
                           <Button
                             size="sm"
                             variant="ghost"
