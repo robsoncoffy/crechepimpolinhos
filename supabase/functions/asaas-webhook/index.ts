@@ -144,9 +144,44 @@ serve(async (req) => {
               title: notificationTitle,
               message: notificationMessage,
               type: "payment",
-              link: "/dashboard",
+              link: "/painel-pais",
             });
             console.log(`Notification created for parent ${invoice.parent_id}`);
+          }
+        }
+
+        // Notify admins when payment is received
+        if (newStatus === "paid" && invoice.status !== "paid") {
+          // Get child name for notification
+          const { data: childData } = await supabase
+            .from("children")
+            .select("full_name")
+            .eq("id", invoice.child_id)
+            .single();
+
+          const childName = childData?.full_name || "Aluno";
+          const formattedValue = new Intl.NumberFormat("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          }).format(payment.value);
+
+          // Get all admin users
+          const { data: adminRoles } = await supabase
+            .from("user_roles")
+            .select("user_id")
+            .eq("role", "admin");
+
+          if (adminRoles && adminRoles.length > 0) {
+            const adminNotifications = adminRoles.map((admin) => ({
+              user_id: admin.user_id,
+              title: "💰 Pagamento Recebido",
+              message: `Pagamento de ${formattedValue} recebido - ${childName}`,
+              type: "payment",
+              link: "/painel/financeiro",
+            }));
+
+            await supabase.from("notifications").insert(adminNotifications);
+            console.log(`Notifications created for ${adminRoles.length} admins`);
           }
         }
 
