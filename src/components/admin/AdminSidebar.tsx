@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, Camera, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, Camera, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,6 +56,11 @@ const routineItems = [{
   href: "/painel/cardapio",
   roles: ["admin", "nutritionist", "cook"]
 }, {
+  icon: UtensilsCrossed,
+  label: "Controle Refeições",
+  href: "/painel/controle-refeicoes",
+  roles: ["admin", "cook"]
+}, {
   icon: CalendarDays,
   label: "Eventos",
   href: "/painel/eventos",
@@ -92,6 +97,11 @@ const communicationItems = [{
   icon: Mail,
   label: "E-mails",
   href: "/painel/emails",
+  roles: ["admin"]
+}, {
+  icon: Bell,
+  label: "Notificações",
+  href: "/painel/notificacoes",
   roles: ["admin"]
 }];
 
@@ -132,6 +142,16 @@ const adminItems = [{
   label: "Convites Funcionário",
   href: "/painel/convites",
   roles: ["admin"]
+}, {
+  icon: Inbox,
+  label: "Formulário Contato",
+  href: "/painel/contatos",
+  roles: ["admin"]
+}, {
+  icon: CarFront,
+  label: "Histórico Retiradas",
+  href: "/painel/historico-retiradas",
+  roles: ["admin"]
 }];
 
 // Financeiro & RH
@@ -162,11 +182,21 @@ const financeHrItems = [{
   roles: ["admin"]
 }];
 
-// Configurações
+// Configurações e Sistema
 const settingsItems = [{
   icon: Settings,
   label: "Configurações",
   href: "/painel/config",
+  roles: ["admin"]
+}, {
+  icon: Mail,
+  label: "Logs de E-mail",
+  href: "/painel/logs-email",
+  roles: ["admin"]
+}, {
+  icon: Shield,
+  label: "Logs de Auditoria",
+  href: "/painel/logs-auditoria",
   roles: ["admin"]
 }];
 export function AdminSidebar() {
