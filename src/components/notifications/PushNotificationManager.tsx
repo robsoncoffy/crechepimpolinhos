@@ -93,8 +93,14 @@ export function PushNotificationManager() {
     try {
       const registration = await navigator.serviceWorker.ready;
       
-      // Get VAPID public key from environment (will need to be configured)
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      // Get VAPID public key from system settings
+      const { data: vapidSetting } = await supabase
+        .from("system_settings")
+        .select("value")
+        .eq("key", "vapid_public_key")
+        .single();
+      
+      const vapidPublicKey = vapidSetting?.value;
       
       if (!vapidPublicKey) {
         toast.info("Push notifications ainda não foram configuradas. Entre em contato com o administrador.");
