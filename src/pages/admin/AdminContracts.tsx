@@ -474,14 +474,16 @@ export default function AdminContracts() {
     
     setDeletingContract(contractToDelete.id);
     try {
-      const { error } = await supabase
-        .from("enrollment_contracts")
-        .delete()
-        .eq("id", contractToDelete.id);
+      // Delete from ZapSign and database via edge function
+      const response = await supabase.functions.invoke("zapsign-delete-doc", {
+        body: { contractId: contractToDelete.id },
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao excluir contrato");
+      }
 
-      toast.success("Contrato excluído com sucesso!");
+      toast.success("Contrato excluído do sistema e do ZapSign!");
       setDeleteDialogOpen(false);
       setContractToDelete(null);
       fetchContracts();
