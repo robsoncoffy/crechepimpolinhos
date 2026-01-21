@@ -36,7 +36,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { mealType, menuType }: SuggestionRequest = await req.json();
+    const { mealType, menuType, ingredient }: SuggestionRequest & { ingredient?: string } = await req.json();
 
     const mealLabel = mealLabels[mealType] || mealType;
     const ageGroup = menuType === "bercario" ? "bebês de 4 meses a 1 ano" : "crianças de 1 a 5 anos";
@@ -46,7 +46,12 @@ Gere sugestões de refeições saudáveis, nutritivas e adequadas para a faixa e
 Responda APENAS com um array JSON de 4 strings curtas (máximo 60 caracteres cada), sem explicações.
 As sugestões devem ser variadas e realistas para uma creche brasileira.`;
 
+    const ingredientInstruction = ingredient 
+      ? `IMPORTANTE: Todas as sugestões DEVEM incluir "${ingredient}" como ingrediente principal ou secundário.`
+      : "";
+
     const userPrompt = `Gere 4 sugestões de ${mealLabel} para ${ageGroup}. 
+${ingredientInstruction}
 ${menuType === "bercario" && mealType === "bottle" ? "Inclua opções de fórmulas e papinhas líquidas." : ""}
 ${mealType === "breakfast" ? "Inclua opções com carboidratos, proteínas e frutas." : ""}
 ${mealType === "lunch" || mealType === "dinner" ? "Inclua proteína, carboidrato, legumes e salada quando apropriado." : ""}
