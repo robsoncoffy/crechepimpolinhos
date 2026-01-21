@@ -49,6 +49,7 @@ export interface ContractData {
   clauseGeneral?: string;
   clauseForum?: string;
   clausePenalty?: string;
+  clauseSocialMedia?: string;
 }
 
 interface ContractPreviewDialogProps {
@@ -120,6 +121,8 @@ const DEFAULT_CLAUSES = {
   clauseForum: `Fica eleito o Foro da Comarca de Canoas/RS para dirimir quaisquer questões oriundas do presente contrato.`,
 
   clausePenalty: `Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.`,
+
+  clauseSocialMedia: `O CONTRATANTE autoriza expressamente a CONTRATADA a capturar, utilizar e divulgar imagens (fotos e vídeos) da criança matriculada para fins de publicação em redes sociais oficiais da creche (Instagram, Facebook, WhatsApp e demais plataformas), com objetivo exclusivamente institucional, pedagógico e promocional, sem qualquer remuneração ou compensação. A autorização poderá ser revogada a qualquer momento mediante solicitação por escrito.`,
 };
 
 export function ContractPreviewDialog({
@@ -153,6 +156,7 @@ export function ContractPreviewDialog({
       clauseGeneral: contractData.clauseGeneral || DEFAULT_CLAUSES.clauseGeneral,
       clauseForum: contractData.clauseForum || DEFAULT_CLAUSES.clauseForum,
       clausePenalty: contractData.clausePenalty || DEFAULT_CLAUSES.clausePenalty,
+      clauseSocialMedia: contractData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia,
     });
     setActiveTab("preview");
     setOpenClauses({});
@@ -388,6 +392,12 @@ export function ContractPreviewDialog({
                   <p>{editedData.clausePenalty || DEFAULT_CLAUSES.clausePenalty}</p>
                 </div>
 
+                {/* Cláusula 16 - Redes Sociais */}
+                <div className="bg-card p-4 rounded-lg border mb-4">
+                  <h4 className="font-semibold mb-2">CLÁUSULA 16 – AUTORIZAÇÃO PARA REDES SOCIAIS</h4>
+                  <p>{editedData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia}</p>
+                </div>
+
                 {/* Disposições Gerais */}
                 <div className="bg-card p-4 rounded-lg border mb-4">
                   <h4 className="font-semibold mb-2">DISPOSIÇÕES GERAIS</h4>
@@ -595,6 +605,11 @@ export function ContractPreviewDialog({
                       clauseKey="clausePenalty" 
                       title="DA MULTA POR RESCISÃO" 
                       clauseNumber={15} 
+                    />
+                    <ClauseEditor 
+                      clauseKey="clauseSocialMedia" 
+                      title="AUTORIZAÇÃO PARA REDES SOCIAIS" 
+                      clauseNumber={16} 
                     />
                     <ClauseEditor 
                       clauseKey="clauseGeneral" 
