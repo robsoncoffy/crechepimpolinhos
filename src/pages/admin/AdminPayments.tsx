@@ -46,6 +46,7 @@ import {
   Repeat,
   BarChart3,
   Lightbulb,
+  Wallet,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -115,6 +116,8 @@ export default function AdminPayments() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<"invoice" | "subscription">("invoice");
   const [saving, setSaving] = useState(false);
+  const [asaasBalance, setAsaasBalance] = useState<number | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   
   const [formData, setFormData] = useState({
     parentChildId: "",
@@ -166,8 +169,25 @@ export default function AdminPayments() {
     setLoading(false);
   };
 
+  const fetchBalance = async () => {
+    setLoadingBalance(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("asaas-payments", {
+        body: { action: "get_balance" },
+      });
+
+      if (!error && data?.balance !== undefined) {
+        setAsaasBalance(data.balance);
+      }
+    } catch (e) {
+      console.error("Error fetching balance:", e);
+    }
+    setLoadingBalance(false);
+  };
+
   useEffect(() => {
     fetchData();
+    fetchBalance();
   }, []);
 
   const syncPayments = async () => {
@@ -182,6 +202,7 @@ export default function AdminPayments() {
     } else {
       toast.success(`${data.updated} pagamentos atualizados`);
       fetchData();
+      fetchBalance();
     }
 
     setSyncing(false);
@@ -383,12 +404,37 @@ export default function AdminPayments() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Wallet className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Saldo Asaas</p>
+                {loadingBalance ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : asaasBalance !== null ? (
+                  <p className="text-xl font-bold text-primary">
+                    R$ {asaasBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Não disponível</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-yellow-100">
-                <Clock className="w-5 h-5 text-yellow-600" />
+              <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">A Receber</p>
@@ -403,12 +449,12 @@ export default function AdminPayments() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-red-100">
-                <AlertCircle className="w-5 h-5 text-red-600" />
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertCircle className="w-5 h-5 text-destructive" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Vencidos</p>
-                <p className="text-xl font-bold text-red-600">
+                <p className="text-xl font-bold text-destructive">
                   R$ {overdueTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
@@ -419,12 +465,12 @@ export default function AdminPayments() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-green-100">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Recebido (Mês)</p>
-                <p className="text-xl font-bold text-green-600">
+                <p className="text-xl font-bold text-green-600 dark:text-green-500">
                   R$ {paidThisMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
               </div>
@@ -435,8 +481,8 @@ export default function AdminPayments() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-blue-100">
-                <Repeat className="w-5 h-5 text-blue-600" />
+              <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
+                <Repeat className="w-5 h-5 text-blue-600 dark:text-blue-500" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Assinaturas Ativas</p>
