@@ -40,7 +40,8 @@ import {
   Filter,
   Eye,
   Send,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -142,6 +143,7 @@ export default function AdminContracts() {
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [selectedChildForContract, setSelectedChildForContract] = useState<ChildWithoutContract | null>(null);
   const [sendingContract, setSendingContract] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContracts();
@@ -367,6 +369,42 @@ export default function AdminContracts() {
     setDetailsOpen(true);
   }
 
+  async function handleDownloadPdf(contract: Contract) {
+    if (!contract.zapsign_doc_token) {
+      toast.error("Token do documento não disponível");
+      return;
+    }
+
+    setDownloadingPdf(contract.id);
+    try {
+      const response = await supabase.functions.invoke("zapsign-download-pdf", {
+        body: {
+          contractId: contract.id,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao obter PDF");
+      }
+
+      const { pdfUrl, status } = response.data;
+
+      if (!pdfUrl) {
+        toast.error("PDF ainda não disponível. Status: " + status);
+        return;
+      }
+
+      // Open PDF in new tab for download
+      window.open(pdfUrl, "_blank");
+      toast.success("PDF aberto em nova aba");
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      toast.error("Erro ao baixar PDF do contrato");
+    } finally {
+      setDownloadingPdf(null);
+    }
+  }
+
   const filteredContracts = contracts.filter((contract) => {
     if (statusFilter === "all") return true;
     return contract.status === statusFilter;
@@ -572,14 +610,31 @@ export default function AdminContracts() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => openDetails(contract)}
+                                  title="Ver detalhes"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
+                                {contract.status === "signed" && contract.zapsign_doc_token && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDownloadPdf(contract)}
+                                    disabled={downloadingPdf === contract.id}
+                                    title="Baixar PDF assinado"
+                                  >
+                                    {downloadingPdf === contract.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Download className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )}
                                 {contract.zapsign_doc_url && (
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     asChild
+                                    title="Abrir no ZapSign"
                                   >
                                     <a 
                                       href={contract.zapsign_doc_url} 
@@ -596,6 +651,7 @@ export default function AdminContracts() {
                                     variant="outline"
                                     onClick={() => handleResendContract(contract)}
                                     disabled={resending === contract.id}
+                                    title="Reenviar contrato"
                                   >
                                     {resending === contract.id ? (
                                       <Loader2 className="w-4 h-4 animate-spin" />
