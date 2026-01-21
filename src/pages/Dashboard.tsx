@@ -3,6 +3,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
+import { DashboardViewProvider, useDashboardView } from "@/hooks/useDashboardView";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import TeacherDashboard from "@/pages/admin/TeacherDashboard";
 import AdminApprovals from "@/pages/admin/AdminApprovals";
@@ -44,11 +45,23 @@ import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
 import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
 import AdminShoppingList from "@/pages/admin/AdminShoppingList";
 import { Loader2 } from "lucide-react";
-// Component to select the right dashboard based on role
+
+// Component to select the right dashboard based on role and view preference
 function RoleBasedDashboard() {
   const { isAdmin, isTeacher, isNutritionist, isCook, isPedagogue, isAuxiliar } = useAuth();
+  const { currentView, specializedRole } = useDashboardView();
 
-  // Priority order: Admin > Teacher > Nutritionist > Cook > Pedagogue > Auxiliar
+  // If user has admin + specialized role and chose specialized view
+  if (isAdmin && currentView === "specialized" && specializedRole) {
+    switch (specializedRole) {
+      case "nutritionist": return <NutritionistDashboard />;
+      case "pedagogue": return <PedagogueDashboard />;
+      case "cook": return <CookDashboard />;
+      case "teacher": return <TeacherDashboard />;
+    }
+  }
+
+  // Default priority order: Admin > Teacher > Nutritionist > Cook > Pedagogue > Auxiliar
   if (isAdmin) return <AdminDashboard />;
   if (isTeacher) return <TeacherDashboard />;
   if (isNutritionist) return <NutritionistDashboard />;
@@ -284,7 +297,9 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <AuthProvider>
-      <DashboardContent />
+      <DashboardViewProvider>
+        <DashboardContent />
+      </DashboardViewProvider>
     </AuthProvider>
   );
 }
