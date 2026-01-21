@@ -31,6 +31,7 @@ const signupSchema = loginSchema.extend({
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -219,6 +220,46 @@ export default function Auth() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrors({});
+
+    if (!formData.email || !z.string().email().safeParse(formData.email).success) {
+      setErrors({ email: "Por favor, insira um email válido" });
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao enviar email",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Email enviado!",
+          description: "Verifique sua caixa de entrada para redefinir sua senha.",
+        });
+        setIsForgotPassword(false);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -368,10 +409,12 @@ export default function Auth() {
             </div>
             <div>
               <CardTitle className="font-fredoka text-2xl">
-                {isSignUp ? "Criar Conta" : "Entrar"}
+                {isForgotPassword ? "Recuperar Senha" : isSignUp ? "Criar Conta" : "Entrar"}
               </CardTitle>
               <CardDescription>
-                {isSignUp
+                {isForgotPassword
+                  ? "Insira seu email para receber o link de recuperação"
+                  : isSignUp
                   ? "Cadastre-se para acompanhar a agenda do seu filho"
                   : "Acesse sua conta para ver a agenda"}
               </CardDescription>
@@ -379,13 +422,58 @@ export default function Auth() {
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {isSignUp && (
-                <>
-                  {/* Invite Code Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="inviteCode" className="flex items-center gap-2">
-                      <KeyRound className="w-4 h-4" />
+            {isForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={errors.email ? "border-destructive" : ""}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email}</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  size="lg" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    "Enviar Link de Recuperação"
+                  )}
+                </Button>
+
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(false)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Voltar ao login
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {isSignUp && (
+                  <>
+                    {/* Invite Code Field */}
+                    <div className="space-y-2">
+                      <Label htmlFor="inviteCode" className="flex items-center gap-2">
+                        <KeyRound className="w-4 h-4" />
                       Código de Convite
                     </Label>
                     <div className="relative">
@@ -540,6 +628,17 @@ export default function Auth() {
                 {errors.password && (
                   <p className="text-sm text-destructive">{errors.password}</p>
                 )}
+                {!isSignUp && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(true)}
+                      className="text-xs text-muted-foreground hover:text-primary hover:underline"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                )}
               </div>
 
               {isSignUp && (
@@ -586,35 +685,40 @@ export default function Auth() {
                   "Entrar"
                 )}
               </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-primary hover:underline"
-              >
-                {isSignUp
-                  ? "Já tem uma conta? Entre aqui"
-                  : "Não tem conta? Cadastre-se"}
-              </button>
-            </div>
-
-            {isSignUp && (
-              <p className="mt-4 text-xs text-center text-muted-foreground">
-                Após o cadastro, a escola irá aprovar seu acesso e vincular seu filho à sua conta.
-              </p>
+              </form>
             )}
 
-            <div className="mt-6 pt-4 border-t text-center">
-              <p className="text-sm text-muted-foreground mb-2">É funcionário da escola?</p>
-              <Link 
-                to="/cadastro-funcionario" 
-                className="text-sm text-primary hover:underline font-medium"
-              >
-                Clique aqui para cadastro de funcionários
-              </Link>
-            </div>
+            {!isForgotPassword && (
+              <>
+                <div className="mt-6 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {isSignUp
+                      ? "Já tem uma conta? Entre aqui"
+                      : "Não tem conta? Cadastre-se"}
+                  </button>
+                </div>
+
+                {isSignUp && (
+                  <p className="mt-4 text-xs text-center text-muted-foreground">
+                    Após o cadastro, a escola irá aprovar seu acesso e vincular seu filho à sua conta.
+                  </p>
+                )}
+
+                <div className="mt-6 pt-4 border-t text-center">
+                  <p className="text-sm text-muted-foreground mb-2">É funcionário da escola?</p>
+                  <Link 
+                    to="/cadastro-funcionario" 
+                    className="text-sm text-primary hover:underline font-medium"
+                  >
+                    Clique aqui para cadastro de funcionários
+                  </Link>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
