@@ -27,7 +27,9 @@ import {
   Droplets,
   Smile,
   FileText,
+  Pill,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
 
 // Mock children for the class
@@ -67,6 +69,7 @@ export function DemoTeacherDashboard() {
   const [activeTab, setActiveTab] = useState("agenda");
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
+  const [tookMedicine, setTookMedicine] = useState(false);
 
   const completedCount = mockChildren.filter((c) => c.hasRecord).length;
   const totalCount = mockChildren.length;
@@ -343,15 +346,35 @@ export function DemoTeacherDashboard() {
                             <Activity className="w-4 h-4 text-pimpo-red" />
                             Saúde
                           </h4>
-                          <div className="flex flex-wrap gap-4">
-                            <div className="flex items-center gap-2">
-                              <Checkbox id="fever" disabled={!editMode} />
-                              <label htmlFor="fever" className="text-sm">Teve febre</label>
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-4">
+                              <div className="flex items-center gap-2">
+                                <Checkbox id="fever" disabled={!editMode} />
+                                <label htmlFor="fever" className="text-sm">Teve febre</label>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Checkbox 
+                                  id="medicine" 
+                                  disabled={!editMode} 
+                                  checked={tookMedicine}
+                                  onCheckedChange={(checked) => setTookMedicine(checked === true)}
+                                />
+                                <label htmlFor="medicine" className="text-sm">Tomou remédio</label>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Checkbox id="medicine" disabled={!editMode} />
-                              <label htmlFor="medicine" className="text-sm">Tomou remédio</label>
-                            </div>
+                            {tookMedicine && (
+                              <div className="space-y-1">
+                                <label className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <Pill className="w-3 h-3" />
+                                  Descrição do remédio
+                                </label>
+                                <Input 
+                                  placeholder="Ex: Dipirona 10ml às 10h, Paracetamol 5ml às 14h..."
+                                  disabled={!editMode}
+                                  className="max-w-md"
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
 
