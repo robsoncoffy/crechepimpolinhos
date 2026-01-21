@@ -6,6 +6,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupConte
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { RoleViewSwitcher } from "./RoleViewSwitcher";
 
 // Menu items organized by category with role restrictions
 // roles: which roles can see this item (empty = all staff)
@@ -280,6 +281,13 @@ export function AdminSidebar() {
         {renderMenuSection(filteredAdmin, "Administrativo")}
         {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
         {renderMenuSection(filteredSettings, "Configurações")}
+        
+        {/* Role View Switcher - Only for Admins */}
+        {isAdmin && (
+          <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
+            <RoleViewSwitcher isCollapsed={isCollapsed} />
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {/* Footer */}
