@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Loader2, FileText, Send, Pencil, Eye, ChevronDown, ChevronRight } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
+import { PRICES, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
 
 export interface ContractData {
   parentName: string;
@@ -99,7 +100,7 @@ const DEFAULT_CLAUSES = {
   
   clauseMedication: `A administração de medicamentos somente será realizada mediante prescrição médica, com autorização por escrito do responsável, contendo nome do medicamento, dosagem e horários.`,
   
-  clauseUniform: `O uso do uniforme escolar é obrigatório. Os materiais escolares devem ser entregues conforme lista fornecida no ato da matrícula.`,
+  clauseUniform: `O uso do uniforme escolar é facultativo, sendo recomendado para melhor identificação dos alunos. Os materiais escolares devem ser entregues conforme lista fornecida no ato da matrícula.`,
   
   clauseHealth: `Em caso de febre, vômitos, diarreia ou doenças contagiosas, a criança não poderá permanecer na escola. Os pais serão comunicados imediatamente para buscar a criança.`,
   
@@ -285,13 +286,28 @@ export function ContractPreviewDialog({
                 </div>
 
                 {/* Cláusula 4 - Mensalidades */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 4 – DAS MENSALIDADES</h4>
-                  <p className="mb-2">
-                    <strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}
-                  </p>
-                  <p>{editedData.clauseMonthlyFee || DEFAULT_CLAUSES.clauseMonthlyFee}</p>
-                </div>
+                {(() => {
+                  const classKey = editedData.classType as ClassType;
+                  const planKey = editedData.planType as PlanType;
+                  const monthlyValue = (classKey && planKey && PRICES[classKey]?.[planKey]) 
+                    ? formatCurrency(PRICES[classKey][planKey]) 
+                    : null;
+                  
+                  return (
+                    <div className="bg-card p-4 rounded-lg border mb-4">
+                      <h4 className="font-semibold mb-2">CLÁUSULA 4 – DAS MENSALIDADES</h4>
+                      <p className="mb-2">
+                        <strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}
+                      </p>
+                      {monthlyValue && (
+                        <p className="mb-2">
+                          <strong>Valor Mensal:</strong> {monthlyValue}
+                        </p>
+                      )}
+                      <p>{editedData.clauseMonthlyFee || DEFAULT_CLAUSES.clauseMonthlyFee}</p>
+                    </div>
+                  );
+                })()}
 
                 {/* Cláusula 5 - Horário */}
                 <div className="bg-card p-4 rounded-lg border mb-4">
