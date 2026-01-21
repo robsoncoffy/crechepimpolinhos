@@ -95,7 +95,7 @@ const DEFAULT_CLAUSES = {
   
   clauseEnrollment: `A matrícula será efetivada mediante assinatura deste contrato e pagamento da primeira mensalidade. A vaga é pessoal e intransferível.`,
   
-  clauseMonthlyFee: `O valor das mensalidades será conforme tabela de preços vigente, com vencimento até o dia 10 de cada mês. O atraso no pagamento acarretará multa de 2% e juros de 1% ao mês.`,
+  clauseMonthlyFee: `O valor das mensalidades será conforme tabela de preços vigente, com vencimento sempre no mesmo dia da assinatura deste contrato, a cada mês subsequente. O atraso no pagamento acarretará multa de 2% e juros de 1% ao mês.`,
   
   clauseHours: `A CONTRATADA funciona de segunda a sexta-feira, das 07h00min às 19h00min. O horário de entrada e saída deve ser respeitado conforme o turno contratado. Há tolerância de 15 minutos para entrada e saída.`,
   
