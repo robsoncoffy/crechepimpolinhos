@@ -43,6 +43,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
+    // Check if user should be logged out (session-only mode)
+    const shouldClearSession = sessionStorage.getItem('pimpolinhos_session_only') === 'true';
+    const isRemembered = localStorage.getItem('pimpolinhos_remember_me') === 'true';
+    
+    // If session-only flag exists but localStorage remember flag doesn't, 
+    // this is a new browser session - clear auth
+    if (!isRemembered && !sessionStorage.getItem('pimpolinhos_session_active')) {
+      // This is a fresh browser session, check if we should clear
+      const wasSessionOnly = localStorage.getItem('pimpolinhos_was_session_only');
+      if (wasSessionOnly === 'true') {
+        // User didn't want to be remembered, clear session
+        supabase.auth.signOut();
+        localStorage.removeItem('pimpolinhos_was_session_only');
+      }
+    }
+    
+    // Mark this browser session as active
+    sessionStorage.setItem('pimpolinhos_session_active', 'true');
+
     const fetchUserData = async (userId: string) => {
       try {
         // Fetch profile and roles in parallel
@@ -110,9 +129,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Handle beforeunload to set flag for session-only users
+    const handleBeforeUnload = () => {
+      const sessionOnly = sessionStorage.getItem('pimpolinhos_session_only');
+      if (sessionOnly === 'true') {
+        localStorage.setItem('pimpolinhos_was_session_only', 'true');
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 

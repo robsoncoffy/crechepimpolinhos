@@ -363,6 +363,20 @@ export default function Auth() {
           email: formData.email,
           password: formData.password,
         });
+        
+        // Handle "Remember me" preference
+        if (!error) {
+          if (rememberMe) {
+            // User wants to stay logged in
+            localStorage.setItem('pimpolinhos_remember_me', 'true');
+            localStorage.removeItem('pimpolinhos_was_session_only');
+            sessionStorage.removeItem('pimpolinhos_session_only');
+          } else {
+            // User doesn't want to be remembered - clear on browser close
+            localStorage.removeItem('pimpolinhos_remember_me');
+            sessionStorage.setItem('pimpolinhos_session_only', 'true');
+          }
+        }
 
         if (error) {
           if (error.message.includes("Invalid login")) {
