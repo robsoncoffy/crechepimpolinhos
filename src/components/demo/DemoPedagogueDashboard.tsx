@@ -49,6 +49,7 @@ import {
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
+import { DemoQuickReplySuggestions } from "./DemoQuickReplySuggestions";
 
 // Message interface
 interface DemoMessage {
@@ -828,6 +829,14 @@ export function DemoPedagogueDashboard() {
                               ))
                             )}
                           </div>
+                          
+                          {/* AI Quick Reply Suggestions */}
+                          <DemoQuickReplySuggestions
+                            messages={chatMessages[selectedChatChild] || []}
+                            childName={allChildren.find(c => c.id === selectedChatChild)?.name || ""}
+                            onSelect={(suggestion) => setChatMessage(suggestion)}
+                          />
+                          
                           <div className="p-3 border-t bg-background">
                             <div className="flex gap-2">
                               <Input
