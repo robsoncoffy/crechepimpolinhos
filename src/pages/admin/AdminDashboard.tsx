@@ -8,6 +8,7 @@ import { WeatherWidget } from "@/components/admin/WeatherWidget";
 import { PickupNotificationsWidget } from "@/components/admin/PickupNotificationsWidget";
 import { PendingContractsWidget } from "@/components/admin/PendingContractsWidget";
 import { TimeClockStatusCard } from "@/components/admin/TimeClockStatusCard";
+import { UpcomingExpensesAlert } from "@/components/admin/UpcomingExpensesAlert";
 import {
   Users,
   Baby,
@@ -144,10 +145,11 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Weather, Time Clock, Pickup Notifications and Pending Contracts */}
+      {/* Weather, Time Clock, Alerts, Pickup Notifications and Pending Contracts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4">
           <WeatherWidget />
+          <UpcomingExpensesAlert />
           <TimeClockStatusCard />
           <PendingContractsWidget />
         </div>
