@@ -412,6 +412,24 @@ export function DemoTeacherDashboard() {
                             defaultValue="Hoje a Maria participou das atividades de pintura com muita animação! Brincou bastante no parquinho e interagiu muito bem com os coleguinhas. Um dia muito especial! 🎨"
                           />
                         </div>
+
+                        {/* End Day Button */}
+                        <div className="pt-4 border-t">
+                          <Button 
+                            className="w-full bg-pimpo-green hover:bg-pimpo-green/90 text-white gap-2"
+                            size="lg"
+                            onClick={() => {
+                              setEditMode(false);
+                              alert('Dia encerrado! O bilhetinho foi enviado para os pais.');
+                            }}
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                            Encerrar o Dia
+                          </Button>
+                          <p className="text-xs text-muted-foreground text-center mt-2">
+                            Ao encerrar, o bilhetinho será enviado automaticamente para os pais
+                          </p>
+                        </div>
                       </CardContent>
                     </Card>
                   )}
