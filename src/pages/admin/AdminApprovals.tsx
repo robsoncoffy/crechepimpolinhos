@@ -440,10 +440,10 @@ export default function AdminApprovals() {
         console.error("Error sending approval email:", emailError);
       }
 
-      // Fetch parent profile for contract preview (including email now)
+      // Fetch parent profile for contract preview (including email and relationship now)
       const { data: parentProfile } = await supabase
         .from("profiles")
-        .select("full_name, cpf, rg, phone, email")
+        .select("full_name, cpf, rg, phone, email, relationship")
         .eq("user_id", selectedRegistration.parent_id)
         .single();
 
@@ -461,6 +461,7 @@ export default function AdminApprovals() {
       }
       
       const parentPhone = parentProfile?.phone || selectedRegistration.parent_phone || '';
+      const parentRelationship = parentProfile?.relationship || '';
 
       // Fetch emergency contact
       let emergencyContact = '';
@@ -482,6 +483,7 @@ export default function AdminApprovals() {
         parentRg: parentProfile?.rg || selectedRegistration.parent_rg || '',
         parentPhone: parentPhone,
         parentEmail: parentEmail,
+        parentRelationship: parentRelationship,
         address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
         childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
         birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),

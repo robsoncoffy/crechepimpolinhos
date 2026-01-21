@@ -22,6 +22,7 @@ const signupSchema = loginSchema.extend({
   cpf: z.string().refine((val) => validateCPF(val), { message: "CPF inválido" }),
   rg: z.string().optional(),
   phone: z.string().min(1, "Telefone é obrigatório").min(14, "Telefone inválido"),
+  relationship: z.string().min(1, "Selecione o parentesco com a criança"),
   confirmPassword: z.string(),
   inviteCode: z.string().min(1, "Código de convite é obrigatório"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -61,6 +62,7 @@ export default function Auth() {
     cpf: "",
     rg: "",
     phone: "",
+    relationship: "",
     inviteCode: searchParams.get("invite") || "",
   });
 
@@ -309,6 +311,7 @@ export default function Auth() {
               cpf: unformatCPF(formData.cpf),
               rg: formData.rg || null,
               phone: formData.phone,
+              relationship: formData.relationship,
             },
           },
         });
@@ -610,6 +613,32 @@ export default function Auth() {
                     />
                     {errors.phone && (
                       <p className="text-sm text-destructive">{errors.phone}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="relationship">Parentesco com a criança <span className="text-destructive">*</span></Label>
+                    <select
+                      id="relationship"
+                      name="relationship"
+                      value={formData.relationship}
+                      onChange={(e) => setFormData({ ...formData, relationship: e.target.value })}
+                      className={`flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.relationship ? "border-destructive" : "border-input"}`}
+                      required
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Pai">Pai</option>
+                      <option value="Mãe">Mãe</option>
+                      <option value="Avô">Avô</option>
+                      <option value="Avó">Avó</option>
+                      <option value="Tio">Tio</option>
+                      <option value="Tia">Tia</option>
+                      <option value="Padrasto">Padrasto</option>
+                      <option value="Madrasta">Madrasta</option>
+                      <option value="Responsável Legal">Responsável Legal</option>
+                    </select>
+                    {errors.relationship && (
+                      <p className="text-sm text-destructive">{errors.relationship}</p>
                     )}
                   </div>
                 </>

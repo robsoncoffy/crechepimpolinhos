@@ -24,6 +24,7 @@ export interface ContractData {
   parentRg?: string;
   parentPhone: string;
   parentEmail: string;
+  parentRelationship?: string;
   address: string;
   childName: string;
   birthDate: string;
@@ -253,7 +254,7 @@ export function ContractPreviewDialog({
                   </p>
                   
                   <p className="mb-2">
-                    <strong>CONTRATANTE:</strong> {editedData.parentName || '[Nome não informado]'}, 
+                    <strong>CONTRATANTE ({editedData.parentRelationship || 'Responsável'}):</strong> {editedData.parentName || '[Nome não informado]'}, 
                     inscrito(a) no CPF sob nº {editedData.parentCpf ? formatCPF(editedData.parentCpf) : '[CPF não informado]'}
                     {editedData.parentRg ? `, RG nº ${editedData.parentRg}` : ''}, 
                     residente e domiciliado(a) em {editedData.address || 'Canoas/RS'}, 

@@ -1804,6 +1804,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string | null
+          relationship: string | null
           rg: string | null
           status: Database["public"]["Enums"]["approval_status"]
           updated_at: string
@@ -1817,6 +1818,7 @@ export type Database = {
           full_name: string
           id?: string
           phone?: string | null
+          relationship?: string | null
           rg?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           updated_at?: string
@@ -1830,6 +1832,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          relationship?: string | null
           rg?: string | null
           status?: Database["public"]["Enums"]["approval_status"]
           updated_at?: string
