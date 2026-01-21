@@ -2498,6 +2498,10 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      notify_admins: {
+        Args: { _link: string; _message: string; _title: string; _type: string }
+        Returns: undefined
+      }
       parent_has_child_access: {
         Args: { _child_id: string; _user_id: string }
         Returns: boolean
