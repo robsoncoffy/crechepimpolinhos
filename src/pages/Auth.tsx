@@ -235,20 +235,22 @@ export default function Auth() {
     }
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: `${window.location.origin}/redefinir-senha`,
+      // Use custom edge function for recovery email via Resend
+      const { data, error } = await supabase.functions.invoke("send-recovery-email", {
+        body: { email: formData.email },
       });
 
       if (error) {
+        console.error("Recovery email error:", error);
         toast({
           title: "Erro ao enviar email",
-          description: error.message,
+          description: "Não foi possível enviar o email de recuperação. Tente novamente.",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Email enviado!",
-          description: "Verifique sua caixa de entrada para redefinir sua senha.",
+          description: "Verifique sua caixa de entrada (e spam) para redefinir sua senha.",
         });
         setIsForgotPassword(false);
       }
