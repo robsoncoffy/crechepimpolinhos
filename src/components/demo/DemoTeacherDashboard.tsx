@@ -482,8 +482,8 @@ export function DemoTeacherDashboard() {
         <Card className="shadow-lg">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="border-b bg-muted/30">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+              <div className="border-b bg-muted/30 overflow-visible">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5 overflow-visible">
                   <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <Calendar className="w-4 h-4" />
                     <span className="hidden sm:inline">Agenda</span>
@@ -492,10 +492,10 @@ export function DemoTeacherDashboard() {
                     <Users className="w-4 h-4" />
                     <span className="hidden sm:inline">Turma</span>
                   </TabsTrigger>
-                  <TabsTrigger value="pais" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2 relative">
+                  <TabsTrigger value="pais" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <MessageSquare className="w-4 h-4" />
                     <span className="hidden sm:inline">Pais</span>
-                    <Badge variant="destructive" className="absolute -top-1 right-2 sm:relative sm:top-0 sm:right-0 h-5 px-1.5">
+                    <Badge variant="destructive" className="ml-1 h-5 min-w-[1.25rem] px-1.5 text-[10px]">
                       3
                     </Badge>
                   </TabsTrigger>
