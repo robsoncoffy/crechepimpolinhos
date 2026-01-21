@@ -328,7 +328,7 @@ export default function AdminParentInvites() {
   };
 
   // Always use the production URL for invite links
-  const PRODUCTION_URL = "https://crechepimpolinhos.lovable.app";
+  const PRODUCTION_URL = "https://www.crechepimpolinhos.com.br";
   
   const copyToClipboard = (invite: ParentInvite) => {
     let url = `${PRODUCTION_URL}/auth?mode=signup&invite=${invite.invite_code}`;

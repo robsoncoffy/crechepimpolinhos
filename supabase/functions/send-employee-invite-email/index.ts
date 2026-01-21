@@ -93,7 +93,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const appUrl = "https://crechepimpolinhos.lovable.app";
+    const appUrl = "https://www.crechepimpolinhos.com.br";
     const signupUrl = `${appUrl}/cadastro-funcionario?code=${inviteCode}`;
     const roleLabel = roleLabels[role] || role;
     const roleEmoji = roleEmojis[role] || "👤";

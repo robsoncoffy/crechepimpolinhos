@@ -186,7 +186,7 @@ serve(async (req) => {
                     <p>Identificamos que você registrou entrada às <strong>${entryTime}</strong> hoje, mas ainda não registrou o ponto de saída.</p>
                     <p>Por favor, acesse o sistema para regularizar seu registro de ponto.</p>
                     <div style="margin: 30px 0;">
-                      <a href="https://crechepimpolinhos.lovable.app/painel/ponto" 
+                      <a href="https://www.crechepimpolinhos.com.br/painel/ponto" 
                          style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
                         Acessar Sistema de Ponto
                       </a>
@@ -396,7 +396,7 @@ serve(async (req) => {
                           <p style="color: #dc2626;"><strong>O limite semanal de ${WEEKLY_WORK_LIMIT_HOURS} horas foi excedido em ${Math.round(overtimeHours * 10) / 10}h.</strong></p>
                           <p>Por favor, entre em contato com a administração para regularização e ajuste do seu banco de horas.</p>
                           <div style="margin: 30px 0;">
-                            <a href="https://crechepimpolinhos.lovable.app/painel/ponto" 
+                            <a href="https://www.crechepimpolinhos.com.br/painel/ponto" 
                                style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
                               Ver Meu Ponto
                             </a>

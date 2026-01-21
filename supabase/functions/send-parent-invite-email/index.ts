@@ -117,7 +117,7 @@ serve(async (req: Request): Promise<Response> => {
       couponDiscountValue: resolvedCouponDiscountValue,
     });
 
-    const appUrl = "https://crechepimpolinhos.lovable.app";
+    const appUrl = "https://www.crechepimpolinhos.com.br";
     let signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
     if (normalizedCouponCode) {
       signupUrl += `&cupom=${encodeURIComponent(normalizedCouponCode)}`;

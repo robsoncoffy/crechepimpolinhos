@@ -193,7 +193,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           <p>O sistema agora pode enviar e receber e-mails através desta conta.</p>
           <p>Você pode fechar esta janela e voltar ao painel administrativo.</p>
-          <p><a href="https://crechepimpolinhos.lovable.app/painel">Voltar ao Painel</a></p>
+          <p><a href="https://www.crechepimpolinhos.com.br/painel">Voltar ao Painel</a></p>
         </body>
         </html>`,
         {
