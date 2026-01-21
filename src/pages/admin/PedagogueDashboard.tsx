@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { BookOpen, ChevronRight, Baby, Calendar, GraduationCap, Newspaper } from "lucide-react";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
+import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 
 export default function PedagogueDashboard() {
   const { profile } = useAuth();
@@ -149,8 +150,11 @@ export default function PedagogueDashboard() {
         </CardContent>
       </Card>
 
-      {/* Quick Post Creator */}
-      <QuickPostCreator />
+      {/* Mini Calendar + Quick Post Creator */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <MiniCalendar />
+        <QuickPostCreator />
+      </div>
 
       {/* Quick Actions */}
       <Card>

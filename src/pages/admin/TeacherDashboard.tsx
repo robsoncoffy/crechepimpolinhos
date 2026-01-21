@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
+import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -630,8 +631,11 @@ export default function TeacherDashboard() {
         </CardContent>
       </Card>
 
-      {/* Quick Post Creator */}
-      <QuickPostCreator defaultClassType={assignment?.class_type} />
+      {/* Mini Calendar + Quick Post Creator */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <MiniCalendar />
+        <QuickPostCreator defaultClassType={assignment?.class_type} />
+      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

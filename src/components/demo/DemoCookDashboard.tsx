@@ -25,6 +25,7 @@ import {
   Clock,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoMiniCalendar } from "./DemoMiniCalendar";
 
 // Mock children with dietary info
 const mockChildren = [
@@ -481,6 +482,9 @@ export function DemoCookDashboard() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Mini Calendar */}
+        <DemoMiniCalendar />
       </main>
     </div>
   );

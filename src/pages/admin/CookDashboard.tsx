@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { UtensilsCrossed, ChevronRight, AlertTriangle, Baby, Clock } from "lucide-react";
+import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 
 interface ChildWithAllergy {
   id: string;
@@ -223,6 +224,9 @@ export default function CookDashboard() {
           </Link>
         </CardContent>
       </Card>
+
+      {/* Mini Calendar */}
+      <MiniCalendar />
     </div>
   );
 }

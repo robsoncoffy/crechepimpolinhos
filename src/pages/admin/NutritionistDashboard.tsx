@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { UtensilsCrossed, ChevronRight, AlertTriangle, Calendar, Newspaper } from "lucide-react";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
+import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 
 export default function NutritionistDashboard() {
   const { profile } = useAuth();
@@ -117,8 +118,11 @@ export default function NutritionistDashboard() {
         </CardContent>
       </Card>
 
-      {/* Quick Post Creator */}
-      <QuickPostCreator />
+      {/* Mini Calendar + Quick Post Creator */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <MiniCalendar />
+        <QuickPostCreator />
+      </div>
 
       {/* Team Chat Preview */}
       <Card>
