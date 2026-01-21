@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoWeatherHeader } from "./DemoWeatherHeader";
 
 // Mock children for the class with photos and pickup notifications
 const mockChildren = [
@@ -179,13 +180,21 @@ export function DemoTeacherDashboard() {
 
       {/* Content */}
       <main className="container py-6 max-w-5xl">
-        <div className="mb-6">
-          <h1 className="font-fredoka text-2xl sm:text-3xl font-bold">
-            Olá, Professora Ana! 👋
-          </h1>
-          <p className="text-muted-foreground">
-            Turma Maternal • {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
+        {/* Header with Weather */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4 mb-6">
+          <div className="shrink-0">
+            <h1 className="font-fredoka text-2xl sm:text-3xl font-bold">
+              Olá, Professora Ana! 👋
+            </h1>
+            <p className="text-muted-foreground">
+              Turma Maternal • {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+          </div>
+          
+          {/* Weather Widget */}
+          <div className="flex-1 min-w-0">
+            <DemoWeatherHeader />
+          </div>
         </div>
 
         {/* Quick Stats */}
