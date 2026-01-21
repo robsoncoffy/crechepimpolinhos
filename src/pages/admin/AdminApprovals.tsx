@@ -40,8 +40,8 @@ type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type ChildRegistration = Database["public"]["Tables"]["child_registrations"]["Row"];
 
-interface PendingParent extends Profile {
-  email?: string;
+interface PendingParent extends Omit<Profile, 'email'> {
+  email?: string | null;
 }
 
 interface AuthorizedPickup {
@@ -440,18 +440,17 @@ export default function AdminApprovals() {
         console.error("Error sending approval email:", emailError);
       }
 
-      // Fetch parent profile for contract preview
+      // Fetch parent profile for contract preview (including email now)
       const { data: parentProfile } = await supabase
         .from("profiles")
-        .select("full_name, cpf, rg, phone")
+        .select("full_name, cpf, rg, phone, email")
         .eq("user_id", selectedRegistration.parent_id)
         .single();
 
-      // Fetch parent's email from auth via edge function or parent_invites
-      // Since we can't query auth.users directly, we use parent_invites which has the email
-      let parentEmail = selectedRegistration.parent_email || '';
+      // Get email from profile first, then fallback to parent_invites
+      let parentEmail = parentProfile?.email || selectedRegistration.parent_email || '';
       
-      // If email not in parent_invites, try to get it from parent_invites again by used_by
+      // If email still not found, try to get it from parent_invites by used_by
       if (!parentEmail) {
         const { data: inviteData } = await supabase
           .from("parent_invites")
