@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DashboardViewToggle } from "./DashboardViewToggle";
+import { Button } from "@/components/ui/button";
+import { useDashboardView } from "@/hooks/useDashboardView";
 
 // Menu items organized by category with role restrictions
 // roles: which roles can see this item (empty = all staff)
@@ -208,6 +210,7 @@ export function AdminSidebar() {
     isPedagogue,
     isAuxiliar
   } = useAuth();
+  const { canToggle, specializedRole, currentView, toggleView } = useDashboardView();
   const {
     state
   } = useSidebar();
@@ -243,6 +246,22 @@ export function AdminSidebar() {
   const filteredFinanceHr = financeHrItems.filter(item => canSeeItem(item.roles));
   const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
   const roleLabel = getRoleLabel();
+
+  const showHeaderToggle =
+    canToggle && (specializedRole === "nutritionist" || specializedRole === "pedagogue");
+
+  const nextViewLabel = (() => {
+    if (!showHeaderToggle) return null;
+    const specializedLabel = specializedRole === "nutritionist" ? "Painel Nutricionista" : "Painel Pedagoga";
+    return currentView === "admin" ? specializedLabel : "Painel Administração";
+  })();
+
+  const handleHeaderToggle = () => {
+    if (!showHeaderToggle) return;
+    toggleView();
+    // As dashboards especializadas vivem na rota raiz do painel
+    navigate("/painel");
+  };
 
   // Helper component for rendering menu sections
   const renderMenuSection = (items: typeof dashboardItems, label: string) => {
@@ -290,22 +309,56 @@ export function AdminSidebar() {
       <SidebarContent>
         {/* User Info */}
         <SidebarGroup className="pb-2">
-          <div className={cn("flex items-center gap-3 px-2 py-2", isCollapsed && "justify-center")}>
-            <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
-                {profile?.full_name?.charAt(0).toUpperCase() || "A"}
-              </AvatarFallback>
-            </Avatar>
-            {!isCollapsed && <div className="flex flex-col min-w-0">
-                <span className="text-sm font-semibold text-sidebar-foreground truncate">
-                  {profile?.full_name || "Administrador"}
-                </span>
-                <span className="text-xs text-sidebar-foreground/70">
-                  {roleLabel}
-                </span>
-              </div>}
-          </div>
+          {showHeaderToggle ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleHeaderToggle}
+              className={cn(
+                "w-full h-auto px-2 py-2 justify-start gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/30 hover:bg-sidebar-accent/60",
+                isCollapsed && "justify-center"
+              )}
+            >
+              <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
+                  {profile?.full_name?.charAt(0).toUpperCase() || "A"}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <div className="flex flex-col min-w-0 flex-1 text-left">
+                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
+                    {profile?.full_name || "Usuário"}
+                  </span>
+                  <span className="text-xs text-sidebar-foreground/70 truncate">
+                    Alternar para: {nextViewLabel}
+                  </span>
+                </div>
+              )}
+              {!isCollapsed && (
+                <Badge variant="outline" className="text-[10px] px-1.5">
+                  {currentView === "admin" ? "Admin" : "Especial"}
+                </Badge>
+              )}
+            </Button>
+          ) : (
+            <div className={cn("flex items-center gap-3 px-2 py-2", isCollapsed && "justify-center")}>
+              <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
+                  {profile?.full_name?.charAt(0).toUpperCase() || "A"}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
+                    {profile?.full_name || "Administrador"}
+                  </span>
+                  <span className="text-xs text-sidebar-foreground/70">{roleLabel}</span>
+                </div>
+              )}
+            </div>
+          )}
         </SidebarGroup>
 
         {/* Categorized Navigation */}
@@ -318,9 +371,11 @@ export function AdminSidebar() {
         {renderMenuSection(filteredSettings, "Configurações")}
         
         {/* Dashboard View Toggle - For users with admin + specialized role */}
-        <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
-          <DashboardViewToggle isCollapsed={isCollapsed} />
-        </SidebarGroup>
+        {!showHeaderToggle && (
+          <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
+            <DashboardViewToggle isCollapsed={isCollapsed} />
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       {/* Footer */}
