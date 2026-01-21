@@ -76,7 +76,17 @@ serve(async (req) => {
       .replace(/^Token\s+/i, "")
       .trim();
 
+    // Some users accidentally paste multiple tokens together. Try all UUID-looking tokens if present.
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+    const uuidMatches = zapsignToken.match(uuidRegex) ?? [];
+    // Always try the raw token first (some tokens may not be UUIDs or may include extra segments),
+    // then try any UUID-looking segments extracted from it.
+    const tokenCandidates = Array.from(
+      new Set([zapsignToken, ...uuidMatches].map((t) => t.trim()).filter(Boolean)),
+    );
+
     console.log("ZapSign token loaded (len):", zapsignToken.length);
+    console.log("ZapSign token candidates:", tokenCandidates.length);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -358,10 +368,13 @@ CNPJ: ${COMPANY_DATA.cnpj}
 
     // Step 1: Create document in ZapSign with signer included
     console.log("Creating document in ZapSign...");
-    // Some ZapSign setups accept the token only via Authorization header, others also via query param.
+    // Some setups accept the token only via Authorization header, others also via query param.
     // We send both to maximize compatibility.
-    const createDocUrl = new URL(`${ZAPSIGN_API_URL}/docs/`);
-    createDocUrl.searchParams.set('api_token', zapsignToken);
+    const buildCreateDocUrl = (token: string) => {
+      const url = new URL(`${ZAPSIGN_API_URL}/docs/`);
+      url.searchParams.set('api_token', token);
+      return url.toString();
+    };
 
     const createDocPayload = {
       name: `Contrato de Matrícula - ${childName}`,
@@ -388,8 +401,8 @@ CNPJ: ${COMPANY_DATA.cnpj}
       ],
     };
 
-    const doCreateDocRequest = async (authorizationValue: string) =>
-      await fetch(createDocUrl.toString(), {
+    const doCreateDocRequest = async (authorizationValue: string, tokenForQuery: string) =>
+      await fetch(buildCreateDocUrl(tokenForQuery), {
         method: 'POST',
         headers: {
           'Authorization': authorizationValue,
@@ -399,27 +412,42 @@ CNPJ: ${COMPANY_DATA.cnpj}
         body: JSON.stringify(createDocPayload),
       });
 
-    // ZapSign docs say "Authorization: Bearer <api_token>".
-    // We also retry with raw token (some accounts/environment setups accept it without prefix).
-    let createDocResponse = await doCreateDocRequest(`Bearer ${zapsignToken}`);
+    const tryCreateDocWithToken = async (candidateToken: string): Promise<{ ok: true; response: Response } | { ok: false; errorText: string }> => {
+      // ZapSign docs say "Authorization: Bearer <api_token>".
+      // We also retry with raw token (some setups accept it without prefix).
+      let resp = await doCreateDocRequest(`Bearer ${candidateToken}`, candidateToken);
+      if (resp.ok) return { ok: true, response: resp };
 
-    if (!createDocResponse.ok) {
-      const errorText = await createDocResponse.text();
-      const shouldRetry = /API token not found/i.test(errorText) || /Token da API n[aã]o encontrado/i.test(errorText);
+      const errorText = await resp.text();
+      const shouldRetryRaw = /API token not found/i.test(errorText) || /Token da API n[aã]o encontrado/i.test(errorText);
 
-      if (shouldRetry) {
+      if (shouldRetryRaw) {
         console.warn("ZapSign auth failed with Bearer prefix; retrying with raw token...");
-        createDocResponse = await doCreateDocRequest(zapsignToken);
-      } else {
-        console.error("ZapSign create doc error:", errorText);
-        throw new Error(`Failed to create document in ZapSign: ${errorText}`);
+        resp = await doCreateDocRequest(candidateToken, candidateToken);
+        if (resp.ok) return { ok: true, response: resp };
+        const errorText2 = await resp.text();
+        return { ok: false, errorText: errorText2 };
       }
+
+      return { ok: false, errorText };
+    };
+
+    let createDocResponse: Response | null = null;
+    let lastCreateErrorText = "";
+
+    for (const candidateToken of tokenCandidates) {
+      const result = await tryCreateDocWithToken(candidateToken);
+      if (result.ok) {
+        createDocResponse = result.response;
+        break;
+      }
+
+      lastCreateErrorText = result.errorText;
     }
 
-    if (!createDocResponse.ok) {
-      const errorText = await createDocResponse.text();
-      console.error("ZapSign create doc error:", errorText);
-      throw new Error(`Failed to create document in ZapSign: ${errorText}`);
+    if (!createDocResponse) {
+      console.error("ZapSign create doc error:", lastCreateErrorText);
+      throw new Error(`Failed to create document in ZapSign: ${lastCreateErrorText}`);
     }
 
     const docData = await createDocResponse.json();
