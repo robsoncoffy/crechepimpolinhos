@@ -20,7 +20,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval, subWeeks } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, parseISO, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   TrendingUp, 
@@ -34,28 +34,31 @@ import {
 } from "lucide-react";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 
-interface Invoice {
+interface AsaasPayment {
   id: string;
-  child_id: string;
-  parent_id: string;
-  description: string;
+  asaas_id: string;
+  asaas_customer_id: string;
   value: number;
   due_date: string;
-  status: string;
   payment_date: string | null;
-  created_at: string;
-  children?: { full_name: string };
+  status: string;
+  description: string | null;
 }
 
-interface Subscription {
+interface AsaasSubscription {
   id: string;
-  child_id: string;
-  parent_id: string;
+  asaas_id: string;
+  asaas_customer_id: string;
   value: number;
-  billing_day: number;
+  next_due_date: string | null;
   status: string;
-  created_at: string;
-  children?: { full_name: string };
+  description: string | null;
+}
+
+interface AsaasCustomer {
+  id: string;
+  asaas_id: string;
+  name: string;
 }
 
 interface MonthlyCost {
@@ -66,17 +69,17 @@ interface MonthlyCost {
 }
 
 interface WeeklyCashFlowTabProps {
-  invoices: Invoice[];
-  subscriptions: Subscription[];
+  asaasPayments: AsaasPayment[];
+  asaasSubscriptions: AsaasSubscription[];
+  asaasCustomers: AsaasCustomer[];
 }
 
-const WEEK_COUNT = 12; // Show 12 weeks projection
+const WEEK_COUNT = 12;
 
-export default function WeeklyCashFlowTab({ invoices, subscriptions }: WeeklyCashFlowTabProps) {
+export default function WeeklyCashFlowTab({ asaasPayments, asaasSubscriptions, asaasCustomers }: WeeklyCashFlowTabProps) {
   const { getSetting } = useSystemSettings();
   const [weekOffset, setWeekOffset] = useState(0);
   
-  // Get monthly costs and calculate weekly costs
   const monthlyCosts = useMemo(() => {
     const costsJson = getSetting("monthly_costs");
     if (costsJson) {
@@ -93,7 +96,16 @@ export default function WeeklyCashFlowTab({ invoices, subscriptions }: WeeklyCas
     return monthlyCosts.reduce((sum, cost) => sum + cost.value, 0);
   }, [monthlyCosts]);
 
-  const weeklyFixedCost = totalMonthlyCosts / 4; // Approximate weekly cost
+  const weeklyFixedCost = totalMonthlyCosts / 4;
+
+  // Map asaas_id to customer name
+  const customerNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of asaasCustomers) {
+      map.set(c.asaas_id, c.name);
+    }
+    return map;
+  }, [asaasCustomers]);
 
   // Calculate weekly data
   const weeklyData = useMemo(() => {
@@ -106,71 +118,60 @@ export default function WeeklyCashFlowTab({ invoices, subscriptions }: WeeklyCas
       balance: number;
       pending: number;
       expectedEntries: number;
-      invoiceDetails: Array<{ description: string; value: number; status: string; childName: string }>;
+      paymentDetails: Array<{ description: string; value: number; status: string; customerName: string }>;
     }> = [];
 
     const today = new Date();
     const baseWeekStart = startOfWeek(addWeeks(today, weekOffset), { weekStartsOn: 1 });
 
-    // Generate weeks
     for (let i = 0; i < WEEK_COUNT; i++) {
       const weekStart = addWeeks(baseWeekStart, i);
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
       
       const label = `${format(weekStart, "dd/MM", { locale: ptBR })} - ${format(weekEnd, "dd/MM", { locale: ptBR })}`;
 
-      // Calculate entries (paid invoices in this week)
       let entries = 0;
       let pending = 0;
       let expectedEntries = 0;
-      const invoiceDetails: Array<{ description: string; value: number; status: string; childName: string }> = [];
+      const paymentDetails: Array<{ description: string; value: number; status: string; customerName: string }> = [];
 
-      invoices.forEach((invoice) => {
-        const dueDate = parseISO(invoice.due_date);
+      asaasPayments.forEach((payment) => {
+        const dueDate = parseISO(payment.due_date);
         
         if (isWithinInterval(dueDate, { start: weekStart, end: weekEnd })) {
-          const value = Number(invoice.value);
+          const value = Number(payment.value);
+          const isPaid = payment.status === "paid" || payment.status === "RECEIVED" || payment.status === "CONFIRMED";
+          const isPending = payment.status === "pending" || payment.status === "PENDING";
+          const isOverdue = payment.status === "overdue" || payment.status === "OVERDUE";
           
-          if (invoice.status === "paid") {
+          if (isPaid) {
             entries += value;
-          } else if (invoice.status === "pending") {
+          } else if (isPending) {
             pending += value;
-            expectedEntries += value * 0.85; // 85% expected payment rate
-          } else if (invoice.status === "overdue") {
-            expectedEntries += value * 0.3; // 30% recovery rate for overdue
+            expectedEntries += value * 0.85;
+          } else if (isOverdue) {
+            expectedEntries += value * 0.3;
           }
 
-          invoiceDetails.push({
-            description: invoice.description,
+          paymentDetails.push({
+            description: payment.description || "Pagamento",
             value,
-            status: invoice.status,
-            childName: invoice.children?.full_name || "—",
+            status: payment.status,
+            customerName: customerNameMap.get(payment.asaas_customer_id) || "—",
           });
         }
       });
 
-      // Add expected from subscriptions (approximate based on billing day)
-      subscriptions.filter(s => s.status === "active").forEach((sub) => {
-        // Check if billing day falls within this week
-        const billingDay = sub.billing_day;
-        const weekStartDay = weekStart.getDate();
-        const weekEndDay = weekEnd.getDate();
-        
-        // Simple check - if week spans month boundary or includes billing day
-        const monthOfWeekStart = weekStart.getMonth();
-        const monthOfWeekEnd = weekEnd.getMonth();
-        
-        if (monthOfWeekStart !== monthOfWeekEnd) {
-          // Week spans month boundary - include if billing day is in either range
-          if (billingDay >= weekStartDay || billingDay <= weekEndDay) {
+      // Add expected from subscriptions
+      asaasSubscriptions.filter(s => s.status === "active" || s.status === "ACTIVE").forEach((sub) => {
+        if (sub.next_due_date) {
+          const nextDue = parseISO(sub.next_due_date);
+          if (isWithinInterval(nextDue, { start: weekStart, end: weekEnd })) {
             expectedEntries += Number(sub.value) * 0.85;
           }
-        } else if (billingDay >= weekStartDay && billingDay <= weekEndDay) {
-          expectedEntries += Number(sub.value) * 0.85;
         }
       });
 
-      // Exits are fixed weekly costs
       const exits = weeklyFixedCost;
 
       weeks.push({
@@ -182,14 +183,13 @@ export default function WeeklyCashFlowTab({ invoices, subscriptions }: WeeklyCas
         balance: entries + expectedEntries - exits,
         pending,
         expectedEntries,
-        invoiceDetails,
+        paymentDetails,
       });
     }
 
     return weeks;
-  }, [invoices, subscriptions, weeklyFixedCost, weekOffset]);
+  }, [asaasPayments, asaasSubscriptions, customerNameMap, weeklyFixedCost, weekOffset]);
 
-  // Calculate summary stats
   const stats = useMemo(() => {
     const totalEntries = weeklyData.reduce((sum, w) => sum + w.entries, 0);
     const totalExpected = weeklyData.reduce((sum, w) => sum + w.expectedEntries, 0);
@@ -206,7 +206,6 @@ export default function WeeklyCashFlowTab({ invoices, subscriptions }: WeeklyCas
     };
   }, [weeklyData]);
 
-  // Chart data
   const chartData = useMemo(() => {
     let cumulativeBalance = 0;
     

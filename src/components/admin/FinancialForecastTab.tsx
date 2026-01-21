@@ -27,62 +27,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
-  AreaChart,
-  Area,
+  Line,
 } from "recharts";
 import { format, addMonths, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
-  Calendar,
   Plus,
   Trash2,
   Calculator,
   PiggyBank,
   Receipt,
-  Users,
   AlertTriangle,
 } from "lucide-react";
 import { useSystemSettings } from "@/hooks/useSystemSettings";
 import { toast } from "sonner";
 
-interface Invoice {
+interface AsaasPayment {
   id: string;
-  child_id: string;
-  parent_id: string;
-  description: string;
   value: number;
-  due_date: string;
   status: string;
+  due_date: string;
   payment_date: string | null;
-  created_at: string;
-  children?: { full_name: string };
 }
 
-interface Subscription {
+interface AsaasSubscription {
   id: string;
-  child_id: string;
-  parent_id: string;
   value: number;
-  billing_day: number;
   status: string;
-  created_at: string;
-  children?: { full_name: string };
+  next_due_date: string | null;
 }
 
 interface FinancialForecastTabProps {
-  invoices: Invoice[];
-  subscriptions: Subscription[];
+  asaasPayments: AsaasPayment[];
+  asaasSubscriptions: AsaasSubscription[];
 }
 
 interface MonthlyCost {
@@ -103,12 +90,11 @@ const COST_CATEGORIES = [
   { value: "outros", label: "Outros" },
 ];
 
-export default function FinancialForecastTab({ invoices, subscriptions }: FinancialForecastTabProps) {
+export default function FinancialForecastTab({ asaasPayments, asaasSubscriptions }: FinancialForecastTabProps) {
   const { getSetting, updateSetting } = useSystemSettings();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newCost, setNewCost] = useState({ name: "", value: "", category: "outros" });
 
-  // Load monthly costs from settings
   const monthlyCosts: MonthlyCost[] = useMemo(() => {
     const saved = getSetting("monthly_costs");
     if (saved) {
@@ -149,21 +135,27 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
     toast.success("Custo removido!");
   };
 
-  // Calculate totals
   const totalMonthlyCosts = monthlyCosts.reduce((sum, c) => sum + c.value, 0);
 
-  // Active subscriptions revenue (monthly recurring)
-  const activeSubscriptions = subscriptions.filter((s) => s.status === "active");
+  // Active subscriptions revenue
+  const activeSubscriptions = asaasSubscriptions.filter((s) => s.status === "active" || s.status === "ACTIVE");
   const monthlyRecurringRevenue = activeSubscriptions.reduce((sum, s) => sum + Number(s.value), 0);
 
-  // Pending invoices (expected revenue)
-  const pendingInvoices = invoices.filter((i) => i.status === "pending" || i.status === "overdue");
-  const pendingRevenue = pendingInvoices.reduce((sum, i) => sum + Number(i.value), 0);
+  // Pending payments (expected revenue)
+  const pendingPayments = asaasPayments.filter((p) => 
+    p.status === "pending" || p.status === "PENDING" || 
+    p.status === "overdue" || p.status === "OVERDUE"
+  );
+  const pendingRevenue = pendingPayments.reduce((sum, p) => sum + Number(p.value), 0);
 
-  // Historical payment rate (for forecast accuracy)
-  const paidInvoices = invoices.filter((i) => i.status === "paid");
-  const allInvoices = invoices.filter((i) => i.status !== "cancelled");
-  const paymentRate = allInvoices.length > 0 ? (paidInvoices.length / allInvoices.length) * 100 : 85;
+  // Historical payment rate
+  const paidPayments = asaasPayments.filter((p) => 
+    p.status === "paid" || p.status === "RECEIVED" || p.status === "CONFIRMED"
+  );
+  const allValidPayments = asaasPayments.filter((p) => 
+    p.status !== "cancelled" && p.status !== "CANCELLED"
+  );
+  const paymentRate = allValidPayments.length > 0 ? (paidPayments.length / allValidPayments.length) * 100 : 85;
 
   // Generate 6-month forecast
   const forecastData = useMemo(() => {
@@ -174,15 +166,10 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
       const month = addMonths(startOfMonth(now), i);
       const monthLabel = format(month, "MMM/yy", { locale: ptBR });
 
-      // Expected revenue: recurring + pending (adjusted by payment rate)
       const expectedRecurring = monthlyRecurringRevenue;
       const expectedPending = i === 0 ? pendingRevenue * (paymentRate / 100) : 0;
       const totalExpectedRevenue = expectedRecurring + expectedPending;
-
-      // Costs remain constant
       const costs = totalMonthlyCosts;
-
-      // Net result
       const netResult = totalExpectedRevenue - costs;
 
       data.push({
@@ -196,7 +183,6 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
     return data;
   }, [monthlyRecurringRevenue, pendingRevenue, paymentRate, totalMonthlyCosts]);
 
-  // Monthly profit/loss
   const monthlyNetResult = monthlyRecurringRevenue - totalMonthlyCosts;
 
   const formatCurrency = (value: number) => {
@@ -219,7 +205,6 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
     return null;
   };
 
-  // Group costs by category
   const costsByCategory = useMemo(() => {
     const grouped: Record<string, number> = {};
     monthlyCosts.forEach((cost) => {
@@ -267,7 +252,7 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
                   {formatCurrency(pendingRevenue)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {pendingInvoices.length} faturas pendentes
+                  {pendingPayments.length} cobranças pendentes
                 </p>
               </div>
             </div>
@@ -487,7 +472,7 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
                             {COST_CATEGORIES.find((c) => c.value === cost.category)?.label || cost.category}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right text-red-600 dark:text-red-500">
+                        <TableCell className="text-right text-red-600">
                           {formatCurrency(cost.value)}
                         </TableCell>
                         <TableCell>
@@ -495,7 +480,7 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
                             variant="ghost"
                             size="icon"
                             onClick={() => removeCost(cost.id)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -504,11 +489,9 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
                     ))}
                   </TableBody>
                 </Table>
-                <div className="flex justify-between items-center pt-2 border-t">
+                <div className="flex justify-between pt-2 border-t">
                   <span className="font-medium">Total Mensal</span>
-                  <span className="text-lg font-bold text-red-600 dark:text-red-500">
-                    {formatCurrency(totalMonthlyCosts)}
-                  </span>
+                  <span className="font-bold text-red-600">{formatCurrency(totalMonthlyCosts)}</span>
                 </div>
               </div>
             )}
@@ -519,87 +502,36 @@ export default function FinancialForecastTab({ invoices, subscriptions }: Financ
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              <CardTitle className="text-lg">Detalhamento de Receita</CardTitle>
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Composição da Receita</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {/* Active Subscriptions */}
-              <div>
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
-                  Assinaturas Ativas ({activeSubscriptions.length})
-                </h4>
-                {activeSubscriptions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhuma assinatura ativa</p>
-                ) : (
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {activeSubscriptions.slice(0, 10).map((sub) => (
-                      <div key={sub.id} className="flex justify-between items-center text-sm p-2 rounded bg-muted/50">
-                        <span>{sub.children?.full_name || "—"}</span>
-                        <span className="font-medium text-green-600 dark:text-green-500">
-                          {formatCurrency(Number(sub.value))}
-                        </span>
-                      </div>
-                    ))}
-                    {activeSubscriptions.length > 10 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        + {activeSubscriptions.length - 10} outras assinaturas
-                      </p>
-                    )}
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg border bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Assinaturas Ativas</p>
+                    <p className="text-lg font-bold text-green-600">{activeSubscriptions.length}</p>
                   </div>
-                )}
+                  <p className="text-xl font-bold text-green-600">
+                    {formatCurrency(monthlyRecurringRevenue)}
+                  </p>
+                </div>
               </div>
 
-              {/* Costs by Category */}
-              {costsByCategory.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <TrendingDown className="w-4 h-4 text-red-600" />
-                    Custos por Categoria
-                  </h4>
-                  <div className="space-y-2">
-                    {costsByCategory.map((cat) => (
-                      <div key={cat.category} className="flex justify-between items-center text-sm">
-                        <span>{cat.label}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-red-500"
-                              style={{ width: `${(cat.value / totalMonthlyCosts) * 100}%` }}
-                            />
-                          </div>
-                          <span className="font-medium text-red-600 dark:text-red-500 w-24 text-right">
-                            {formatCurrency(cat.value)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Summary */}
-              <div className="pt-4 border-t space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Receita Recorrente</span>
-                  <span className="text-green-600 dark:text-green-500 font-medium">
-                    +{formatCurrency(monthlyRecurringRevenue)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Custos Fixos</span>
-                  <span className="text-red-600 dark:text-red-500 font-medium">
-                    -{formatCurrency(totalMonthlyCosts)}
-                  </span>
-                </div>
-                <div className="flex justify-between font-bold pt-2 border-t">
-                  <span>Resultado Previsto</span>
-                  <span className={monthlyNetResult >= 0 ? "text-green-600 dark:text-green-500" : "text-red-600 dark:text-red-500"}>
-                    {monthlyNetResult >= 0 ? "+" : ""}{formatCurrency(monthlyNetResult)}
-                  </span>
-                </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Custos por Categoria</p>
+                {costsByCategory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum custo cadastrado</p>
+                ) : (
+                  costsByCategory.map((cat) => (
+                    <div key={cat.category} className="flex items-center justify-between py-2 border-b">
+                      <span className="text-sm">{cat.label}</span>
+                      <span className="text-sm font-medium text-red-600">{formatCurrency(cat.value)}</span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>

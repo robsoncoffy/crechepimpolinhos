@@ -751,38 +751,51 @@ export default function AdminPayments() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-pimpo-blue" />
                 </div>
-              ) : subscriptions.length === 0 ? (
+              ) : asaasSubscriptions.length === 0 && subscriptions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Repeat className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p>Nenhuma assinatura encontrada</p>
+                  <p>Nenhuma assinatura encontrada. Clique em "Importar do Asaas" para sincronizar.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Criança</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Valor Mensal</TableHead>
-                      <TableHead>Dia Vencimento</TableHead>
+                      <TableHead>Próximo Vencimento</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {subscriptions.map((sub) => (
-                      <TableRow key={sub.id}>
-                        <TableCell className="font-medium">
-                          {sub.children?.full_name || "—"}
-                        </TableCell>
-                        <TableCell>
-                          R$ {Number(sub.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>Dia {sub.billing_day}</TableCell>
-                        <TableCell>
-                          <Badge variant={sub.status === "active" ? "default" : "secondary"}>
-                            {sub.status === "active" ? "Ativa" : "Inativa"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {(asaasSubscriptions.length > 0 ? asaasSubscriptions : []).map((sub) => {
+                      const status = statusConfig[sub.status] || statusConfig.active;
+                      const StatusIcon = status.icon;
+                      
+                      return (
+                        <TableRow key={sub.id}>
+                          <TableCell className="font-medium">
+                            {getCustomerName(sub.asaas_customer_id)}
+                            {!sub.linked_parent_id && (
+                              <Badge variant="outline" className="ml-2 text-xs">Não vinculado</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{sub.description || "Mensalidade"}</TableCell>
+                          <TableCell>
+                            R$ {Number(sub.value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>
+                            {sub.next_due_date ? format(new Date(sub.next_due_date), "dd/MM/yyyy") : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${status.color} text-white gap-1`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {status.label}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -791,19 +804,29 @@ export default function AdminPayments() {
         </TabsContent>
 
         <TabsContent value="movements" className="mt-4">
-          <FinancialMovementsTab invoices={invoices} />
+          <FinancialMovementsTab 
+            asaasPayments={asaasPayments} 
+            asaasCustomers={asaasCustomers}
+          />
         </TabsContent>
 
         <TabsContent value="cashflow" className="mt-4">
-          <WeeklyCashFlowTab invoices={invoices} subscriptions={subscriptions} />
+          <WeeklyCashFlowTab 
+            asaasPayments={asaasPayments}
+            asaasSubscriptions={asaasSubscriptions}
+            asaasCustomers={asaasCustomers}
+          />
         </TabsContent>
 
         <TabsContent value="forecast" className="mt-4">
-          <FinancialForecastTab invoices={invoices} subscriptions={subscriptions} />
+          <FinancialForecastTab 
+            asaasPayments={asaasPayments}
+            asaasSubscriptions={asaasSubscriptions}
+          />
         </TabsContent>
 
         <TabsContent value="reports" className="mt-4">
-          <FinancialReportsTab invoices={invoices} />
+          <FinancialReportsTab asaasPayments={asaasPayments} />
         </TabsContent>
       </Tabs>
 

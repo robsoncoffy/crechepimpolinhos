@@ -509,7 +509,13 @@ export default function AdminReports() {
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
-            <FinancialReportsTab invoices={invoices} />
+            <FinancialReportsTab asaasPayments={invoices.map(inv => ({
+              id: inv.id,
+              value: inv.value,
+              status: inv.status,
+              due_date: inv.due_date,
+              payment_date: inv.payment_date
+            }))} />
           )}
         </TabsContent>
       </Tabs>

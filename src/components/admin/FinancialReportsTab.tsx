@@ -19,44 +19,58 @@ import { format, subMonths, startOfMonth, endOfMonth, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale";
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, PieChartIcon, BarChart3 } from "lucide-react";
 
-interface Invoice {
+interface AsaasPayment {
   id: string;
-  child_id: string;
-  parent_id: string;
-  description: string;
   value: number;
-  due_date: string;
   status: string;
+  due_date: string;
   payment_date: string | null;
-  created_at: string;
 }
 
 interface FinancialReportsTabProps {
-  invoices: Invoice[];
+  asaasPayments: AsaasPayment[];
 }
 
-const COLORS = {
+const COLORS: Record<string, string> = {
   paid: "#22c55e",
+  RECEIVED: "#22c55e",
+  CONFIRMED: "#22c55e",
   pending: "#eab308",
+  PENDING: "#eab308",
   overdue: "#ef4444",
+  OVERDUE: "#ef4444",
   cancelled: "#6b7280",
+  CANCELLED: "#6b7280",
   refunded: "#a855f7",
+  REFUNDED: "#a855f7",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   paid: "Pago",
+  RECEIVED: "Pago",
+  CONFIRMED: "Pago",
   pending: "Pendente",
+  PENDING: "Pendente",
   overdue: "Vencido",
+  OVERDUE: "Vencido",
   cancelled: "Cancelado",
+  CANCELLED: "Cancelado",
   refunded: "Estornado",
+  REFUNDED: "Estornado",
 };
 
-export default function FinancialReportsTab({ invoices }: FinancialReportsTabProps) {
+export default function FinancialReportsTab({ asaasPayments }: FinancialReportsTabProps) {
+  // Normalize status
+  const normalizeStatus = (status: string) => {
+    const lowerStatus = status.toLowerCase();
+    if (lowerStatus === "received" || lowerStatus === "confirmed") return "paid";
+    return lowerStatus;
+  };
+
   // Calculate monthly revenue for the last 12 months
   const monthlyData = useMemo(() => {
     const months: Record<string, { month: string; receita: number; inadimplencia: number; pendente: number }> = {};
     
-    // Initialize last 12 months
     for (let i = 11; i >= 0; i--) {
       const date = subMonths(new Date(), i);
       const key = format(date, "yyyy-MM");
@@ -64,70 +78,73 @@ export default function FinancialReportsTab({ invoices }: FinancialReportsTabPro
       months[key] = { month: label, receita: 0, inadimplencia: 0, pendente: 0 };
     }
 
-    // Process invoices
-    invoices.forEach((invoice) => {
-      const dueDate = parseISO(invoice.due_date);
+    asaasPayments.forEach((payment) => {
+      const dueDate = parseISO(payment.due_date);
       const key = format(dueDate, "yyyy-MM");
       
       if (!months[key]) return;
 
-      const value = Number(invoice.value);
+      const value = Number(payment.value);
+      const status = normalizeStatus(payment.status);
       
-      if (invoice.status === "paid") {
+      if (status === "paid") {
         months[key].receita += value;
-      } else if (invoice.status === "overdue") {
+      } else if (status === "overdue") {
         months[key].inadimplencia += value;
-      } else if (invoice.status === "pending") {
+      } else if (status === "pending") {
         months[key].pendente += value;
       }
     });
 
     return Object.values(months);
-  }, [invoices]);
+  }, [asaasPayments]);
 
   // Status distribution for pie chart
   const statusDistribution = useMemo(() => {
     const distribution: Record<string, number> = {};
     
-    invoices.forEach((invoice) => {
-      const status = invoice.status;
-      distribution[status] = (distribution[status] || 0) + Number(invoice.value);
+    asaasPayments.forEach((payment) => {
+      const status = normalizeStatus(payment.status);
+      distribution[status] = (distribution[status] || 0) + Number(payment.value);
     });
 
     return Object.entries(distribution).map(([status, value]) => ({
       name: STATUS_LABELS[status] || status,
       value,
-      color: COLORS[status as keyof typeof COLORS] || "#6b7280",
+      color: COLORS[status] || "#6b7280",
     }));
-  }, [invoices]);
+  }, [asaasPayments]);
 
   // Calculate summary stats
   const stats = useMemo(() => {
-    const total = invoices.reduce((sum, i) => sum + Number(i.value), 0);
-    const paid = invoices.filter(i => i.status === "paid").reduce((sum, i) => sum + Number(i.value), 0);
-    const overdue = invoices.filter(i => i.status === "overdue").reduce((sum, i) => sum + Number(i.value), 0);
-    const pending = invoices.filter(i => i.status === "pending").reduce((sum, i) => sum + Number(i.value), 0);
+    const total = asaasPayments.reduce((sum, p) => sum + Number(p.value), 0);
+    const paid = asaasPayments.filter(p => normalizeStatus(p.status) === "paid").reduce((sum, p) => sum + Number(p.value), 0);
+    const overdue = asaasPayments.filter(p => normalizeStatus(p.status) === "overdue").reduce((sum, p) => sum + Number(p.value), 0);
+    const pending = asaasPayments.filter(p => normalizeStatus(p.status) === "pending").reduce((sum, p) => sum + Number(p.value), 0);
     
     const inadimplenciaRate = total > 0 ? (overdue / total) * 100 : 0;
     const recebimentoRate = total > 0 ? (paid / total) * 100 : 0;
 
-    // Current month vs last month
     const now = new Date();
     const currentMonthStart = startOfMonth(now);
     const lastMonthStart = startOfMonth(subMonths(now, 1));
     const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-    const currentMonthRevenue = invoices
-      .filter(i => i.status === "paid" && i.payment_date && parseISO(i.payment_date) >= currentMonthStart)
-      .reduce((sum, i) => sum + Number(i.value), 0);
+    const currentMonthRevenue = asaasPayments
+      .filter(p => {
+        if (normalizeStatus(p.status) !== "paid" || !p.payment_date) return false;
+        const paymentDate = parseISO(p.payment_date);
+        return paymentDate >= currentMonthStart;
+      })
+      .reduce((sum, p) => sum + Number(p.value), 0);
 
-    const lastMonthRevenue = invoices
-      .filter(i => {
-        if (i.status !== "paid" || !i.payment_date) return false;
-        const date = parseISO(i.payment_date);
+    const lastMonthRevenue = asaasPayments
+      .filter(p => {
+        if (normalizeStatus(p.status) !== "paid" || !p.payment_date) return false;
+        const date = parseISO(p.payment_date);
         return date >= lastMonthStart && date <= lastMonthEnd;
       })
-      .reduce((sum, i) => sum + Number(i.value), 0);
+      .reduce((sum, p) => sum + Number(p.value), 0);
 
     const growthRate = lastMonthRevenue > 0 
       ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 
@@ -144,7 +161,7 @@ export default function FinancialReportsTab({ invoices }: FinancialReportsTabPro
       lastMonthRevenue,
       growthRate,
     };
-  }, [invoices]);
+  }, [asaasPayments]);
 
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

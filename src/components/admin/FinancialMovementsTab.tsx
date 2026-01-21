@@ -32,21 +32,28 @@ import {
   DollarSign,
 } from "lucide-react";
 
-interface Invoice {
+interface AsaasPayment {
   id: string;
-  child_id: string;
-  parent_id: string;
-  description: string;
+  asaas_id: string;
+  asaas_customer_id: string;
   value: number;
   due_date: string;
-  status: string;
   payment_date: string | null;
-  created_at: string;
-  children?: { full_name: string };
+  status: string;
+  description: string | null;
+  linked_parent_id: string | null;
+  linked_child_id: string | null;
+}
+
+interface AsaasCustomer {
+  id: string;
+  asaas_id: string;
+  name: string;
 }
 
 interface FinancialMovementsTabProps {
-  invoices: Invoice[];
+  asaasPayments: AsaasPayment[];
+  asaasCustomers: AsaasCustomer[];
 }
 
 interface Movement {
@@ -56,8 +63,7 @@ interface Movement {
   description: string;
   value: number;
   status: string;
-  childName?: string;
-  paymentType?: string;
+  customerName?: string;
 }
 
 const PERIOD_OPTIONS = [
@@ -76,47 +82,56 @@ const TYPE_OPTIONS = [
   { value: "saida", label: "Saídas" },
 ];
 
-export default function FinancialMovementsTab({ invoices }: FinancialMovementsTabProps) {
+export default function FinancialMovementsTab({ asaasPayments, asaasCustomers }: FinancialMovementsTabProps) {
   const [period, setPeriod] = useState("month");
   const [typeFilter, setTypeFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // Convert invoices to movements
+  // Map asaas_id to customer name
+  const customerNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of asaasCustomers) {
+      map.set(c.asaas_id, c.name);
+    }
+    return map;
+  }, [asaasCustomers]);
+
+  // Convert asaas payments to movements
   const movements = useMemo((): Movement[] => {
     const result: Movement[] = [];
 
-    invoices.forEach((invoice) => {
+    asaasPayments.forEach((payment) => {
       // Payments received (entradas)
-      if (invoice.status === "paid" && invoice.payment_date) {
+      if ((payment.status === "paid" || payment.status === "RECEIVED" || payment.status === "CONFIRMED") && payment.payment_date) {
         result.push({
-          id: invoice.id,
-          date: invoice.payment_date,
+          id: payment.id,
+          date: payment.payment_date,
           type: "entrada",
-          description: invoice.description,
-          value: Number(invoice.value),
+          description: payment.description || "Pagamento recebido",
+          value: Number(payment.value),
           status: "confirmed",
-          childName: invoice.children?.full_name,
+          customerName: customerNameMap.get(payment.asaas_customer_id),
         });
       }
 
       // Refunds (saídas)
-      if (invoice.status === "refunded") {
+      if (payment.status === "refunded" || payment.status === "REFUNDED") {
         result.push({
-          id: `${invoice.id}-refund`,
-          date: invoice.payment_date || invoice.due_date,
+          id: `${payment.id}-refund`,
+          date: payment.payment_date || payment.due_date,
           type: "saida",
-          description: `Estorno: ${invoice.description}`,
-          value: Number(invoice.value),
+          description: `Estorno: ${payment.description || "Pagamento"}`,
+          value: Number(payment.value),
           status: "refunded",
-          childName: invoice.children?.full_name,
+          customerName: customerNameMap.get(payment.asaas_customer_id),
         });
       }
     });
 
     // Sort by date descending
     return result.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [invoices]);
+  }, [asaasPayments, customerNameMap]);
 
   // Apply filters
   const filteredMovements = useMemo(() => {
@@ -195,12 +210,12 @@ export default function FinancialMovementsTab({ invoices }: FinancialMovementsTa
   };
 
   const exportCSV = () => {
-    const headers = ["Data", "Tipo", "Descrição", "Criança", "Valor"];
+    const headers = ["Data", "Tipo", "Descrição", "Cliente", "Valor"];
     const rows = filteredMovements.map((m) => [
       format(parseISO(m.date), "dd/MM/yyyy"),
       m.type === "entrada" ? "Entrada" : "Saída",
       m.description,
-      m.childName || "-",
+      m.customerName || "-",
       m.value.toFixed(2).replace(".", ","),
     ]);
 
@@ -365,7 +380,7 @@ export default function FinancialMovementsTab({ invoices }: FinancialMovementsTa
                     <TableHead className="w-[50px]">Tipo</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
-                    <TableHead>Criança</TableHead>
+                    <TableHead>Cliente</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -383,7 +398,7 @@ export default function FinancialMovementsTab({ invoices }: FinancialMovementsTa
                         {format(parseISO(movement.date), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{movement.description}</TableCell>
-                      <TableCell>{movement.childName || "—"}</TableCell>
+                      <TableCell>{movement.customerName || "—"}</TableCell>
                       <TableCell className={`text-right font-medium ${
                         movement.type === "entrada" 
                           ? "text-green-600 dark:text-green-500" 
