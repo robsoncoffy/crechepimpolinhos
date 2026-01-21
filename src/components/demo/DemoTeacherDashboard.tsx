@@ -32,6 +32,9 @@ import {
   Car,
   AlertTriangle,
   UserCheck,
+  Sparkles,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
@@ -107,6 +110,126 @@ const moodOptions = [
   { value: "choroso", label: "😢 Choroso" },
   { value: "sonolento", label: "😴 Sonolento" },
 ];
+
+// Demo Quick Reply Suggestions Component
+function DemoQuickReplySuggestions({ 
+  messages, 
+  childName, 
+  onSelect 
+}: { 
+  messages: Array<{ isOwn: boolean; content: string }>; 
+  childName: string;
+  onSelect: (suggestion: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  // Get last parent message
+  const lastParentMessage = [...messages].reverse().find(m => !m.isOwn);
+  
+  const fetchSuggestions = async () => {
+    if (!lastParentMessage) return;
+    
+    setLoading(true);
+    
+    // Simulate AI call with demo suggestions based on the last message
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const content = lastParentMessage.content.toLowerCase();
+    let demoSuggestions: string[] = [];
+    
+    if (content.includes("suco") || content.includes("pode") || content.includes("laranja")) {
+      demoSuggestions = [
+        `Sim, ${childName} pode tomar suco! 🍊`,
+        `Vou verificar a ficha de alergias e confirmo!`,
+        `Claro! Daremos suco natural para ele(a). 😊`,
+      ];
+    } else if (content.includes("quieto") || content.includes("bem") || content.includes("casa")) {
+      demoSuggestions = [
+        `${childName} está bem! Só um pouco sonolento hoje. 😊`,
+        `Vou ficar de olho e te atualizo mais tarde!`,
+        `Está tudo bem! Ele(a) brincou normalmente. ❤️`,
+      ];
+    } else if (content.includes("remédio") || content.includes("medicamento")) {
+      demoSuggestions = [
+        `Anotado! Vou ficar atenta ao horário. 💊`,
+        `Obrigada por avisar! Cuidarei disso.`,
+        `Tudo certo, vou acompanhar durante o dia.`,
+      ];
+    } else if (content.includes("fralda") || content.includes("trocar")) {
+      demoSuggestions = [
+        `Entendido! Vou verificar com mais frequência. 👍`,
+        `Pode deixar, cuidarei disso!`,
+        `Ok! Ficarei atenta às trocas hoje.`,
+      ];
+    } else if (content.includes("dormiu") || content.includes("sono")) {
+      demoSuggestions = [
+        `Vou deixar ${childName} descansar mais se precisar. 😴`,
+        `Entendido! Vou observar e deixar sonequinha extra.`,
+        `Ok! Se precisar de um cochilo, eu aviso. 💤`,
+      ];
+    } else {
+      demoSuggestions = [
+        `Obrigada por avisar! Vou ficar atenta. 😊`,
+        `Entendido! Qualquer coisa te aviso.`,
+        `${childName} está ótimo(a) hoje! ❤️`,
+      ];
+    }
+    
+    setSuggestions(demoSuggestions);
+    setLoading(false);
+  };
+
+  if (!lastParentMessage || messages[messages.length - 1]?.isOwn) {
+    return null;
+  }
+
+  return (
+    <div className="px-3 py-2 border-t bg-muted/30">
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles className="w-4 h-4 text-primary" />
+        <span className="text-xs font-medium text-muted-foreground">Sugestões de resposta</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={fetchSuggestions}
+          disabled={loading}
+          className="h-6 px-2 text-xs ml-auto"
+        >
+          {loading ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : suggestions.length > 0 ? (
+            <RefreshCw className="w-3 h-3" />
+          ) : (
+            <>
+              <Sparkles className="w-3 h-3 mr-1" />
+              Gerar
+            </>
+          )}
+        </Button>
+      </div>
+      
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => {
+                onSelect(suggestion);
+                setSuggestions([]);
+              }}
+              className="text-xs px-3 py-1.5 bg-background border rounded-full hover:bg-accent transition-colors text-left"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function DemoTeacherDashboard() {
   const [activeTab, setActiveTab] = useState("agenda");
@@ -671,6 +794,26 @@ export function DemoTeacherDashboard() {
                               ))
                             )}
                           </div>
+                          
+                          {/* AI Quick Suggestions */}
+                          <DemoQuickReplySuggestions
+                            messages={chatMessages[selectedChatChild] || []}
+                            childName={mockChildren.find(c => c.id === selectedChatChild)?.name.split(" ")[0] || ""}
+                            onSelect={(suggestion) => {
+                              setChatMessage("");
+                              const newMessage = {
+                                id: `new-${Date.now()}`,
+                                content: suggestion,
+                                sender: "Prof. Ana",
+                                isOwn: true,
+                                time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                              };
+                              setChatMessages((prev) => ({
+                                ...prev,
+                                [selectedChatChild]: [...(prev[selectedChatChild] || []), newMessage],
+                              }));
+                            }}
+                          />
                           
                           {/* Input */}
                           <div className="p-3 border-t bg-background">
