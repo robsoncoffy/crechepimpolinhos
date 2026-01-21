@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
+import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   Car,
   UserCheck,
   Bell,
+  Newspaper,
 } from "lucide-react";
 import { toast } from "sonner";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
@@ -628,6 +630,9 @@ export default function TeacherDashboard() {
         </CardContent>
       </Card>
 
+      {/* Quick Post Creator */}
+      <QuickPostCreator defaultClassType={assignment?.class_type} />
+
       {/* Quick Actions */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
@@ -637,9 +642,9 @@ export default function TeacherDashboard() {
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
-          <Link to="/painel/chamada">
-            <Users className="w-5 h-5 text-pimpo-green" />
-            <span>Chamada</span>
+          <Link to="/painel/feed">
+            <Newspaper className="w-5 h-5 text-pimpo-green" />
+            <span>Feed da Escola</span>
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">

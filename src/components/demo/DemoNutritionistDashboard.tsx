@@ -37,6 +37,7 @@ import {
   Send,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 
 const daysOfWeek = [
   { value: 0, label: "Segunda-feira" },
@@ -422,6 +423,9 @@ export function DemoNutritionistDashboard() {
         </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Quick Post Creator */}
+        <DemoQuickPostCreator userName="Nutricionista Carla" userInitial="N" />
       </main>
     </div>
   );

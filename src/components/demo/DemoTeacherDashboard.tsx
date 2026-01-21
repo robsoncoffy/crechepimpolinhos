@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 import { DemoWeatherHeader } from "./DemoWeatherHeader";
 
 // Mock children for the class with photos and pickup notifications
@@ -974,6 +975,9 @@ export function DemoTeacherDashboard() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Quick Post Creator */}
+        <DemoQuickPostCreator userName="Prof. Ana" userInitial="P" defaultClassType="maternal" />
       </main>
     </div>
   );

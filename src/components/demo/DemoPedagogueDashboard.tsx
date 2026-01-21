@@ -35,6 +35,7 @@ import {
   BookMarked,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 
 const daysOfWeek = [
   { value: 0, label: "Segunda", fullLabel: "Segunda-feira" },
@@ -511,6 +512,9 @@ export function DemoPedagogueDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Quick Post Creator */}
+        <DemoQuickPostCreator userName="Pedagoga Lucia" userInitial="P" />
       </main>
     </div>
   );
