@@ -23,9 +23,40 @@ import {
   Salad,
   CheckCircle2,
   Clock,
+  MessageSquare,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
+
+// Staff chat message interface
+interface DemoMessage {
+  id: string;
+  content: string;
+  isOwn: boolean;
+  time: string;
+  sender: string;
+  isRead: boolean;
+}
+
+// Staff chat channel type
+type StaffChannel = "geral" | "cozinha" | "direcao";
+
+// Initial staff messages
+const initialStaffMessages: Record<StaffChannel, DemoMessage[]> = {
+  geral: [
+    { id: "s1", content: "Bom dia, equipe! Lembrem-se do cardápio especial hoje! 🍳", sender: "Diretora Maria", isOwn: false, time: "07:30", isRead: true },
+    { id: "s2", content: "Bom dia! Já estou preparando tudo!", sender: "Cozinheira Maria", isOwn: true, time: "07:35", isRead: true },
+  ],
+  cozinha: [
+    { id: "c1", content: "Maria, temos leite Aptamil suficiente para hoje?", sender: "Nutricionista Paula", isOwn: false, time: "08:00", isRead: false },
+    { id: "c2", content: "Sim! Chegou a entrega ontem, estamos abastecidos 👍", sender: "Cozinheira Maria", isOwn: true, time: "08:05", isRead: true },
+  ],
+  direcao: [
+    { id: "d1", content: "Maria, por favor anote: a Sofia não pode comer nada com glúten hoje.", sender: "Diretora Maria", isOwn: false, time: "09:00", isRead: false },
+  ],
+};
 
 // Mock children with dietary info
 const mockChildren = [
@@ -110,6 +141,49 @@ export function DemoCookDashboard() {
   const [activeTab, setActiveTab] = useState("refeicoes");
   const [children, setChildren] = useState(mockChildren);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+
+  // Staff chat states
+  const [selectedStaffChannel, setSelectedStaffChannel] = useState<StaffChannel>("geral");
+  const [staffChatMessage, setStaffChatMessage] = useState("");
+  const [staffMessages, setStaffMessages] = useState<Record<StaffChannel, DemoMessage[]>>(initialStaffMessages);
+
+  // Staff chat functions
+  const handleStaffChannelChange = (channel: StaffChannel) => {
+    setSelectedStaffChannel(channel);
+    setStaffMessages((prev) => ({
+      ...prev,
+      [channel]: prev[channel].map((msg) => msg.isOwn ? msg : { ...msg, isRead: true }),
+    }));
+  };
+
+  const handleSendStaffMessage = () => {
+    if (!staffChatMessage.trim()) return;
+    const newMessage: DemoMessage = {
+      id: `staff-${Date.now()}`,
+      content: staffChatMessage,
+      sender: "Cozinheira Maria",
+      isOwn: true,
+      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      isRead: false,
+    };
+    setStaffMessages((prev) => ({
+      ...prev,
+      [selectedStaffChannel]: [...prev[selectedStaffChannel], newMessage],
+    }));
+    setStaffChatMessage("");
+    setTimeout(() => {
+      setStaffMessages((prev) => ({
+        ...prev,
+        [selectedStaffChannel]: prev[selectedStaffChannel].map((msg) =>
+          msg.id === newMessage.id ? { ...msg, isRead: true } : msg
+        ),
+      }));
+    }, 2000);
+  };
+
+  const getStaffUnreadCount = (channel: StaffChannel) => {
+    return staffMessages[channel].filter((m) => !m.isOwn && !m.isRead).length;
+  };
 
   const filteredChildren = children.filter((child) => {
     const matchesSearch = child.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -245,10 +319,10 @@ export function DemoCookDashboard() {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="border-b bg-muted/30">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-3">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4">
                   <TabsTrigger value="refeicoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
                     <UtensilsCrossed className="w-4 h-4" />
-                    <span className="hidden sm:inline">Controle Refeições</span>
+                    <span className="hidden sm:inline">Refeições</span>
                     <span className="sm:hidden">Refeições</span>
                   </TabsTrigger>
                   <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
@@ -258,8 +332,18 @@ export function DemoCookDashboard() {
                   </TabsTrigger>
                   <TabsTrigger value="leites" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
                     <Milk className="w-4 h-4" />
-                    <span className="hidden sm:inline">Leites Especiais</span>
+                    <span className="hidden sm:inline">Leites</span>
                     <span className="sm:hidden">Leites</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">Equipe</span>
+                    <span className="sm:hidden">Chat</span>
+                    {(getStaffUnreadCount("geral") + getStaffUnreadCount("cozinha") + getStaffUnreadCount("direcao")) > 0 && (
+                      <Badge variant="destructive" className="h-4 min-w-[1rem] px-1 text-[10px]">
+                        {getStaffUnreadCount("geral") + getStaffUnreadCount("cozinha") + getStaffUnreadCount("direcao")}
+                      </Badge>
+                    )}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -476,6 +560,71 @@ export function DemoCookDashboard() {
                         Nenhuma criança com leite especial registrado
                       </p>
                     )}
+                  </div>
+                </TabsContent>
+
+                {/* Staff Chat Tab */}
+                <TabsContent value="equipe" className="mt-0">
+                  <h3 className="font-semibold mb-4">Chat da Equipe</h3>
+                  <div className="space-y-4">
+                    {/* Channel Selector */}
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant={selectedStaffChannel === "geral" ? "default" : "outline"} size="sm" onClick={() => handleStaffChannelChange("geral")}>
+                        📢 Geral
+                        {getStaffUnreadCount("geral") > 0 && <Badge variant="destructive" className="ml-2 h-5 px-1.5">{getStaffUnreadCount("geral")}</Badge>}
+                      </Button>
+                      <Button variant={selectedStaffChannel === "cozinha" ? "default" : "outline"} size="sm" onClick={() => handleStaffChannelChange("cozinha")}>
+                        👩‍🍳 Cozinha
+                        {getStaffUnreadCount("cozinha") > 0 && <Badge variant="destructive" className="ml-2 h-5 px-1.5">{getStaffUnreadCount("cozinha")}</Badge>}
+                      </Button>
+                      <Button variant={selectedStaffChannel === "direcao" ? "default" : "outline"} size="sm" onClick={() => handleStaffChannelChange("direcao")}>
+                        👔 Direção
+                        {getStaffUnreadCount("direcao") > 0 && <Badge variant="destructive" className="ml-2 h-5 px-1.5">{getStaffUnreadCount("direcao")}</Badge>}
+                      </Button>
+                    </div>
+
+                    {/* Messages */}
+                    <ScrollArea className="h-[280px] border rounded-lg">
+                      <div className="p-3 space-y-3">
+                        {staffMessages[selectedStaffChannel]?.map((msg) => (
+                          <div key={msg.id} className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[80%] ${msg.isOwn ? "order-2" : ""}`}>
+                              {!msg.isOwn && (
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarFallback className="bg-primary/10 text-primary text-xs">{msg.sender.charAt(0)}</AvatarFallback>
+                                  </Avatar>
+                                  <span className="text-xs font-medium">{msg.sender}</span>
+                                </div>
+                              )}
+                              <div className={`p-3 rounded-lg ${msg.isOwn ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <p className="text-sm">{msg.content}</p>
+                              </div>
+                              <div className={`flex items-center gap-1 mt-1 ${msg.isOwn ? "justify-end" : ""}`}>
+                                <span className="text-[10px] text-muted-foreground">{msg.time}</span>
+                                {msg.isOwn && (
+                                  <span className={msg.isRead ? "text-pimpo-blue" : "text-muted-foreground"}>
+                                    {msg.isRead ? <CheckCheck className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+
+                    {/* Input */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Digite sua mensagem para a equipe..."
+                        value={staffChatMessage}
+                        onChange={(e) => setStaffChatMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleSendStaffMessage()}
+                        className="flex-1"
+                      />
+                      <Button onClick={handleSendStaffMessage} disabled={!staffChatMessage.trim()}>Enviar</Button>
+                    </div>
                   </div>
                 </TabsContent>
               </div>
