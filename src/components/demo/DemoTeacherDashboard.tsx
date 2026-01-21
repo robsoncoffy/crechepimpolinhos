@@ -305,7 +305,22 @@ export function DemoTeacherDashboard() {
                               <label htmlFor="urinated" className="text-sm">Fez xixi</label>
                             </div>
                             <div className="space-y-1">
-                              <label className="text-sm text-muted-foreground">Evacuação</label>
+                              <label className="text-sm text-muted-foreground">Qtd. Evacuações</label>
+                              <Select defaultValue="1" disabled={!editMode}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {[0, 1, 2, 3, 4, 5].map((count) => (
+                                    <SelectItem key={count} value={count.toString()}>
+                                      {count === 0 ? "Não evacuou" : count === 1 ? "1 vez" : `${count} vezes`}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-sm text-muted-foreground">Tipo Evacuação</label>
                               <Select defaultValue="normal" disabled={!editMode}>
                                 <SelectTrigger>
                                   <SelectValue />
