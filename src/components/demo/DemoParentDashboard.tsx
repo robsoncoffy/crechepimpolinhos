@@ -25,6 +25,8 @@ import {
   Smile,
   FileText,
   Droplets,
+  GraduationCap,
+  Send,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
@@ -258,21 +260,28 @@ export function DemoParentDashboard() {
                 <CardContent className="p-0">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <div className="border-b bg-muted/30">
-                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+                      <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-7">
                         <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <Calendar className="w-4 h-4" />
                         </TabsTrigger>
-                        <TabsTrigger value="galeria" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
-                          <Camera className="w-4 h-4" />
+                        <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative">
+                          <MessageSquare className="w-4 h-4" />
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">3</span>
                         </TabsTrigger>
                         <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
                           <UtensilsCrossed className="w-4 h-4" />
                         </TabsTrigger>
-                        <TabsTrigger value="crescimento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
-                          <TrendingUp className="w-4 h-4" />
+                        <TabsTrigger value="galeria" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <Camera className="w-4 h-4" />
                         </TabsTrigger>
-                        <TabsTrigger value="perfil" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
-                          <User className="w-4 h-4" />
+                        <TabsTrigger value="calendario" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <CalendarDays className="w-4 h-4" />
+                        </TabsTrigger>
+                        <TabsTrigger value="avaliacoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <GraduationCap className="w-4 h-4" />
+                        </TabsTrigger>
+                        <TabsTrigger value="pagamentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3">
+                          <CreditCard className="w-4 h-4" />
                         </TabsTrigger>
                       </TabsList>
                     </div>
@@ -289,6 +298,50 @@ export function DemoParentDashboard() {
                               </p>
                             </div>
                           ))}
+                        </div>
+                      </TabsContent>
+
+                      {/* Chat Tab */}
+                      <TabsContent value="chat" className="mt-0">
+                        <h3 className="font-semibold mb-4">Mensagens</h3>
+                        <div className="space-y-4">
+                          {/* Channel Selector */}
+                          <div className="flex gap-2">
+                            <Button variant="default" size="sm" className="flex-1">
+                              🏫 Escola
+                              <Badge variant="destructive" className="ml-2 h-5 px-1.5">2</Badge>
+                            </Button>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              🥗 Nutrição
+                              <Badge variant="destructive" className="ml-2 h-5 px-1.5">1</Badge>
+                            </Button>
+                          </div>
+                          {/* Messages */}
+                          <div className="space-y-3 h-[200px] overflow-y-auto">
+                            <div className="flex justify-start">
+                              <div className="bg-muted rounded-lg px-3 py-2 max-w-[80%]">
+                                <p className="text-xs font-medium text-primary mb-1">Prof. Ana</p>
+                                <p className="text-sm">Maria participou muito bem das atividades hoje!</p>
+                                <p className="text-xs text-muted-foreground mt-1">10:30</p>
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              <div className="bg-primary text-primary-foreground rounded-lg px-3 py-2 max-w-[80%]">
+                                <p className="text-sm">Que bom! Ela estava animada para ir hoje 😊</p>
+                                <p className="text-xs opacity-70 mt-1">10:45</p>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Input */}
+                          <div className="flex gap-2">
+                            <input 
+                              className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                              placeholder="Digite sua mensagem..."
+                            />
+                            <Button size="sm">
+                              <Send className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </TabsContent>
 
@@ -309,17 +362,21 @@ export function DemoParentDashboard() {
                       <TabsContent value="cardapio" className="mt-0">
                         <h3 className="font-semibold mb-4">Cardápio Semanal</h3>
                         <div className="space-y-3">
-                          <div className="p-3 bg-muted/50 rounded-lg">
+                          <div className="p-3 bg-pimpo-yellow/10 rounded-lg">
                             <p className="font-medium">☕ Café da Manhã</p>
-                            <p className="text-sm text-muted-foreground">Pão, leite, frutas</p>
+                            <p className="text-sm text-muted-foreground">Pão integral, leite com achocolatado, fruta</p>
                           </div>
-                          <div className="p-3 bg-muted/50 rounded-lg">
+                          <div className="p-3 bg-pimpo-green/10 rounded-lg">
                             <p className="font-medium">🍽️ Almoço</p>
-                            <p className="text-sm text-muted-foreground">Arroz, feijão, carne, salada</p>
+                            <p className="text-sm text-muted-foreground">Arroz, feijão, frango grelhado, salada</p>
                           </div>
-                          <div className="p-3 bg-muted/50 rounded-lg">
-                            <p className="font-medium">🍪 Lanche</p>
-                            <p className="text-sm text-muted-foreground">Biscoitos, suco natural</p>
+                          <div className="p-3 bg-primary/10 rounded-lg">
+                            <p className="font-medium">🍪 Lanche da Tarde</p>
+                            <p className="text-sm text-muted-foreground">Iogurte natural com mel e granola</p>
+                          </div>
+                          <div className="p-3 bg-pimpo-red/10 rounded-lg">
+                            <p className="font-medium">🌙 Jantar</p>
+                            <p className="text-sm text-muted-foreground">Sopa de legumes com macarrão</p>
                           </div>
                         </div>
                         {mockChild.allergies && (
@@ -331,54 +388,95 @@ export function DemoParentDashboard() {
                         )}
                       </TabsContent>
 
-                      <TabsContent value="crescimento" className="mt-0">
-                        <h3 className="font-semibold mb-4">Acompanhamento de Crescimento</h3>
-                        <div className="grid grid-cols-2 gap-4 mb-6">
-                          <Card className="bg-pimpo-blue/10">
-                            <CardContent className="p-4 text-center">
-                              <p className="text-2xl font-fredoka font-bold text-pimpo-blue">12.5 kg</p>
-                              <p className="text-xs text-muted-foreground">Peso atual</p>
-                            </CardContent>
-                          </Card>
-                          <Card className="bg-pimpo-green/10">
-                            <CardContent className="p-4 text-center">
-                              <p className="text-2xl font-fredoka font-bold text-pimpo-green">92 cm</p>
-                              <p className="text-xs text-muted-foreground">Altura atual</p>
-                            </CardContent>
-                          </Card>
+                      {/* Calendario Tab */}
+                      <TabsContent value="calendario" className="mt-0">
+                        <h3 className="font-semibold mb-4">Calendário Escolar</h3>
+                        <div className="space-y-3">
+                          <div className="p-3 border rounded-lg bg-pimpo-yellow/10 border-pimpo-yellow/30">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge className="bg-pimpo-yellow text-white">Jun 24</Badge>
+                              <span className="font-medium">Festa Junina</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Festa junina da escola com comidas típicas</p>
+                          </div>
+                          <div className="p-3 border rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline">Jul 05</Badge>
+                              <span className="font-medium">Reunião de Pais</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Reunião semestral às 18h</p>
+                          </div>
+                          <div className="p-3 border rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary">Jul 15-29</Badge>
+                              <span className="font-medium">Férias de Inverno</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Recesso escolar</p>
+                          </div>
                         </div>
-                        <div className="h-40 bg-muted/50 rounded-lg flex items-center justify-center">
-                          <TrendingUp className="w-12 h-12 text-muted-foreground/30" />
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-2 text-center">
-                          Gráfico de evolução
-                        </p>
                       </TabsContent>
 
-                      <TabsContent value="perfil" className="mt-0">
-                        <h3 className="font-semibold mb-4">Perfil da Criança</h3>
+                      {/* Avaliacoes Tab */}
+                      <TabsContent value="avaliacoes" className="mt-0">
+                        <h3 className="font-semibold mb-4">Avaliações Trimestrais</h3>
                         <div className="space-y-4">
-                          <div className="flex items-center gap-4">
-                            <Avatar className="h-20 w-20">
-                              <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-fredoka">
-                                {mockChild.full_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
+                          <Card className="border-l-4 border-l-pimpo-green">
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <p className="font-medium">1º Trimestre 2026</p>
+                                  <p className="text-xs text-muted-foreground">Pedagoga Lucia</p>
+                                </div>
+                                <Badge className="bg-pimpo-green">Disponível</Badge>
+                              </div>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Desenvolvimento Motor</span>
+                                  <span className="font-medium">Excelente</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Socioemocional</span>
+                                  <span className="font-medium">Muito Bom</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Linguagem</span>
+                                  <span className="font-medium">Excelente</span>
+                                </div>
+                              </div>
+                              <Button variant="outline" size="sm" className="w-full mt-3">
+                                Ver Avaliação Completa
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </TabsContent>
+
+                      {/* Pagamentos Tab */}
+                      <TabsContent value="pagamentos" className="mt-0">
+                        <h3 className="font-semibold mb-4">Pagamentos</h3>
+                        <div className="space-y-3">
+                          <div className="p-4 border rounded-lg flex items-center justify-between">
                             <div>
-                              <h4 className="font-fredoka text-xl font-bold">{mockChild.full_name}</h4>
-                              <p className="text-muted-foreground">{classTypeLabels[mockChild.class_type]} • {shiftLabels[mockChild.shift_type || "integral"]}</p>
+                              <p className="font-medium">Mensalidade - Janeiro/2026</p>
+                              <p className="text-sm text-muted-foreground">Vence em 10/01/2026</p>
+                            </div>
+                            <Badge className="bg-pimpo-green">Pago</Badge>
+                          </div>
+                          <div className="p-4 border rounded-lg flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">Mensalidade - Fevereiro/2026</p>
+                              <p className="text-sm text-muted-foreground">Vence em 10/02/2026</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-pimpo-yellow text-white">Pendente</Badge>
+                              <Button size="sm">Pagar</Button>
                             </div>
                           </div>
-                          <div className="grid gap-3">
-                            <div className="p-3 bg-muted/50 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Data de Nascimento</p>
-                              <p className="font-medium">15 de Março de 2022</p>
-                            </div>
-                            <div className="p-3 bg-muted/50 rounded-lg">
-                              <p className="text-xs text-muted-foreground">Alergias</p>
-                              <p className="font-medium">{mockChild.allergies || "Nenhuma registrada"}</p>
-                            </div>
-                          </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center">
+                          <p className="text-sm text-muted-foreground">
+                            Valor mensal: <span className="font-semibold text-foreground">R$ 1.200,00</span>
+                          </p>
                         </div>
                       </TabsContent>
                     </div>
