@@ -162,13 +162,22 @@ export function ContractPreviewDialog({
                 </div>
 
                 <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO</h4>
+                  <h4 className="font-semibold mb-2">CLÁUSULA 2 – DO OBJETO DO CONTRATO</h4>
+                  <p>
+                    O presente contrato tem por objeto a prestação de serviços educacionais e cuidados infantis, 
+                    compreendendo atividades pedagógicas, recreativas, alimentação e acompanhamento do desenvolvimento 
+                    da criança durante o período contratado.
+                  </p>
+                </div>
+
+                <div className="bg-card p-4 rounded-lg border mb-4">
+                  <h4 className="font-semibold mb-2">CLÁUSULA 3 – DA MATRÍCULA</h4>
                   <p className="mb-2">
-                    <strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} 
-                    ({shiftHours[editedData.shiftType] || 'conforme contratado'})
+                    <strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}
                   </p>
                   <p>
-                    <strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}
+                    <strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} 
+                    ({shiftHours[editedData.shiftType] || 'conforme contratado'})
                   </p>
                 </div>
 
@@ -176,6 +185,15 @@ export function ContractPreviewDialog({
                   <h4 className="font-semibold mb-2">CLÁUSULA 4 – DAS MENSALIDADES</h4>
                   <p>
                     <strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}
+                  </p>
+                </div>
+
+                <div className="bg-card p-4 rounded-lg border mb-4">
+                  <h4 className="font-semibold mb-2">CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO</h4>
+                  <p>
+                    A CONTRATADA funciona de segunda a sexta-feira, das 07h00min às 19h00min, 
+                    conforme o turno contratado: {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} 
+                    ({shiftHours[editedData.shiftType] || 'conforme contratado'}).
                   </p>
                 </div>
 
