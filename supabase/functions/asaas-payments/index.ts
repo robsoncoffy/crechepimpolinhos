@@ -500,10 +500,20 @@ serve(async (req) => {
             .select("user_id, full_name");
           
           const profileMap = new Map<string, string>();
+          const profileFirstNames = new Map<string, string[]>(); // firstName -> [user_ids]
+          
           for (const profile of allProfiles || []) {
             const normalizedName = profile.full_name.toLowerCase().trim();
             profileMap.set(normalizedName, profile.user_id);
+            
+            // Also map by first name for partial matching
+            const firstName = normalizedName.split(' ')[0];
+            const existing = profileFirstNames.get(firstName) || [];
+            existing.push(profile.user_id);
+            profileFirstNames.set(firstName, existing);
           }
+          
+          console.log(`Loaded ${allProfiles?.length || 0} profiles for matching`);
           
           // 2. Get all children to map by name
           const { data: allChildren } = await supabase
@@ -528,10 +538,42 @@ serve(async (req) => {
             parentToChildren.set(pc.parent_id, existing);
           }
 
+          // Helper to find profile by partial name match
+          const findProfileByName = (customerName: string): string | null => {
+            const normalizedName = customerName.toLowerCase().trim();
+            
+            // 1. Exact match
+            if (profileMap.has(normalizedName)) {
+              return profileMap.get(normalizedName)!;
+            }
+            
+            // 2. Try matching by first name (if unique)
+            const firstName = normalizedName.split(' ')[0];
+            const candidates = profileFirstNames.get(firstName);
+            if (candidates && candidates.length === 1) {
+              console.log(`Matched by first name: ${customerName} -> ${firstName}`);
+              return candidates[0];
+            }
+            
+            // 3. Try partial match (customer name contains profile name or vice versa)
+            for (const [profileName, userId] of profileMap.entries()) {
+              if (normalizedName.includes(profileName) || profileName.includes(normalizedName)) {
+                console.log(`Matched by partial: ${customerName} -> ${profileName}`);
+                return userId;
+              }
+            }
+            
+            return null;
+          };
+
+          // Store asaas customer id -> local customer mapping for later use
+          const asaasToLocalCustomer = new Map<string, string>();
+
           // 3. Sync customers from Asaas
           console.log("Fetching customers from Asaas...");
           let offset = 0;
           let hasMore = true;
+          let unmatchedCustomers: string[] = [];
           
           while (hasMore) {
             const customersResponse = await asaasRequest(`/customers?offset=${offset}&limit=100`, "GET");
@@ -542,27 +584,34 @@ serve(async (req) => {
               // Check if customer exists locally by asaas_customer_id
               const { data: existing } = await supabase
                 .from("payment_customers")
-                .select("id")
+                .select("id, parent_id")
                 .eq("asaas_customer_id", customer.id)
                 .single();
 
-              if (!existing) {
+              if (existing) {
+                asaasToLocalCustomer.set(customer.id, existing.parent_id);
+              } else {
                 // Try to find parent by externalReference first
                 let parentId = customer.externalReference;
                 
                 // If no externalReference, try to match by name
                 if (!parentId && customer.name) {
-                  const normalizedName = customer.name.toLowerCase().trim();
-                  parentId = profileMap.get(normalizedName);
+                  parentId = findProfileByName(customer.name);
                 }
                 
                 if (parentId) {
-                  await supabase.from("payment_customers").insert({
+                  const { error: insertError } = await supabase.from("payment_customers").insert({
                     parent_id: parentId,
                     asaas_customer_id: customer.id,
                   });
-                  syncedCustomers++;
-                  console.log(`Synced customer: ${customer.name} -> ${parentId}`);
+                  
+                  if (!insertError) {
+                    syncedCustomers++;
+                    asaasToLocalCustomer.set(customer.id, parentId);
+                    console.log(`Synced customer: ${customer.name} -> ${parentId}`);
+                  }
+                } else {
+                  unmatchedCustomers.push(customer.name);
                 }
               }
             }
@@ -570,12 +619,17 @@ serve(async (req) => {
             hasMore = customersResponse.hasMore;
             offset += 100;
           }
-          console.log(`Customers sync complete: ${syncedCustomers} synced`);
+          
+          if (unmatchedCustomers.length > 0) {
+            console.log(`Unmatched customers (${unmatchedCustomers.length}): ${unmatchedCustomers.join(', ')}`);
+          }
+          console.log(`Customers sync complete: ${syncedCustomers} synced, ${asaasToLocalCustomer.size} total mapped`);
 
           // 4. Sync subscriptions from Asaas
           console.log("Fetching subscriptions from Asaas...");
           offset = 0;
           hasMore = true;
+          let skippedSubscriptions = 0;
           
           while (hasMore) {
             const subsResponse = await asaasRequest(`/subscriptions?offset=${offset}&limit=100`, "GET");
@@ -591,20 +645,28 @@ serve(async (req) => {
                 .single();
 
               if (!existing) {
-                // Get parent_id from customer
-                const { data: customerData } = await supabase
-                  .from("payment_customers")
-                  .select("parent_id")
-                  .eq("asaas_customer_id", sub.customer)
-                  .single();
+                // Get parent_id from our cache first, then from DB
+                let parentId = asaasToLocalCustomer.get(sub.customer);
+                
+                if (!parentId) {
+                  const { data: customerData } = await supabase
+                    .from("payment_customers")
+                    .select("parent_id")
+                    .eq("asaas_customer_id", sub.customer)
+                    .single();
+                  
+                  if (customerData) {
+                    parentId = customerData.parent_id;
+                  }
+                }
 
-                if (customerData) {
+                if (parentId) {
                   // Try to find child by externalReference or by parent's children
                   let childId = sub.externalReference;
                   
                   // If no externalReference, use first child of parent
                   if (!childId) {
-                    const parentChildIds = parentToChildren.get(customerData.parent_id);
+                    const parentChildIds = parentToChildren.get(parentId);
                     if (parentChildIds && parentChildIds.length > 0) {
                       childId = parentChildIds[0];
                     }
@@ -613,17 +675,28 @@ serve(async (req) => {
                   if (childId) {
                     const nextDueDate = new Date(sub.nextDueDate);
                     
-                    await supabase.from("subscriptions").insert({
+                    const { error: insertError } = await supabase.from("subscriptions").insert({
                       child_id: childId,
-                      parent_id: customerData.parent_id,
+                      parent_id: parentId,
                       asaas_subscription_id: sub.id,
                       value: sub.value,
                       billing_day: nextDueDate.getDate(),
                       status: sub.status === "ACTIVE" ? "active" : "cancelled",
                     });
-                    syncedSubscriptions++;
-                    console.log(`Synced subscription: ${sub.id}`);
+                    
+                    if (!insertError) {
+                      syncedSubscriptions++;
+                      console.log(`Synced subscription: ${sub.id} for parent ${parentId}`);
+                    } else {
+                      console.log(`Error inserting subscription ${sub.id}: ${insertError.message}`);
+                    }
+                  } else {
+                    skippedSubscriptions++;
+                    console.log(`Skipped subscription ${sub.id}: no child found for parent ${parentId}`);
                   }
+                } else {
+                  skippedSubscriptions++;
+                  console.log(`Skipped subscription ${sub.id}: customer ${sub.customer} not mapped`);
                 }
               } else {
                 // Update existing subscription status
@@ -637,7 +710,7 @@ serve(async (req) => {
             hasMore = subsResponse.hasMore;
             offset += 100;
           }
-          console.log(`Subscriptions sync complete: ${syncedSubscriptions} synced`);
+          console.log(`Subscriptions sync complete: ${syncedSubscriptions} synced, ${skippedSubscriptions} skipped`);
 
           // 5. Sync payments from Asaas
           console.log("Fetching payments from Asaas...");
@@ -675,20 +748,28 @@ serve(async (req) => {
                 .single();
 
               if (!existing) {
-                // Get parent_id from customer
-                const { data: customerData } = await supabase
-                  .from("payment_customers")
-                  .select("parent_id")
-                  .eq("asaas_customer_id", payment.customer)
-                  .single();
+                // Get parent_id from our cache first, then from DB
+                let parentId = asaasToLocalCustomer.get(payment.customer);
+                
+                if (!parentId) {
+                  const { data: customerData } = await supabase
+                    .from("payment_customers")
+                    .select("parent_id")
+                    .eq("asaas_customer_id", payment.customer)
+                    .single();
+                  
+                  if (customerData) {
+                    parentId = customerData.parent_id;
+                  }
+                }
 
-                if (customerData) {
+                if (parentId) {
                   // Try to find child by externalReference or by parent's children
                   let childId = payment.externalReference;
                   
                   // If no externalReference, use first child of parent
                   if (!childId) {
-                    const parentChildIds = parentToChildren.get(customerData.parent_id);
+                    const parentChildIds = parentToChildren.get(parentId);
                     if (parentChildIds && parentChildIds.length > 0) {
                       childId = parentChildIds[0];
                     }
@@ -696,9 +777,9 @@ serve(async (req) => {
                   
                   if (childId) {
                     // Skip getting PIX for each payment to speed up sync
-                    await supabase.from("invoices").insert({
+                    const { error: insertError } = await supabase.from("invoices").insert({
                       child_id: childId,
-                      parent_id: customerData.parent_id,
+                      parent_id: parentId,
                       asaas_payment_id: payment.id,
                       description: payment.description || "Cobrança importada do Asaas",
                       value: payment.value,
@@ -709,14 +790,19 @@ serve(async (req) => {
                       invoice_url: payment.invoiceUrl,
                       bank_slip_url: payment.bankSlipUrl,
                     });
-                    syncedPayments++;
+                    
+                    if (!insertError) {
+                      syncedPayments++;
+                    } else {
+                      console.log(`Error inserting payment ${payment.id}: ${insertError.message}`);
+                    }
                   } else {
                     skippedPayments++;
-                    console.log(`Skipped payment ${payment.id}: no child found for parent ${customerData.parent_id}`);
+                    console.log(`Skipped payment ${payment.id}: no child found for parent ${parentId}`);
                   }
                 } else {
                   skippedPayments++;
-                  console.log(`Skipped payment ${payment.id}: customer not found`);
+                  console.log(`Skipped payment ${payment.id}: customer ${payment.customer} not mapped`);
                 }
               } else {
                 // Update existing payment status
