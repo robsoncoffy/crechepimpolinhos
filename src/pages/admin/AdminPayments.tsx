@@ -48,11 +48,13 @@ import {
   Lightbulb,
   Wallet,
   ArrowLeftRight,
+  Calculator,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import FinancialReportsTab from "@/components/admin/FinancialReportsTab";
 import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
+import FinancialForecastTab from "@/components/admin/FinancialForecastTab";
 import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
@@ -512,6 +514,10 @@ export default function AdminPayments() {
             <ArrowLeftRight className="w-4 h-4" />
             Movimentações
           </TabsTrigger>
+          <TabsTrigger value="forecast" className="gap-2">
+            <Calculator className="w-4 h-4" />
+            Previsão
+          </TabsTrigger>
           <TabsTrigger value="reports" className="gap-2">
             <BarChart3 className="w-4 h-4" />
             Relatórios
@@ -635,6 +641,10 @@ export default function AdminPayments() {
 
         <TabsContent value="movements" className="mt-4">
           <FinancialMovementsTab invoices={invoices} />
+        </TabsContent>
+
+        <TabsContent value="forecast" className="mt-4">
+          <FinancialForecastTab invoices={invoices} subscriptions={subscriptions} />
         </TabsContent>
 
         <TabsContent value="reports" className="mt-4">
