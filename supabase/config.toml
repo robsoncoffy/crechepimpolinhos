@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.send-push-notification]
 verify_jwt = false
+
+[functions.menu-ai-suggestions]
+verify_jwt = false
