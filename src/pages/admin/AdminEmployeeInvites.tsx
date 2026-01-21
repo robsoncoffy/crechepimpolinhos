@@ -23,7 +23,7 @@ interface Invite {
 }
 
 // Always use the production URL for invite links
-const PRODUCTION_URL = "https://crechepimpolinhos.lovable.app";
+const PRODUCTION_URL = "https://www.crechepimpolinhos.com.br";
 
 export default function AdminEmployeeInvites() {
   const { user } = useAuth();

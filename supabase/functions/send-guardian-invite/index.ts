@@ -130,7 +130,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Invitation created:", invitation.id);
 
     // Send email
-    const inviteUrl = `${req.headers.get("origin") || "https://crechepimpolinhos.lovable.app"}/aceitar-convite?token=${invitation.token}`;
+    const inviteUrl = `${req.headers.get("origin") || "https://www.crechepimpolinhos.com.br"}/aceitar-convite?token=${invitation.token}`;
 
     const emailResponse = await resend.emails.send({
       from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",

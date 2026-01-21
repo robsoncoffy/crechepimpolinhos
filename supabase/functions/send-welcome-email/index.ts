@@ -113,7 +113,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const classLabel = classLabels[classType] || classType;
     const shiftLabel = shiftLabels[shiftType] || shiftType;
-    const appUrl = req.headers.get("origin") || "https://crechepimpolinhos.lovable.app";
+    const appUrl = req.headers.get("origin") || "https://www.crechepimpolinhos.com.br";
 
     const emailResponse = await resend.emails.send({
       from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
