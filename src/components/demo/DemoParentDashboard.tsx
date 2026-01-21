@@ -35,10 +35,16 @@ import {
   MessageCircle,
   Check,
   CheckCheck,
+  Brain,
+  Palette,
+  Target,
+  ArrowRight,
+  Star,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoWeatherWidget } from "./DemoWeatherWidget";
 import { DemoPickupNotification } from "./DemoPickupNotification";
+import { EvaluationDetailDialog } from "@/components/parent/EvaluationDetailDialog";
 
 // Message interface with read status
 interface DemoParentMessage {
@@ -81,11 +87,32 @@ const shiftLabels: Record<string, string> = {
   integral: "Integral",
 };
 
+// Mock evaluation data for demo
+const mockEvaluations = [
+  {
+    id: "eval-1",
+    quarter: 1,
+    year: 2026,
+    cognitive_development: "Maria demonstra excelente capacidade de concentração e resolução de problemas. Consegue seguir instruções complexas de 3 ou mais passos e mostra curiosidade natural para explorar novos conceitos. Tem facilidade em identificar cores, formas e números até 10.",
+    motor_development: "Apresenta coordenação motora fina e grossa bem desenvolvidas para a idade. Manipula tesoura com segurança, consegue desenhar formas reconhecíveis e corre com equilíbrio. Está progredindo bem nas atividades de recorte e colagem.",
+    social_emotional: "Interage positivamente com os colegas, demonstrando empatia e capacidade de compartilhar. Ainda está desenvolvendo habilidades de lidar com frustração, mas mostra progresso consistente. Participa ativamente das atividades em grupo.",
+    language_development: "Vocabulário amplo e expressivo para a idade. Conta pequenas histórias com começo, meio e fim. Faz perguntas elaboradas e demonstra interesse por livros. Está começando a reconhecer algumas letras do alfabeto.",
+    creativity_arts: "Muito criativa nas atividades artísticas! Usa cores vibrantes e gosta de experimentar diferentes materiais. Demonstra originalidade nos desenhos e pinturas, criando narrativas visuais interessantes.",
+    overall_summary: "Maria teve um excelente primeiro trimestre! Ela se adaptou muito bem à rotina escolar e demonstra entusiasmo em participar de todas as atividades propostas. Sua evolução em todas as áreas do desenvolvimento está acima do esperado para a faixa etária.",
+    recommendations: "Continue incentivando a leitura em casa com histórias variadas. Jogos de quebra-cabeça e blocos de montar ajudam no desenvolvimento cognitivo. Atividades ao ar livre são ótimas para a coordenação motora.",
+    next_steps: "No próximo trimestre, vamos focar no reconhecimento das letras do alfabeto e iniciação à escrita do nome. Também trabalharemos atividades que desenvolvam ainda mais a paciência e tolerância à frustração.",
+    created_at: "2026-03-28T10:00:00Z",
+    pedagogue_name: "Lucia Fernandes",
+  },
+];
+
 export function DemoParentDashboard() {
   const [activeTab, setActiveTab] = useState("feed");
   const [activeChannel, setActiveChannel] = useState<"school" | "nutritionist">("school");
   const [messages, setMessages] = useState<DemoParentMessage[]>(initialMessages);
   const [chatInput, setChatInput] = useState("");
+  const [selectedEvaluation, setSelectedEvaluation] = useState<typeof mockEvaluations[0] | null>(null);
+  const [evaluationDialogOpen, setEvaluationDialogOpen] = useState(false);
 
   // Get unread count per channel
   const getUnreadCount = (channel: "school" | "nutritionist") => {
@@ -650,36 +677,101 @@ export function DemoParentDashboard() {
 
                       {/* Avaliacoes Tab */}
                       <TabsContent value="avaliacoes" className="mt-0">
-                        <h3 className="font-semibold mb-4">Avaliações Trimestrais</h3>
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <GraduationCap className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">Avaliações Trimestrais</h3>
+                            <p className="text-xs text-muted-foreground">
+                              Acompanhamento pedagógico exclusivo do Plano Plus+
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="ml-auto flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Plus+
+                          </Badge>
+                        </div>
+
                         <div className="space-y-4">
-                          <Card className="border-l-4 border-l-pimpo-green">
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-start mb-3">
-                                <div>
-                                  <p className="font-medium">1º Trimestre 2026</p>
-                                  <p className="text-xs text-muted-foreground">Pedagoga Lucia</p>
+                          {mockEvaluations.map((evaluation) => (
+                            <Card key={evaluation.id} className="border-l-4 border-l-green-500">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-3">
+                                  <div>
+                                    <p className="font-medium">
+                                      {evaluation.quarter}º Trimestre {evaluation.year}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Pedagoga {evaluation.pedagogue_name}
+                                    </p>
+                                  </div>
+                                  <Badge className="bg-green-500 hover:bg-green-600">Disponível</Badge>
                                 </div>
-                                <Badge className="bg-pimpo-green">Disponível</Badge>
-                              </div>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Desenvolvimento Motor</span>
-                                  <span className="font-medium">Excelente</span>
+                                
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                      <Target className="w-3.5 h-3.5" />
+                                      Desenvolvimento Motor
+                                    </span>
+                                    <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+                                      Excelente
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                      <Heart className="w-3.5 h-3.5" />
+                                      Socioemocional
+                                    </span>
+                                    <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50">
+                                      Muito Bom
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                      Linguagem
+                                    </span>
+                                    <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+                                      Excelente
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                      <Brain className="w-3.5 h-3.5" />
+                                      Cognitivo
+                                    </span>
+                                    <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50">
+                                      Excelente
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-muted-foreground flex items-center gap-1.5">
+                                      <Palette className="w-3.5 h-3.5" />
+                                      Criatividade
+                                    </span>
+                                    <Badge variant="outline" className="text-purple-600 border-purple-300 bg-purple-50">
+                                      Destaque
+                                    </Badge>
+                                  </div>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Socioemocional</span>
-                                  <span className="font-medium">Muito Bom</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Linguagem</span>
-                                  <span className="font-medium">Excelente</span>
-                                </div>
-                              </div>
-                              <Button variant="outline" size="sm" className="w-full mt-3">
-                                Ver Avaliação Completa
-                              </Button>
-                            </CardContent>
-                          </Card>
+
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full mt-4 border-primary/50 text-primary hover:bg-primary/5"
+                                  onClick={() => {
+                                    setSelectedEvaluation(evaluation);
+                                    setEvaluationDialogOpen(true);
+                                  }}
+                                >
+                                  <ArrowRight className="w-4 h-4 mr-2" />
+                                  Ver Avaliação Completa
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
                       </TabsContent>
 
@@ -722,6 +814,14 @@ export function DemoParentDashboard() {
           </div>
         </div>
       </main>
+
+      {/* Evaluation Detail Dialog */}
+      <EvaluationDetailDialog
+        evaluation={selectedEvaluation}
+        childName={mockChild.full_name}
+        open={evaluationDialogOpen}
+        onOpenChange={setEvaluationDialogOpen}
+      />
     </div>
   );
 }
