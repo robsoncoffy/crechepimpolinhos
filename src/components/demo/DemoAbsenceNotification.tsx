@@ -14,8 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { UserX, Loader2, CheckCircle2, Stethoscope, Plane, Home, HelpCircle } from "lucide-react";
+import { useDemoAbsence } from "./DemoAbsenceContext";
 
 interface DemoAbsenceNotificationProps {
+  childId?: string;
   childName: string;
 }
 
@@ -29,12 +31,13 @@ const absenceReasons = {
   other: { label: "Outro Motivo", icon: HelpCircle, description: "Especifique no campo abaixo" },
 };
 
-export function DemoAbsenceNotification({ childName }: DemoAbsenceNotificationProps) {
+export function DemoAbsenceNotification({ childId = "demo-child-1", childName }: DemoAbsenceNotificationProps) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<AbsenceReason>("sick");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { addAbsence } = useDemoAbsence();
 
   const handleSubmit = async () => {
     if (reason === "other" && !notes.trim()) {
@@ -46,6 +49,15 @@ export function DemoAbsenceNotification({ childName }: DemoAbsenceNotificationPr
     
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Add to shared context
+    addAbsence({
+      childId,
+      childName,
+      reason: absenceReasons[reason].label,
+      notes: notes.trim(),
+      timestamp: new Date(),
+    });
 
     setIsSubmitting(false);
     setShowSuccess(true);

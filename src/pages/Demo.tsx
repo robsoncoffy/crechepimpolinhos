@@ -8,6 +8,7 @@ import { DemoCookDashboard } from "@/components/demo/DemoCookDashboard";
 import { DemoNutritionistDashboard } from "@/components/demo/DemoNutritionistDashboard";
 import { DemoPedagogueDashboard } from "@/components/demo/DemoPedagogueDashboard";
 import { DemoShoppingListProvider } from "@/components/demo/DemoShoppingListContext";
+import { DemoAbsenceProvider } from "@/components/demo/DemoAbsenceContext";
 
 export default function Demo() {
   const [searchParams] = useSearchParams();
@@ -31,17 +32,19 @@ export default function Demo() {
 
   return (
     <DemoShoppingListProvider>
-      {currentRole === "parent" && <DemoParentDashboard />}
-      {currentRole === "teacher" && <DemoTeacherDashboard />}
-      {currentRole === "admin" && <DemoAdminDashboard />}
-      {currentRole === "cook" && <DemoCookDashboard />}
-      {currentRole === "nutritionist" && <DemoNutritionistDashboard />}
-      {currentRole === "pedagogue" && <DemoPedagogueDashboard />}
-      
-      <DemoModeToggle 
-        currentRole={currentRole} 
-        onRoleChange={setCurrentRole} 
-      />
+      <DemoAbsenceProvider>
+        {currentRole === "parent" && <DemoParentDashboard />}
+        {currentRole === "teacher" && <DemoTeacherDashboard />}
+        {currentRole === "admin" && <DemoAdminDashboard />}
+        {currentRole === "cook" && <DemoCookDashboard />}
+        {currentRole === "nutritionist" && <DemoNutritionistDashboard />}
+        {currentRole === "pedagogue" && <DemoPedagogueDashboard />}
+        
+        <DemoModeToggle 
+          currentRole={currentRole} 
+          onRoleChange={setCurrentRole} 
+        />
+      </DemoAbsenceProvider>
     </DemoShoppingListProvider>
   );
 }

@@ -46,6 +46,7 @@ import logo from "@/assets/logo-pimpolinhos.png";
 import { DemoQuickPostCreator } from "./DemoQuickPostCreator";
 import { DemoWeatherHeader } from "./DemoWeatherHeader";
 import { DemoMiniCalendar } from "./DemoMiniCalendar";
+import { useDemoAbsence } from "./DemoAbsenceContext";
 
 // Mock children for the class with photos and pickup notifications
 const mockChildren = [
@@ -305,21 +306,25 @@ const statusConfig: Record<AttendanceStatus, { label: string; icon: typeof Check
 };
 
 // Demo Attendance Tab Component
-// Mock absence notes (from parent notifications)
-const mockAbsenceNotes: Record<string, string> = {
-  "4": "Doença: Está com febre desde ontem",
-  "6": "Consulta Médica: Exame de rotina agendado",
-};
-
 function DemoAttendanceTab() {
+  const { absences, getAbsenceForChild } = useDemoAbsence();
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, AttendanceStatus>>({
     "1": "present",
     "2": "present",
     "3": "late",
-    "4": "excused", // Parent notified absence
+    "4": "excused",
     "5": "present",
-    "6": "excused", // Parent notified absence
+    "6": "excused",
   });
+
+  // React to parent absence notifications - Maria is id "1" in mockChildren
+  useEffect(() => {
+    const mariaAbsence = getAbsenceForChild("demo-child-1");
+    if (mariaAbsence) {
+      // Maria Silva is id "1" in mockChildren
+      setAttendanceStatus((prev) => ({ ...prev, "1": "excused" }));
+    }
+  }, [absences, getAbsenceForChild]);
 
   const handleStatusChange = (childId: string, status: AttendanceStatus) => {
     setAttendanceStatus((prev) => ({ ...prev, [childId]: status }));
@@ -331,6 +336,22 @@ function DemoAttendanceTab() {
       newStatus[child.id] = "present";
     });
     setAttendanceStatus(newStatus);
+  };
+
+  const getAbsenceNote = (childId: string): string | undefined => {
+    // Map mockChildren id to demo child id
+    if (childId === "1") {
+      const absence = getAbsenceForChild("demo-child-1");
+      if (absence) {
+        return `${absence.reason}${absence.notes ? `: ${absence.notes}` : ""}`;
+      }
+    }
+    // Fallback to hardcoded notes for other demo children
+    const hardcodedNotes: Record<string, string> = {
+      "4": "Doença: Está com febre desde ontem",
+      "6": "Consulta Médica: Exame de rotina agendado",
+    };
+    return hardcodedNotes[childId];
   };
 
   const stats = {
@@ -426,9 +447,9 @@ function DemoAttendanceTab() {
                   </div>
                 )}
 
-                {mockAbsenceNotes[child.id] && currentStatus === "excused" && (
+                {getAbsenceNote(child.id) && currentStatus === "excused" && (
                   <div className="w-full sm:w-auto text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                    📝 {mockAbsenceNotes[child.id]}
+                    📝 {getAbsenceNote(child.id)}
                   </div>
                 )}
               </div>
