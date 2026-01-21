@@ -76,17 +76,8 @@ serve(async (req) => {
       .replace(/^Token\s+/i, "")
       .trim();
 
-    // Some users accidentally paste multiple tokens together. Try all UUID-looking tokens if present.
-    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-    const uuidMatches = zapsignToken.match(uuidRegex) ?? [];
-    // Always try the raw token first (some tokens may not be UUIDs or may include extra segments),
-    // then try any UUID-looking segments extracted from it.
-    const tokenCandidates = Array.from(
-      new Set([zapsignToken, ...uuidMatches].map((t) => t.trim()).filter(Boolean)),
-    );
-
     console.log("ZapSign token loaded (len):", zapsignToken.length);
-    console.log("ZapSign token candidates:", tokenCandidates.length);
+    console.log("ZapSign token first 8 chars:", zapsignToken.substring(0, 8));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -412,42 +403,29 @@ CNPJ: ${COMPANY_DATA.cnpj}
         body: JSON.stringify(createDocPayload),
       });
 
-    const tryCreateDocWithToken = async (candidateToken: string): Promise<{ ok: true; response: Response } | { ok: false; errorText: string }> => {
-      // ZapSign docs say "Authorization: Bearer <api_token>".
-      // We also retry with raw token (some setups accept it without prefix).
-      let resp = await doCreateDocRequest(`Bearer ${candidateToken}`, candidateToken);
-      if (resp.ok) return { ok: true, response: resp };
+    // ZapSign docs say "Authorization: Bearer <api_token>".
+    // We also try with raw token as fallback (some setups accept it without prefix).
+    console.log("Attempting ZapSign API call with Bearer prefix...");
+    let createDocResponse = await doCreateDocRequest(`Bearer ${zapsignToken}`, zapsignToken);
 
-      const errorText = await resp.text();
+    if (!createDocResponse.ok) {
+      const errorText = await createDocResponse.text();
+      console.log("ZapSign response with Bearer:", errorText);
       const shouldRetryRaw = /API token not found/i.test(errorText) || /Token da API n[aã]o encontrado/i.test(errorText);
 
       if (shouldRetryRaw) {
         console.warn("ZapSign auth failed with Bearer prefix; retrying with raw token...");
-        resp = await doCreateDocRequest(candidateToken, candidateToken);
-        if (resp.ok) return { ok: true, response: resp };
-        const errorText2 = await resp.text();
-        return { ok: false, errorText: errorText2 };
+        createDocResponse = await doCreateDocRequest(zapsignToken, zapsignToken);
+        
+        if (!createDocResponse.ok) {
+          const errorText2 = await createDocResponse.text();
+          console.error("ZapSign create doc error (raw token):", errorText2);
+          throw new Error(`Failed to create document in ZapSign: ${errorText2}`);
+        }
+      } else {
+        console.error("ZapSign create doc error:", errorText);
+        throw new Error(`Failed to create document in ZapSign: ${errorText}`);
       }
-
-      return { ok: false, errorText };
-    };
-
-    let createDocResponse: Response | null = null;
-    let lastCreateErrorText = "";
-
-    for (const candidateToken of tokenCandidates) {
-      const result = await tryCreateDocWithToken(candidateToken);
-      if (result.ok) {
-        createDocResponse = result.response;
-        break;
-      }
-
-      lastCreateErrorText = result.errorText;
-    }
-
-    if (!createDocResponse) {
-      console.error("ZapSign create doc error:", lastCreateErrorText);
-      throw new Error(`Failed to create document in ZapSign: ${lastCreateErrorText}`);
     }
 
     const docData = await createDocResponse.json();
