@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -41,9 +42,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2 } from "lucide-react";
+import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
 import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
+import ChildAttendanceTab from "@/components/admin/ChildAttendanceTab";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type ClassType = Database["public"]["Enums"]["class_type"];
@@ -74,6 +76,7 @@ export default function AdminChildren() {
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [activeTab, setActiveTab] = useState("lista");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -508,13 +511,27 @@ export default function AdminChildren() {
         ))}
       </div>
 
-      {/* Children List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Crianças Matriculadas</CardTitle>
-          <CardDescription>Lista de todas as crianças cadastradas</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Tabs for Lista and Frequência */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="lista" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Lista de Crianças
+          </TabsTrigger>
+          <TabsTrigger value="frequencia" className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4" />
+            Frequência
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab: Lista de Crianças */}
+        <TabsContent value="lista" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Crianças Matriculadas</CardTitle>
+              <CardDescription>Lista de todas as crianças cadastradas</CardDescription>
+            </CardHeader>
+            <CardContent>
           {children.length === 0 ? (
             <div className="text-center py-12">
               <Baby className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
@@ -619,6 +636,18 @@ export default function AdminChildren() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        {/* Tab: Frequência */}
+        <TabsContent value="frequencia" className="mt-6">
+          <ChildAttendanceTab children={children.map(c => ({
+            id: c.id,
+            full_name: c.full_name,
+            class_type: c.class_type,
+            shift_type: c.shift_type
+          }))} />
+        </TabsContent>
+      </Tabs>
 
       {/* Link Parent Dialog */}
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
