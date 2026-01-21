@@ -92,13 +92,8 @@ const AdminConfig = () => {
     vapidPublicKey: "",
   });
 
-  // Integration secrets status
-  const [integrationStatus, setIntegrationStatus] = useState({
-    zapsign: false,
-    asaas: false,
-    resend: false,
-    controlid: false,
-  });
+  // Note: Integration status is checked dynamically via useGmail hook
+  // Other integrations (ZapSign, Asaas, etc.) are verified at runtime when used
 
   // Load settings into state
   useEffect(() => {
@@ -140,14 +135,10 @@ const AdminConfig = () => {
     }
   }, [settings]);
 
-  // Check integration status
+  // Check Gmail integration status on mount
   useEffect(() => {
-    checkGmail();
+    checkStatus();
   }, []);
-
-  const checkGmail = async () => {
-    await checkStatus();
-  };
 
   const handleSaveSchoolData = async () => {
     await updateMultipleSettings([
@@ -747,7 +738,8 @@ const AdminConfig = () => {
                   onChange={(e) => setNotifications({ ...notifications, emailAlerts: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  E-mail que receberá alertas do sistema (novos cadastros, problemas, etc).
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  Salva a configuração para uso futuro. Requer integração com Edge Functions para disparo automático de e-mails.
                 </p>
               </div>
 
@@ -762,8 +754,9 @@ const AdminConfig = () => {
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Chave pública VAPID para ativar notificações push no navegador. 
-                  Gere suas chaves em <a href="https://vapidkeys.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">vapidkeys.com</a>
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  Chave VAPID para push. Configure também como secret no backend (VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY).
+                  Gere em <a href="https://vapidkeys.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">vapidkeys.com</a>
                 </p>
               </div>
 
@@ -787,10 +780,10 @@ const AdminConfig = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Segurança do Sistema
+                Visão Geral de Segurança
               </CardTitle>
               <CardDescription>
-                Configurações de segurança e políticas de acesso.
+                Informações sobre as políticas de segurança aplicadas automaticamente pelo sistema.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
