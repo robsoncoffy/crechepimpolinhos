@@ -42,10 +42,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap, Search, X, FileDown } from "lucide-react";
+import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap, Search, X, FileDown, AlertTriangle, Wand2 } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
 import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
 import ChildAttendanceTab from "@/components/admin/ChildAttendanceTab";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChildPdfExport } from "@/components/admin/ChildPdfExport";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -369,6 +370,28 @@ export default function AdminChildren() {
       console.error("Error deleting child:", error);
       toast.error("Erro ao remover criança");
     }
+  }
+
+  // Function to suggest the correct class based on age
+  function getSuggestedClassType(birthDate: string): ClassType {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    const ageInMonths =
+      (today.getFullYear() - birth.getFullYear()) * 12 +
+      (today.getMonth() - birth.getMonth());
+    
+    // Berçário: 0-23 months (up to 2 years)
+    // Maternal: 24-47 months (2-4 years)
+    // Jardim: 48+ months (4+ years)
+    if (ageInMonths < 24) return "bercario";
+    if (ageInMonths < 48) return "maternal";
+    return "jardim";
+  }
+
+  // Check if child is in the wrong class for their age
+  function isClassMismatch(child: Child): boolean {
+    const suggested = getSuggestedClassType(child.birth_date);
+    return child.class_type !== suggested;
   }
 
   function getChildParents(childId: string) {
@@ -748,7 +771,21 @@ export default function AdminChildren() {
                       </TableCell>
                       <TableCell>{calculateAge(child.birth_date)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{classTypeLabels[child.class_type]}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{classTypeLabels[child.class_type]}</Badge>
+                          {isClassMismatch(child) && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Turma sugerida: {classTypeLabels[getSuggestedClassType(child.birth_date)]}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{shiftTypeLabels[child.shift_type]}</Badge>
@@ -989,7 +1026,6 @@ export default function AdminChildren() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Change Class Dialog */}
       <Dialog open={classDialogOpen} onOpenChange={setClassDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -999,6 +1035,42 @@ export default function AdminChildren() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Age-based suggestion */}
+            {selectedChild && isClassMismatch(selectedChild) && (
+              <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Baseado na idade ({calculateAge(selectedChild.birth_date)}), a turma sugerida é{" "}
+                    <strong>{classTypeLabels[getSuggestedClassType(selectedChild.birth_date)]}</strong>.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900"
+                    onClick={() => setNewClassType(getSuggestedClassType(selectedChild.birth_date))}
+                  >
+                    <Wand2 className="w-4 h-4 mr-2" />
+                    Usar turma sugerida
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {selectedChild && !isClassMismatch(selectedChild) && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  A criança está na turma correta para sua idade.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Turma</Label>
               <Select value={newClassType} onValueChange={(v) => setNewClassType(v as ClassType)}>
@@ -1009,6 +1081,9 @@ export default function AdminChildren() {
                   {Constants.public.Enums.class_type.map((type) => (
                     <SelectItem key={type} value={type}>
                       {classTypeLabels[type]}
+                      {selectedChild && getSuggestedClassType(selectedChild.birth_date) === type && (
+                        <span className="ml-2 text-xs text-muted-foreground">(sugerida)</span>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
