@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   FileSignature, 
   Loader2, 
@@ -37,10 +38,13 @@ import {
   ExternalLink,
   RefreshCw,
   Filter,
-  Eye
+  Eye,
+  Send,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
 
 interface Contract {
   id: string;
@@ -60,6 +64,23 @@ interface Contract {
   created_at: string;
   updated_at: string;
   parent_name?: string;
+}
+
+interface ChildWithoutContract {
+  id: string;
+  full_name: string;
+  class_type: string;
+  shift_type: string;
+  plan_type: string | null;
+  birth_date: string;
+  created_at: string;
+  parent_id: string;
+  parent_name: string;
+  parent_email: string;
+  parent_cpf: string | null;
+  parent_rg: string | null;
+  parent_phone: string | null;
+  address: string | null;
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string }> = {
@@ -109,14 +130,22 @@ const shiftTypeLabels: Record<string, string> = {
 
 export default function AdminContracts() {
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [childrenWithoutContract, setChildrenWithoutContract] = useState<ChildWithoutContract[]>([]);
   const [loading, setLoading] = useState(true);
   const [resending, setResending] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"contracts" | "pending">("contracts");
+  
+  // Contract preview dialog state
+  const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
+  const [selectedChildForContract, setSelectedChildForContract] = useState<ChildWithoutContract | null>(null);
+  const [sendingContract, setSendingContract] = useState(false);
 
   useEffect(() => {
     fetchContracts();
+    fetchChildrenWithoutContract();
   }, []);
 
   async function fetchContracts() {
@@ -155,6 +184,152 @@ export default function AdminContracts() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function fetchChildrenWithoutContract() {
+    try {
+      // First get all child_ids that already have contracts
+      const { data: existingContracts } = await supabase
+        .from("enrollment_contracts")
+        .select("child_id");
+
+      const contractedChildIds = new Set((existingContracts || []).map(c => c.child_id));
+
+      // Get all children
+      const { data: allChildren, error: childrenError } = await supabase
+        .from("children")
+        .select("id, full_name, class_type, shift_type, plan_type, birth_date, created_at")
+        .order("created_at", { ascending: false });
+
+      if (childrenError) throw childrenError;
+
+      // Filter children without contracts
+      const childrenMissingContracts = (allChildren || []).filter(
+        child => !contractedChildIds.has(child.id)
+      );
+
+      if (childrenMissingContracts.length === 0) {
+        setChildrenWithoutContract([]);
+        return;
+      }
+
+      // Get parent information for each child
+      const childIds = childrenMissingContracts.map(c => c.id);
+      const { data: parentLinks } = await supabase
+        .from("parent_children")
+        .select("child_id, parent_id")
+        .in("child_id", childIds);
+
+      const parentIds = [...new Set((parentLinks || []).map(p => p.parent_id))];
+
+      // Get parent profiles
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, cpf, rg, phone")
+        .in("user_id", parentIds);
+
+      // Build profile map
+      const profileMap = new Map(
+        (profiles || []).map(p => [p.user_id, p])
+      );
+
+      // Build parent link map
+      const parentLinkMap = new Map(
+        (parentLinks || []).map(p => [p.child_id, p.parent_id])
+      );
+
+      // Combine data
+      const result: ChildWithoutContract[] = childrenMissingContracts.map(child => {
+        const parentId = parentLinkMap.get(child.id) || "";
+        const profile = profileMap.get(parentId);
+        
+        return {
+          id: child.id,
+          full_name: child.full_name,
+          class_type: child.class_type,
+          shift_type: child.shift_type,
+          plan_type: child.plan_type,
+          birth_date: child.birth_date,
+          created_at: child.created_at,
+          parent_id: parentId,
+          parent_name: profile?.full_name || "Responsável não vinculado",
+          parent_email: "", // Will be fetched from auth when sending contract
+          parent_cpf: profile?.cpf || null,
+          parent_rg: profile?.rg || null,
+          parent_phone: profile?.phone || null,
+          address: null, // Address will be fetched from child_registrations when sending
+        };
+      });
+
+      setChildrenWithoutContract(result);
+    } catch (error) {
+      console.error("Error fetching children without contract:", error);
+    }
+  }
+
+  function openContractPreview(child: ChildWithoutContract) {
+    setSelectedChildForContract(child);
+    setContractPreviewOpen(true);
+  }
+
+  async function sendContractForChild(editedData: ContractData) {
+    if (!selectedChildForContract) return;
+    
+    setSendingContract(true);
+    try {
+      const response = await supabase.functions.invoke("zapsign-send-contract", {
+        body: {
+          childId: selectedChildForContract.id,
+          registrationId: null,
+          parentId: selectedChildForContract.parent_id,
+          childName: editedData.childName,
+          birthDate: selectedChildForContract.birth_date,
+          classType: editedData.classType,
+          shiftType: editedData.shiftType,
+          planType: editedData.planType,
+          overrideData: {
+            parentName: editedData.parentName,
+            parentCpf: editedData.parentCpf,
+            parentRg: editedData.parentRg,
+            parentPhone: editedData.parentPhone,
+            parentEmail: editedData.parentEmail,
+            address: editedData.address,
+            emergencyContact: editedData.emergencyContact,
+          },
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao enviar contrato");
+      }
+
+      toast.success("Contrato enviado com sucesso!");
+      setContractPreviewOpen(false);
+      setSelectedChildForContract(null);
+      fetchContracts();
+      fetchChildrenWithoutContract();
+    } catch (error) {
+      console.error("Error sending contract:", error);
+      toast.error("Erro ao enviar contrato");
+    } finally {
+      setSendingContract(false);
+    }
+  }
+
+  function getContractDataForChild(child: ChildWithoutContract): ContractData {
+    return {
+      parentName: child.parent_name,
+      parentCpf: child.parent_cpf || "",
+      parentRg: child.parent_rg || "",
+      parentPhone: child.parent_phone || "",
+      parentEmail: child.parent_email,
+      address: child.address || "",
+      childName: child.full_name,
+      birthDate: format(new Date(child.birth_date), "dd/MM/yyyy"),
+      classType: child.class_type,
+      shiftType: child.shift_type,
+      planType: child.plan_type || undefined,
+    };
   }
 
   async function handleResendContract(contract: Contract) {
@@ -224,7 +399,7 @@ export default function AdminContracts() {
             Gerencie os contratos enviados via ZapSign
           </p>
         </div>
-        <Button variant="outline" onClick={fetchContracts}>
+        <Button variant="outline" onClick={() => { fetchContracts(); fetchChildrenWithoutContract(); }}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Atualizar
         </Button>
@@ -245,8 +420,8 @@ export default function AdminContracts() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
-            <div className="p-3 rounded-full bg-blue-100">
-              <Clock className="w-6 h-6 text-blue-600" />
+            <div className="p-3 rounded-full bg-pimpo-blue/10">
+              <Clock className="w-6 h-6 text-pimpo-blue" />
             </div>
             <div>
               <p className="text-2xl font-fredoka font-bold">{stats.pending}</p>
@@ -256,8 +431,8 @@ export default function AdminContracts() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
-            <div className="p-3 rounded-full bg-green-100">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 rounded-full bg-pimpo-green/10">
+              <CheckCircle className="w-6 h-6 text-pimpo-green" />
             </div>
             <div>
               <p className="text-2xl font-fredoka font-bold">{stats.signed}</p>
@@ -267,162 +442,252 @@ export default function AdminContracts() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
-            <div className="p-3 rounded-full bg-pimpo-yellow/20">
-              <FileSignature className="w-6 h-6 text-pimpo-yellow" />
+            <div className="p-3 rounded-full bg-destructive/10">
+              <AlertCircle className="w-6 h-6 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-fredoka font-bold">
-                {stats.total > 0 ? Math.round((stats.signed / stats.total) * 100) : 0}%
-              </p>
-              <p className="text-sm text-muted-foreground">Taxa de assinatura</p>
+              <p className="text-2xl font-fredoka font-bold">{childrenWithoutContract.length}</p>
+              <p className="text-sm text-muted-foreground">Sem contrato</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Contracts Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <CardTitle>Lista de Contratos</CardTitle>
+      {/* Tabs for Contracts and Pending */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "contracts" | "pending")}>
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="contracts" className="flex items-center gap-2">
+            <FileSignature className="w-4 h-4" />
+            Contratos Enviados
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Sem Contrato
+            {childrenWithoutContract.length > 0 && (
+              <Badge variant="secondary" className="ml-1 bg-destructive/20 text-destructive">
+                {childrenWithoutContract.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Contracts Tab */}
+        <TabsContent value="contracts" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle>Lista de Contratos</CardTitle>
+                  <CardDescription>
+                    Todos os contratos de matrícula enviados para assinatura
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filtrar por status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os status</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="sent">Enviado</SelectItem>
+                      <SelectItem value="signed">Assinado</SelectItem>
+                      <SelectItem value="refused">Recusado</SelectItem>
+                      <SelectItem value="expired">Expirado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {filteredContracts.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileSignature className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg">Nenhum contrato encontrado</h3>
+                  <p className="text-muted-foreground">
+                    {statusFilter !== "all" 
+                      ? "Nenhum contrato com este status"
+                      : "Os contratos aparecerão aqui após aprovar matrículas"
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Criança</TableHead>
+                        <TableHead>Responsável</TableHead>
+                        <TableHead>Turma</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Enviado em</TableHead>
+                        <TableHead>Assinado em</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredContracts.map((contract) => {
+                        const status = statusConfig[contract.status] || statusConfig.pending;
+                        const StatusIcon = status.icon;
+                        
+                        return (
+                          <TableRow key={contract.id}>
+                            <TableCell className="font-medium">
+                              {contract.child_name}
+                            </TableCell>
+                            <TableCell>{contract.parent_name}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span>{classTypeLabels[contract.class_type || ""] || "-"}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {shiftTypeLabels[contract.shift_type || ""] || "-"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant="outline" 
+                                className={`${status.bgColor} ${status.color} border-0`}
+                              >
+                                <StatusIcon className="w-3 h-3 mr-1" />
+                                {status.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {contract.sent_at 
+                                ? format(new Date(contract.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                                : "-"
+                              }
+                            </TableCell>
+                            <TableCell>
+                              {contract.signed_at 
+                                ? format(new Date(contract.signed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+                                : "-"
+                              }
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openDetails(contract)}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                {contract.zapsign_doc_url && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    asChild
+                                  >
+                                    <a 
+                                      href={contract.zapsign_doc_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                    >
+                                      <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                  </Button>
+                                )}
+                                {(contract.status === "sent" || contract.status === "expired" || contract.status === "refused") && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleResendContract(contract)}
+                                    disabled={resending === contract.id}
+                                  >
+                                    {resending === contract.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Pending Contracts Tab */}
+        <TabsContent value="pending" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                Crianças Sem Contrato
+              </CardTitle>
               <CardDescription>
-                Todos os contratos de matrícula enviados para assinatura
+                Crianças cadastradas que ainda não possuem contrato enviado. Clique para gerar e enviar o contrato.
               </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os status</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="sent">Enviado</SelectItem>
-                  <SelectItem value="signed">Assinado</SelectItem>
-                  <SelectItem value="refused">Recusado</SelectItem>
-                  <SelectItem value="expired">Expirado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredContracts.length === 0 ? (
-            <div className="text-center py-12">
-              <FileSignature className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="font-semibold text-lg">Nenhum contrato encontrado</h3>
-              <p className="text-muted-foreground">
-                {statusFilter !== "all" 
-                  ? "Nenhum contrato com este status"
-                  : "Os contratos aparecerão aqui após aprovar matrículas"
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Criança</TableHead>
-                    <TableHead>Responsável</TableHead>
-                    <TableHead>Turma</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Enviado em</TableHead>
-                    <TableHead>Assinado em</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredContracts.map((contract) => {
-                    const status = statusConfig[contract.status] || statusConfig.pending;
-                    const StatusIcon = status.icon;
-                    
-                    return (
-                      <TableRow key={contract.id}>
-                        <TableCell className="font-medium">
-                          {contract.child_name}
-                        </TableCell>
-                        <TableCell>{contract.parent_name}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span>{classTypeLabels[contract.class_type || ""] || "-"}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {shiftTypeLabels[contract.shift_type || ""] || "-"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={`${status.bgColor} ${status.color} border-0`}
-                          >
-                            <StatusIcon className="w-3 h-3 mr-1" />
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {contract.sent_at 
-                            ? format(new Date(contract.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                            : "-"
-                          }
-                        </TableCell>
-                        <TableCell>
-                          {contract.signed_at 
-                            ? format(new Date(contract.signed_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                            : "-"
-                          }
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+            </CardHeader>
+            <CardContent>
+              {childrenWithoutContract.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-pimpo-green/50 mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg">Tudo em ordem!</h3>
+                  <p className="text-muted-foreground">
+                    Todas as crianças cadastradas possuem contrato enviado
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Criança</TableHead>
+                        <TableHead>Responsável</TableHead>
+                        <TableHead>Turma</TableHead>
+                        <TableHead>Turno</TableHead>
+                        <TableHead>Cadastrado em</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {childrenWithoutContract.map((child) => (
+                        <TableRow key={child.id}>
+                          <TableCell className="font-medium">
+                            {child.full_name}
+                          </TableCell>
+                          <TableCell>
+                            {child.parent_name}
+                          </TableCell>
+                          <TableCell>
+                            {classTypeLabels[child.class_type] || child.class_type}
+                          </TableCell>
+                          <TableCell>
+                            {shiftTypeLabels[child.shift_type] || child.shift_type}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(child.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="text-right">
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => openDetails(contract)}
+                              onClick={() => openContractPreview(child)}
                             >
-                              <Eye className="w-4 h-4" />
+                              <Send className="w-4 h-4 mr-2" />
+                              Gerar Contrato
                             </Button>
-                            {contract.zapsign_doc_url && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                asChild
-                              >
-                                <a 
-                                  href={contract.zapsign_doc_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink className="w-4 h-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {(contract.status === "sent" || contract.status === "expired" || contract.status === "refused") && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleResendContract(contract)}
-                                disabled={resending === contract.id}
-                              >
-                                {resending === contract.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <RefreshCw className="w-4 h-4" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Contract Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -520,6 +785,17 @@ export default function AdminContracts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Contract Preview Dialog for generating new contracts */}
+      {selectedChildForContract && (
+        <ContractPreviewDialog
+          open={contractPreviewOpen}
+          onOpenChange={setContractPreviewOpen}
+          contractData={getContractDataForChild(selectedChildForContract)}
+          onConfirmSend={sendContractForChild}
+          loading={sendingContract}
+        />
+      )}
     </div>
   );
 }
