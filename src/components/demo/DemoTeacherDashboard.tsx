@@ -33,11 +33,13 @@ import {
   Car,
   AlertTriangle,
   UserCheck,
+  UserX,
   Sparkles,
   Loader2,
   RefreshCw,
   Check,
   CheckCheck,
+  ClipboardCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
@@ -293,6 +295,137 @@ function DemoQuickReplySuggestions({
   );
 }
 
+type AttendanceStatus = "present" | "absent" | "late" | "excused";
+
+const statusConfig: Record<AttendanceStatus, { label: string; icon: typeof Check; color: string }> = {
+  present: { label: "Presente", icon: Check, color: "bg-green-500" },
+  absent: { label: "Ausente", icon: X, color: "bg-red-500" },
+  late: { label: "Atrasado", icon: Clock, color: "bg-yellow-500" },
+  excused: { label: "Justificado", icon: AlertTriangle, color: "bg-blue-500" },
+};
+
+// Demo Attendance Tab Component
+function DemoAttendanceTab() {
+  const [attendanceStatus, setAttendanceStatus] = useState<Record<string, AttendanceStatus>>({
+    "1": "present",
+    "2": "present",
+    "3": "late",
+    "5": "present",
+  });
+
+  const handleStatusChange = (childId: string, status: AttendanceStatus) => {
+    setAttendanceStatus((prev) => ({ ...prev, [childId]: status }));
+  };
+
+  const handleMarkAllPresent = () => {
+    const newStatus: Record<string, AttendanceStatus> = {};
+    mockChildren.forEach((child) => {
+      newStatus[child.id] = "present";
+    });
+    setAttendanceStatus(newStatus);
+  };
+
+  const stats = {
+    total: mockChildren.length,
+    present: mockChildren.filter((c) => attendanceStatus[c.id] === "present").length,
+    absent: mockChildren.filter((c) => attendanceStatus[c.id] === "absent").length,
+    late: mockChildren.filter((c) => attendanceStatus[c.id] === "late").length,
+    pending: mockChildren.filter((c) => !attendanceStatus[c.id]).length,
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Stats Row */}
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex gap-3">
+          <Badge variant="outline" className="py-1.5">
+            <UserCheck className="w-3 h-3 mr-1.5 text-green-500" />
+            {stats.present} Presentes
+          </Badge>
+          <Badge variant="outline" className="py-1.5">
+            <X className="w-3 h-3 mr-1.5 text-red-500" />
+            {stats.absent} Ausentes
+          </Badge>
+          <Badge variant="outline" className="py-1.5">
+            <Clock className="w-3 h-3 mr-1.5 text-yellow-500" />
+            {stats.pending} Pendentes
+          </Badge>
+        </div>
+        
+        <Button size="sm" onClick={handleMarkAllPresent}>
+          <UserCheck className="mr-2 h-4 w-4" />
+          Marcar Todos Presentes
+        </Button>
+      </div>
+
+      {/* Children List */}
+      <ScrollArea className="h-[400px]">
+        <div className="space-y-2">
+          {mockChildren.map((child) => {
+            const currentStatus = attendanceStatus[child.id];
+            
+            return (
+              <div
+                key={child.id}
+                className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  currentStatus === "present" ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800" :
+                  currentStatus === "absent" ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800" :
+                  currentStatus === "late" ? "bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800" :
+                  currentStatus === "excused" ? "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800" :
+                  "bg-muted/30"
+                }`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Avatar className="h-10 w-10 shrink-0">
+                    <AvatarImage src={child.photo} alt={child.name} />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {child.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{child.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Maternal • Integral
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {(Object.keys(statusConfig) as AttendanceStatus[]).map((status) => {
+                    const config = statusConfig[status];
+                    const Icon = config.icon;
+                    const isActive = currentStatus === status;
+
+                    return (
+                      <Button
+                        key={status}
+                        size="sm"
+                        variant={isActive ? "default" : "outline"}
+                        className={`h-8 px-2.5 ${isActive ? `${config.color} text-white hover:opacity-90` : ""}`}
+                        onClick={() => handleStatusChange(child.id, status)}
+                      >
+                        <Icon className="h-3.5 w-3.5 mr-1" />
+                        <span className="hidden sm:inline">{config.label}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                {currentStatus && (currentStatus === "present" || currentStatus === "late") && (
+                  <div className="text-xs text-muted-foreground shrink-0">
+                    <Clock className="inline h-3 w-3 mr-1" />
+                    {currentStatus === "late" ? "08:45" : "07:30"}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
 export function DemoTeacherDashboard() {
   const [activeTab, setActiveTab] = useState("agenda");
   const [selectedChild, setSelectedChild] = useState<string | null>(null);
@@ -483,12 +616,16 @@ export function DemoTeacherDashboard() {
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <div className="border-b bg-muted/30 overflow-visible">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5 overflow-visible">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-6 overflow-visible">
                   <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <Calendar className="w-4 h-4" />
                     <span className="hidden sm:inline">Agenda</span>
                   </TabsTrigger>
                   <TabsTrigger value="chamada" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
+                    <ClipboardCheck className="w-4 h-4" />
+                    <span className="hidden sm:inline">Chamada</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="turma" className="rounded-none border-b-2 border-transparent data-[state=active]:border-pimpo-green data-[state=active]:bg-transparent py-3 gap-2">
                     <Users className="w-4 h-4" />
                     <span className="hidden sm:inline">Turma</span>
                   </TabsTrigger>
@@ -801,32 +938,42 @@ export function DemoTeacherDashboard() {
 
                 {/* Chamada Tab */}
                 <TabsContent value="chamada" className="mt-0">
+                  <DemoAttendanceTab />
+                </TabsContent>
+
+                {/* Turma Tab */}
+                <TabsContent value="turma" className="mt-0">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold">Chamada do Dia</h3>
+                    <h3 className="font-semibold">Minha Turma</h3>
                     <Badge variant="outline">{totalCount} alunos</Badge>
                   </div>
-                  <div className="space-y-2">
-                    {mockChildren.map((child, i) => (
-                      <div key={child.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                              {child.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{child.name}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant={i % 3 !== 2 ? "default" : "outline"} className={i % 3 !== 2 ? "bg-pimpo-green hover:bg-pimpo-green/90" : ""}>
-                            Presente
-                          </Button>
-                          <Button size="sm" variant={i % 3 === 2 ? "destructive" : "outline"}>
-                            Falta
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-3">
+                      {mockChildren.map((child) => (
+                        <Card key={child.id}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-4">
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={child.photo} alt={child.name} />
+                                <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                                  {child.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="font-semibold">{child.name}</p>
+                                  <Badge variant="outline">Maternal</Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  Nascimento: 15/03/2021
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </TabsContent>
 
                 {/* Chat com Pais Tab */}
