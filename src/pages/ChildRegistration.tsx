@@ -1228,12 +1228,44 @@ const ChildRegistration = () => {
                           </div>
                         )}
 
-                        <Label className="text-base font-medium">Plano Desejado *</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Selecione o plano que melhor atende às necessidades da sua família.
-                        </p>
+                        {/* Manual Coupon Input */}
+                        {!coupon && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                              <Tag className="h-4 w-4" />
+                              Cupom de Desconto
+                            </Label>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Digite o código do cupom"
+                                value={couponCode}
+                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                className="flex-1 font-mono uppercase"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  if (couponCode.trim()) {
+                                    validateCoupon(couponCode.trim());
+                                  }
+                                }}
+                                disabled={isValidatingCoupon || !couponCode.trim()}
+                              >
+                                {isValidatingCoupon ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  "Aplicar"
+                                )}
+                              </Button>
+                            </div>
+                            {couponError && (
+                              <p className="text-sm text-destructive">{couponError}</p>
+                            )}
+                          </div>
+                        )}
 
-                        {/* Coupon Display (read-only if auto-applied) */}
+                        {/* Coupon Display (when applied) */}
                         {coupon && (
                           <div className="bg-primary/10 rounded-lg p-4 space-y-2">
                             <div className="flex items-center justify-between">
@@ -1271,6 +1303,11 @@ const ChildRegistration = () => {
                             </div>
                           </div>
                         )}
+
+                        <Label className="text-base font-medium">Plano Desejado *</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Selecione o plano que melhor atende às necessidades da sua família.
+                        </p>
 
                         <Controller
                           name="planType"
