@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, MessageSquare, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -29,12 +30,15 @@ interface ChatPreview {
 
 export default function AdminMessages() {
   const { user } = useAuth();
+  const { playNotificationSound } = useNotificationSound();
   const [searchParams, setSearchParams] = useSearchParams();
   const [children, setChildren] = useState<Child[]>([]);
   const [chatPreviews, setChatPreviews] = useState<Record<string, ChatPreview>>({});
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [recentlyUpdatedChildId, setRecentlyUpdatedChildId] = useState<string | null>(null);
+  const recentlyUpdatedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check for child ID in URL params and auto-select
   useEffect(() => {
@@ -128,6 +132,22 @@ export default function AdminMessages() {
         (payload) => {
           const newMessage = payload.new as { id: string; content: string; created_at: string; child_id: string; sender_id: string };
           
+          // Play notification sound if message is from someone else
+          if (newMessage.sender_id !== user?.id) {
+            playNotificationSound();
+            
+            // Highlight the conversation that received a new message
+            setRecentlyUpdatedChildId(newMessage.child_id);
+            
+            // Clear the highlight after 3 seconds
+            if (recentlyUpdatedTimeoutRef.current) {
+              clearTimeout(recentlyUpdatedTimeoutRef.current);
+            }
+            recentlyUpdatedTimeoutRef.current = setTimeout(() => {
+              setRecentlyUpdatedChildId(null);
+            }, 3000);
+          }
+          
           setChatPreviews((prev) => ({
             ...prev,
             [newMessage.child_id]: {
@@ -145,8 +165,11 @@ export default function AdminMessages() {
 
     return () => {
       supabase.removeChannel(channel);
+      if (recentlyUpdatedTimeoutRef.current) {
+        clearTimeout(recentlyUpdatedTimeoutRef.current);
+      }
     };
-  }, [children, user?.id]);
+  }, [children, user?.id, playNotificationSound]);
 
   const classTypeLabels: Record<string, string> = {
     bercario: "Berçário",
@@ -204,16 +227,18 @@ export default function AdminMessages() {
                 {sortedChildren.map((child) => {
                   const preview = chatPreviews[child.id];
                   const isSelected = selectedChild?.id === child.id;
+                  const isRecentlyUpdated = recentlyUpdatedChildId === child.id;
 
                   return (
                     <button
                       key={child.id}
                       onClick={() => setSelectedChild(child)}
                       className={cn(
-                        "w-full text-left p-3 rounded-lg transition-colors",
+                        "w-full text-left p-3 rounded-lg transition-all duration-300",
                         isSelected
                           ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
+                          : "hover:bg-muted",
+                        isRecentlyUpdated && !isSelected && "bg-pimpo-green/20 ring-2 ring-pimpo-green/50 animate-pulse"
                       )}
                     >
                       <div className="flex items-start gap-3">
