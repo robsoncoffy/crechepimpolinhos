@@ -42,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap } from "lucide-react";
+import { Baby, Plus, Trash2, Loader2, Edit, Users, Link2, ClipboardList, GraduationCap, Search, X } from "lucide-react";
 import { Database, Constants } from "@/integrations/supabase/types";
 import { classTypeLabels, shiftTypeLabels, calculateAge } from "@/lib/constants";
 import ChildAttendanceTab from "@/components/admin/ChildAttendanceTab";
@@ -80,6 +80,8 @@ export default function AdminChildren() {
   const [activeTab, setActiveTab] = useState("lista");
   const [newClassType, setNewClassType] = useState<ClassType>("bercario");
   const [newShiftType, setNewShiftType] = useState<ShiftType>("integral");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterClass, setFilterClass] = useState<ClassType | "all">("all");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -378,6 +380,14 @@ export default function AdminChildren() {
 
   // calculateAge is now imported from @/lib/constants
 
+  // Filter children based on search and class filter
+  const filteredChildren = children.filter((child) => {
+    const matchesSearch = searchQuery === "" || 
+      child.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesClass = filterClass === "all" || child.class_type === filterClass;
+    return matchesSearch && matchesClass;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -638,17 +648,77 @@ export default function AdminChildren() {
         <TabsContent value="lista" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Crianças Matriculadas</CardTitle>
-              <CardDescription>Lista de todas as crianças cadastradas</CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle>Crianças Matriculadas</CardTitle>
+                  <CardDescription>Lista de todas as crianças cadastradas</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-8 w-full sm:w-64"
+                    />
+                    {searchQuery && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                        onClick={() => setSearchQuery("")}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {/* Class Filter */}
+                  <Select 
+                    value={filterClass} 
+                    onValueChange={(v) => setFilterClass(v as ClassType | "all")}
+                  >
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue placeholder="Filtrar turma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as turmas</SelectItem>
+                      {Constants.public.Enums.class_type.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {classTypeLabels[type]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-          {children.length === 0 ? (
+          {filteredChildren.length === 0 ? (
             <div className="text-center py-12">
               <Baby className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="font-semibold text-lg">Nenhuma criança cadastrada</h3>
-              <p className="text-muted-foreground mb-4">
-                Clique no botão acima para adicionar
-              </p>
+              {children.length === 0 ? (
+                <>
+                  <h3 className="font-semibold text-lg">Nenhuma criança cadastrada</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Clique no botão acima para adicionar
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-lg">Nenhuma criança encontrada</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Tente ajustar os filtros de busca
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => { setSearchQuery(""); setFilterClass("all"); }}
+                  >
+                    Limpar filtros
+                  </Button>
+                </>
+              )}
             </div>
           ) : (
             <Table>
@@ -663,7 +733,7 @@ export default function AdminChildren() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {children.map((child) => {
+                {filteredChildren.map((child) => {
                   const childParents = getChildParents(child.id);
                   return (
                     <TableRow key={child.id}>
