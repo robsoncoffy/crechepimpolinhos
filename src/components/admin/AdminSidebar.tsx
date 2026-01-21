@@ -6,7 +6,6 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupConte
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { RoleViewSwitcher } from "./RoleViewSwitcher";
 import { DashboardViewToggle } from "./DashboardViewToggle";
 
 // Menu items organized by category with role restrictions
@@ -322,13 +321,6 @@ export function AdminSidebar() {
         <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
           <DashboardViewToggle isCollapsed={isCollapsed} />
         </SidebarGroup>
-        
-        {/* Role View Switcher - Only for Admins (demo purposes) */}
-        {isAdmin && (
-          <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
-            <RoleViewSwitcher isCollapsed={isCollapsed} />
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       {/* Footer */}

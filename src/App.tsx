@@ -15,7 +15,6 @@ const Structure = lazy(() => import("./pages/Structure"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Demo = lazy(() => import("./pages/Demo"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PreEnrollment = lazy(() => import("./pages/PreEnrollment"));
 const ChildRegistration = lazy(() => import("./pages/ChildRegistration"));
@@ -70,7 +69,6 @@ const App = () => (
             <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
             <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
             <Route path="/instalar" element={<Install />} />
-            <Route path="/demo" element={<Demo />} />
             <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
             <Route path="/lgpd" element={<LGPD />} />
             <Route path="/termos-uso" element={<TermsOfUse />} />
