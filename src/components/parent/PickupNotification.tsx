@@ -12,21 +12,25 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Car, Clock, Loader2, CheckCircle2 } from "lucide-react";
+import { Car, Clock, Loader2, CheckCircle2, UserCheck } from "lucide-react";
 
 interface PickupNotificationProps {
   childId: string;
   childName: string;
 }
 
+type NotificationType = "on_way" | "delay" | "other_person";
+
 export function PickupNotification({ childId, childName }: PickupNotificationProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  const [notificationType, setNotificationType] = useState<"on_way" | "delay">("on_way");
+  const [notificationType, setNotificationType] = useState<NotificationType>("on_way");
   const [delayMinutes, setDelayMinutes] = useState<string>("10");
+  const [otherPersonName, setOtherPersonName] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -34,14 +38,26 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
   const handleSubmit = async () => {
     if (!user) return;
 
+    // Validate other person name
+    if (notificationType === "other_person" && !otherPersonName.trim()) {
+      toast.error("Informe o nome de quem vai buscar");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // Build message based on type
+      let finalMessage = message;
+      if (notificationType === "other_person") {
+        finalMessage = `${otherPersonName.trim()} irá buscar. ${message}`.trim();
+      }
+
       const { error } = await supabase.from("pickup_notifications").insert({
         child_id: childId,
         parent_id: user.id,
         notification_type: notificationType,
         delay_minutes: notificationType === "delay" ? parseInt(delayMinutes) : null,
-        message: message || null,
+        message: finalMessage || null,
       });
 
       if (error) throw error;
@@ -52,14 +68,17 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
         setShowSuccess(false);
         setNotificationType("on_way");
         setDelayMinutes("10");
+        setOtherPersonName("");
         setMessage("");
       }, 2000);
 
-      toast.success(
-        notificationType === "on_way"
-          ? "Escola notificada que você está a caminho!"
-          : `Escola notificada sobre o atraso de ${delayMinutes} minutos`
-      );
+      const successMessages: Record<NotificationType, string> = {
+        on_way: "Escola notificada que você está a caminho!",
+        delay: `Escola notificada sobre o atraso de ${delayMinutes} minutos`,
+        other_person: `Escola notificada que ${otherPersonName.trim()} irá buscar`,
+      };
+
+      toast.success(successMessages[notificationType]);
     } catch (error) {
       console.error("Error sending notification:", error);
       toast.error("Erro ao enviar notificação");
@@ -102,7 +121,7 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
             <div className="space-y-6 py-4">
               <RadioGroup
                 value={notificationType}
-                onValueChange={(v) => setNotificationType(v as "on_way" | "delay")}
+                onValueChange={(v) => setNotificationType(v as NotificationType)}
                 className="grid gap-3"
               >
                 <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
@@ -130,6 +149,19 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
                     </p>
                   </Label>
                 </div>
+
+                <div className="flex items-center space-x-3 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="other_person" id="other_person" />
+                  <Label htmlFor="other_person" className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-purple-600" />
+                      <span className="font-medium">Outra pessoa vai buscar</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Avise que outra pessoa autorizada irá buscar
+                    </p>
+                  </Label>
+                </div>
               </RadioGroup>
 
               {notificationType === "delay" && (
@@ -152,13 +184,30 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
                 </div>
               )}
 
+              {notificationType === "other_person" && (
+                <div className="space-y-2">
+                  <Label htmlFor="other_person_name" className="text-sm font-medium">
+                    Nome de quem vai buscar *
+                  </Label>
+                  <Input
+                    id="other_person_name"
+                    placeholder="Ex: Avó Maria, Tia Ana..."
+                    value={otherPersonName}
+                    onChange={(e) => setOtherPersonName(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Certifique-se de que esta pessoa está na lista de autorizados
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="message" className="text-sm font-medium">
                   Mensagem adicional (opcional)
                 </Label>
                 <Textarea
                   id="message"
-                  placeholder="Ex: Avó vai buscar hoje..."
+                  placeholder="Ex: Hoje ele está levando mochila extra..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={2}
