@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Users,
   Baby,
@@ -28,19 +29,38 @@ import {
   Smile,
   FileText,
   Pill,
+  Car,
+  AlertTriangle,
+  UserCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
 
-// Mock children for the class with photos
+// Mock children for the class with photos and pickup notifications
 const mockChildren = [
-  { id: "1", name: "Maria Silva", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1595074475609-81c60c568046?w=100&h=100&fit=crop&crop=face" },
-  { id: "2", name: "João Pedro", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=100&h=100&fit=crop&crop=face" },
-  { id: "3", name: "Ana Beatriz", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=100&h=100&fit=crop&crop=face" },
-  { id: "4", name: "Lucas Oliveira", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1596215143922-eedeaba0d91c?w=100&h=100&fit=crop&crop=face" },
-  { id: "5", name: "Sofia Santos", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop&crop=face" },
-  { id: "6", name: "Miguel Costa", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=100&h=100&fit=crop&crop=face" },
+  { id: "1", name: "Maria Silva", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1595074475609-81c60c568046?w=100&h=100&fit=crop&crop=face", pickupNotification: null },
+  { id: "2", name: "João Pedro", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=100&h=100&fit=crop&crop=face", pickupNotification: { type: "on_way", message: "Mãe está a caminho", time: "16:45" } },
+  { id: "3", name: "Ana Beatriz", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=100&h=100&fit=crop&crop=face", pickupNotification: null },
+  { id: "4", name: "Lucas Oliveira", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1596215143922-eedeaba0d91c?w=100&h=100&fit=crop&crop=face", pickupNotification: { type: "delay", message: "Vai atrasar 20 minutos", delayMinutes: 20, time: "16:30" } },
+  { id: "5", name: "Sofia Santos", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop&crop=face", pickupNotification: { type: "other_person", message: "Avó Maria irá buscar", personName: "Avó Maria", time: "16:50" } },
+  { id: "6", name: "Miguel Costa", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=100&h=100&fit=crop&crop=face", pickupNotification: null },
 ];
+
+// Helper to get pickup notification badge info
+const getPickupBadgeInfo = (notification: typeof mockChildren[0]["pickupNotification"]) => {
+  if (!notification) return null;
+  
+  switch (notification.type) {
+    case "on_way":
+      return { icon: Car, label: "A caminho", color: "bg-blue-100 text-blue-700 border-blue-300" };
+    case "delay":
+      return { icon: Clock, label: `Atraso ${notification.delayMinutes}min`, color: "bg-amber-100 text-amber-700 border-amber-300" };
+    case "other_person":
+      return { icon: UserCheck, label: notification.personName || "Outra pessoa", color: "bg-purple-100 text-purple-700 border-purple-300" };
+    default:
+      return null;
+  }
+};
 
 const mealOptions = [
   { value: "tudo", label: "Comeu tudo" },
@@ -189,37 +209,68 @@ export function DemoTeacherDashboard() {
 
                   {/* Children List */}
                   <div className="space-y-2 mb-4">
-                    {mockChildren.map((child) => (
-                      <div
-                        key={child.id}
-                        onClick={() => setSelectedChild(child.id === selectedChild ? null : child.id)}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          selectedChild === child.id 
-                            ? "bg-pimpo-green/10 border-pimpo-green" 
-                            : "hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 ring-2 ring-primary/20">
-                              <AvatarImage src={child.photo} alt={child.name} className="object-cover" />
-                              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                {child.name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">{child.name}</span>
+                    {mockChildren.map((child) => {
+                      const pickupBadge = getPickupBadgeInfo(child.pickupNotification);
+                      
+                      return (
+                        <div
+                          key={child.id}
+                          onClick={() => setSelectedChild(child.id === selectedChild ? null : child.id)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedChild === child.id 
+                              ? "bg-pimpo-green/10 border-pimpo-green" 
+                              : child.pickupNotification 
+                                ? "bg-gradient-to-r from-background to-blue-50/50 border-blue-200"
+                                : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative">
+                                <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+                                  <AvatarImage src={child.photo} alt={child.name} className="object-cover" />
+                                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                    {child.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                {child.pickupNotification && (
+                                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center animate-pulse">
+                                    <Bell className="w-2.5 h-2.5 text-white" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-medium truncate">{child.name}</span>
+                                {pickupBadge && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border w-fit ${pickupBadge.color}`}>
+                                        <pickupBadge.icon className="w-3 h-3" />
+                                        {pickupBadge.label}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="font-medium">{child.pickupNotification?.message}</p>
+                                      <p className="text-xs text-muted-foreground">Notificado às {child.pickupNotification?.time}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {child.hasRecord ? (
+                                <Badge variant="secondary" className="bg-pimpo-green/20 text-pimpo-green">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                                  <span className="hidden sm:inline">Preenchida</span>
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">Pendente</Badge>
+                              )}
+                            </div>
                           </div>
-                          {child.hasRecord ? (
-                            <Badge variant="secondary" className="bg-pimpo-green/20 text-pimpo-green">
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Preenchida
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Pendente</Badge>
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Selected Child Form */}
