@@ -152,12 +152,10 @@ export default function PedagogueDashboard() {
     async function fetchData() {
       setLoading(true);
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const childrenQuery = supabase.from("children").select("id", { count: "exact", head: true }) as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const plansQuery = supabase.from("weekly_activity_plans").select("id", { count: "exact", head: true }) as any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const plusQuery = supabase.from("children").select("*").eq("subscription_type", "plus") as any;
+        const childrenQuery = supabase.from("children").select("id", { count: "exact", head: true });
+        const plansQuery = supabase.from("weekly_activity_plans").select("id", { count: "exact", head: true });
+        // Fetch children with plan_type 'plus' 
+        const plusQuery = supabase.from("children").select("*").eq("plan_type", "plus");
 
         const [childrenRes, plansRes, plusRes] = await Promise.all([
           childrenQuery,
