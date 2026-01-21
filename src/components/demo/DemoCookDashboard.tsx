@@ -79,7 +79,7 @@ const mockChildren = [
   { 
     id: "1", 
     name: "Maria Silva", 
-    class: "maternal", 
+    class: "maternal_1", 
     shift: "integral",
     allergies: "Amendoim, Nozes",
     specialMilk: null,
@@ -89,7 +89,7 @@ const mockChildren = [
   { 
     id: "2", 
     name: "João Pedro", 
-    class: "maternal", 
+    class: "maternal_1", 
     shift: "integral",
     allergies: null,
     specialMilk: "Aptamil HA",
@@ -119,7 +119,7 @@ const mockChildren = [
   { 
     id: "5", 
     name: "Sofia Santos", 
-    class: "maternal", 
+    class: "maternal_2", 
     shift: "integral",
     allergies: "Glúten, Leite",
     specialMilk: "Leite de Aveia",
@@ -136,6 +136,46 @@ const mockChildren = [
     dietaryRestrictions: null,
     meals: { breakfast: true, morningSnack: false, lunch: false, afternoonSnack: false, dinner: false }
   },
+  { 
+    id: "7", 
+    name: "Helena Rocha", 
+    class: "maternal_2", 
+    shift: "integral",
+    allergies: null,
+    specialMilk: null,
+    dietaryRestrictions: null,
+    meals: { breakfast: false, morningSnack: false, lunch: false, afternoonSnack: false, dinner: false }
+  },
+  { 
+    id: "8", 
+    name: "Pedro Henrique", 
+    class: "maternal_1", 
+    shift: "manha",
+    allergies: null,
+    specialMilk: null,
+    dietaryRestrictions: null,
+    meals: { breakfast: false, morningSnack: false, lunch: false, afternoonSnack: false, dinner: false }
+  },
+  { 
+    id: "9", 
+    name: "Laura Mendes", 
+    class: "jardim", 
+    shift: "integral",
+    allergies: "Camarão",
+    specialMilk: null,
+    dietaryRestrictions: null,
+    meals: { breakfast: true, morningSnack: false, lunch: false, afternoonSnack: false, dinner: false }
+  },
+  { 
+    id: "10", 
+    name: "Theo Almeida", 
+    class: "bercario", 
+    shift: "integral",
+    allergies: null,
+    specialMilk: "NAN Comfort",
+    dietaryRestrictions: null,
+    meals: { breakfast: false, morningSnack: false, lunch: false, afternoonSnack: false, dinner: false }
+  },
 ];
 
 const mealTypes = [
@@ -148,9 +188,18 @@ const mealTypes = [
 
 const classLabels: Record<string, string> = {
   bercario: "Berçário",
-  maternal: "Maternal",
+  maternal_1: "Maternal I",
+  maternal_2: "Maternal II",
   jardim: "Jardim",
 };
+
+const mealClassTabs = [
+  { key: "todas", label: "Todas" },
+  { key: "bercario", label: "Berçário" },
+  { key: "maternal_1", label: "Maternal I" },
+  { key: "maternal_2", label: "Maternal II" },
+  { key: "jardim", label: "Jardim" },
+];
 
 // Mock weekly menu data
 const mockWeeklyMenu = {
@@ -183,6 +232,7 @@ export function DemoCookDashboard() {
   const [activeTab, setActiveTab] = useState("cardapio");
   const [children, setChildren] = useState(mockChildren);
   const [selectedClass, setSelectedClass] = useState<string | null>(null);
+  const [selectedMealClass, setSelectedMealClass] = useState<string>("todas");
   const [menuType, setMenuType] = useState<"bercario" | "maternal">("bercario");
   const [selectedMenuDay, setSelectedMenuDay] = useState(() => {
     const today = new Date().getDay();
@@ -355,6 +405,13 @@ export function DemoCookDashboard() {
     return matchesSearch && matchesClass;
   });
 
+  // Filtered children for meals tab (uses selectedMealClass)
+  const filteredMealChildren = children.filter((child) => {
+    const matchesSearch = child.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClass = selectedMealClass === "todas" || child.class === selectedMealClass;
+    return matchesSearch && matchesClass;
+  });
+
   const childrenWithAllergies = children.filter(c => c.allergies);
   const childrenWithSpecialMilk = children.filter(c => c.specialMilk);
   const childrenWithRestrictions = children.filter(c => c.dietaryRestrictions);
@@ -382,6 +439,37 @@ export function DemoCookDashboard() {
     if (hour < 14) return "lunch";
     if (hour < 16) return "afternoonSnack";
     return "dinner";
+  };
+
+  // Mark all children in a class for the current meal
+  const markAllMeals = (mealKey: string, markAsServed: boolean = true) => {
+    setChildren(prev => prev.map(child => {
+      // Only update children in the selected class (or all if "todas")
+      if (selectedMealClass === "todas" || child.class === selectedMealClass) {
+        return {
+          ...child,
+          meals: {
+            ...child.meals,
+            [mealKey]: markAsServed
+          }
+        };
+      }
+      return child;
+    }));
+  };
+
+  // Check if all children in selected class have a meal marked
+  const areAllMealsMarked = (mealKey: string) => {
+    const classChildren = selectedMealClass === "todas" 
+      ? children 
+      : children.filter(c => c.class === selectedMealClass);
+    return classChildren.length > 0 && classChildren.every(c => c.meals[mealKey as keyof typeof c.meals]);
+  };
+
+  // Get children count for a class
+  const getClassChildrenCount = (classKey: string) => {
+    if (classKey === "todas") return children.length;
+    return children.filter(c => c.class === classKey).length;
   };
 
   const currentMeal = getCurrentMeal();
@@ -800,118 +888,181 @@ export function DemoCookDashboard() {
 
                 {/* Meal Tracking Tab */}
                 <TabsContent value="refeicoes" className="mt-0">
-                  <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar criança..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                    <div className="flex gap-2">
+                  {/* Class Sub-tabs */}
+                  <div className="flex flex-wrap gap-2 mb-4 p-1 bg-muted/50 rounded-lg">
+                    {mealClassTabs.map((tab) => (
                       <Button
-                        variant={selectedClass === null ? "default" : "outline"}
+                        key={tab.key}
+                        variant={selectedMealClass === tab.key ? "default" : "ghost"}
                         size="sm"
-                        onClick={() => setSelectedClass(null)}
+                        onClick={() => setSelectedMealClass(tab.key)}
+                        className="relative"
                       >
-                        Todas
+                        {tab.label}
+                        <Badge 
+                          variant="secondary" 
+                          className="ml-2 h-5 min-w-[1.25rem] px-1.5 text-[10px]"
+                        >
+                          {getClassChildrenCount(tab.key)}
+                        </Badge>
                       </Button>
-                      {["bercario", "maternal", "jardim"].map((cls) => (
-                        <Button
-                          key={cls}
-                          variant={selectedClass === cls ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setSelectedClass(cls)}
-                        >
-                          {classLabels[cls]}
-                        </Button>
-                      ))}
+                    ))}
+                  </div>
+
+                  {/* Search */}
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar criança..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  {/* Current Meal Indicator with Mark All */}
+                  <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-primary">
+                          Refeição atual: {mealTypes.find(m => m.key === currentMeal)?.label}
+                        </span>
+                      </div>
+                      <Button 
+                        size="sm"
+                        variant={areAllMealsMarked(currentMeal) ? "outline" : "default"}
+                        onClick={() => markAllMeals(currentMeal, !areAllMealsMarked(currentMeal))}
+                        className="gap-2"
+                      >
+                        {areAllMealsMarked(currentMeal) ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            Desmarcar Todas
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            Marcar Todas ({selectedMealClass === "todas" ? "Todas as turmas" : classLabels[selectedMealClass]})
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
 
-                  {/* Current Meal Indicator */}
-                  <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-orange-500" />
-                      <span className="font-medium text-orange-700">
-                        Refeição atual: {mealTypes.find(m => m.key === currentMeal)?.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  <ScrollArea className="h-[400px]">
-                    <div className="space-y-2">
-                      {filteredChildren.map((child) => (
+                  {/* Meal Quick Actions */}
+                  <div className="mb-4 grid grid-cols-5 gap-2">
+                    {mealTypes.map((meal) => {
+                      const MealIcon = meal.icon;
+                      const allMarked = areAllMealsMarked(meal.key);
+                      const isCurrent = meal.key === currentMeal;
+                      return (
                         <div
-                          key={child.id}
-                          className={`p-3 rounded-lg border ${
-                            child.allergies || child.dietaryRestrictions
-                              ? "bg-orange-50/50 border-orange-200"
-                              : "bg-muted/30"
+                          key={meal.key}
+                          onClick={() => markAllMeals(meal.key, !allMarked)}
+                          className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-all border-2 ${
+                            allMarked
+                              ? "bg-pimpo-green/20 border-pimpo-green"
+                              : isCurrent
+                              ? "bg-primary/10 border-primary"
+                              : "bg-muted/30 border-transparent hover:border-muted-foreground/30"
                           }`}
+                          title={`Marcar ${meal.label} para ${selectedMealClass === "todas" ? "todas as turmas" : classLabels[selectedMealClass]}`}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                  {child.name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <span className="font-medium">{child.name}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge variant="outline" className="text-xs">
-                                    {classLabels[child.class]}
-                                  </Badge>
-                                  {child.allergies && (
-                                    <Badge variant="destructive" className="text-xs">
-                                      <AlertTriangle className="w-3 h-3 mr-1" />
-                                      Alergia
+                          {allMarked ? (
+                            <CheckCircle2 className="w-5 h-5 text-pimpo-green" />
+                          ) : (
+                            <MealIcon className={`w-5 h-5 ${isCurrent ? "text-primary" : "text-muted-foreground"}`} />
+                          )}
+                          <span className="text-[10px] mt-1 text-center font-medium">
+                            {meal.label.split(" ")[0]}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            Marcar todas
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <ScrollArea className="h-[350px]">
+                    <div className="space-y-2">
+                      {filteredMealChildren.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <UtensilsCrossed className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                          <p>Nenhuma criança encontrada</p>
+                        </div>
+                      ) : (
+                        filteredMealChildren.map((child) => (
+                          <div
+                            key={child.id}
+                            className={`p-3 rounded-lg border ${
+                              child.allergies || child.dietaryRestrictions
+                                ? "bg-destructive/5 border-destructive/20"
+                                : "bg-muted/30"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                    {child.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <span className="font-medium">{child.name}</span>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="outline" className="text-xs">
+                                      {classLabels[child.class]}
                                     </Badge>
-                                  )}
-                                  {child.specialMilk && (
-                                    <Badge className="text-xs bg-pimpo-blue">
-                                      <Milk className="w-3 h-3 mr-1" />
-                                      Leite especial
-                                    </Badge>
-                                  )}
+                                    {child.allergies && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        <AlertTriangle className="w-3 h-3 mr-1" />
+                                        Alergia
+                                      </Badge>
+                                    )}
+                                    {child.specialMilk && (
+                                      <Badge className="text-xs bg-pimpo-blue">
+                                        <Milk className="w-3 h-3 mr-1" />
+                                        Leite especial
+                                      </Badge>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
+                            <div className="grid grid-cols-5 gap-2">
+                              {mealTypes.map((meal) => {
+                                const MealIcon = meal.icon;
+                                const isServed = child.meals[meal.key as keyof typeof child.meals];
+                                const isCurrent = meal.key === currentMeal;
+                                return (
+                                  <div
+                                    key={meal.key}
+                                    onClick={() => toggleMeal(child.id, meal.key)}
+                                    className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-all ${
+                                      isServed
+                                        ? "bg-pimpo-green/20 border-2 border-pimpo-green"
+                                        : isCurrent
+                                        ? "bg-primary/10 border-2 border-primary/50"
+                                        : "bg-muted/50 border border-transparent hover:border-muted-foreground/20"
+                                    }`}
+                                  >
+                                    {isServed ? (
+                                      <CheckCircle2 className="w-5 h-5 text-pimpo-green" />
+                                    ) : (
+                                      <MealIcon className={`w-5 h-5 ${isCurrent ? "text-primary" : "text-muted-foreground"}`} />
+                                    )}
+                                    <span className="text-[10px] mt-1 text-center">
+                                      {meal.label.split(" ")[0]}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <div className="grid grid-cols-5 gap-2">
-                            {mealTypes.map((meal) => {
-                              const MealIcon = meal.icon;
-                              const isServed = child.meals[meal.key as keyof typeof child.meals];
-                              const isCurrent = meal.key === currentMeal;
-                              return (
-                                <div
-                                  key={meal.key}
-                                  onClick={() => toggleMeal(child.id, meal.key)}
-                                  className={`flex flex-col items-center p-2 rounded-lg cursor-pointer transition-all ${
-                                    isServed
-                                      ? "bg-pimpo-green/20 border-2 border-pimpo-green"
-                                      : isCurrent
-                                      ? "bg-orange-100 border-2 border-orange-300"
-                                      : "bg-muted/50 border border-transparent hover:border-muted-foreground/20"
-                                  }`}
-                                >
-                                  {isServed ? (
-                                    <CheckCircle2 className="w-5 h-5 text-pimpo-green" />
-                                  ) : (
-                                    <MealIcon className={`w-5 h-5 ${isCurrent ? "text-orange-500" : "text-muted-foreground"}`} />
-                                  )}
-                                  <span className="text-[10px] mt-1 text-center">
-                                    {meal.label.split(" ")[0]}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </ScrollArea>
                 </TabsContent>
