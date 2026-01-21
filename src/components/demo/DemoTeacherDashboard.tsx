@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,14 +32,14 @@ import {
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo-pimpolinhos.png";
 
-// Mock children for the class
+// Mock children for the class with photos
 const mockChildren = [
-  { id: "1", name: "Maria Silva", class: "maternal", hasRecord: true },
-  { id: "2", name: "João Pedro", class: "maternal", hasRecord: true },
-  { id: "3", name: "Ana Beatriz", class: "maternal", hasRecord: false },
-  { id: "4", name: "Lucas Oliveira", class: "maternal", hasRecord: false },
-  { id: "5", name: "Sofia Santos", class: "maternal", hasRecord: true },
-  { id: "6", name: "Miguel Costa", class: "maternal", hasRecord: false },
+  { id: "1", name: "Maria Silva", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1595074475609-81c60c568046?w=100&h=100&fit=crop&crop=face" },
+  { id: "2", name: "João Pedro", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=100&h=100&fit=crop&crop=face" },
+  { id: "3", name: "Ana Beatriz", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1519457431-44ccd64a579b?w=100&h=100&fit=crop&crop=face" },
+  { id: "4", name: "Lucas Oliveira", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1596215143922-eedeaba0d91c?w=100&h=100&fit=crop&crop=face" },
+  { id: "5", name: "Sofia Santos", class: "maternal", hasRecord: true, photo: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=100&h=100&fit=crop&crop=face" },
+  { id: "6", name: "Miguel Costa", class: "maternal", hasRecord: false, photo: "https://images.unsplash.com/photo-1545558014-8692077e9b5c?w=100&h=100&fit=crop&crop=face" },
 ];
 
 const mealOptions = [
@@ -201,7 +201,8 @@ export function DemoTeacherDashboard() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
+                            <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+                              <AvatarImage src={child.photo} alt={child.name} className="object-cover" />
                               <AvatarFallback className="bg-primary/10 text-primary text-sm">
                                 {child.name.charAt(0)}
                               </AvatarFallback>
