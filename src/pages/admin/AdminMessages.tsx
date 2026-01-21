@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ChatWindow } from "@/components/chat/ChatWindow";
@@ -28,11 +29,25 @@ interface ChatPreview {
 
 export default function AdminMessages() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [children, setChildren] = useState<Child[]>([]);
   const [chatPreviews, setChatPreviews] = useState<Record<string, ChatPreview>>({});
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Check for child ID in URL params and auto-select
+  useEffect(() => {
+    const childIdFromUrl = searchParams.get("child");
+    if (childIdFromUrl && children.length > 0 && !selectedChild) {
+      const childToSelect = children.find((c) => c.id === childIdFromUrl);
+      if (childToSelect) {
+        setSelectedChild(childToSelect);
+        // Clear the URL param after selecting
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, children, selectedChild, setSearchParams]);
 
   // Fetch children
   useEffect(() => {
