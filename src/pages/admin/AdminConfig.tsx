@@ -89,6 +89,7 @@ const AdminConfig = () => {
     emailAlerts: "",
     dailyReportEnabled: true,
     paymentReminders: true,
+    vapidPublicKey: "",
   });
 
   // Integration secrets status
@@ -134,6 +135,7 @@ const AdminConfig = () => {
         emailAlerts: getSettingWithDefault("notifications_email", ""),
         dailyReportEnabled: getSettingWithDefault("notifications_daily_report", "true") === "true",
         paymentReminders: getSettingWithDefault("notifications_payment_reminders", "true") === "true",
+        vapidPublicKey: getSettingWithDefault("vapid_public_key", ""),
       });
     }
   }, [settings]);
@@ -184,6 +186,7 @@ const AdminConfig = () => {
       { key: "notifications_email", value: notifications.emailAlerts },
       { key: "notifications_daily_report", value: notifications.dailyReportEnabled.toString() },
       { key: "notifications_payment_reminders", value: notifications.paymentReminders.toString() },
+      { key: "vapid_public_key", value: notifications.vapidPublicKey },
     ]);
   };
 
@@ -745,6 +748,22 @@ const AdminConfig = () => {
                 />
                 <p className="text-xs text-muted-foreground">
                   E-mail que receberá alertas do sistema (novos cadastros, problemas, etc).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="vapid-key">Chave VAPID Pública (Push Notifications)</Label>
+                <Input
+                  id="vapid-key"
+                  type="text"
+                  placeholder="BL..."
+                  value={notifications.vapidPublicKey}
+                  onChange={(e) => setNotifications({ ...notifications, vapidPublicKey: e.target.value })}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Chave pública VAPID para ativar notificações push no navegador. 
+                  Gere suas chaves em <a href="https://vapidkeys.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">vapidkeys.com</a>
                 </p>
               </div>
 

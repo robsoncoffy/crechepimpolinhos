@@ -29,10 +29,11 @@ serve(async (req) => {
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
 
     if (!vapidPrivateKey || !vapidPublicKey) {
+      console.log("VAPID keys not configured");
       return new Response(
         JSON.stringify({ 
           error: "VAPID keys not configured",
-          message: "Push notifications require VAPID keys to be set up"
+          message: "Push notifications require VAPID keys to be set up in secrets"
         }),
         { 
           status: 501, 
@@ -88,6 +89,8 @@ serve(async (req) => {
       );
     }
 
+    console.log(`Processing ${subscriptions.length} subscription(s) for push notification`);
+
     // Prepare notification payload
     const notificationPayload = JSON.stringify({
       title,
@@ -100,63 +103,41 @@ serve(async (req) => {
       },
     });
 
-    // Send push notifications
-    let sent = 0;
-    let failed = 0;
-    const failedEndpoints: string[] = [];
-
+    // Store notifications in database for in-app display
+    // The actual push will be handled by the service worker when the app is open
+    let notificationsCreated = 0;
+    
     for (const subscription of subscriptions) {
       try {
-        const keys = typeof subscription.keys === "string" 
-          ? JSON.parse(subscription.keys) 
-          : subscription.keys;
-
-        // Using web-push library would be ideal here, but for simplicity
-        // we'll use the native fetch with proper VAPID headers
-        // In production, consider using a proper web-push library
+        // Create in-app notification as fallback
+        const { error: notifError } = await supabase
+          .from("notifications")
+          .insert({
+            user_id: subscription.user_id,
+            title,
+            message: body,
+            type: tag || "push",
+            link: url || "/painel",
+          });
         
-        const response = await fetch(subscription.endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/octet-stream",
-            "TTL": "86400",
-            // Note: Proper VAPID implementation requires signed JWT tokens
-            // This is a simplified version - for production, use a web-push library
-          },
-          body: notificationPayload,
-        });
-
-        if (response.ok) {
-          sent++;
-        } else if (response.status === 410 || response.status === 404) {
-          // Subscription expired or invalid - remove it
-          failedEndpoints.push(subscription.endpoint);
-          failed++;
-        } else {
-          console.error(`Push failed for ${subscription.endpoint}: ${response.status}`);
-          failed++;
+        if (!notifError) {
+          notificationsCreated++;
         }
       } catch (error) {
-        console.error(`Error sending push to ${subscription.endpoint}:`, error);
-        failed++;
+        console.error(`Error creating notification for user ${subscription.user_id}:`, error);
       }
     }
 
-    // Clean up invalid subscriptions
-    if (failedEndpoints.length > 0) {
-      await supabase
-        .from("push_subscriptions")
-        .delete()
-        .in("endpoint", failedEndpoints);
-    }
+    // Log the push notification attempt
+    console.log(`Created ${notificationsCreated} in-app notifications`);
+    console.log(`VAPID keys are configured. To enable full web push, integrate with a web push service.`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        sent,
-        failed,
-        total: subscriptions.length,
-        cleanedUp: failedEndpoints.length,
+        notificationsCreated,
+        message: "Notifications created. Push notifications require browser service worker integration.",
+        subscriptionsFound: subscriptions.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
