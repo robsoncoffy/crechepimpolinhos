@@ -10,17 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useShoppingList, unitOptions } from "@/hooks/useShoppingList";
-import { UtensilsCrossed, ChevronRight, AlertTriangle, Baby, Clock, ShoppingCart, Plus, Trash2, Check, ChefHat, Shield, Package } from "lucide-react";
+import { UtensilsCrossed, ChevronRight, Clock, ShoppingCart, Plus, Trash2, Check, ChefHat, Shield, Package } from "lucide-react";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
-
-interface ChildWithAllergy {
-  id: string;
-  full_name: string;
-  allergies: string | null;
-  dietary_restrictions: string | null;
-  special_milk: string | null;
-  class_type: string;
-}
+import { TodayAttendanceWidget } from "@/components/admin/TodayAttendanceWidget";
+import { StaffAbsencesWidget } from "@/components/admin/StaffAbsencesWidget";
+import { AllergyAlertsWidget } from "@/components/admin/AllergyAlertsWidget";
 
 const roleLabels: Record<string, { label: string; icon: typeof Shield; color: string }> = {
   admin: { label: "Admin", icon: Shield, color: "bg-primary/10 text-primary" },
@@ -31,7 +25,6 @@ const roleLabels: Record<string, { label: string; icon: typeof Shield; color: st
 export default function CookDashboard() {
   const { profile } = useAuth();
   const { items: shoppingList, addItem, toggleItem, removeItem, pendingCount, completedCount, loading: shoppingLoading } = useShoppingList();
-  const [childrenWithAllergies, setChildrenWithAllergies] = useState<ChildWithAllergy[]>([]);
   const [todayMenu, setTodayMenu] = useState<{ breakfast?: string; lunch?: string; snack?: string; dinner?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [newItem, setNewItem] = useState("");
@@ -41,16 +34,6 @@ export default function CookDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch children with allergies or special dietary needs
-        const { data: children } = await supabase
-          .from("children")
-          .select("id, full_name, allergies, dietary_restrictions, special_milk, class_type")
-          .or("allergies.not.is.null,dietary_restrictions.not.is.null,special_milk.not.is.null");
-
-        if (children) {
-          setChildrenWithAllergies(children);
-        }
-
         // Fetch today's menu
         const today = new Date();
         const dayOfWeek = today.getDay() === 0 ? 7 : today.getDay(); // Monday = 1, Sunday = 7
@@ -80,14 +63,6 @@ export default function CookDashboard() {
     fetchData();
   }, []);
 
-  const getClassLabel = (classType: string) => {
-    switch (classType) {
-      case "bercario": return "Berçário";
-      case "maternal": return "Maternal";
-      case "jardim": return "Jardim";
-      default: return classType;
-    }
-  };
 
   const handleAddItem = async () => {
     const success = await addItem(newItem, newQuantity, newUnit);
@@ -108,6 +83,12 @@ export default function CookDashboard() {
         <p className="text-muted-foreground mt-1">
           Painel da Cozinha
         </p>
+      </div>
+
+      {/* Attendance & Staff Absences Row */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TodayAttendanceWidget />
+        <StaffAbsencesWidget />
       </div>
 
       {/* Today's Menu */}
@@ -172,58 +153,8 @@ export default function CookDashboard() {
         </CardContent>
       </Card>
 
-      {/* Children with Allergies */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-pimpo-red" />
-            Crianças com Restrições Alimentares
-            <Badge variant="destructive">{childrenWithAllergies.length}</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-muted-foreground">Carregando...</p>
-          ) : childrenWithAllergies.length > 0 ? (
-            <ScrollArea className="h-[300px]">
-              <div className="space-y-3">
-                {childrenWithAllergies.map((child) => (
-                  <div key={child.id} className="p-4 border rounded-lg bg-muted/30">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Baby className="w-4 h-4 text-primary" />
-                        <span className="font-semibold">{child.full_name}</span>
-                      </div>
-                      <Badge variant="outline">{getClassLabel(child.class_type)}</Badge>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      {child.allergies && (
-                        <p className="text-pimpo-red">
-                          <strong>Alergias:</strong> {child.allergies}
-                        </p>
-                      )}
-                      {child.dietary_restrictions && (
-                        <p className="text-pimpo-yellow">
-                          <strong>Restrições:</strong> {child.dietary_restrictions}
-                        </p>
-                      )}
-                      {child.special_milk && (
-                        <p className="text-primary">
-                          <strong>Leite Especial:</strong> {child.special_milk}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>Nenhuma criança com restrições alimentares cadastradas</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Allergy Alerts */}
+      <AllergyAlertsWidget />
 
       {/* Shopping List */}
       <Card>

@@ -9,6 +9,8 @@ import { PickupNotificationsWidget } from "@/components/admin/PickupNotification
 import { PendingContractsWidget } from "@/components/admin/PendingContractsWidget";
 import { TimeClockStatusCard } from "@/components/admin/TimeClockStatusCard";
 import { UpcomingExpensesAlert } from "@/components/admin/UpcomingExpensesAlert";
+import { StaffAbsencesWidget } from "@/components/admin/StaffAbsencesWidget";
+import { TodayAttendanceWidget } from "@/components/admin/TodayAttendanceWidget";
 import {
   Users,
   Baby,
@@ -149,11 +151,15 @@ export default function AdminDashboard() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4">
           <WeatherWidget />
+          <TodayAttendanceWidget />
+          <StaffAbsencesWidget />
+        </div>
+        <div className="space-y-4">
           <UpcomingExpensesAlert />
           <TimeClockStatusCard />
           <PendingContractsWidget />
         </div>
-        <div className="lg:col-span-2">
+        <div>
           <PickupNotificationsWidget />
         </div>
       </div>
