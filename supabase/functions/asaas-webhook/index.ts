@@ -62,7 +62,26 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const asaasWebhookToken = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate webhook authentication
+    // Asaas sends access token in header for webhook verification
+    const accessToken = req.headers.get("asaas-access-token");
+    
+    if (asaasWebhookToken) {
+      // If token is configured, validate it
+      if (!accessToken || accessToken !== asaasWebhookToken) {
+        console.error("Invalid or missing asaas-access-token header");
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log("Webhook authentication validated");
+    } else {
+      console.warn("ASAAS_WEBHOOK_TOKEN not configured - webhook authentication disabled");
+    }
 
     // Parse webhook payload
     const payload = await req.json();

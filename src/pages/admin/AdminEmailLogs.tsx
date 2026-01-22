@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,15 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Configure DOMPurify to allow safe email HTML tags only
+const sanitizeEmailHtml = (html: string) => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'div', 'span', 'table', 'tr', 'td', 'th', 'tbody', 'thead', 'img'],
+    ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'width', 'height', 'style', 'class'],
+    ALLOW_DATA_ATTR: false,
+  });
+};
 
 interface EmailLog {
   id: string;
@@ -358,7 +368,7 @@ export default function AdminEmailLogs() {
                   {selectedEmail.body_html ? (
                     <div 
                       className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: selectedEmail.body_html }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(selectedEmail.body_html) }}
                     />
                   ) : selectedEmail.body_text ? (
                     <pre className="whitespace-pre-wrap text-sm font-sans">
