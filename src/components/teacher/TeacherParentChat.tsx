@@ -316,7 +316,7 @@ export function TeacherParentChat() {
   // Mobile: Show list or chat
   // Desktop: Show both side by side
   return (
-    <div className="flex h-[500px] border rounded-lg overflow-hidden bg-background">
+    <div className="flex h-[450px] md:h-[500px] border rounded-lg overflow-hidden bg-background">
       {/* Children List - hidden on mobile when chat is open */}
       <div
         className={`w-full md:w-80 border-r flex flex-col ${

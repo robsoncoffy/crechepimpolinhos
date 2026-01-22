@@ -304,61 +304,61 @@ export default function TeacherDashboard() {
       <Card>
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-7">
+            <div className="border-b bg-muted/30 overflow-x-auto scrollbar-hide">
+              <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
                 <TabsTrigger 
                   value="agenda" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <Calendar className="w-4 h-4" />
-                  <span className="hidden sm:inline">Agenda</span>
+                  <span className="text-xs sm:text-sm">Agenda</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="chamada" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <ClipboardCheck className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chamada</span>
+                  <span className="text-xs sm:text-sm">Chamada</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="turma" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Turma</span>
+                  <span className="text-xs sm:text-sm">Turma</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="pais" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Pais</span>
+                  <span className="text-xs sm:text-sm">Pais</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="alergias" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Alergias</span>
+                  <span className="text-xs sm:text-sm">Alergias</span>
                 </TabsTrigger>
                 <TabsTrigger 
                   value="mensagens" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2 relative"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 relative whitespace-nowrap flex-shrink-0"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Equipe</span>
+                  <span className="text-xs sm:text-sm">Equipe</span>
                   {unreadMessages > 0 && (
-                    <Badge variant="destructive" className="absolute -top-1 right-2 sm:relative sm:top-0 sm:right-0 h-5 px-1.5">
+                    <Badge variant="destructive" className="h-4 px-1 text-[10px]">
                       {unreadMessages}
                     </Badge>
                   )}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="relatorios" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <DollarSign className="w-4 h-4" />
-                  <span className="hidden sm:inline">Meus Relatórios</span>
+                  <span className="text-xs sm:text-sm">Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>

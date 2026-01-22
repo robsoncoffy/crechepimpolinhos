@@ -681,24 +681,26 @@ export default function NutritionistDashboard() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="cardapio" className="gap-2">
-            <UtensilsCrossed className="w-4 h-4" />
-            <span className="hidden sm:inline">Cardápio</span>
-          </TabsTrigger>
-          <TabsTrigger value="pais" className="gap-2">
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat Pais</span>
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="gap-2">
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Equipe</span>
-          </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-2">
-            <DollarSign className="w-4 h-4" />
-            <span className="hidden sm:inline">Relatórios</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide">
+          <TabsList className="w-max min-w-full flex">
+            <TabsTrigger value="cardapio" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <UtensilsCrossed className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Cardápio</span>
+            </TabsTrigger>
+            <TabsTrigger value="pais" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <Users className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Pais</span>
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Equipe</span>
+            </TabsTrigger>
+            <TabsTrigger value="relatorios" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Relatórios</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="pais" className="mt-4">
           <TeacherParentChat />
@@ -710,9 +712,7 @@ export default function NutritionistDashboard() {
               <CardTitle>Chat da Equipe</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="h-[500px]">
-                <StaffChatWindow />
-              </div>
+              <StaffChatWindow />
             </CardContent>
           </Card>
         </TabsContent>
