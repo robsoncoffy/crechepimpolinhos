@@ -53,6 +53,7 @@ import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
+import { ActivitySuggestions } from "@/components/admin/ActivitySuggestions";
 import type { Database } from "@/integrations/supabase/types";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -619,10 +620,20 @@ export default function PedagogueDashboard() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                              <Sun className="w-4 h-4 text-yellow-500" />
-                              Atividades da Manhã
-                            </Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="flex items-center gap-2">
+                                <Sun className="w-4 h-4 text-yellow-500" />
+                                Atividades da Manhã
+                              </Label>
+                              {isEditing && (
+                                <ActivitySuggestions
+                                  classType={selectedClass}
+                                  dayOfWeek={selectedDay}
+                                  activityType="morning"
+                                  onSelect={(text) => updatePlan("morning_activities", currentPlan.morning_activities ? `${currentPlan.morning_activities}\n\n${text}` : text)}
+                                />
+                              )}
+                            </div>
                             {isEditing ? (
                               <Textarea
                                 value={currentPlan.morning_activities}
@@ -640,10 +651,20 @@ export default function PedagogueDashboard() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label className="flex items-center gap-2">
-                              <Moon className="w-4 h-4 text-blue-500" />
-                              Atividades da Tarde
-                            </Label>
+                            <div className="flex items-center justify-between">
+                              <Label className="flex items-center gap-2">
+                                <Moon className="w-4 h-4 text-blue-500" />
+                                Atividades da Tarde
+                              </Label>
+                              {isEditing && (
+                                <ActivitySuggestions
+                                  classType={selectedClass}
+                                  dayOfWeek={selectedDay}
+                                  activityType="afternoon"
+                                  onSelect={(text) => updatePlan("afternoon_activities", currentPlan.afternoon_activities ? `${currentPlan.afternoon_activities}\n\n${text}` : text)}
+                                />
+                              )}
+                            </div>
                             {isEditing ? (
                               <Textarea
                                 value={currentPlan.afternoon_activities}
@@ -662,10 +683,20 @@ export default function PedagogueDashboard() {
 
                           <div className="grid sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label className="flex items-center gap-2">
-                                <Package className="w-4 h-4 text-green-500" />
-                                Materiais
-                              </Label>
+                              <div className="flex items-center justify-between">
+                                <Label className="flex items-center gap-2">
+                                  <Package className="w-4 h-4 text-green-500" />
+                                  Materiais
+                                </Label>
+                                {isEditing && (
+                                  <ActivitySuggestions
+                                    classType={selectedClass}
+                                    dayOfWeek={selectedDay}
+                                    activityType="materials"
+                                    onSelect={(text) => updatePlan("materials", currentPlan.materials ? `${currentPlan.materials}, ${text}` : text)}
+                                  />
+                                )}
+                              </div>
                               {isEditing ? (
                                 <Textarea
                                   value={currentPlan.materials}
@@ -680,10 +711,20 @@ export default function PedagogueDashboard() {
                               )}
                             </div>
                             <div className="space-y-2">
-                              <Label className="flex items-center gap-2">
-                                <Target className="w-4 h-4 text-purple-500" />
-                                Objetivos
-                              </Label>
+                              <div className="flex items-center justify-between">
+                                <Label className="flex items-center gap-2">
+                                  <Target className="w-4 h-4 text-purple-500" />
+                                  Objetivos
+                                </Label>
+                                {isEditing && (
+                                  <ActivitySuggestions
+                                    classType={selectedClass}
+                                    dayOfWeek={selectedDay}
+                                    activityType="objectives"
+                                    onSelect={(text) => updatePlan("objectives", currentPlan.objectives ? `${currentPlan.objectives}\n${text}` : text)}
+                                  />
+                                )}
+                              </div>
                               {isEditing ? (
                                 <Textarea
                                   value={currentPlan.objectives}
