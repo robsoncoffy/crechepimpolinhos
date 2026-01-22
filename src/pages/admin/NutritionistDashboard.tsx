@@ -40,6 +40,7 @@ import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -680,20 +681,28 @@ export default function NutritionistDashboard() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="cardapio" className="gap-2">
             <UtensilsCrossed className="w-4 h-4" />
-            Cardápio Semanal
+            <span className="hidden sm:inline">Cardápio</span>
+          </TabsTrigger>
+          <TabsTrigger value="pais" className="gap-2">
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">Chat Pais</span>
           </TabsTrigger>
           <TabsTrigger value="chat" className="gap-2">
             <MessageSquare className="w-4 h-4" />
-            Chat da Equipe
+            <span className="hidden sm:inline">Equipe</span>
           </TabsTrigger>
           <TabsTrigger value="relatorios" className="gap-2">
             <DollarSign className="w-4 h-4" />
-            Meus Relatórios
+            <span className="hidden sm:inline">Relatórios</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pais" className="mt-4">
+          <TeacherParentChat />
+        </TabsContent>
 
         <TabsContent value="chat" className="mt-4">
           <Card>
