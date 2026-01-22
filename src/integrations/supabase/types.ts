@@ -857,6 +857,42 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_documents: {
+        Row: {
+          bucket_id: string
+          created_at: string
+          created_by: string | null
+          doc_type: string
+          employee_user_id: string
+          file_path: string
+          id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          bucket_id?: string
+          created_at?: string
+          created_by?: string | null
+          doc_type: string
+          employee_user_id: string
+          file_path: string
+          id?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          bucket_id?: string
+          created_at?: string
+          created_by?: string | null
+          doc_type?: string
+          employee_user_id?: string
+          file_path?: string
+          id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employee_invites: {
         Row: {
           created_at: string | null
@@ -1713,6 +1749,89 @@ export type Database = {
           payment_asaas_id?: string
           sent_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      payroll_payslip_lines: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          kind: string
+          label: string
+          payslip_id: string
+          sort_order: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind: string
+          label: string
+          payslip_id: string
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          label?: string
+          payslip_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payslip_lines_payslip_id_fkey"
+            columns: ["payslip_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payslips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payslips: {
+        Row: {
+          base_salary: number
+          created_at: string
+          created_by: string | null
+          employee_user_id: string
+          hours_worked: number
+          id: string
+          net_salary: number | null
+          overtime_hours: number
+          period_month: number
+          period_year: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          base_salary?: number
+          created_at?: string
+          created_by?: string | null
+          employee_user_id: string
+          hours_worked?: number
+          id?: string
+          net_salary?: number | null
+          overtime_hours?: number
+          period_month: number
+          period_year: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          base_salary?: number
+          created_at?: string
+          created_by?: string | null
+          employee_user_id?: string
+          hours_worked?: number
+          id?: string
+          net_salary?: number | null
+          overtime_hours?: number
+          period_month?: number
+          period_year?: number
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
