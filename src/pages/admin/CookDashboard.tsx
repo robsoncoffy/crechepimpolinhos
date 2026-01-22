@@ -38,6 +38,7 @@ import {
   Users,
   CheckCheck,
   Wand2,
+  DollarSign,
 } from "lucide-react";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
@@ -45,6 +46,7 @@ import { format, startOfWeek, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { MyReportsTab } from "@/components/employee/MyReportsTab";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 
@@ -366,7 +368,7 @@ export default function CookDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-6">
                 <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
                   <UtensilsCrossed className="w-4 h-4" />
                   <span className="hidden sm:inline">Cardápio</span>
@@ -386,6 +388,10 @@ export default function CookDashboard() {
                 <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
                   <MessageSquare className="w-4 h-4" />
                   <span className="hidden sm:inline">Equipe</span>
+                </TabsTrigger>
+                <TabsTrigger value="relatorios" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -718,6 +724,11 @@ export default function CookDashboard() {
                 <div className="h-[500px]">
                   <StaffChatWindow />
                 </div>
+              </TabsContent>
+
+              {/* Meus Relatórios Tab */}
+              <TabsContent value="relatorios" className="mt-0">
+                <MyReportsTab />
               </TabsContent>
             </div>
           </Tabs>
