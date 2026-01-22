@@ -212,27 +212,31 @@ export function MenuPdfExport({ menuItems, weekStart, disabled }: MenuPdfExportP
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Button
         variant="outline"
+        size="sm"
         onClick={() => exportPdf('bercario')}
         disabled={disabled}
-        className="border-pimpo-blue text-pimpo-blue hover:bg-pimpo-blue/10"
+        className="border-pimpo-blue text-pimpo-blue hover:bg-pimpo-blue/10 flex-1 sm:flex-none"
       >
-        <FileDown className="w-4 h-4 mr-2" />
+        <FileDown className="w-4 h-4 mr-1" />
         <Baby className="w-4 h-4 mr-1" />
-        PDF Berçário
+        <span className="hidden sm:inline">PDF Berçário</span>
+        <span className="sm:hidden">Berçário</span>
       </Button>
       
       <Button
         variant="outline"
+        size="sm"
         onClick={() => exportPdf('maternal')}
         disabled={disabled}
-        className="border-pimpo-green text-pimpo-green hover:bg-pimpo-green/10"
+        className="border-pimpo-green text-pimpo-green hover:bg-pimpo-green/10 flex-1 sm:flex-none"
       >
-        <FileDown className="w-4 h-4 mr-2" />
+        <FileDown className="w-4 h-4 mr-1" />
         <Users className="w-4 h-4 mr-1" />
-        PDF Maternal/Jardim
+        <span className="hidden sm:inline">PDF Maternal/Jardim</span>
+        <span className="sm:hidden">Maternal</span>
       </Button>
     </div>
   );

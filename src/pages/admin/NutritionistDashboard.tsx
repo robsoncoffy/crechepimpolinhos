@@ -455,10 +455,10 @@ export default function NutritionistDashboard() {
 
     return (
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="flex items-center gap-2 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="flex items-center gap-2 text-sm min-w-0">
             {icon}
-            {label}
+            <span className="truncate">{label}</span>
           </Label>
           {mealType && (
             <MealSuggestions
@@ -469,20 +469,20 @@ export default function NutritionistDashboard() {
             />
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             value={value}
             onChange={(e) => updateMenuItem(menuType, dayOfWeek, field, e.target.value)}
             placeholder={placeholder}
-            className="flex-1"
+            className="flex-1 min-w-0"
           />
-          <div className="relative">
+          <div className="relative flex-shrink-0">
             <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               type="time"
               value={timeValue}
               onChange={(e) => updateMenuItem(menuType, dayOfWeek, timeField, e.target.value)}
-              className="w-24 pl-7 text-sm"
+              className="w-full sm:w-24 pl-7 text-sm"
             />
           </div>
         </div>
@@ -723,30 +723,33 @@ export default function NutritionistDashboard() {
 
         <TabsContent value="cardapio" className="mt-4 space-y-6">
           {/* Actions Bar */}
-          <div className="flex flex-wrap gap-3 justify-between items-center">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-3">
+            {/* Save + Copy buttons */}
+            <div className="flex flex-wrap gap-2">
               <Button
                 onClick={handleSave}
                 disabled={saving || loading}
-                className={`${activeMenuTab === 'bercario' ? 'bg-pimpo-blue hover:bg-pimpo-blue/90' : 'bg-pimpo-green hover:bg-pimpo-green/90'}`}
+                size="sm"
+                className={`flex-1 sm:flex-none ${activeMenuTab === 'bercario' ? 'bg-pimpo-blue hover:bg-pimpo-blue/90' : 'bg-pimpo-green hover:bg-pimpo-green/90'}`}
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Salvar Cardápio
+                <span className="truncate">Salvar Cardápio</span>
               </Button>
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={copying || loading}>
+                  <Button variant="outline" size="sm" disabled={copying || loading} className="flex-1 sm:flex-none">
                     {copying ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
                       <Copy className="w-4 h-4 mr-2" />
                     )}
-                    Copiar da Semana Anterior
+                    <span className="hidden sm:inline">Copiar da Semana Anterior</span>
+                    <span className="sm:hidden">Copiar Semana</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -767,6 +770,7 @@ export default function NutritionistDashboard() {
               </AlertDialog>
             </div>
             
+            {/* PDF Export buttons */}
             <MenuPdfExport 
               menuItems={activeMenuTab === 'bercario' ? bercarioItems : maternalItems} 
               weekStart={weekStart} 
