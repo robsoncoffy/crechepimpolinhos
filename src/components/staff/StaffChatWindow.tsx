@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { StaffQuickReplySuggestions } from "@/components/chat/StaffQuickReplySuggestions";
-import { Send, Users, MessageCircle, Hash, Plus, Trash2, User } from "lucide-react";
+import { Send, Users, MessageCircle, Hash, Plus, Trash2, User, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
@@ -343,9 +343,9 @@ export function StaffChatWindow() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] bg-card rounded-xl border overflow-hidden">
-      {/* Sidebar with rooms and contacts */}
-      <div className="w-72 border-r bg-muted/30 flex-shrink-0 flex flex-col">
+    <div className="flex h-[450px] md:h-[500px] bg-card rounded-xl border overflow-hidden">
+      {/* Sidebar with rooms and contacts - hidden on mobile when chat is open */}
+      <div className={`w-full md:w-64 lg:w-72 border-r bg-muted/30 flex-shrink-0 flex flex-col ${selectedRoom ? "hidden md:flex" : "flex"}`}>
         {/* Tabs */}
         <div className="flex border-b">
           <button
@@ -554,30 +554,38 @@ export function StaffChatWindow() {
           )}
         </ScrollArea>
 
-        {/* Current user info */}
-        <div className="p-3 border-t bg-muted/50">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8">
+        {/* Current user info - hidden on small mobile */}
+        <div className="p-2 md:p-3 border-t bg-muted/50">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Avatar className="h-7 w-7 md:h-8 md:w-8">
               <AvatarImage src={profile?.avatar_url || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                 {getInitials(profile?.full_name || "U")}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{profile?.full_name}</p>
-              <p className="text-xs text-muted-foreground">Online</p>
+              <p className="text-xs md:text-sm font-medium truncate">{profile?.full_name}</p>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Online</p>
             </div>
             <div className="h-2 w-2 rounded-full bg-green-500" />
           </div>
         </div>
       </div>
 
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      {/* Chat area - shown on mobile only when room is selected */}
+      <div className={`flex-1 flex flex-col ${!selectedRoom ? "hidden md:flex" : "flex"}`}>
         {selectedRoom ? (
           <>
             {/* Room header */}
-            <div className="p-4 border-b bg-muted/20 flex items-center gap-3">
+            <div className="p-3 md:p-4 border-b bg-muted/20 flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-8 w-8 flex-shrink-0"
+                onClick={() => setSelectedRoom(null)}
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
               {selectedRoom.is_private ? (
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={getPrivateChatAvatar(selectedRoom) || undefined} />

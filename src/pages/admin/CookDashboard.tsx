@@ -367,31 +367,31 @@ export default function CookDashboard() {
       <Card>
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-6">
-                <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+            <div className="border-b bg-muted/30 overflow-x-auto scrollbar-hide">
+              <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
+                <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <UtensilsCrossed className="w-4 h-4" />
-                  <span className="hidden sm:inline">Cardápio</span>
+                  <span className="text-xs sm:text-sm">Cardápio</span>
                 </TabsTrigger>
-                <TabsTrigger value="refeicoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsTrigger value="refeicoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Refeições</span>
+                  <span className="text-xs sm:text-sm">Refeições</span>
                 </TabsTrigger>
-                <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <AlertTriangle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Alergias</span>
+                  <span className="text-xs sm:text-sm">Alergias</span>
                 </TabsTrigger>
-                <TabsTrigger value="leites" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsTrigger value="leites" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <Milk className="w-4 h-4" />
-                  <span className="hidden sm:inline">Leites</span>
+                  <span className="text-xs sm:text-sm">Leites</span>
                 </TabsTrigger>
-                <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsTrigger value="equipe" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Equipe</span>
+                  <span className="text-xs sm:text-sm">Equipe</span>
                 </TabsTrigger>
-                <TabsTrigger value="relatorios" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 gap-2">
+                <TabsTrigger value="relatorios" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
                   <DollarSign className="w-4 h-4" />
-                  <span className="hidden sm:inline">Relatórios</span>
+                  <span className="text-xs sm:text-sm">Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>

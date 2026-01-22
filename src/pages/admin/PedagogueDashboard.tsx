@@ -504,42 +504,42 @@ export default function PedagogueDashboard() {
       <Card>
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
+            <div className="border-b bg-muted/30 overflow-x-auto scrollbar-hide">
+              <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
                 <TabsTrigger
                   value="planejamento"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <Calendar className="w-4 h-4" />
-                  <span className="hidden sm:inline">Planejamento</span>
+                  <span className="text-xs sm:text-sm">Planos</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="avaliacoes"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <GraduationCap className="w-4 h-4" />
-                  <span className="hidden sm:inline">Avaliações</span>
+                  <span className="text-xs sm:text-sm">Avaliações</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="pais"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Pais</span>
+                  <span className="text-xs sm:text-sm">Pais</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="equipe"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Equipe</span>
+                  <span className="text-xs sm:text-sm">Equipe</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="relatorios"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
                 >
                   <DollarSign className="w-4 h-4" />
-                  <span className="hidden sm:inline">Relatórios</span>
+                  <span className="text-xs sm:text-sm">Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>
