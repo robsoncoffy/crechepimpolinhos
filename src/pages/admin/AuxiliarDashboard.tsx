@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Baby, ChevronRight, ClipboardList, Calendar, MessageSquare, DollarSign, LayoutDashboard } from "lucide-react";
+import { Baby, ChevronRight, ClipboardList, Calendar, DollarSign, LayoutDashboard } from "lucide-react";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 
 export default function AuxiliarDashboard() {
@@ -124,12 +124,6 @@ export default function AuxiliarDashboard() {
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <Calendar className="w-4 h-4" />
                   Registrar Chamada
-                </Button>
-              </Link>
-              <Link to="/painel/mensagens">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Mensagens com Pais
                 </Button>
               </Link>
               <Link to="/painel/chat-equipe">
