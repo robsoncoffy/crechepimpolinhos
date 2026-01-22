@@ -46,10 +46,12 @@ import {
   Wand2,
   Palette,
   BookMarked,
+  DollarSign,
 } from "lucide-react";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -502,7 +504,7 @@ export default function PedagogueDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4">
+              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-5">
                 <TabsTrigger
                   value="planejamento"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
@@ -515,21 +517,28 @@ export default function PedagogueDashboard() {
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
                 >
                   <GraduationCap className="w-4 h-4" />
-                  <span className="hidden sm:inline">Avaliações Plus+</span>
+                  <span className="hidden sm:inline">Avaliações</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="pais"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
                 >
                   <Users className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chat Pais</span>
+                  <span className="hidden sm:inline">Pais</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="equipe"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chat Equipe</span>
+                  <span className="hidden sm:inline">Equipe</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="relatorios"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 gap-2"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1042,6 +1051,11 @@ export default function PedagogueDashboard() {
                 <div className="h-[500px]">
                   <StaffChatWindow />
                 </div>
+              </TabsContent>
+
+              {/* Meus Relatórios Tab */}
+              <TabsContent value="relatorios" className="mt-0">
+                <MyReportsTab />
               </TabsContent>
             </div>
           </Tabs>

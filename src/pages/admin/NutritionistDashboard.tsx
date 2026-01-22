@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   Calendar,
   MessageSquare,
+  DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MealSuggestions } from "@/components/admin/MealSuggestions";
@@ -38,6 +39,7 @@ import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -678,7 +680,7 @@ export default function NutritionistDashboard() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="cardapio" className="gap-2">
             <UtensilsCrossed className="w-4 h-4" />
             Cardápio Semanal
@@ -686,6 +688,10 @@ export default function NutritionistDashboard() {
           <TabsTrigger value="chat" className="gap-2">
             <MessageSquare className="w-4 h-4" />
             Chat da Equipe
+          </TabsTrigger>
+          <TabsTrigger value="relatorios" className="gap-2">
+            <DollarSign className="w-4 h-4" />
+            Meus Relatórios
           </TabsTrigger>
         </TabsList>
 
@@ -700,6 +706,10 @@ export default function NutritionistDashboard() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="relatorios" className="mt-4">
+          <MyReportsTab />
         </TabsContent>
 
         <TabsContent value="cardapio" className="mt-4 space-y-6">

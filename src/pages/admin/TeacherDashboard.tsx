@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   FileText,
   Activity,
+  DollarSign,
   Heart,
   Utensils,
   Car,
@@ -35,6 +36,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
+import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import type { Database } from "@/integrations/supabase/types";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -303,7 +305,7 @@ export default function TeacherDashboard() {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b bg-muted/30">
-              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-6">
+              <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-7">
                 <TabsTrigger 
                   value="agenda" 
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
@@ -350,6 +352,13 @@ export default function TeacherDashboard() {
                       {unreadMessages}
                     </Badge>
                   )}
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="relatorios" 
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 gap-2"
+                >
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Meus Relatórios</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -639,6 +648,11 @@ export default function TeacherDashboard() {
                 <div className="h-[500px] -mx-4 -mb-4">
                   <StaffChatWindow />
                 </div>
+              </TabsContent>
+
+              {/* Meus Relatórios Tab */}
+              <TabsContent value="relatorios" className="mt-0">
+                <MyReportsTab />
               </TabsContent>
             </div>
           </Tabs>
