@@ -266,36 +266,36 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <Card>
-          <CardContent className="p-4 text-center">
-            <Baby className="w-6 h-6 mx-auto text-primary mb-2" />
-            <p className="text-3xl font-fredoka font-bold">{children.length}</p>
-            <p className="text-sm text-muted-foreground">Alunos</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <Baby className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-primary mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{children.length}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Alunos</p>
           </CardContent>
         </Card>
         
         <Card className="bg-pimpo-green/10 border-pimpo-green/30">
-          <CardContent className="p-4 text-center">
-            <CheckCircle2 className="w-6 h-6 mx-auto text-pimpo-green mb-2" />
-            <p className="text-3xl font-fredoka font-bold text-pimpo-green">{completedCount}</p>
-            <p className="text-sm text-muted-foreground">Agendas prontas</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-green mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-fredoka font-bold text-pimpo-green">{completedCount}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Agendas prontas</p>
           </CardContent>
         </Card>
         
         <Card className={pendingCount > 0 ? "bg-pimpo-yellow/10 border-pimpo-yellow/30" : ""}>
-          <CardContent className="p-4 text-center">
-            <Clock className="w-6 h-6 mx-auto text-pimpo-yellow mb-2" />
-            <p className="text-3xl font-fredoka font-bold">{pendingCount}</p>
-            <p className="text-sm text-muted-foreground">Pendentes</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-yellow mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{pendingCount}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Pendentes</p>
           </CardContent>
         </Card>
         
         <Card className={unreadMessages > 0 ? "bg-pimpo-blue/10 border-pimpo-blue/30" : ""}>
-          <CardContent className="p-4 text-center">
-            <MessageSquare className="w-6 h-6 mx-auto text-pimpo-blue mb-2" />
-            <p className="text-3xl font-fredoka font-bold">{unreadMessages}</p>
-            <p className="text-sm text-muted-foreground">Mensagens</p>
+          <CardContent className="p-3 sm:p-4 text-center">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-blue mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{unreadMessages}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Mensagens</p>
           </CardContent>
         </Card>
       </div>
@@ -378,7 +378,7 @@ export default function TeacherDashboard() {
                   </Badge>
                 </div>
 
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[50vh] max-h-[500px] min-h-[300px]">
                   <div className="space-y-2">
                     {children.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground">
