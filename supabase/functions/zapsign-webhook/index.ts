@@ -71,7 +71,25 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const asaasApiKey = Deno.env.get('ASAAS_API_KEY')!;
+    const zapsignWebhookSecret = Deno.env.get('ZAPSIGN_WEBHOOK_SECRET');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Validate webhook authentication
+    const webhookSecret = req.headers.get('x-webhook-secret');
+    
+    if (zapsignWebhookSecret) {
+      // If secret is configured, validate it
+      if (!webhookSecret || webhookSecret !== zapsignWebhookSecret) {
+        console.error("Invalid or missing x-webhook-secret header");
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log("Webhook authentication validated");
+    } else {
+      console.warn("ZAPSIGN_WEBHOOK_SECRET not configured - webhook authentication disabled");
+    }
 
     const asaasRequest = async (endpoint: string, method: string, body?: any) => {
       const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {

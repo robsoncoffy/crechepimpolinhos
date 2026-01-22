@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useGmail } from "@/hooks/useGmail";
@@ -30,6 +31,15 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+// Configure DOMPurify to allow safe email HTML tags only
+const sanitizeEmailHtml = (html: string) => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'div', 'span', 'table', 'tr', 'td', 'th', 'tbody', 'thead', 'img'],
+    ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'src', 'alt', 'width', 'height', 'style', 'class'],
+    ALLOW_DATA_ATTR: false,
+  });
+};
 
 export default function AdminEmails() {
   const { isAdmin } = useAuth();
@@ -471,7 +481,7 @@ export default function AdminEmails() {
                     {selectedEmail.bodyHtml ? (
                       <div 
                         className="prose prose-sm dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(selectedEmail.bodyHtml) }}
                       />
                     ) : (
                       <pre className="whitespace-pre-wrap text-sm font-sans">
