@@ -69,35 +69,35 @@ export default function AuxiliarDashboard() {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-3">
             <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Total de Crianças
                 </CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
                   <Baby className="w-4 h-4 text-primary" />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-fredoka font-bold">
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-fredoka font-bold">
                   {loading ? "-" : stats.totalChildren}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                   Agendas Hoje
                 </CardTitle>
-                <div className="p-2 rounded-lg bg-pimpo-green/10">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-green/10">
                   <ClipboardList className="w-4 h-4 text-pimpo-green" />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-fredoka font-bold">
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-fredoka font-bold">
                   {loading ? "-" : `${stats.todayRecords}/${stats.totalChildren}`}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
                   Preenchidas hoje
                 </p>
               </CardContent>

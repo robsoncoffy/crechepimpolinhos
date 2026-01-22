@@ -399,26 +399,30 @@ export default function CookDashboard() {
             <div className="p-4">
               {/* Cardápio Tab */}
               <TabsContent value="cardapio" className="mt-0 space-y-4">
-                <div className="flex flex-wrap gap-3 items-center justify-between">
-                  <div className="flex gap-2">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant={menuType === "bercario" ? "default" : "outline"}
                       onClick={() => setMenuType("bercario")}
+                      size="sm"
                       className={menuType === "bercario" ? "bg-pimpo-blue hover:bg-pimpo-blue/90" : ""}
                     >
-                      <Baby className="w-4 h-4 mr-2" />
-                      Berçário
+                      <Baby className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Berçário</span>
+                      <span className="sm:hidden">Berç.</span>
                     </Button>
                     <Button
                       variant={menuType === "maternal" ? "default" : "outline"}
                       onClick={() => setMenuType("maternal")}
+                      size="sm"
                       className={menuType === "maternal" ? "bg-pimpo-green hover:bg-pimpo-green/90" : ""}
                     >
-                      <Users className="w-4 h-4 mr-2" />
-                      Maternal/Jardim
+                      <Users className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Maternal/Jardim</span>
+                      <span className="sm:hidden">Mat./J.</span>
                     </Button>
                   </div>
-                  <Link to="/painel/cardapio">
+                  <Link to="/painel/cardapio" className="self-start">
                     <Button variant="outline" size="sm">
                       Ver Cardápio Completo
                     </Button>
@@ -426,18 +430,20 @@ export default function CookDashboard() {
                 </div>
 
                 {/* Day Selector */}
-                <div className="flex gap-2 flex-wrap">
-                  {daysOfWeek.map((day) => (
-                    <Button
-                      key={day.value}
-                      variant={selectedMenuDay === day.value ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setSelectedMenuDay(day.value)}
-                      className={selectedMenuDay === day.value ? "bg-orange-500 hover:bg-orange-600" : ""}
-                    >
-                      {day.label}
-                    </Button>
-                  ))}
+                <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+                  <div className="flex gap-2 w-max min-w-full">
+                    {daysOfWeek.map((day) => (
+                      <Button
+                        key={day.value}
+                        variant={selectedMenuDay === day.value ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setSelectedMenuDay(day.value)}
+                        className={`flex-shrink-0 ${selectedMenuDay === day.value ? "bg-orange-500 hover:bg-orange-600" : ""}`}
+                      >
+                        {day.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Menu Display */}

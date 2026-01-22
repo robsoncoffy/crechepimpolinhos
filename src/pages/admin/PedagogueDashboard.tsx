@@ -593,36 +593,38 @@ export default function PedagogueDashboard() {
                   {daysOfWeek.map((day) => (
                     <TabsContent key={day.value} value={String(day.value)}>
                       <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                          <div>
-                            <CardTitle className="text-lg">{day.fullLabel}</CardTitle>
-                            <CardDescription>{classTypes.find((c) => c.value === selectedClass)?.label}</CardDescription>
-                          </div>
-                          {isEditing ? (
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
-                                Cancelar
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={handleSavePlan}
-                                disabled={saving}
-                                className="bg-purple-600 hover:bg-purple-700"
-                              >
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-                                Salvar
-                              </Button>
+                        <CardHeader className="pb-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                              <CardTitle className="text-lg">{day.fullLabel}</CardTitle>
+                              <CardDescription>{classTypes.find((c) => c.value === selectedClass)?.label}</CardDescription>
                             </div>
-                          ) : (
-                            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-                              <Edit className="w-4 h-4 mr-1" />
-                              Editar
-                            </Button>
-                          )}
+                            {isEditing ? (
+                              <div className="flex gap-2 flex-shrink-0">
+                                <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handleSavePlan}
+                                  disabled={saving}
+                                  className="bg-purple-600 hover:bg-purple-700"
+                                >
+                                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                                  Salvar
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button variant="outline" size="sm" className="self-start sm:self-auto" onClick={() => setIsEditing(true)}>
+                                <Edit className="w-4 h-4 mr-1" />
+                                Editar
+                              </Button>
+                            )}
+                          </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="space-y-2">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                               <Label className="flex items-center gap-2">
                                 <Sun className="w-4 h-4 text-yellow-500" />
                                 Atividades da Manhã
@@ -653,7 +655,7 @@ export default function PedagogueDashboard() {
                           </div>
 
                           <div className="space-y-2">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                               <Label className="flex items-center gap-2">
                                 <Moon className="w-4 h-4 text-blue-500" />
                                 Atividades da Tarde
@@ -683,9 +685,9 @@ export default function PedagogueDashboard() {
                             )}
                           </div>
 
-                          <div className="grid sm:grid-cols-2 gap-4">
+                          <div className="grid gap-4">
                             <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                                 <Label className="flex items-center gap-2">
                                   <Package className="w-4 h-4 text-green-500" />
                                   Materiais
@@ -713,7 +715,7 @@ export default function PedagogueDashboard() {
                               )}
                             </div>
                             <div className="space-y-2">
-                              <div className="flex items-center justify-between">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                                 <Label className="flex items-center gap-2">
                                   <Target className="w-4 h-4 text-purple-500" />
                                   Objetivos
