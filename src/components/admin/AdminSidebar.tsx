@@ -210,7 +210,7 @@ export function AdminSidebar() {
     isPedagogue,
     isAuxiliar
   } = useAuth();
-  const { canToggle, specializedRole, currentView, toggleView } = useDashboardView();
+  const { currentView, setView, availableViews } = useDashboardView();
   const {
     state
   } = useSidebar();
@@ -220,15 +220,18 @@ export function AdminSidebar() {
     navigate("/");
   };
 
-  // Determine role label
+  // Determine role label based on current view
   const getRoleLabel = () => {
-    if (isAdmin) return "Administrador";
-    if (isTeacher) return "Professor(a)";
-    if (isNutritionist) return "Nutricionista";
-    if (isCook) return "Cozinheira";
-    if (isPedagogue) return "Pedagoga";
-    if (isAuxiliar) return "Auxiliar";
-    return "Funcionário";
+    const viewLabels: Record<string, string> = {
+      admin: "Administrador",
+      teacher: "Professor(a)",
+      nutritionist: "Nutricionista",
+      cook: "Cozinheira",
+      pedagogue: "Pedagoga",
+      auxiliar: "Auxiliar",
+      parent: "Responsável",
+    };
+    return viewLabels[currentView] || "Funcionário";
   };
 
   // Filter menu items based on user roles
@@ -247,21 +250,8 @@ export function AdminSidebar() {
   const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
   const roleLabel = getRoleLabel();
 
-  const showHeaderToggle =
-    canToggle && (specializedRole === "nutritionist" || specializedRole === "pedagogue");
-
-  const nextViewLabel = (() => {
-    if (!showHeaderToggle) return null;
-    const specializedLabel = specializedRole === "nutritionist" ? "Painel Nutricionista" : "Painel Pedagoga";
-    return currentView === "admin" ? specializedLabel : "Painel Administração";
-  })();
-
-  const handleHeaderToggle = () => {
-    if (!showHeaderToggle) return;
-    toggleView();
-    // As dashboards especializadas vivem na rota raiz do painel
-    navigate("/painel");
-  };
+  // Show toggle in header for users with multiple views
+  const showHeaderToggle = availableViews.length > 1;
 
   // Helper component for rendering menu sections
   const renderMenuSection = (items: typeof dashboardItems, label: string) => {
@@ -309,57 +299,30 @@ export function AdminSidebar() {
       <SidebarContent>
         {/* User Info */}
         <SidebarGroup className="pb-2">
-          {showHeaderToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleHeaderToggle}
-              className={cn(
-                "w-full h-auto px-2 py-2 justify-start gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/30 hover:bg-sidebar-accent/60",
-                isCollapsed && "justify-center"
-              )}
-            >
-              <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
-                  {profile?.full_name?.charAt(0).toUpperCase() || "A"}
-                </AvatarFallback>
-              </Avatar>
-              {!isCollapsed && (
-                <div className="flex flex-col min-w-0 flex-1 text-left">
-                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
-                    {profile?.full_name || "Usuário"}
-                  </span>
-                  <span className="text-xs text-sidebar-foreground/70 truncate">
-                    Alternar para: {nextViewLabel}
-                  </span>
-                </div>
-              )}
-              {!isCollapsed && (
-                <Badge variant="outline" className="text-[10px] px-1.5">
-                  {currentView === "admin" ? "Admin" : "Especial"}
-                </Badge>
-              )}
-            </Button>
-          ) : (
-            <div className={cn("flex items-center gap-3 px-2 py-2", isCollapsed && "justify-center")}>
-              <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
-                  {profile?.full_name?.charAt(0).toUpperCase() || "A"}
-                </AvatarFallback>
-              </Avatar>
-              {!isCollapsed && (
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-sidebar-foreground truncate">
-                    {profile?.full_name || "Administrador"}
-                  </span>
-                  <span className="text-xs text-sidebar-foreground/70">{roleLabel}</span>
-                </div>
-              )}
-            </div>
-          )}
+          <div className={cn("flex items-center gap-3 px-2 py-2", isCollapsed && "justify-center")}>
+            <Avatar className="h-9 w-9 ring-2 ring-sidebar-foreground/20">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground font-fredoka">
+                {profile?.full_name?.charAt(0).toUpperCase() || "A"}
+              </AvatarFallback>
+            </Avatar>
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-semibold text-sidebar-foreground truncate">
+                  {profile?.full_name || "Administrador"}
+                </span>
+                <span className="text-xs text-sidebar-foreground/70">{roleLabel}</span>
+              </div>
+            )}
+          </div>
         </SidebarGroup>
+
+        {/* Dashboard View Toggle - Always show for users with multiple views */}
+        {showHeaderToggle && (
+          <SidebarGroup className="border-b border-sidebar-border pb-2 mb-2">
+            <DashboardViewToggle isCollapsed={isCollapsed} />
+          </SidebarGroup>
+        )}
 
         {/* Categorized Navigation */}
         {renderMenuSection(filteredDashboard, "Início")}
@@ -369,13 +332,6 @@ export function AdminSidebar() {
         {renderMenuSection(filteredAdmin, "Administrativo")}
         {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
         {renderMenuSection(filteredSettings, "Configurações")}
-        
-        {/* Dashboard View Toggle - For users with admin + specialized role */}
-        {!showHeaderToggle && (
-          <SidebarGroup className="border-t border-sidebar-border mt-2 pt-2">
-            <DashboardViewToggle isCollapsed={isCollapsed} />
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       {/* Footer */}

@@ -46,30 +46,21 @@ import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
 import AdminShoppingList from "@/pages/admin/AdminShoppingList";
 import { Loader2 } from "lucide-react";
 
-// Component to select the right dashboard based on role and view preference
+// Component to select the right dashboard based on view preference
 function RoleBasedDashboard() {
-  const { isAdmin, isTeacher, isNutritionist, isCook, isPedagogue, isAuxiliar } = useAuth();
-  const { currentView, specializedRole } = useDashboardView();
+  const { currentView } = useDashboardView();
 
-  // If user has admin + specialized role and chose specialized view
-  if (isAdmin && currentView === "specialized" && specializedRole) {
-    switch (specializedRole) {
-      case "nutritionist": return <NutritionistDashboard />;
-      case "pedagogue": return <PedagogueDashboard />;
-      case "cook": return <CookDashboard />;
-      case "teacher": return <TeacherDashboard />;
-    }
+  // Render dashboard based on selected view
+  switch (currentView) {
+    case "admin": return <AdminDashboard />;
+    case "teacher": return <TeacherDashboard />;
+    case "nutritionist": return <NutritionistDashboard />;
+    case "cook": return <CookDashboard />;
+    case "pedagogue": return <PedagogueDashboard />;
+    case "auxiliar": return <AuxiliarDashboard />;
+    case "parent": return <ParentDashboard />;
+    default: return <AdminDashboard />;
   }
-
-  // Default priority order: Admin > Teacher > Nutritionist > Cook > Pedagogue > Auxiliar
-  if (isAdmin) return <AdminDashboard />;
-  if (isTeacher) return <TeacherDashboard />;
-  if (isNutritionist) return <NutritionistDashboard />;
-  if (isCook) return <CookDashboard />;
-  if (isPedagogue) return <PedagogueDashboard />;
-  if (isAuxiliar) return <AuxiliarDashboard />;
-  
-  return <AdminDashboard />;
 }
 
 function DashboardContent() {
