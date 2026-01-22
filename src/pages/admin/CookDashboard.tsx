@@ -332,32 +332,32 @@ export default function CookDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="bg-orange-50 border-orange-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <UtensilsCrossed className="w-5 h-5 mx-auto text-orange-600 mb-1" />
-            <p className="text-2xl font-fredoka font-bold text-orange-600">{children.length}</p>
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-orange-600">{children.length}</p>
             <p className="text-xs text-muted-foreground">Crianças</p>
           </CardContent>
         </Card>
         <Card className="bg-red-50 border-red-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <AlertTriangle className="w-5 h-5 mx-auto text-red-600 mb-1" />
-            <p className="text-2xl font-fredoka font-bold text-red-600">{childrenWithAllergies.length}</p>
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-red-600">{childrenWithAllergies.length}</p>
             <p className="text-xs text-muted-foreground">Com Alergias</p>
           </CardContent>
         </Card>
         <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Milk className="w-5 h-5 mx-auto text-blue-600 mb-1" />
-            <p className="text-2xl font-fredoka font-bold text-blue-600">{childrenWithSpecialMilk.length}</p>
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-blue-600">{childrenWithSpecialMilk.length}</p>
             <p className="text-xs text-muted-foreground">Leite Especial</p>
           </CardContent>
         </Card>
         <Card className="bg-green-50 border-green-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <ShoppingCart className="w-5 h-5 mx-auto text-green-600 mb-1" />
-            <p className="text-2xl font-fredoka font-bold text-green-600">{pendingCount}</p>
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-green-600">{pendingCount}</p>
             <p className="text-xs text-muted-foreground">Itens Pendentes</p>
           </CardContent>
         </Card>

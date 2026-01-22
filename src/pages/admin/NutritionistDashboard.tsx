@@ -639,40 +639,40 @@ export default function NutritionistDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Crianças com Alergias
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Alergias
             </CardTitle>
-            <div className="p-2 rounded-lg bg-pimpo-red/10">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-red/10">
               <AlertTriangle className="w-4 h-4 text-pimpo-red" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-fredoka font-bold">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-2xl sm:text-3xl font-fredoka font-bold">
               {stats.childrenWithAllergies}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
               Atenção especial no cardápio
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Dias de Cardápio
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Cardápios
             </CardTitle>
-            <div className="p-2 rounded-lg bg-pimpo-green/10">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-green/10">
               <Calendar className="w-4 h-4 text-pimpo-green" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-fredoka font-bold">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-2xl sm:text-3xl font-fredoka font-bold">
               {stats.menuDaysConfigured}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
               Refeições configuradas
             </p>
           </CardContent>

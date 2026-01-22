@@ -52,20 +52,22 @@ export default function AuxiliarDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="inicio" className="flex items-center gap-2">
-            <LayoutDashboard className="w-4 h-4" />
-            Início
-          </TabsTrigger>
-          <TabsTrigger value="relatorios" className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4" />
-            Meus Relatórios
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide">
+          <TabsList className="w-max min-w-full flex">
+            <TabsTrigger value="inicio" className="flex items-center gap-2 flex-shrink-0 whitespace-nowrap px-4">
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Início</span>
+            </TabsTrigger>
+            <TabsTrigger value="relatorios" className="flex items-center gap-2 flex-shrink-0 whitespace-nowrap px-4">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Meus Relatórios</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="inicio" className="mt-4 space-y-6">
           {/* Stats Grid */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3">
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">

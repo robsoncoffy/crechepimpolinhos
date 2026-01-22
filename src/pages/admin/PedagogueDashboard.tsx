@@ -461,38 +461,38 @@ export default function PedagogueDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Card className="bg-purple-50 border-purple-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <GraduationCap className="w-5 h-5 mx-auto mb-1 text-purple-600" />
-            <p className="text-2xl font-fredoka font-bold text-purple-600">
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-purple-600">
               {loading ? "-" : stats.plusChildren}
             </p>
-            <p className="text-xs text-muted-foreground">Avaliações Pendentes</p>
+            <p className="text-xs text-muted-foreground">Avaliações Pend.</p>
           </CardContent>
         </Card>
         <Card className="bg-green-50 border-green-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <FileText className="w-5 h-5 mx-auto mb-1 text-green-600" />
-            <p className="text-2xl font-fredoka font-bold text-green-600">
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-green-600">
               {loading ? "-" : stats.weeklyPlans}
             </p>
             <p className="text-xs text-muted-foreground">Planos Semanais</p>
           </CardContent>
         </Card>
         <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Baby className="w-5 h-5 mx-auto mb-1 text-blue-600" />
-            <p className="text-2xl font-fredoka font-bold text-blue-600">
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-blue-600">
               {loading ? "-" : stats.totalChildren}
             </p>
             <p className="text-xs text-muted-foreground">Total Crianças</p>
           </CardContent>
         </Card>
         <Card className="bg-amber-50 border-amber-200">
-          <CardContent className="p-4 text-center">
+          <CardContent className="p-3 sm:p-4 text-center">
             <Star className="w-5 h-5 mx-auto mb-1 text-amber-600" />
-            <p className="text-2xl font-fredoka font-bold text-amber-600">
+            <p className="text-xl sm:text-2xl font-fredoka font-bold text-amber-600">
               {loading ? "-" : stats.plusChildren}
             </p>
             <p className="text-xs text-muted-foreground">Alunos Plus+</p>
@@ -580,13 +580,15 @@ export default function PedagogueDashboard() {
 
                 {/* Day Tabs */}
                 <Tabs value={String(selectedDay)} onValueChange={(v) => setSelectedDay(Number(v))}>
-                  <TabsList className="grid grid-cols-5">
-                    {daysOfWeek.map((day) => (
-                      <TabsTrigger key={day.value} value={String(day.value)} className="text-xs sm:text-sm">
-                        {day.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                  <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+                    <TabsList className="w-max min-w-full flex">
+                      {daysOfWeek.map((day) => (
+                        <TabsTrigger key={day.value} value={String(day.value)} className="text-xs sm:text-sm flex-shrink-0 whitespace-nowrap px-3">
+                          {day.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </div>
 
                   {daysOfWeek.map((day) => (
                     <TabsContent key={day.value} value={String(day.value)}>
@@ -762,7 +764,7 @@ export default function PedagogueDashboard() {
                   </Badge>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid gap-4 lg:grid-cols-3">
                   {/* Child List */}
                   <div className="space-y-2">
                     <Label>Selecione o aluno:</Label>
@@ -799,7 +801,7 @@ export default function PedagogueDashboard() {
                   </div>
 
                   {/* Evaluation Form */}
-                  <div className="md:col-span-2">
+                  <div className="lg:col-span-2">
                     {selectedEvalChild ? (
                       <Card>
                         <CardHeader className="pb-3">
@@ -851,7 +853,7 @@ export default function PedagogueDashboard() {
                           </Button>
                         </CardHeader>
                         <CardContent>
-                          <ScrollArea className="h-[400px] pr-4">
+                          <ScrollArea className="h-[50vh] max-h-[500px] min-h-[300px] pr-4">
                             <div className="space-y-4">
                               {/* Cognitive */}
                               <div className="space-y-2">
@@ -1070,7 +1072,7 @@ export default function PedagogueDashboard() {
                         </CardContent>
                       </Card>
                     ) : (
-                      <div className="flex items-center justify-center h-[500px] border rounded-lg bg-muted/30">
+                      <div className="flex items-center justify-center h-[50vh] max-h-[500px] min-h-[300px] border rounded-lg bg-muted/30">
                         <div className="text-center">
                           <GraduationCap className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
                           <h4 className="font-semibold mb-1">Selecione um aluno</h4>
@@ -1089,7 +1091,7 @@ export default function PedagogueDashboard() {
 
               {/* Chat Equipe Tab */}
               <TabsContent value="equipe" className="mt-0">
-                <div className="h-[500px]">
+                <div className="h-[60vh] max-h-[600px] min-h-[400px]">
                   <StaffChatWindow />
                 </div>
               </TabsContent>
