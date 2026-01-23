@@ -12,17 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Baby, BookOpen, Users, Sun, Moon, Clock, FileText, Sparkles } from "lucide-react";
+import { CheckCircle2, Baby, BookOpen, Users, Sun, Moon, Clock, FileText, Sparkles, Building2, Landmark } from "lucide-react";
 import { Link } from "react-router-dom";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const preEnrollmentSchema = z.object({
   parent_name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100, "Nome muito longo"),
-  email: z.string().trim().email("Email inválido").max(255, "Email muito longo"),
+  email: z.string().trim().min(1, "E-mail é obrigatório").email("Email inválido").max(255, "Email muito longo"),
   phone: z.string().trim().min(10, "Telefone inválido").max(20, "Telefone muito longo"),
   child_name: z.string().trim().min(2, "Nome da criança deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
   child_birth_date: z.string().min(1, "Data de nascimento é obrigatória"),
   desired_class_type: z.enum(["bercario", "maternal", "jardim"], { required_error: "Selecione uma turma" }),
   desired_shift_type: z.enum(["manha", "tarde", "integral"], { required_error: "Selecione um turno" }),
+  vacancy_type: z.enum(["municipal", "particular"], { required_error: "Selecione o tipo de vaga" }),
   how_heard_about: z.string().max(200, "Texto muito longo").optional(),
   notes: z.string().max(1000, "Texto muito longo").optional(),
   acceptTerms: z.boolean().refine(val => val === true, { message: "Você deve aceitar os termos para continuar" }),
@@ -51,6 +53,11 @@ const howHeardOptions = [
   "Outro",
 ];
 
+const vacancyTypeOptions = [
+  { value: "particular", label: "Vaga Particular", description: "Matrícula privada com mensalidade", icon: Building2 },
+  { value: "municipal", label: "Vaga da Prefeitura", description: "Vaga conveniada com a prefeitura", icon: Landmark },
+];
+
 export default function PreEnrollment() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -63,6 +70,7 @@ export default function PreEnrollment() {
       phone: "",
       child_name: "",
       child_birth_date: "",
+      vacancy_type: undefined,
       how_heard_about: "",
       notes: "",
       acceptTerms: false,
@@ -80,6 +88,7 @@ export default function PreEnrollment() {
         child_birth_date: data.child_birth_date,
         desired_class_type: data.desired_class_type,
         desired_shift_type: data.desired_shift_type,
+        vacancy_type: data.vacancy_type,
         how_heard_about: data.how_heard_about || null,
         notes: data.notes || null,
       });
@@ -313,6 +322,47 @@ export default function PreEnrollment() {
                             )}
                           />
                         </div>
+
+                        {/* Vacancy Type Selection */}
+                        <FormField
+                          control={form.control}
+                          name="vacancy_type"
+                          render={({ field }) => (
+                            <FormItem className="space-y-3">
+                              <FormLabel>Tipo de Vaga *</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                                >
+                                  {vacancyTypeOptions.map((option) => (
+                                    <div key={option.value}>
+                                      <RadioGroupItem
+                                        value={option.value}
+                                        id={option.value}
+                                        className="peer sr-only"
+                                      />
+                                      <label
+                                        htmlFor={option.value}
+                                        className="flex items-center gap-4 rounded-lg border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors"
+                                      >
+                                        <option.icon className="h-6 w-6 text-primary" />
+                                        <div className="flex-1">
+                                          <p className="font-semibold">{option.label}</p>
+                                          <p className="text-sm text-muted-foreground">
+                                            {option.description}
+                                          </p>
+                                        </div>
+                                      </label>
+                                    </div>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
 
                       {/* Additional Info */}

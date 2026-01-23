@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,10 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, UserPlus, Mail, Phone, Calendar, GraduationCap, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, MessageSquare, AlertCircle } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Calendar, GraduationCap, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, MessageSquare, AlertCircle, Building2, Landmark } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type PreEnrollment = Database["public"]["Tables"]["pre_enrollments"]["Row"];
@@ -39,11 +41,20 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   rejected: { label: "Rejeitado", variant: "destructive" },
 };
 
+const vacancyTypeLabels: Record<string, { label: string; icon: typeof Building2 }> = {
+  particular: { label: "Particular", icon: Building2 },
+  municipal: { label: "Municipal", icon: Landmark },
+};
+
 export default function AdminPreEnrollments() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPreEnrollment, setSelectedPreEnrollment] = useState<PreEnrollment | null>(null);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
+  
+  // Get filter from URL params
+  const vacancyFilter = searchParams.get("tipo") || "all";
 
   const { data: preEnrollments, isLoading } = useQuery({
     queryKey: ["pre-enrollments"],
@@ -181,6 +192,12 @@ export default function AdminPreEnrollments() {
   });
 
   const filteredPreEnrollments = preEnrollments?.filter((pe) => {
+    // First filter by vacancy type
+    if (vacancyFilter !== "all" && pe.vacancy_type !== vacancyFilter) {
+      return false;
+    }
+    
+    // Then filter by search term
     const search = searchTerm.toLowerCase();
     return (
       pe.parent_name.toLowerCase().includes(search) ||
@@ -189,6 +206,15 @@ export default function AdminPreEnrollments() {
       pe.phone.includes(search)
     );
   });
+
+  const handleVacancyFilterChange = (value: string) => {
+    if (value === "all") {
+      searchParams.delete("tipo");
+    } else {
+      searchParams.set("tipo", value);
+    }
+    setSearchParams(searchParams);
+  };
 
   const handleConvert = (preEnrollment: PreEnrollment) => {
     setSelectedPreEnrollment(preEnrollment);
@@ -281,17 +307,32 @@ export default function AdminPreEnrollments() {
               <div>
                 <CardTitle>Lista de Pré-Matrículas</CardTitle>
                 <CardDescription>
-                  {preEnrollments?.length || 0} pré-matrículas registradas
+                  {filteredPreEnrollments?.length || 0} de {preEnrollments?.length || 0} pré-matrículas
                 </CardDescription>
               </div>
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome, email ou telefone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Tabs value={vacancyFilter} onValueChange={handleVacancyFilterChange}>
+                  <TabsList>
+                    <TabsTrigger value="all">Todas</TabsTrigger>
+                    <TabsTrigger value="particular" className="gap-1">
+                      <Building2 className="h-3 w-3" />
+                      Particular
+                    </TabsTrigger>
+                    <TabsTrigger value="municipal" className="gap-1">
+                      <Landmark className="h-3 w-3" />
+                      Municipal
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className="relative w-full sm:w-80">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, email ou telefone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -302,7 +343,7 @@ export default function AdminPreEnrollments() {
               </div>
             ) : filteredPreEnrollments?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? "Nenhuma pré-matrícula encontrada" : "Nenhuma pré-matrícula registrada ainda"}
+                {searchTerm || vacancyFilter !== "all" ? "Nenhuma pré-matrícula encontrada com os filtros atuais" : "Nenhuma pré-matrícula registrada ainda"}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -310,6 +351,7 @@ export default function AdminPreEnrollments() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Responsável</TableHead>
                       <TableHead>Criança</TableHead>
                       <TableHead>Contato</TableHead>
@@ -320,13 +362,26 @@ export default function AdminPreEnrollments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredPreEnrollments?.map((pe) => (
+                    {filteredPreEnrollments?.map((pe) => {
+                      const VacancyIcon = vacancyTypeLabels[pe.vacancy_type || "particular"]?.icon || Building2;
+                      const vacancyLabel = vacancyTypeLabels[pe.vacancy_type || "particular"]?.label || "Particular";
+                      
+                      return (
                       <TableRow key={pe.id}>
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             {format(new Date(pe.created_at), "dd/MM/yyyy", { locale: ptBR })}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={pe.vacancy_type === "municipal" ? "secondary" : "outline"}
+                            className="gap-1"
+                          >
+                            <VacancyIcon className="h-3 w-3" />
+                            {vacancyLabel}
+                          </Badge>
                         </TableCell>
                         <TableCell className="font-medium">{pe.parent_name}</TableCell>
                         <TableCell>
@@ -367,7 +422,21 @@ export default function AdminPreEnrollments() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {renderGhlStatus(pe)}
+                          {pe.vacancy_type === "municipal" ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1 text-muted-foreground">
+                                  <Landmark className="h-4 w-4" />
+                                  <span className="text-xs">N/A</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Vagas municipais não são sincronizadas com GHL</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            renderGhlStatus(pe)
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -413,7 +482,8 @@ export default function AdminPreEnrollments() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

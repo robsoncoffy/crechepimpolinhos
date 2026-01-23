@@ -103,6 +103,18 @@ serve(async (req) => {
       throw new Error(`Pre-enrollment not found: ${fetchError?.message}`);
     }
 
+    // Skip municipal vacancies - they should not be synced to GHL
+    if (preEnrollment.vacancy_type === "municipal") {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Municipal vacancy - not synced to GHL",
+          skipped: true
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Skip if already synced
     if (preEnrollment.ghl_contact_id) {
       return new Response(
