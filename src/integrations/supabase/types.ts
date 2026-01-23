@@ -1888,6 +1888,9 @@ export type Database = {
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
           email: string
+          ghl_contact_id: string | null
+          ghl_sync_error: string | null
+          ghl_synced_at: string | null
           how_heard_about: string | null
           id: string
           notes: string | null
@@ -1904,6 +1907,9 @@ export type Database = {
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
           email: string
+          ghl_contact_id?: string | null
+          ghl_sync_error?: string | null
+          ghl_synced_at?: string | null
           how_heard_about?: string | null
           id?: string
           notes?: string | null
@@ -1920,6 +1926,9 @@ export type Database = {
           desired_class_type?: Database["public"]["Enums"]["class_type"]
           desired_shift_type?: Database["public"]["Enums"]["shift_type"]
           email?: string
+          ghl_contact_id?: string | null
+          ghl_sync_error?: string | null
+          ghl_synced_at?: string | null
           how_heard_about?: string | null
           id?: string
           notes?: string | null

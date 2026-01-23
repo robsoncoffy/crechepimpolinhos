@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.check-payment-reminders]
 verify_jwt = false
+
+[functions.ghl-sync-contact]
+verify_jwt = false

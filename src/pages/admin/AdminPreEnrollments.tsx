@@ -8,18 +8,22 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, UserPlus, Mail, Phone, Calendar, GraduationCap, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Calendar, GraduationCap, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, MessageSquare, AlertCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type PreEnrollment = Database["public"]["Tables"]["pre_enrollments"]["Row"];
 
 const classLabels: Record<string, string> = {
-  bercario: "Berçário",
-  maternal: "Maternal",
-  jardim: "Jardim",
+  bercario1: "Berçário 1",
+  bercario2: "Berçário 2",
+  maternal1: "Maternal 1",
+  maternal2: "Maternal 2",
+  jardim1: "Jardim 1",
+  jardim2: "Jardim 2",
 };
 
 const shiftLabels: Record<string, string> = {
@@ -54,6 +58,28 @@ export default function AdminPreEnrollments() {
     },
   });
 
+  // Mutation to sync a single pre-enrollment to GHL
+  const syncToGhlMutation = useMutation({
+    mutationFn: async (preEnrollmentId: string) => {
+      const { data, error } = await supabase.functions.invoke("ghl-sync-contact", {
+        body: { preEnrollmentId },
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || "Falha ao sincronizar");
+      
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["pre-enrollments"] });
+      toast.success("Contato sincronizado com GoHighLevel!");
+    },
+    onError: (error) => {
+      console.error("GHL sync error:", error);
+      toast.error("Erro ao sincronizar com GoHighLevel");
+    },
+  });
+
   const convertMutation = useMutation({
     mutationFn: async (preEnrollment: PreEnrollment) => {
       // Generate invite code
@@ -71,7 +97,7 @@ export default function AdminPreEnrollments() {
           child_name: preEnrollment.child_name,
           expires_at: expiresAt.toISOString(),
           pre_enrollment_id: preEnrollment.id,
-          notes: `Convertido da pré-matrícula. Turma desejada: ${classLabels[preEnrollment.desired_class_type]}, Turno: ${shiftLabels[preEnrollment.desired_shift_type]}`,
+          notes: `Convertido da pré-matrícula. Turma desejada: ${classLabels[preEnrollment.desired_class_type] || preEnrollment.desired_class_type}, Turno: ${shiftLabels[preEnrollment.desired_shift_type] || preEnrollment.desired_shift_type}`,
         })
         .select()
         .single();
@@ -88,6 +114,20 @@ export default function AdminPreEnrollments() {
         .eq("id", preEnrollment.id);
 
       if (updateError) throw updateError;
+
+      // Update GHL stage if synced
+      if (preEnrollment.ghl_contact_id) {
+        try {
+          await supabase.functions.invoke("ghl-sync-contact", {
+            body: {
+              ghl_contact_id: preEnrollment.ghl_contact_id,
+              stage: "Proposta Enviada",
+            },
+          });
+        } catch (e) {
+          console.error("Failed to update GHL stage:", e);
+        }
+      }
 
       // Send invite email
       const { error: emailError } = await supabase.functions.invoke("send-parent-invite-email", {
@@ -161,6 +201,70 @@ export default function AdminPreEnrollments() {
     }
   };
 
+  // Render GHL sync status indicator
+  const renderGhlStatus = (pe: PreEnrollment) => {
+    if (pe.ghl_contact_id) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1 text-primary">
+              <MessageSquare className="h-4 w-4" />
+              <CheckCircle2 className="h-3 w-3" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Sincronizado com GHL</p>
+            <p className="text-xs text-muted-foreground">
+              {pe.ghl_synced_at && format(new Date(pe.ghl_synced_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (pe.ghl_sync_error) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1 text-destructive">
+              <MessageSquare className="h-4 w-4" />
+              <AlertCircle className="h-3 w-3" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Erro ao sincronizar</p>
+            <p className="text-xs text-muted-foreground max-w-[200px] truncate">
+              {pe.ghl_sync_error}
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => syncToGhlMutation.mutate(pe.id)}
+            disabled={syncToGhlMutation.isPending}
+          >
+            {syncToGhlMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Sincronizar com GHL</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -211,6 +315,7 @@ export default function AdminPreEnrollments() {
                       <TableHead>Contato</TableHead>
                       <TableHead>Turma/Turno</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>GHL</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -248,11 +353,11 @@ export default function AdminPreEnrollments() {
                           <div className="space-y-1">
                             <div className="flex items-center gap-1">
                               <GraduationCap className="h-3 w-3" />
-                              {classLabels[pe.desired_class_type]}
+                              {classLabels[pe.desired_class_type] || pe.desired_class_type}
                             </div>
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              {shiftLabels[pe.desired_shift_type]}
+                              {shiftLabels[pe.desired_shift_type] || pe.desired_shift_type}
                             </div>
                           </div>
                         </TableCell>
@@ -260,6 +365,9 @@ export default function AdminPreEnrollments() {
                           <Badge variant={statusLabels[pe.status]?.variant || "secondary"}>
                             {statusLabels[pe.status]?.label || pe.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {renderGhlStatus(pe)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -291,7 +399,7 @@ export default function AdminPreEnrollments() {
                               </Button>
                             )}
                             {pe.status === "converted" && (
-                              <span className="flex items-center text-sm text-green-600">
+                              <span className="flex items-center text-sm text-primary">
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
                                 Convertido
                               </span>
@@ -346,13 +454,20 @@ export default function AdminPreEnrollments() {
                 </div>
                 <div>
                   <span className="font-medium">Turma Desejada:</span>
-                  <p className="text-muted-foreground">{classLabels[selectedPreEnrollment.desired_class_type]}</p>
+                  <p className="text-muted-foreground">{classLabels[selectedPreEnrollment.desired_class_type] || selectedPreEnrollment.desired_class_type}</p>
                 </div>
                 <div>
                   <span className="font-medium">Turno Desejado:</span>
-                  <p className="text-muted-foreground">{shiftLabels[selectedPreEnrollment.desired_shift_type]}</p>
+                  <p className="text-muted-foreground">{shiftLabels[selectedPreEnrollment.desired_shift_type] || selectedPreEnrollment.desired_shift_type}</p>
                 </div>
               </div>
+
+              {selectedPreEnrollment.ghl_contact_id && (
+                <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md text-sm text-primary">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Contato sincronizado com GoHighLevel</span>
+                </div>
+              )}
             </div>
           )}
 
