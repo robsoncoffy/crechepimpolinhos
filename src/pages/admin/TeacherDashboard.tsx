@@ -247,7 +247,7 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Header */}
       <div>
         <h1 className="font-fredoka text-2xl lg:text-3xl font-bold">

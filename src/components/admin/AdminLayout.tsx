@@ -100,8 +100,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
 
           {/* Main Content */}
-          <main className="flex-1 p-4 lg:p-6 xl:p-8">
-            {children}
+          <main className="flex-1 p-4 lg:p-6 xl:p-8 overflow-x-hidden">
+            <div className="w-full max-w-full">
+              {children}
+            </div>
           </main>
         </SidebarInset>
       </div>
