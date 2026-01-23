@@ -49,7 +49,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 min-w-0">
           {/* Header */}
           <header className="flex h-14 lg:h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 lg:px-6 sticky top-0 z-30">
             <SidebarTrigger className="-ml-1" />
@@ -100,8 +100,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
 
           {/* Main Content */}
-          <main className="flex-1 p-4 lg:p-6 xl:p-8 overflow-x-hidden">
-            <div className="w-full max-w-full">
+          <main className="flex-1 min-w-0 p-4 lg:p-6 xl:p-8 overflow-x-hidden">
+            <div className="w-full max-w-full min-w-0">
               {children}
             </div>
           </main>
