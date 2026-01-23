@@ -108,7 +108,7 @@ export default function AdminPreEnrollments() {
           child_name: preEnrollment.child_name,
           expires_at: expiresAt.toISOString(),
           pre_enrollment_id: preEnrollment.id,
-          notes: `Convertido da pré-matrícula. Turma desejada: ${classLabels[preEnrollment.desired_class_type] || preEnrollment.desired_class_type}, Turno: ${shiftLabels[preEnrollment.desired_shift_type] || preEnrollment.desired_shift_type}`,
+          notes: `Convertido da pré-matrícula. Tipo de vaga: ${preEnrollment.vacancy_type === "municipal" ? "Municipal" : "Particular"}`,
         })
         .select()
         .single();
