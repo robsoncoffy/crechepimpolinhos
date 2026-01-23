@@ -1898,6 +1898,7 @@ export type Database = {
           phone: string
           status: string
           updated_at: string
+          vacancy_type: Database["public"]["Enums"]["vacancy_type"]
         }
         Insert: {
           child_birth_date: string
@@ -1917,6 +1918,7 @@ export type Database = {
           phone: string
           status?: string
           updated_at?: string
+          vacancy_type?: Database["public"]["Enums"]["vacancy_type"]
         }
         Update: {
           child_birth_date?: string
@@ -1936,6 +1938,7 @@ export type Database = {
           phone?: string
           status?: string
           updated_at?: string
+          vacancy_type?: Database["public"]["Enums"]["vacancy_type"]
         }
         Relationships: [
           {
@@ -2653,6 +2656,7 @@ export type Database = {
       mood_status: "feliz" | "calmo" | "agitado" | "choroso" | "sonolento"
       plan_type: "basico" | "intermediario" | "plus"
       shift_type: "manha" | "tarde" | "integral"
+      vacancy_type: "municipal" | "particular"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2798,6 +2802,7 @@ export const Constants = {
       mood_status: ["feliz", "calmo", "agitado", "choroso", "sonolento"],
       plan_type: ["basico", "intermediario", "plus"],
       shift_type: ["manha", "tarde", "integral"],
+      vacancy_type: ["municipal", "particular"],
     },
   },
 } as const
