@@ -56,33 +56,33 @@ export function Header() {
           </Link>
 
           {/* Desktop navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            {navigation.map(item => <Link key={item.name} to={item.href} className={`text-foreground font-semibold hover:text-primary transition-colors ${location.pathname === item.href ? "text-primary" : ""}`}>
+          <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+            {navigation.map(item => <Link key={item.name} to={item.href} className={`text-foreground font-semibold hover:text-primary transition-colors text-sm xl:text-base whitespace-nowrap ${location.pathname === item.href ? "text-primary" : ""}`}>
                 {item.name}
               </Link>)}
           </div>
 
           {/* Auth buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3 flex-shrink-0">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/instalar">
-                <Download className="w-4 h-4 mr-2" />
-                Instalar App
+                <Download className="w-4 h-4 xl:mr-2" />
+                <span className="hidden xl:inline">Instalar App</span>
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm">
               <Link to="/auth">Entrar</Link>
             </Button>
           </div>
 
           {/* Mobile menu button */}
-          <button type="button" className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+          <button type="button" className="lg:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
         {/* Mobile menu */}
-        {mobileMenuOpen && <div className="md:hidden mt-4 pb-4 border-t border-border">
+        {mobileMenuOpen && <div className="lg:hidden mt-4 pb-4 border-t border-border">
             <div className="flex flex-col gap-2 pt-4">
               {navigation.map(item => <Link key={item.name} to={item.href} className={`px-4 py-2 rounded-lg font-semibold ${location.pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`} onClick={() => setMobileMenuOpen(false)}>
                   {item.name}
