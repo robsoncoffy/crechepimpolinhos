@@ -319,7 +319,7 @@ export default function CookDashboard() {
   const currentMenu = weeklyMenu[selectedMenuDay];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Page Header */}
       <div>
         <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground flex items-center gap-2">
