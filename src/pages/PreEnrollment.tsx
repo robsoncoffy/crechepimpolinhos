@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Baby, FileText, Building2, Landmark, Users } from "lucide-react";
+import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -87,9 +87,12 @@ export default function PreEnrollment() {
                 <h2 className="font-fredoka text-3xl font-bold text-foreground mb-4">
                   Pré-Matrícula Enviada!
                 </h2>
-                <p className="text-lg text-muted-foreground mb-8">
-                  Recebemos sua solicitação de pré-matrícula. Nossa equipe entrará em contato 
-                  em breve para agendar uma visita e dar continuidade ao processo.
+                <p className="text-lg text-muted-foreground mb-4">
+                  Recebemos sua solicitação de pré-matrícula. Nossa equipe analisará seu pedido e, caso aprovado, você receberá um email com o link para completar o cadastro.
+                </p>
+                <p className="text-base text-muted-foreground mb-8 flex items-center justify-center gap-2">
+                  <Mail className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Fique de olho na sua caixa de entrada!</span>
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <Button asChild>
