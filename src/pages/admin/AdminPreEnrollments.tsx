@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Search, UserPlus, Mail, Phone, Calendar, GraduationCap, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, MessageSquare, AlertCircle, Building2, Landmark } from "lucide-react";
+import { Search, UserPlus, Mail, Phone, Calendar, CheckCircle2, XCircle, Loader2, RefreshCw, MessageSquare, AlertCircle, Building2, Landmark } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type PreEnrollment = Database["public"]["Tables"]["pre_enrollments"]["Row"];
@@ -53,8 +53,8 @@ export default function AdminPreEnrollments() {
   const [selectedPreEnrollment, setSelectedPreEnrollment] = useState<PreEnrollment | null>(null);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
   
-  // Get filter from URL params
-  const vacancyFilter = searchParams.get("tipo") || "all";
+  // Get filter from URL params - default to "particular" now
+  const vacancyFilter = searchParams.get("tipo") || "particular";
 
   const { data: preEnrollments, isLoading } = useQuery({
     queryKey: ["pre-enrollments"],
@@ -192,8 +192,8 @@ export default function AdminPreEnrollments() {
   });
 
   const filteredPreEnrollments = preEnrollments?.filter((pe) => {
-    // First filter by vacancy type
-    if (vacancyFilter !== "all" && pe.vacancy_type !== vacancyFilter) {
+    // First filter by vacancy type (now required, no "all" option)
+    if (pe.vacancy_type !== vacancyFilter) {
       return false;
     }
     
@@ -206,6 +206,10 @@ export default function AdminPreEnrollments() {
       pe.phone.includes(search)
     );
   });
+
+  // Count for each tab
+  const particularCount = preEnrollments?.filter(pe => pe.vacancy_type === "particular" && pe.status === "pending").length || 0;
+  const municipalCount = preEnrollments?.filter(pe => pe.vacancy_type === "municipal" && pe.status === "pending").length || 0;
 
   const handleVacancyFilterChange = (value: string) => {
     if (value === "all") {
@@ -301,40 +305,53 @@ export default function AdminPreEnrollments() {
           </p>
         </div>
 
+        <Tabs value={vacancyFilter} onValueChange={handleVacancyFilterChange} className="w-full">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <TabsList className="grid w-full md:w-auto grid-cols-2">
+              <TabsTrigger value="particular" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                Particulares
+                {particularCount > 0 && (
+                  <Badge variant="secondary" className="ml-1">{particularCount}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="municipal" className="gap-2">
+                <Landmark className="h-4 w-4" />
+                Municipais
+                {municipalCount > 0 && (
+                  <Badge variant="secondary" className="ml-1">{municipalCount}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, email ou telefone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
         <Card>
           <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <CardTitle>Lista de Pré-Matrículas</CardTitle>
-                <CardDescription>
-                  {filteredPreEnrollments?.length || 0} de {preEnrollments?.length || 0} pré-matrículas
-                </CardDescription>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Tabs value={vacancyFilter} onValueChange={handleVacancyFilterChange}>
-                  <TabsList>
-                    <TabsTrigger value="all">Todas</TabsTrigger>
-                    <TabsTrigger value="particular" className="gap-1">
-                      <Building2 className="h-3 w-3" />
-                      Particular
-                    </TabsTrigger>
-                    <TabsTrigger value="municipal" className="gap-1">
-                      <Landmark className="h-3 w-3" />
-                      Municipal
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-                <div className="relative w-full sm:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nome, email ou telefone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              {vacancyFilter === "particular" ? (
+                <>
+                  <Building2 className="h-5 w-5" />
+                  Vagas Particulares
+                </>
+              ) : (
+                <>
+                  <Landmark className="h-5 w-5" />
+                  Vagas Municipais
+                </>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {filteredPreEnrollments?.length || 0} pré-matrículas {vacancyFilter === "particular" ? "particulares" : "municipais"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -343,7 +360,7 @@ export default function AdminPreEnrollments() {
               </div>
             ) : filteredPreEnrollments?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                {searchTerm || vacancyFilter !== "all" ? "Nenhuma pré-matrícula encontrada com os filtros atuais" : "Nenhuma pré-matrícula registrada ainda"}
+                {searchTerm ? "Nenhuma pré-matrícula encontrada" : `Nenhuma pré-matrícula ${vacancyFilter === "particular" ? "particular" : "municipal"} registrada ainda`}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -351,21 +368,17 @@ export default function AdminPreEnrollments() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Tipo</TableHead>
+                      <TableHead>CPF</TableHead>
                       <TableHead>Responsável</TableHead>
                       <TableHead>Criança</TableHead>
                       <TableHead>Contato</TableHead>
-                      <TableHead>Turma/Turno</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>GHL</TableHead>
+                      {vacancyFilter === "particular" && <TableHead>GHL</TableHead>}
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredPreEnrollments?.map((pe) => {
-                      const VacancyIcon = vacancyTypeLabels[pe.vacancy_type || "particular"]?.icon || Building2;
-                      const vacancyLabel = vacancyTypeLabels[pe.vacancy_type || "particular"]?.label || "Particular";
-                      
                       return (
                       <TableRow key={pe.id}>
                         <TableCell className="whitespace-nowrap">
@@ -374,14 +387,8 @@ export default function AdminPreEnrollments() {
                             {format(new Date(pe.created_at), "dd/MM/yyyy", { locale: ptBR })}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={pe.vacancy_type === "municipal" ? "secondary" : "outline"}
-                            className="gap-1"
-                          >
-                            <VacancyIcon className="h-3 w-3" />
-                            {vacancyLabel}
-                          </Badge>
+                        <TableCell className="font-mono text-sm">
+                          {(pe as any).cpf || "-"}
                         </TableCell>
                         <TableCell className="font-medium">{pe.parent_name}</TableCell>
                         <TableCell>
@@ -405,39 +412,15 @@ export default function AdminPreEnrollments() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1">
-                              <GraduationCap className="h-3 w-3" />
-                              {classLabels[pe.desired_class_type] || pe.desired_class_type}
-                            </div>
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {shiftLabels[pe.desired_shift_type] || pe.desired_shift_type}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
                           <Badge variant={statusLabels[pe.status]?.variant || "secondary"}>
                             {statusLabels[pe.status]?.label || pe.status}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {pe.vacancy_type === "municipal" ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1 text-muted-foreground">
-                                  <Landmark className="h-4 w-4" />
-                                  <span className="text-xs">N/A</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Vagas municipais não são sincronizadas com GHL</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            renderGhlStatus(pe)
-                          )}
-                        </TableCell>
+                        {vacancyFilter === "particular" && (
+                          <TableCell>
+                            {renderGhlStatus(pe)}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                             {pe.status === "pending" && (
@@ -501,8 +484,8 @@ export default function AdminPreEnrollments() {
             )}
           </CardContent>
         </Card>
+        </Tabs>
       </div>
-
       {/* Convert Dialog */}
       <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
         <DialogContent>

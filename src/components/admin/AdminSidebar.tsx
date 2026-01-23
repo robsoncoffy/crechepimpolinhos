@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, Landmark } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -127,12 +127,6 @@ const adminItems = [{
   href: "/painel/pre-matriculas",
   roles: ["admin"]
 }, {
-  icon: Landmark,
-  label: "Vagas Municipais",
-  href: "/painel/pre-matriculas?tipo=municipal",
-  badgeKey: "municipal",
-  roles: ["admin"]
-}, {
   icon: User,
   label: "Perfis de Usuários",
   href: "/painel/perfis",
@@ -224,24 +218,6 @@ export function AdminSidebar() {
   } = useSidebar();
   const isCollapsed = state === "collapsed";
 
-  // Query for municipal pre-enrollments count
-  const { data: municipalCount = 0 } = useQuery({
-    queryKey: ["municipal-pre-enrollments-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("pre_enrollments")
-        .select("*", { count: "exact", head: true })
-        .eq("vacancy_type", "municipal")
-        .eq("status", "pending");
-      
-      if (error) {
-        console.error("Error fetching municipal count:", error);
-        return 0;
-      }
-      return count || 0;
-    },
-    refetchInterval: 60000, // Refetch every minute
-  });
 
   const handleLogout = async () => {
     await signOut();
@@ -292,7 +268,6 @@ export function AdminSidebar() {
           <SidebarMenu>
             {items.map(item => {
             const isActive = location.pathname === item.href || (location.pathname + location.search) === item.href;
-            const badgeCount = "badgeKey" in item && item.badgeKey === "municipal" ? municipalCount : 0;
             
             return <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
@@ -302,11 +277,6 @@ export function AdminSidebar() {
                       {"badge" in item && item.badge && !isCollapsed && <Badge variant="secondary" className="ml-auto bg-sidebar-foreground/20 text-sidebar-foreground text-xs px-1.5">
                           Novo
                         </Badge>}
-                      {badgeCount > 0 && !isCollapsed && (
-                        <Badge className="ml-auto bg-primary text-primary-foreground text-xs px-1.5">
-                          {badgeCount}
-                        </Badge>
-                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>;
