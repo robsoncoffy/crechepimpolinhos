@@ -191,6 +191,25 @@ export default function AdminPreEnrollments() {
     },
   });
 
+  // Mutation to delete (reject) a pre-enrollment permanently
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("pre_enrollments")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pre-enrollments"] });
+      toast.success("Pré-matrícula rejeitada e excluída!");
+    },
+    onError: () => {
+      toast.error("Erro ao excluir pré-matrícula");
+    },
+  });
+
   const filteredPreEnrollments = preEnrollments?.filter((pe) => {
     // First filter by vacancy type (now required, no "all" option)
     if (pe.vacancy_type !== vacancyFilter) {
@@ -428,7 +447,8 @@ export default function AdminPreEnrollments() {
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  onClick={() => updateStatusMutation.mutate({ id: pe.id, status: "rejected" })}
+                                  onClick={() => deleteMutation.mutate(pe.id)}
+                                  disabled={deleteMutation.isPending}
                                 >
                                   <XCircle className="h-4 w-4 mr-1" />
                                   Rejeitar
