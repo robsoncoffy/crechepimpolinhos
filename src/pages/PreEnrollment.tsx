@@ -6,13 +6,11 @@ import { PublicLayout } from "@/components/layout/PublicLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Baby, BookOpen, Users, Sun, Moon, Clock, FileText, Sparkles, Building2, Landmark } from "lucide-react";
+import { CheckCircle2, Baby, FileText, Building2, Landmark, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -22,36 +20,11 @@ const preEnrollmentSchema = z.object({
   phone: z.string().trim().min(10, "Telefone inválido").max(20, "Telefone muito longo"),
   child_name: z.string().trim().min(2, "Nome da criança deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
   child_birth_date: z.string().min(1, "Data de nascimento é obrigatória"),
-  desired_class_type: z.enum(["bercario", "maternal", "jardim"], { required_error: "Selecione uma turma" }),
-  desired_shift_type: z.enum(["manha", "tarde", "integral"], { required_error: "Selecione um turno" }),
   vacancy_type: z.enum(["municipal", "particular"], { required_error: "Selecione o tipo de vaga" }),
-  how_heard_about: z.string().max(200, "Texto muito longo").optional(),
-  notes: z.string().max(1000, "Texto muito longo").optional(),
   acceptTerms: z.boolean().refine(val => val === true, { message: "Você deve aceitar os termos para continuar" }),
 });
 
 type PreEnrollmentFormData = z.infer<typeof preEnrollmentSchema>;
-
-const classOptions = [
-  { value: "bercario", label: "Berçário (0-1 ano)", icon: Baby },
-  { value: "maternal", label: "Maternal (1-3 anos)", icon: BookOpen },
-  { value: "jardim", label: "Jardim (4-6 anos)", icon: Users },
-];
-
-const shiftOptions = [
-  { value: "manha", label: "Manhã (7h às 11h)", icon: Sun },
-  { value: "tarde", label: "Tarde (15h às 19h)", icon: Moon },
-  { value: "integral", label: "Integral (até 8h)", icon: Clock },
-];
-
-const howHeardOptions = [
-  "Indicação de amigo/familiar",
-  "Instagram",
-  "Facebook",
-  "Google",
-  "Passei em frente à escola",
-  "Outro",
-];
 
 const vacancyTypeOptions = [
   { value: "particular", label: "Vaga Particular", description: "Matrícula privada com mensalidade", icon: Building2 },
@@ -71,8 +44,6 @@ export default function PreEnrollment() {
       child_name: "",
       child_birth_date: "",
       vacancy_type: undefined,
-      how_heard_about: "",
-      notes: "",
       acceptTerms: false,
     },
   });
@@ -86,11 +57,9 @@ export default function PreEnrollment() {
         phone: data.phone,
         child_name: data.child_name,
         child_birth_date: data.child_birth_date,
-        desired_class_type: data.desired_class_type,
-        desired_shift_type: data.desired_shift_type,
+        desired_class_type: "bercario",
+        desired_shift_type: "integral",
         vacancy_type: data.vacancy_type,
-        how_heard_about: data.how_heard_about || null,
-        notes: data.notes || null,
       });
 
       if (error) throw error;
@@ -265,64 +234,6 @@ export default function PreEnrollment() {
                           />
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="desired_class_type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Turma Desejada *</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecione a turma" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {classOptions.map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        <div className="flex items-center gap-2">
-                                          <option.icon className="w-4 h-4" />
-                                          {option.label}
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="desired_shift_type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Turno Desejado *</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecione o turno" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {shiftOptions.map((option) => (
-                                      <SelectItem key={option.value} value={option.value}>
-                                        <div className="flex items-center gap-2">
-                                          <option.icon className="w-4 h-4" />
-                                          {option.label}
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
                         {/* Vacancy Type Selection */}
                         <FormField
                           control={form.control}
@@ -358,57 +269,6 @@ export default function PreEnrollment() {
                                     </div>
                                   ))}
                                 </RadioGroup>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      {/* Additional Info */}
-                      <div className="space-y-4 pt-4 border-t">
-                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 text-primary" />
-                          Informações Adicionais
-                        </h3>
-
-                        <FormField
-                          control={form.control}
-                          name="how_heard_about"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Como conheceu a Pimpolinhos?</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione uma opção" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {howHeardOptions.map((option) => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Observações</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Alguma informação adicional que gostaria de compartilhar?"
-                                  rows={4}
-                                  {...field}
-                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
