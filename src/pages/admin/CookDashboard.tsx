@@ -322,9 +322,11 @@ export default function CookDashboard() {
     <div className="space-y-6 w-full max-w-full min-w-0">
       {/* Page Header */}
       <div>
-        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground flex items-center gap-2">
-          <ChefHat className="w-8 h-8 text-orange-500" />
-          Olá, {profile?.full_name?.split(" ")[0]}! 👋
+        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground flex flex-wrap items-center gap-2 min-w-0">
+          <ChefHat className="w-8 h-8 text-orange-500 shrink-0" />
+          <span className="min-w-0 break-words">
+            Olá, {profile?.full_name?.split(" ")[0]}! 👋
+          </span>
         </h1>
         <p className="text-muted-foreground mt-1">
           Painel da Cozinha • {new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
@@ -527,19 +529,19 @@ export default function CookDashboard() {
 
               {/* Refeições Tab */}
               <TabsContent value="refeicoes" className="mt-0 space-y-4">
-                <div className="flex flex-wrap gap-3 items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 min-w-0">
+                    <div className="relative w-full sm:w-56">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder="Buscar criança..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-9 w-48"
+                        className="pl-9 w-full"
                       />
                     </div>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="w-full sm:w-40">
                         <SelectValue placeholder="Turma" />
                       </SelectTrigger>
                       <SelectContent>
@@ -550,7 +552,7 @@ export default function CookDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Badge variant="outline" className="text-sm">
+                  <Badge variant="outline" className="text-sm self-start sm:self-auto whitespace-nowrap">
                     Refeição atual: {mealTypes.find((m) => m.key === currentMeal)?.label}
                   </Badge>
                 </div>
@@ -743,18 +745,20 @@ export default function CookDashboard() {
 
       {/* Shopping List Card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-primary" />
-              Lista de Compras
-            </div>
-            <div className="flex gap-2">
+        <CardHeader className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0">
+            <CardTitle className="flex items-center gap-2 min-w-0">
+              <ShoppingCart className="w-5 h-5 text-primary shrink-0" />
+              <span className="min-w-0">Lista de Compras</span>
+            </CardTitle>
+
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={generateShoppingSuggestions}
                 disabled={isLoadingSuggestions}
+                className="whitespace-nowrap"
               >
                 {isLoadingSuggestions ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -763,13 +767,21 @@ export default function CookDashboard() {
                 )}
                 <span className="hidden sm:inline ml-2">Sugestões IA</span>
               </Button>
-              <Badge variant="secondary">{pendingCount} pendentes</Badge>
-              <Badge variant="outline" className="text-green-600 border-green-300">
+
+              <Badge variant="secondary" className="whitespace-nowrap">
+                <span className="font-medium">{pendingCount}</span>
+                <span className="hidden sm:inline ml-1">pendentes</span>
+                <span className="sm:hidden ml-1">pend.</span>
+              </Badge>
+
+              <Badge variant="outline" className="text-green-600 border-green-300 whitespace-nowrap">
                 <Check className="w-3 h-3 mr-1" />
-                {completedCount} comprados
+                <span className="font-medium">{completedCount}</span>
+                <span className="hidden sm:inline ml-1">comprados</span>
+                <span className="sm:hidden ml-1">comp.</span>
               </Badge>
             </div>
-          </CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* AI Suggestions */}
@@ -795,37 +807,44 @@ export default function CookDashboard() {
           )}
 
           {/* Add new item */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               placeholder="Nome do item"
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="flex-1 min-w-[150px]"
+              className="w-full sm:flex-1 sm:min-w-[220px]"
             />
-            <Input
-              placeholder="Qtd"
-              type="number"
-              min="1"
-              value={newQuantity}
-              onChange={(e) => setNewQuantity(e.target.value)}
-              className="w-16"
-            />
-            <Select value={newUnit} onValueChange={setNewUnit}>
-              <SelectTrigger className="w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {unitOptions.map((unit) => (
-                  <SelectItem key={unit.value} value={unit.value}>
-                    {unit.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAddItem} disabled={!newItem.trim()} size="icon">
-              <Plus className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Qtd"
+                type="number"
+                min="1"
+                value={newQuantity}
+                onChange={(e) => setNewQuantity(e.target.value)}
+                className="w-20"
+              />
+              <Select value={newUnit} onValueChange={setNewUnit}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map((unit) => (
+                    <SelectItem key={unit.value} value={unit.value}>
+                      {unit.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleAddItem}
+                disabled={!newItem.trim()}
+                size="icon"
+                className="shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Shopping List Items */}
@@ -846,13 +865,13 @@ export default function CookDashboard() {
                       item.checked ? "bg-muted/50 opacity-60" : "bg-card"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <Checkbox
                         checked={item.checked}
                         onCheckedChange={() => toggleItem(item.id, item.checked)}
                       />
-                      <div>
-                        <p className={`font-medium text-sm ${item.checked ? "line-through" : ""}`}>
+                      <div className="min-w-0">
+                        <p className={`font-medium text-sm truncate ${item.checked ? "line-through" : ""}`}>
                           {item.name}
                         </p>
                         <span className="text-xs text-muted-foreground">
