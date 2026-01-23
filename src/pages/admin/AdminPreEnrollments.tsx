@@ -444,33 +444,44 @@ export default function AdminPreEnrollments() {
                               <>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => updateStatusMutation.mutate({ id: pe.id, status: "contacted" })}
+                                  variant="destructive"
+                                  onClick={() => updateStatusMutation.mutate({ id: pe.id, status: "rejected" })}
                                 >
-                                  Marcar Contactado
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Rejeitar
                                 </Button>
                                 <Button
                                   size="sm"
                                   onClick={() => handleConvert(pe)}
                                 >
                                   <UserPlus className="h-4 w-4 mr-1" />
-                                  Converter
+                                  Aceitar
                                 </Button>
                               </>
                             )}
                             {pe.status === "contacted" && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleConvert(pe)}
-                              >
-                                <UserPlus className="h-4 w-4 mr-1" />
-                                Converter
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => updateStatusMutation.mutate({ id: pe.id, status: "rejected" })}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Rejeitar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleConvert(pe)}
+                                >
+                                  <UserPlus className="h-4 w-4 mr-1" />
+                                  Aceitar
+                                </Button>
+                              </>
                             )}
                             {pe.status === "converted" && (
                               <span className="flex items-center text-sm text-primary">
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
-                                Convertido
+                                Aceito
                               </span>
                             )}
                             {pe.status === "rejected" && (
@@ -496,10 +507,9 @@ export default function AdminPreEnrollments() {
       <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Converter Pré-Matrícula em Convite</DialogTitle>
+            <DialogTitle>Aceitar Pré-Matrícula</DialogTitle>
             <DialogDescription>
-              Um convite será criado e enviado por email para o responsável. Os dados da pré-matrícula serão
-              automaticamente preenchidos no cadastro.
+              Um convite será criado e enviado por email para o responsável realizar o cadastro completo.
             </DialogDescription>
           </DialogHeader>
 
@@ -547,7 +557,7 @@ export default function AdminPreEnrollments() {
             </Button>
             <Button onClick={confirmConvert} disabled={convertMutation.isPending}>
               {convertMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Criar Convite e Enviar Email
+              Aceitar e Enviar Email
             </Button>
           </DialogFooter>
         </DialogContent>
