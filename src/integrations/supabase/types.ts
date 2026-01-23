@@ -1884,6 +1884,7 @@ export type Database = {
           child_birth_date: string
           child_name: string
           converted_to_invite_id: string | null
+          cpf: string | null
           created_at: string
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
@@ -1904,6 +1905,7 @@ export type Database = {
           child_birth_date: string
           child_name: string
           converted_to_invite_id?: string | null
+          cpf?: string | null
           created_at?: string
           desired_class_type: Database["public"]["Enums"]["class_type"]
           desired_shift_type: Database["public"]["Enums"]["shift_type"]
@@ -1924,6 +1926,7 @@ export type Database = {
           child_birth_date?: string
           child_name?: string
           converted_to_invite_id?: string | null
+          cpf?: string | null
           created_at?: string
           desired_class_type?: Database["public"]["Enums"]["class_type"]
           desired_shift_type?: Database["public"]["Enums"]["shift_type"]

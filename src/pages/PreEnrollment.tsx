@@ -14,8 +14,11 @@ import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail } from "
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
+
 const preEnrollmentSchema = z.object({
   parent_name: z.string().trim().min(3, "Nome deve ter pelo menos 3 caracteres").max(100, "Nome muito longo"),
+  cpf: z.string().trim().min(1, "CPF é obrigatório").regex(cpfRegex, "CPF inválido (formato: 000.000.000-00)"),
   email: z.string().trim().min(1, "E-mail é obrigatório").email("Email inválido").max(255, "Email muito longo"),
   phone: z.string().trim().min(10, "Telefone inválido").max(20, "Telefone muito longo"),
   child_name: z.string().trim().min(2, "Nome da criança deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -39,6 +42,7 @@ export default function PreEnrollment() {
     resolver: zodResolver(preEnrollmentSchema),
     defaultValues: {
       parent_name: "",
+      cpf: "",
       email: "",
       phone: "",
       child_name: "",
@@ -53,6 +57,7 @@ export default function PreEnrollment() {
     try {
       const { error } = await supabase.from("pre_enrollments").insert({
         parent_name: data.parent_name,
+        cpf: data.cpf,
         email: data.email,
         phone: data.phone,
         child_name: data.child_name,
@@ -172,6 +177,37 @@ export default function PreEnrollment() {
                           
                           <FormField
                             control={form.control}
+                            name="cpf"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>CPF *</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="000.000.000-00" 
+                                    {...field}
+                                    onChange={(e) => {
+                                      let value = e.target.value.replace(/\D/g, '');
+                                      if (value.length > 11) value = value.slice(0, 11);
+                                      if (value.length > 9) {
+                                        value = `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6, 9)}-${value.slice(9)}`;
+                                      } else if (value.length > 6) {
+                                        value = `${value.slice(0, 3)}.${value.slice(3, 6)}.${value.slice(6)}`;
+                                      } else if (value.length > 3) {
+                                        value = `${value.slice(0, 3)}.${value.slice(3)}`;
+                                      }
+                                      field.onChange(value);
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
                             name="phone"
                             render={({ field }) => (
                               <FormItem>
@@ -183,21 +219,21 @@ export default function PreEnrollment() {
                               </FormItem>
                             )}
                           />
-                        </div>
 
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email *</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="seu@email.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email *</FormLabel>
+                                <FormControl>
+                                  <Input type="email" placeholder="seu@email.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
 
                       {/* Child Info */}
