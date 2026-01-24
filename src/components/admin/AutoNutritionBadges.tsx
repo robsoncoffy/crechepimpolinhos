@@ -1,11 +1,5 @@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 
 interface NutritionTotals {
   energy: number;
@@ -40,69 +34,61 @@ export function AutoNutritionBadges({ totals, loading, foodCount = 0, showExtend
   if (!totals) return null;
 
   return (
-    <div className="mt-2 space-y-2">
-      {/* Main badges with tooltip */}
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex flex-wrap items-center gap-1 cursor-help">
-              <Sparkles className="w-3 h-3 text-primary mr-0.5" />
-              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary font-medium">
-                {totals.energy.toFixed(0)} kcal
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                P: {totals.protein.toFixed(1)}g
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                C: {totals.carbohydrate.toFixed(1)}g
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                L: {totals.lipid.toFixed(1)}g
-              </Badge>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-xs z-[100]">
-            <div className="text-xs space-y-1">
-              <p className="font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                Calculado automaticamente via TACO
-              </p>
-              {foodCount > 0 && (
-                <p className="text-muted-foreground">
-                  {foodCount} alimento(s) identificado(s)
-                </p>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      {/* Always show extended nutrition info */}
-      {showExtended && (
-        <div className="p-2 bg-muted/30 rounded-md text-[10px] text-muted-foreground space-y-0.5 border border-muted/50">
-          <p>
-            <span className="font-medium text-foreground/70">Energia:</span> {totals.energy.toFixed(0)} kcal | 
-            <span className="font-medium text-foreground/70"> Proteínas:</span> {totals.protein.toFixed(1)}g | 
-            <span className="font-medium text-foreground/70"> Carboidratos:</span> {totals.carbohydrate.toFixed(1)}g | 
-            <span className="font-medium text-foreground/70"> Lipídios:</span> {totals.lipid.toFixed(1)}g
-          </p>
-          <p>
-            <span className="font-medium text-foreground/70">Fibras:</span> {totals.fiber.toFixed(1)}g | 
-            <span className="font-medium text-foreground/70"> Cálcio:</span> {totals.calcium.toFixed(1)}mg | 
-            <span className="font-medium text-foreground/70"> Ferro:</span> {totals.iron.toFixed(2)}mg | 
-            <span className="font-medium text-foreground/70"> Sódio:</span> {totals.sodium.toFixed(1)}mg
-          </p>
-          <p>
-            <span className="font-medium text-foreground/70">Vit. C:</span> {totals.vitamin_c.toFixed(1)}mg | 
-            <span className="font-medium text-foreground/70"> Vit. A:</span> {totals.vitamin_a.toFixed(1)}µg RAE
-          </p>
-          {foodCount > 0 && (
-            <p className="pt-1 border-t border-muted text-muted-foreground/70 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> {foodCount} alimento(s) identificado(s) via IA/TACO
-            </p>
-          )}
+    <div className="mt-2 p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-primary/20">
+        <Sparkles className="w-4 h-4 text-primary" />
+        <span className="text-xs font-semibold text-primary">Informação Nutricional (TACO)</span>
+        {foodCount > 0 && (
+          <Badge variant="secondary" className="text-[10px] ml-auto">
+            {foodCount} alimento(s)
+          </Badge>
+        )}
+      </div>
+      
+      {/* Nutrients grid - always show extended by default */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Energia:</span>
+          <span className="font-medium">{totals.energy.toFixed(0)} kcal</span>
         </div>
-      )}
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Proteínas:</span>
+          <span className="font-medium">{totals.protein.toFixed(1)} g</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Carboidratos:</span>
+          <span className="font-medium">{totals.carbohydrate.toFixed(1)} g</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Lipídios:</span>
+          <span className="font-medium">{totals.lipid.toFixed(1)} g</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Fibras:</span>
+          <span className="font-medium">{totals.fiber.toFixed(1)} g</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Cálcio:</span>
+          <span className="font-medium">{totals.calcium.toFixed(1)} mg</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Ferro:</span>
+          <span className="font-medium">{totals.iron.toFixed(2)} mg</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Sódio:</span>
+          <span className="font-medium">{totals.sodium.toFixed(1)} mg</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Vitamina C:</span>
+          <span className="font-medium">{totals.vitamin_c.toFixed(1)} mg</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Vitamina A:</span>
+          <span className="font-medium">{totals.vitamin_a.toFixed(1)} µg</span>
+        </div>
+      </div>
     </div>
   );
 }

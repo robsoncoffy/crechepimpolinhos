@@ -6,21 +6,131 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TACO_API_BASE = 'https://taco.deno.dev/api/v1';
+// Use the marcelosanto/tabela_taco JSON which is more stable
+const TACO_JSON_URL = 'https://raw.githubusercontent.com/marcelosanto/tabela_taco/main/tabela_alimentos.json';
 
-interface TacoFood {
+interface TacoFoodRaw {
   id: number;
   description: string;
-  category: { id: number; description: string };
-  base_qty: number;
-  base_unit: string;
-  attributes: Record<string, { qty: number; unit: string }>;
+  category: string;
+  energy_kcal: number | string;
+  protein_g: number | string;
+  lipid_g: number | string;
+  carbohydrate_g: number | string;
+  fiber_g: number | string;
+  calcium_mg: number | string;
+  iron_mg: number | string;
+  sodium_mg: number | string;
+  vitaminC_mg: number | string;
+  rae_mcg: number | string;
 }
 
 interface ParsedFood {
   name: string;
   quantity: number;
   unit: string;
+}
+
+interface NormalizedFood {
+  id: number;
+  description: string;
+  category: string;
+  base_qty: number;
+  base_unit: string;
+  attributes: {
+    energy: { qty: number; unit: string };
+    protein: { qty: number; unit: string };
+    lipid: { qty: number; unit: string };
+    carbohydrate: { qty: number; unit: string };
+    fiber: { qty: number; unit: string };
+    calcium: { qty: number; unit: string };
+    iron: { qty: number; unit: string };
+    sodium: { qty: number; unit: string };
+    vitamin_c: { qty: number; unit: string };
+    vitamin_a: { qty: number; unit: string };
+  };
+  quantity: number;
+}
+
+// Cache for TACO data
+let tacoDataCache: TacoFoodRaw[] | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+async function fetchTacoData(): Promise<TacoFoodRaw[]> {
+  const now = Date.now();
+  if (tacoDataCache && (now - lastFetchTime) < CACHE_TTL) {
+    return tacoDataCache;
+  }
+
+  try {
+    console.log('Fetching TACO data from GitHub...');
+    const response = await fetch(TACO_JSON_URL);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch TACO data: ${response.status}`);
+    }
+    const data = await response.json();
+    tacoDataCache = data;
+    lastFetchTime = now;
+    console.log(`Loaded ${data.length} foods from TACO`);
+    return data;
+  } catch (error) {
+    console.error('Error fetching TACO data:', error);
+    return tacoDataCache || [];
+  }
+}
+
+function parseNumber(value: number | string | null | undefined): number {
+  if (value === null || value === undefined || value === '' || value === 'NA' || value === 'Tr') {
+    return 0;
+  }
+  const num = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
+  return isNaN(num) ? 0 : num;
+}
+
+function searchFood(foods: TacoFoodRaw[], query: string): TacoFoodRaw | null {
+  const normalizedQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Try exact match first
+  let match = foods.find(f => 
+    f.description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(normalizedQuery)
+  );
+  
+  if (!match) {
+    // Try partial matches with individual words
+    const words = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
+    for (const word of words) {
+      match = foods.find(f => 
+        f.description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(word)
+      );
+      if (match) break;
+    }
+  }
+  
+  return match || null;
+}
+
+function normalizeFood(raw: TacoFoodRaw, quantity: number): NormalizedFood {
+  return {
+    id: raw.id,
+    description: raw.description,
+    category: raw.category,
+    base_qty: 100, // TACO data is per 100g
+    base_unit: 'g',
+    attributes: {
+      energy: { qty: parseNumber(raw.energy_kcal), unit: 'kcal' },
+      protein: { qty: parseNumber(raw.protein_g), unit: 'g' },
+      lipid: { qty: parseNumber(raw.lipid_g), unit: 'g' },
+      carbohydrate: { qty: parseNumber(raw.carbohydrate_g), unit: 'g' },
+      fiber: { qty: parseNumber(raw.fiber_g), unit: 'g' },
+      calcium: { qty: parseNumber(raw.calcium_mg), unit: 'mg' },
+      iron: { qty: parseNumber(raw.iron_mg), unit: 'mg' },
+      sodium: { qty: parseNumber(raw.sodium_mg), unit: 'mg' },
+      vitamin_c: { qty: parseNumber(raw.vitaminC_mg), unit: 'mg' },
+      vitamin_a: { qty: parseNumber(raw.rae_mcg), unit: 'µg' },
+    },
+    quantity,
+  };
 }
 
 serve(async (req) => {
@@ -119,41 +229,29 @@ Exemplos de porções infantis típicas:
 
     if (parsedFoods.length === 0) {
       return new Response(
-        JSON.stringify({ foods: [], totals: null }),
+        JSON.stringify({ foods: [], totals: null, parsed: [] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Fetch TACO data
+    const tacoData = await fetchTacoData();
+    
+    if (tacoData.length === 0) {
+      console.error('No TACO data available');
+      return new Response(
+        JSON.stringify({ foods: [], totals: null, parsed: parsedFoods, error: 'TACO data unavailable' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Search TACO for each food and get nutritional data
-    const foodsWithNutrition: (TacoFood & { quantity: number })[] = [];
+    const foodsWithNutrition: NormalizedFood[] = [];
     
     for (const parsedFood of parsedFoods) {
-      try {
-        const searchResponse = await fetch(`${TACO_API_BASE}/foods?q=${encodeURIComponent(parsedFood.name)}`);
-        if (searchResponse.ok) {
-          // Some TACO endpoints return an array, others return an object like { foods: [...] }.
-          const raw = await searchResponse.json();
-          const searchResults: TacoFood[] = Array.isArray(raw)
-            ? raw
-            : Array.isArray(raw?.foods)
-              ? raw.foods
-              : Array.isArray(raw?.data)
-                ? raw.data
-                : Array.isArray(raw?.results)
-                  ? raw.results
-                  : [];
-
-          if (searchResults.length > 0) {
-            // Get the first (best) match
-            const bestMatch = searchResults[0];
-            foodsWithNutrition.push({
-              ...bestMatch,
-              quantity: parsedFood.quantity,
-            });
-          }
-        }
-      } catch (searchError) {
-        console.error('TACO search error for', parsedFood.name, ':', searchError);
+      const match = searchFood(tacoData, parsedFood.name);
+      if (match) {
+        foodsWithNutrition.push(normalizeFood(match, parsedFood.quantity));
       }
     }
 
@@ -161,19 +259,19 @@ Exemplos de porções infantis típicas:
     const totals = foodsWithNutrition.reduce(
       (acc, food) => {
         const multiplier = food.quantity / food.base_qty;
-        const attrs = food.attributes || {};
+        const attrs = food.attributes;
         
         return {
-          energy: acc.energy + ((attrs.energy?.qty || 0) * multiplier),
-          protein: acc.protein + ((attrs.protein?.qty || 0) * multiplier),
-          lipid: acc.lipid + ((attrs.lipid?.qty || 0) * multiplier),
-          carbohydrate: acc.carbohydrate + ((attrs.carbohydrate?.qty || 0) * multiplier),
-          fiber: acc.fiber + ((attrs.fiber?.qty || 0) * multiplier),
-          calcium: acc.calcium + ((attrs.calcium?.qty || 0) * multiplier),
-          iron: acc.iron + ((attrs.iron?.qty || 0) * multiplier),
-          sodium: acc.sodium + ((attrs.sodium?.qty || 0) * multiplier),
-          vitamin_c: acc.vitamin_c + ((attrs.vitamin_c?.qty || 0) * multiplier),
-          vitamin_a: acc.vitamin_a + ((attrs.vitamin_a?.qty || 0) * multiplier),
+          energy: acc.energy + (attrs.energy.qty * multiplier),
+          protein: acc.protein + (attrs.protein.qty * multiplier),
+          lipid: acc.lipid + (attrs.lipid.qty * multiplier),
+          carbohydrate: acc.carbohydrate + (attrs.carbohydrate.qty * multiplier),
+          fiber: acc.fiber + (attrs.fiber.qty * multiplier),
+          calcium: acc.calcium + (attrs.calcium.qty * multiplier),
+          iron: acc.iron + (attrs.iron.qty * multiplier),
+          sodium: acc.sodium + (attrs.sodium.qty * multiplier),
+          vitamin_c: acc.vitamin_c + (attrs.vitamin_c.qty * multiplier),
+          vitamin_a: acc.vitamin_a + (attrs.vitamin_a.qty * multiplier),
         };
       },
       {
