@@ -316,14 +316,24 @@ export default function NutritionistDashboard() {
     totals: getDayTotals(activeMenuTab, day),
   }));
 
-  // Prepare data for PDF export
-  const pdfNutritionData = weeklyNutritionData.map((day, idx) => ({
-    dayOfWeek: day.dayOfWeek,
-    dayName: day.dayName,
-    date: format(addDays(weekStart, idx), 'd/MM'),
-    totals: day.totals,
-    meals: {} as Record<string, NutritionTotals | null>,
-  }));
+  // Prepare data for PDF export - include per-meal nutrition data
+  const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
+    const dayMeals = nutritionByMeal[activeMenuTab];
+    const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+    const meals: Record<string, NutritionTotals | null> = {};
+    
+    mealFields.forEach(field => {
+      meals[field] = dayMeals[`${day.dayOfWeek}-${field}`] || null;
+    });
+    
+    return {
+      dayOfWeek: day.dayOfWeek,
+      dayName: day.dayName,
+      date: format(addDays(weekStart, idx), 'd/MM'),
+      totals: day.totals,
+      meals,
+    };
+  });
 
   const copyFromPreviousWeek = async () => {
     setCopying(true);

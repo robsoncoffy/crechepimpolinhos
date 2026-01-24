@@ -33,6 +33,38 @@ interface SimplifiedNutritionPdfProps {
 
 const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
 
+const mealLabels: Record<string, string> = {
+  breakfast: 'Café da Manhã',
+  morning_snack: 'Lanche da Manhã',
+  lunch: 'Almoço',
+  bottle: 'Mamadeira',
+  snack: 'Lanche da Tarde',
+  pre_dinner: 'Pré-Jantar',
+  dinner: 'Jantar',
+};
+
+function formatNutrientValue(value: number | undefined, decimals = 1): string {
+  if (value === undefined || value === null || isNaN(value)) return '-';
+  return value.toFixed(decimals);
+}
+
+function generateNutrientsList(totals: NutritionTotals): string {
+  return `
+    <div class="nutrients-list">
+      <span><strong>Energia:</strong> ${formatNutrientValue(totals.energy, 0)} kcal</span>
+      <span><strong>Proteínas:</strong> ${formatNutrientValue(totals.protein)} g</span>
+      <span><strong>Carboidratos:</strong> ${formatNutrientValue(totals.carbohydrate)} g</span>
+      <span><strong>Lipídios:</strong> ${formatNutrientValue(totals.lipid)} g</span>
+      <span><strong>Fibras:</strong> ${formatNutrientValue(totals.fiber)} g</span>
+      <span><strong>Cálcio:</strong> ${formatNutrientValue(totals.calcium)} mg</span>
+      <span><strong>Ferro:</strong> ${formatNutrientValue(totals.iron, 2)} mg</span>
+      <span><strong>Sódio:</strong> ${formatNutrientValue(totals.sodium)} mg</span>
+      <span><strong>Vitamina C:</strong> ${formatNutrientValue(totals.vitamin_c)} mg</span>
+      <span><strong>Vitamina A:</strong> ${formatNutrientValue(totals.vitamin_a)} µg</span>
+    </div>
+  `;
+}
+
 export function SimplifiedNutritionPdf({ 
   weekStart, 
   nutritionData, 
@@ -47,29 +79,66 @@ export function SimplifiedNutritionPdf({
         ? 'Berçário (6m - 1a 11m)' 
         : 'Maternal / Jardim';
         
-    const title = `Relatório Nutricional - ${menuTypeLabel}`;
+    const title = `Relatório Nutricional Detalhado - ${menuTypeLabel}`;
     const weekRange = `${format(weekStart, "d 'de' MMMM", { locale: ptBR })} a ${format(addDays(weekStart, 4), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`;
 
-    // Calculate day totals from the nutrition data
-    const dayTotals = nutritionData.map((day, idx) => ({
-      day: dayNames[idx],
-      date: format(addDays(weekStart, idx), 'd/MM'),
-      ...(day.totals || {
-        energy: 0,
-        protein: 0,
-        carbohydrate: 0,
-        lipid: 0,
-        fiber: 0,
-        calcium: 0,
-        iron: 0,
-        sodium: 0,
-        vitamin_c: 0,
-        vitamin_a: 0,
-      }),
-    }));
+    // Generate per-day, per-meal content
+    const daysContent = nutritionData.map((day, idx) => {
+      const dayDate = format(addDays(weekStart, idx), 'd/MM');
+      
+      // Filter meals that have data
+      const mealsWithData = Object.entries(day.meals)
+        .filter(([_, nutrition]) => nutrition && nutrition.energy > 0);
+      
+      const mealsContent = mealsWithData.length > 0 
+        ? mealsWithData.map(([mealKey, nutrition]) => `
+            <div class="meal-block">
+              <div class="meal-title">${mealLabels[mealKey] || mealKey}</div>
+              ${nutrition ? generateNutrientsList(nutrition) : '<p class="no-data">Sem dados</p>'}
+            </div>
+          `).join('')
+        : '<p class="no-data">Nenhuma refeição com dados nutricionais</p>';
+      
+      const dayTotalsContent = day.totals && day.totals.energy > 0
+        ? `
+          <div class="day-totals">
+            <div class="totals-title">📊 TOTAL DO DIA</div>
+            ${generateNutrientsList(day.totals)}
+          </div>
+        `
+        : '';
+      
+      return `
+        <div class="day-section">
+          <div class="day-header">
+            <span class="day-name">${day.dayName}</span>
+            <span class="day-date">${dayDate}</span>
+          </div>
+          <div class="day-content">
+            <div class="meals-grid">
+              ${mealsContent}
+            </div>
+            ${dayTotalsContent}
+          </div>
+        </div>
+      `;
+    }).join('');
 
-    const daysWithData = dayTotals.filter(d => d.energy > 0);
+    // Calculate weekly averages
+    const daysWithData = nutritionData.filter(d => d.totals && d.totals.energy > 0);
     const divisor = daysWithData.length || 1;
+    const weeklyAvg: NutritionTotals = {
+      energy: daysWithData.reduce((sum, d) => sum + (d.totals?.energy || 0), 0) / divisor,
+      protein: daysWithData.reduce((sum, d) => sum + (d.totals?.protein || 0), 0) / divisor,
+      carbohydrate: daysWithData.reduce((sum, d) => sum + (d.totals?.carbohydrate || 0), 0) / divisor,
+      lipid: daysWithData.reduce((sum, d) => sum + (d.totals?.lipid || 0), 0) / divisor,
+      fiber: daysWithData.reduce((sum, d) => sum + (d.totals?.fiber || 0), 0) / divisor,
+      calcium: daysWithData.reduce((sum, d) => sum + (d.totals?.calcium || 0), 0) / divisor,
+      iron: daysWithData.reduce((sum, d) => sum + (d.totals?.iron || 0), 0) / divisor,
+      sodium: daysWithData.reduce((sum, d) => sum + (d.totals?.sodium || 0), 0) / divisor,
+      vitamin_c: daysWithData.reduce((sum, d) => sum + (d.totals?.vitamin_c || 0), 0) / divisor,
+      vitamin_a: daysWithData.reduce((sum, d) => sum + (d.totals?.vitamin_a || 0), 0) / divisor,
+    };
 
     const content = `
       <!DOCTYPE html>
@@ -80,19 +149,22 @@ export function SimplifiedNutritionPdf({
         <style>
           @media print {
             @page {
-              size: A4 landscape;
+              size: A4;
               margin: 10mm;
             }
+            .no-print { display: none !important; }
+            .day-section { page-break-inside: avoid; }
           }
           
           * { margin: 0; padding: 0; box-sizing: border-box; }
           
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 20px;
+            padding: 15px;
             background: white;
             color: #333;
             font-size: 11px;
+            line-height: 1.4;
           }
           
           .header {
@@ -103,59 +175,140 @@ export function SimplifiedNutritionPdf({
           }
           
           .header h1 {
-            font-size: 22px;
+            font-size: 18px;
             color: #22c55e;
             margin-bottom: 5px;
           }
           
           .header .week {
-            font-size: 13px;
+            font-size: 12px;
             color: #666;
           }
           
           .header .school-name {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             color: #333;
             margin-bottom: 5px;
           }
           
-          table {
-            width: 100%;
-            border-collapse: collapse;
+          .day-section {
             margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
           }
           
-          th, td {
-            border: 1px solid #ddd;
-            padding: 6px 8px;
-            text-align: center;
-          }
-          
-          th {
-            background: #22c55e;
+          .day-header {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .day-name {
             font-weight: 600;
+            font-size: 13px;
           }
           
-          .nutrient-row:nth-child(even) {
+          .day-date {
+            font-size: 11px;
+            opacity: 0.9;
+          }
+          
+          .day-content {
+            padding: 15px;
+          }
+          
+          .meals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+          }
+          
+          .meal-block {
             background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px;
           }
           
-          .nutrient-label {
-            text-align: left;
+          .meal-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 11px;
+          }
+          
+          .nutrients-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font-size: 10px;
+          }
+          
+          .nutrients-list span {
+            display: flex;
+            justify-content: space-between;
+          }
+          
+          .nutrients-list strong {
+            color: #6b7280;
             font-weight: 500;
-            background: #f3f4f6;
           }
           
-          .total-row {
-            background: #ecfdf5;
-            font-weight: bold;
+          .day-totals {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            padding: 12px;
+          }
+          
+          .totals-title {
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 10px;
+            font-size: 12px;
+          }
+          
+          .day-totals .nutrients-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px 15px;
           }
           
           .no-data {
-            color: #999;
+            color: #9ca3af;
             font-style: italic;
+            text-align: center;
+            padding: 10px;
+          }
+          
+          .weekly-summary {
+            margin-top: 25px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 15px;
+          }
+          
+          .weekly-summary h2 {
+            color: #92400e;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-align: center;
+          }
+          
+          .weekly-summary .nutrients-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px 20px;
+            font-size: 11px;
           }
           
           .legend {
@@ -163,32 +316,24 @@ export function SimplifiedNutritionPdf({
             padding: 10px;
             background: #f9fafb;
             border-radius: 5px;
+            font-size: 9px;
           }
           
           .legend h3 {
-            font-size: 12px;
-            margin-bottom: 5px;
-          }
-          
-          .legend p {
             font-size: 10px;
-            color: #666;
+            margin-bottom: 5px;
           }
           
           .footer {
             margin-top: 20px;
             text-align: center;
-            font-size: 10px;
+            font-size: 9px;
             color: #999;
           }
           
           .no-print {
             margin-bottom: 20px;
             text-align: center;
-          }
-          
-          @media print {
-            .no-print { display: none; }
           }
         </style>
       </head>
@@ -203,77 +348,24 @@ export function SimplifiedNutritionPdf({
           <div class="school-name">Creche Pimpolinhos</div>
           <h1>${title}</h1>
           <div class="week">${weekRange}</div>
-          <p style="margin-top: 5px; font-size: 10px; color: #666;">
-            ✨ Dados calculados automaticamente via TACO (Tabela Brasileira de Composição de Alimentos)
+          <p style="margin-top: 5px; font-size: 9px; color: #666;">
+            ✨ Nutrientes calculados por refeição via TACO (Tabela Brasileira de Composição de Alimentos)
           </p>
         </div>
         
-        <table>
-          <thead>
-            <tr>
-              <th>Nutriente</th>
-              ${dayTotals.map(d => `<th>${d.day}<br/><small>${d.date}</small></th>`).join('')}
-              <th style="background: #16a34a;">Média</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Energia (kcal)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.energy.toFixed(1) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.energy, 0) / divisor).toFixed(1)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Proteínas (g)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.protein.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.protein, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Carboidratos (g)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.carbohydrate.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.carbohydrate, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Lipídios (g)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.lipid.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.lipid, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Fibras (g)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.fiber.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.fiber, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Cálcio (mg)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.calcium.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.calcium, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Ferro (mg)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.iron.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.iron, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Sódio (mg)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.sodium.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.sodium, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Vitamina C (mg)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.vitamin_c.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.vitamin_c, 0) / divisor).toFixed(2)}</td>
-            </tr>
-            <tr class="nutrient-row">
-              <td class="nutrient-label">Vitamina A (µg RAE)</td>
-              ${dayTotals.map(d => `<td${d.energy === 0 ? ' class="no-data"' : ''}>${d.energy > 0 ? d.vitamin_a.toFixed(2) : '-'}</td>`).join('')}
-              <td class="total-row">${(dayTotals.reduce((sum, d) => sum + d.vitamin_a, 0) / divisor).toFixed(2)}</td>
-            </tr>
-          </tbody>
-        </table>
+        ${daysContent}
+        
+        ${daysWithData.length > 0 ? `
+          <div class="weekly-summary">
+            <h2>📈 MÉDIA SEMANAL (${daysWithData.length} dias com dados)</h2>
+            ${generateNutrientsList(weeklyAvg)}
+          </div>
+        ` : ''}
         
         <div class="legend">
           <h3>📊 Referências Nutricionais</h3>
-          <p>Os valores diários de referência para crianças variam de acordo com a faixa etária. Consulte as diretrizes do PNAE (Programa Nacional de Alimentação Escolar) para recomendações específicas.</p>
-          <p style="margin-top: 5px;">Fonte dos dados: TACO - Tabela Brasileira de Composição de Alimentos (UNICAMP/NEPA)</p>
+          <p>Os valores diários de referência para crianças variam de acordo com a faixa etária. Consulte as diretrizes do PNAE para recomendações específicas.</p>
+          <p style="margin-top: 3px;">Fonte: TACO - Tabela Brasileira de Composição de Alimentos (UNICAMP/NEPA)</p>
         </div>
         
         <div class="footer">
@@ -297,8 +389,11 @@ export function SimplifiedNutritionPdf({
     }
   };
 
-  // Allow PDF generation even without data (will show dashes)
-  const hasData = nutritionData.some(d => d.totals && d.totals.energy > 0);
+  // Check if there's any data at all
+  const hasData = nutritionData.some(d => 
+    d.totals && d.totals.energy > 0 || 
+    Object.values(d.meals).some(m => m && m.energy > 0)
+  );
 
   return (
     <Button
