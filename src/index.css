@@ -50,6 +50,8 @@
     --pimpo-yellow-light: 45 95% 92%;
     --pimpo-green: 145 60% 40%;
     --pimpo-green-light: 145 60% 92%;
+  --pimpo-purple: 270 60% 55%;
+  --pimpo-purple-light: 270 60% 92%;
 
     /* Border, Input, Ring */
     --border: 210 30% 85%;
@@ -102,6 +104,8 @@
     --pimpo-yellow-light: 45 95% 20%;
     --pimpo-green: 145 60% 50%;
     --pimpo-green-light: 145 60% 20%;
+  --pimpo-purple: 270 60% 65%;
+  --pimpo-purple-light: 270 60% 25%;
 
     --border: 220 30% 25%;
     --input: 220 30% 25%;
