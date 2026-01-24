@@ -21,13 +21,33 @@ interface TacoFoodRaw {
   calcium_mg: number | string;
   iron_mg: number | string;
   sodium_mg: number | string;
+  potassium_mg: number | string;
+  magnesium_mg: number | string;
+  phosphorus_mg: number | string;
+  zinc_mg: number | string;
+  copper_mg: number | string;
+  manganese_mg: number | string;
   vitaminC_mg: number | string;
   rae_mcg: number | string;
+  retinol_mcg: number | string;
+  thiamine_mg: number | string;
+  riboflavin_mg: number | string;
+  pyridoxine_mg: number | string;
+  niacin_mg: number | string;
+  cholesterol_mg: number | string;
+  saturated_g: number | string;
+  monounsaturated_g: number | string;
+  polyunsaturated_g: number | string;
 }
 
 interface ParsedFood {
   name: string;
   quantity: number;
+  unit: string;
+}
+
+interface NutrientValue {
+  qty: number;
   unit: string;
 }
 
@@ -38,16 +58,31 @@ interface NormalizedFood {
   base_qty: number;
   base_unit: string;
   attributes: {
-    energy: { qty: number; unit: string };
-    protein: { qty: number; unit: string };
-    lipid: { qty: number; unit: string };
-    carbohydrate: { qty: number; unit: string };
-    fiber: { qty: number; unit: string };
-    calcium: { qty: number; unit: string };
-    iron: { qty: number; unit: string };
-    sodium: { qty: number; unit: string };
-    vitamin_c: { qty: number; unit: string };
-    vitamin_a: { qty: number; unit: string };
+    energy: NutrientValue;
+    protein: NutrientValue;
+    lipid: NutrientValue;
+    carbohydrate: NutrientValue;
+    fiber: NutrientValue;
+    calcium: NutrientValue;
+    iron: NutrientValue;
+    sodium: NutrientValue;
+    potassium: NutrientValue;
+    magnesium: NutrientValue;
+    phosphorus: NutrientValue;
+    zinc: NutrientValue;
+    copper: NutrientValue;
+    manganese: NutrientValue;
+    vitamin_c: NutrientValue;
+    vitamin_a: NutrientValue;
+    retinol: NutrientValue;
+    thiamine: NutrientValue;
+    riboflavin: NutrientValue;
+    pyridoxine: NutrientValue;
+    niacin: NutrientValue;
+    cholesterol: NutrientValue;
+    saturated: NutrientValue;
+    monounsaturated: NutrientValue;
+    polyunsaturated: NutrientValue;
   };
   quantity: number;
 }
@@ -118,16 +153,38 @@ function normalizeFood(raw: TacoFoodRaw, quantity: number): NormalizedFood {
     base_qty: 100, // TACO data is per 100g
     base_unit: 'g',
     attributes: {
+      // Macros
       energy: { qty: parseNumber(raw.energy_kcal), unit: 'kcal' },
       protein: { qty: parseNumber(raw.protein_g), unit: 'g' },
       lipid: { qty: parseNumber(raw.lipid_g), unit: 'g' },
       carbohydrate: { qty: parseNumber(raw.carbohydrate_g), unit: 'g' },
       fiber: { qty: parseNumber(raw.fiber_g), unit: 'g' },
+      
+      // Minerals
       calcium: { qty: parseNumber(raw.calcium_mg), unit: 'mg' },
       iron: { qty: parseNumber(raw.iron_mg), unit: 'mg' },
       sodium: { qty: parseNumber(raw.sodium_mg), unit: 'mg' },
+      potassium: { qty: parseNumber(raw.potassium_mg), unit: 'mg' },
+      magnesium: { qty: parseNumber(raw.magnesium_mg), unit: 'mg' },
+      phosphorus: { qty: parseNumber(raw.phosphorus_mg), unit: 'mg' },
+      zinc: { qty: parseNumber(raw.zinc_mg), unit: 'mg' },
+      copper: { qty: parseNumber(raw.copper_mg), unit: 'mg' },
+      manganese: { qty: parseNumber(raw.manganese_mg), unit: 'mg' },
+      
+      // Vitamins
       vitamin_c: { qty: parseNumber(raw.vitaminC_mg), unit: 'mg' },
       vitamin_a: { qty: parseNumber(raw.rae_mcg), unit: 'µg' },
+      retinol: { qty: parseNumber(raw.retinol_mcg), unit: 'µg' },
+      thiamine: { qty: parseNumber(raw.thiamine_mg), unit: 'mg' },
+      riboflavin: { qty: parseNumber(raw.riboflavin_mg), unit: 'mg' },
+      pyridoxine: { qty: parseNumber(raw.pyridoxine_mg), unit: 'mg' },
+      niacin: { qty: parseNumber(raw.niacin_mg), unit: 'mg' },
+      
+      // Lipid composition
+      cholesterol: { qty: parseNumber(raw.cholesterol_mg), unit: 'mg' },
+      saturated: { qty: parseNumber(raw.saturated_g), unit: 'g' },
+      monounsaturated: { qty: parseNumber(raw.monounsaturated_g), unit: 'g' },
+      polyunsaturated: { qty: parseNumber(raw.polyunsaturated_g), unit: 'g' },
     },
     quantity,
   };
@@ -258,36 +315,77 @@ IMPORTANTE: Se o usuário informar quantidade total (ex: "Arroz com feijão (120
       }
     }
 
-    // Calculate totals
+    // Calculate totals for ALL nutrients
     const totals = foodsWithNutrition.reduce(
       (acc, food) => {
         const multiplier = food.quantity / food.base_qty;
         const attrs = food.attributes;
         
         return {
+          // Macros
           energy: acc.energy + (attrs.energy.qty * multiplier),
           protein: acc.protein + (attrs.protein.qty * multiplier),
           lipid: acc.lipid + (attrs.lipid.qty * multiplier),
           carbohydrate: acc.carbohydrate + (attrs.carbohydrate.qty * multiplier),
           fiber: acc.fiber + (attrs.fiber.qty * multiplier),
+          
+          // Minerals
           calcium: acc.calcium + (attrs.calcium.qty * multiplier),
           iron: acc.iron + (attrs.iron.qty * multiplier),
           sodium: acc.sodium + (attrs.sodium.qty * multiplier),
+          potassium: acc.potassium + (attrs.potassium.qty * multiplier),
+          magnesium: acc.magnesium + (attrs.magnesium.qty * multiplier),
+          phosphorus: acc.phosphorus + (attrs.phosphorus.qty * multiplier),
+          zinc: acc.zinc + (attrs.zinc.qty * multiplier),
+          copper: acc.copper + (attrs.copper.qty * multiplier),
+          manganese: acc.manganese + (attrs.manganese.qty * multiplier),
+          
+          // Vitamins
           vitamin_c: acc.vitamin_c + (attrs.vitamin_c.qty * multiplier),
           vitamin_a: acc.vitamin_a + (attrs.vitamin_a.qty * multiplier),
+          retinol: acc.retinol + (attrs.retinol.qty * multiplier),
+          thiamine: acc.thiamine + (attrs.thiamine.qty * multiplier),
+          riboflavin: acc.riboflavin + (attrs.riboflavin.qty * multiplier),
+          pyridoxine: acc.pyridoxine + (attrs.pyridoxine.qty * multiplier),
+          niacin: acc.niacin + (attrs.niacin.qty * multiplier),
+          
+          // Lipid composition
+          cholesterol: acc.cholesterol + (attrs.cholesterol.qty * multiplier),
+          saturated: acc.saturated + (attrs.saturated.qty * multiplier),
+          monounsaturated: acc.monounsaturated + (attrs.monounsaturated.qty * multiplier),
+          polyunsaturated: acc.polyunsaturated + (attrs.polyunsaturated.qty * multiplier),
         };
       },
       {
+        // Macros
         energy: 0,
         protein: 0,
         lipid: 0,
         carbohydrate: 0,
         fiber: 0,
+        // Minerals
         calcium: 0,
         iron: 0,
         sodium: 0,
+        potassium: 0,
+        magnesium: 0,
+        phosphorus: 0,
+        zinc: 0,
+        copper: 0,
+        manganese: 0,
+        // Vitamins
         vitamin_c: 0,
         vitamin_a: 0,
+        retinol: 0,
+        thiamine: 0,
+        riboflavin: 0,
+        pyridoxine: 0,
+        niacin: 0,
+        // Lipid composition
+        cholesterol: 0,
+        saturated: 0,
+        monounsaturated: 0,
+        polyunsaturated: 0,
       }
     );
 

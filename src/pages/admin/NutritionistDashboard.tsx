@@ -60,16 +60,35 @@ import {
 type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 
 interface NutritionTotals {
+  // Macros
   energy: number;
   protein: number;
   lipid: number;
   carbohydrate: number;
   fiber: number;
+  // Minerals
   calcium: number;
   iron: number;
   sodium: number;
+  potassium: number;
+  magnesium: number;
+  phosphorus: number;
+  zinc: number;
+  copper: number;
+  manganese: number;
+  // Vitamins
   vitamin_c: number;
   vitamin_a: number;
+  retinol: number;
+  thiamine: number;
+  riboflavin: number;
+  pyridoxine: number;
+  niacin: number;
+  // Lipid composition
+  cholesterol: number;
+  saturated: number;
+  monounsaturated: number;
+  polyunsaturated: number;
 }
 
 interface MealNutritionState {
@@ -307,23 +326,20 @@ export default function NutritionistDashboard() {
     let hasAnyData = false;
     const totals: NutritionTotals = {
       energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
-      calcium: 0, iron: 0, sodium: 0, vitamin_c: 0, vitamin_a: 0
+      calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+      phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+      vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+      riboflavin: 0, pyridoxine: 0, niacin: 0,
+      cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
     };
     
     mealFields.forEach(field => {
       const mealNutrition = dayMeals[`${dayOfWeek}-${field}`];
       if (mealNutrition) {
         hasAnyData = true;
-        totals.energy += mealNutrition.energy;
-        totals.protein += mealNutrition.protein;
-        totals.lipid += mealNutrition.lipid;
-        totals.carbohydrate += mealNutrition.carbohydrate;
-        totals.fiber += mealNutrition.fiber;
-        totals.calcium += mealNutrition.calcium;
-        totals.iron += mealNutrition.iron;
-        totals.sodium += mealNutrition.sodium;
-        totals.vitamin_c += mealNutrition.vitamin_c;
-        totals.vitamin_a += mealNutrition.vitamin_a;
+        (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+          totals[key] += (mealNutrition as any)[key] || 0;
+        });
       }
     });
     

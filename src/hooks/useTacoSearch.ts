@@ -7,22 +7,35 @@ export interface TacoFood {
   base_qty: number;
   base_unit: string;
   attributes: {
+    // Macros
     energy?: { qty: number; unit: string } | null;
     protein?: { qty: number; unit: string } | null;
     lipid?: { qty: number; unit: string } | null;
     carbohydrate?: { qty: number; unit: string } | null;
     fiber?: { qty: number; unit: string } | null;
+    // Minerals
     calcium?: { qty: number; unit: string } | null;
     iron?: { qty: number; unit: string } | null;
     sodium?: { qty: number; unit: string } | null;
     potassium?: { qty: number; unit: string } | null;
-    vitamin_c?: { qty: number; unit: string } | null;
-    vitamin_a?: { qty: number; unit: string } | null;
-    cholesterol?: { qty: number; unit: string } | null;
-    saturated?: { qty: number; unit: string } | null;
     magnesium?: { qty: number; unit: string } | null;
     phosphorus?: { qty: number; unit: string } | null;
     zinc?: { qty: number; unit: string } | null;
+    copper?: { qty: number; unit: string } | null;
+    manganese?: { qty: number; unit: string } | null;
+    // Vitamins
+    vitamin_c?: { qty: number; unit: string } | null;
+    vitamin_a?: { qty: number; unit: string } | null;
+    retinol?: { qty: number; unit: string } | null;
+    thiamine?: { qty: number; unit: string } | null;
+    riboflavin?: { qty: number; unit: string } | null;
+    pyridoxine?: { qty: number; unit: string } | null;
+    niacin?: { qty: number; unit: string } | null;
+    // Lipid composition
+    cholesterol?: { qty: number; unit: string } | null;
+    saturated?: { qty: number; unit: string } | null;
+    monounsaturated?: { qty: number; unit: string } | null;
+    polyunsaturated?: { qty: number; unit: string } | null;
   };
 }
 
@@ -99,22 +112,35 @@ export function formatNutrient(value: { qty: number; unit: string } | null | und
   return `${value.qty.toFixed(2)} ${value.unit}`;
 }
 
-// Nutrient labels in Portuguese
+// Nutrient labels in Portuguese - Complete list
 export const nutrientLabels: Record<string, string> = {
+  // Macros
   energy: 'Energia',
   protein: 'Proteínas',
   lipid: 'Lipídios',
   carbohydrate: 'Carboidratos',
   fiber: 'Fibra',
+  // Minerals
   calcium: 'Cálcio',
   iron: 'Ferro',
   sodium: 'Sódio',
   potassium: 'Potássio',
-  vitamin_c: 'Vitamina C',
-  vitamin_a: 'Vitamina A',
-  cholesterol: 'Colesterol',
-  saturated: 'Gordura Saturada',
   magnesium: 'Magnésio',
   phosphorus: 'Fósforo',
   zinc: 'Zinco',
+  copper: 'Cobre',
+  manganese: 'Manganês',
+  // Vitamins
+  vitamin_c: 'Vitamina C',
+  vitamin_a: 'Vitamina A (RAE)',
+  retinol: 'Retinol',
+  thiamine: 'Tiamina (B1)',
+  riboflavin: 'Riboflavina (B2)',
+  pyridoxine: 'Piridoxina (B6)',
+  niacin: 'Niacina (B3)',
+  // Lipid composition
+  cholesterol: 'Colesterol',
+  saturated: 'Gordura Saturada',
+  monounsaturated: 'Gordura Monoinsaturada',
+  polyunsaturated: 'Gordura Poli-insaturada',
 };

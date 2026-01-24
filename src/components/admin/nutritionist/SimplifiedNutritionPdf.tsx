@@ -4,32 +4,70 @@ import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface NutritionTotals {
+  // Macros
   energy: number;
   protein: number;
   lipid: number;
   carbohydrate: number;
   fiber: number;
+  // Minerals
   calcium: number;
   iron: number;
   sodium: number;
+  potassium: number;
+  magnesium: number;
+  phosphorus: number;
+  zinc: number;
+  copper: number;
+  manganese: number;
+  // Vitamins
   vitamin_c: number;
   vitamin_a: number;
+  retinol: number;
+  thiamine: number;
+  riboflavin: number;
+  pyridoxine: number;
+  niacin: number;
+  // Lipid composition
+  cholesterol: number;
+  saturated: number;
+  monounsaturated: number;
+  polyunsaturated: number;
 }
 
 interface IngredientWithNutrition {
   name: string;
   quantity: number;
   unit: string;
+  // Macros
   energy?: number;
   protein?: number;
   lipid?: number;
   carbohydrate?: number;
   fiber?: number;
+  // Minerals
   calcium?: number;
   iron?: number;
   sodium?: number;
+  potassium?: number;
+  magnesium?: number;
+  phosphorus?: number;
+  zinc?: number;
+  copper?: number;
+  manganese?: number;
+  // Vitamins
   vitamin_c?: number;
   vitamin_a?: number;
+  retinol?: number;
+  thiamine?: number;
+  riboflavin?: number;
+  pyridoxine?: number;
+  niacin?: number;
+  // Lipid composition
+  cholesterol?: number;
+  saturated?: number;
+  monounsaturated?: number;
+  polyunsaturated?: number;
 }
 
 interface DayNutritionData {
@@ -80,6 +118,7 @@ function generateIngredientsList(ingredients: IngredientWithNutrition[]): string
             <th>Prot</th>
             <th>Carb</th>
             <th>Lip</th>
+            <th>Fibra</th>
           </tr>
         </thead>
         <tbody>
@@ -93,28 +132,103 @@ function generateIngredientsList(ingredients: IngredientWithNutrition[]): string
                 <td>${((ing.protein || 0) * mult).toFixed(1)}g</td>
                 <td>${((ing.carbohydrate || 0) * mult).toFixed(1)}g</td>
                 <td>${((ing.lipid || 0) * mult).toFixed(1)}g</td>
+                <td>${((ing.fiber || 0) * mult).toFixed(1)}g</td>
               </tr>
             `;
           }).join('')}
         </tbody>
       </table>
+      
+      <!-- Detailed micronutrients per ingredient -->
+      <div class="micro-detail">
+        <div class="micro-title">🔬 Micronutrientes por ingrediente:</div>
+        <table class="micro-table">
+          <thead>
+            <tr>
+              <th>Ingrediente</th>
+              <th>Ca</th>
+              <th>Fe</th>
+              <th>K</th>
+              <th>Mg</th>
+              <th>P</th>
+              <th>Zn</th>
+              <th>Vit.C</th>
+              <th>Vit.A</th>
+              <th>B1</th>
+              <th>B2</th>
+              <th>B3</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${ingredients.map(ing => {
+              const mult = ing.quantity / 100;
+              return `
+                <tr>
+                  <td class="ing-name">${ing.name.substring(0, 15)}${ing.name.length > 15 ? '...' : ''}</td>
+                  <td>${((ing.calcium || 0) * mult).toFixed(0)}</td>
+                  <td>${((ing.iron || 0) * mult).toFixed(1)}</td>
+                  <td>${((ing.potassium || 0) * mult).toFixed(0)}</td>
+                  <td>${((ing.magnesium || 0) * mult).toFixed(0)}</td>
+                  <td>${((ing.phosphorus || 0) * mult).toFixed(0)}</td>
+                  <td>${((ing.zinc || 0) * mult).toFixed(1)}</td>
+                  <td>${((ing.vitamin_c || 0) * mult).toFixed(1)}</td>
+                  <td>${((ing.vitamin_a || 0) * mult).toFixed(0)}</td>
+                  <td>${((ing.thiamine || 0) * mult).toFixed(2)}</td>
+                  <td>${((ing.riboflavin || 0) * mult).toFixed(2)}</td>
+                  <td>${((ing.niacin || 0) * mult).toFixed(1)}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
 
 function generateNutrientsList(totals: NutritionTotals): string {
   return `
-    <div class="nutrients-list">
-      <span><strong>Energia:</strong> ${formatNutrientValue(totals.energy, 0)} kcal</span>
-      <span><strong>Proteínas:</strong> ${formatNutrientValue(totals.protein)} g</span>
-      <span><strong>Carboidratos:</strong> ${formatNutrientValue(totals.carbohydrate)} g</span>
-      <span><strong>Lipídios:</strong> ${formatNutrientValue(totals.lipid)} g</span>
-      <span><strong>Fibras:</strong> ${formatNutrientValue(totals.fiber)} g</span>
-      <span><strong>Cálcio:</strong> ${formatNutrientValue(totals.calcium)} mg</span>
-      <span><strong>Ferro:</strong> ${formatNutrientValue(totals.iron, 2)} mg</span>
-      <span><strong>Sódio:</strong> ${formatNutrientValue(totals.sodium)} mg</span>
-      <span><strong>Vitamina C:</strong> ${formatNutrientValue(totals.vitamin_c)} mg</span>
-      <span><strong>Vitamina A:</strong> ${formatNutrientValue(totals.vitamin_a)} µg</span>
+    <div class="nutrients-grid">
+      <div class="nutrient-section">
+        <div class="section-title">🥩 Macronutrientes</div>
+        <div class="nutrient-row"><span>Energia:</span><strong>${formatNutrientValue(totals.energy, 0)} kcal</strong></div>
+        <div class="nutrient-row"><span>Proteínas:</span><strong>${formatNutrientValue(totals.protein)} g</strong></div>
+        <div class="nutrient-row"><span>Carboidratos:</span><strong>${formatNutrientValue(totals.carbohydrate)} g</strong></div>
+        <div class="nutrient-row"><span>Lipídios:</span><strong>${formatNutrientValue(totals.lipid)} g</strong></div>
+        <div class="nutrient-row"><span>Fibras:</span><strong>${formatNutrientValue(totals.fiber)} g</strong></div>
+      </div>
+      
+      <div class="nutrient-section">
+        <div class="section-title">🧪 Minerais</div>
+        <div class="nutrient-row"><span>Cálcio:</span><strong>${formatNutrientValue(totals.calcium)} mg</strong></div>
+        <div class="nutrient-row"><span>Ferro:</span><strong>${formatNutrientValue(totals.iron, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Sódio:</span><strong>${formatNutrientValue(totals.sodium)} mg</strong></div>
+        <div class="nutrient-row"><span>Potássio:</span><strong>${formatNutrientValue(totals.potassium)} mg</strong></div>
+        <div class="nutrient-row"><span>Magnésio:</span><strong>${formatNutrientValue(totals.magnesium)} mg</strong></div>
+        <div class="nutrient-row"><span>Fósforo:</span><strong>${formatNutrientValue(totals.phosphorus)} mg</strong></div>
+        <div class="nutrient-row"><span>Zinco:</span><strong>${formatNutrientValue(totals.zinc, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Cobre:</span><strong>${formatNutrientValue(totals.copper, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Manganês:</span><strong>${formatNutrientValue(totals.manganese, 2)} mg</strong></div>
+      </div>
+      
+      <div class="nutrient-section">
+        <div class="section-title">💊 Vitaminas</div>
+        <div class="nutrient-row"><span>Vitamina C:</span><strong>${formatNutrientValue(totals.vitamin_c)} mg</strong></div>
+        <div class="nutrient-row"><span>Vitamina A (RAE):</span><strong>${formatNutrientValue(totals.vitamin_a)} µg</strong></div>
+        <div class="nutrient-row"><span>Retinol:</span><strong>${formatNutrientValue(totals.retinol)} µg</strong></div>
+        <div class="nutrient-row"><span>Tiamina (B1):</span><strong>${formatNutrientValue(totals.thiamine, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Riboflavina (B2):</span><strong>${formatNutrientValue(totals.riboflavin, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Piridoxina (B6):</span><strong>${formatNutrientValue(totals.pyridoxine, 2)} mg</strong></div>
+        <div class="nutrient-row"><span>Niacina (B3):</span><strong>${formatNutrientValue(totals.niacin, 2)} mg</strong></div>
+      </div>
+      
+      <div class="nutrient-section">
+        <div class="section-title">🫒 Composição Lipídica</div>
+        <div class="nutrient-row"><span>Colesterol:</span><strong>${formatNutrientValue(totals.cholesterol)} mg</strong></div>
+        <div class="nutrient-row"><span>Gord. Saturada:</span><strong>${formatNutrientValue(totals.saturated)} g</strong></div>
+        <div class="nutrient-row"><span>Gord. Monoinsaturada:</span><strong>${formatNutrientValue(totals.monounsaturated)} g</strong></div>
+        <div class="nutrient-row"><span>Gord. Poli-insaturada:</span><strong>${formatNutrientValue(totals.polyunsaturated)} g</strong></div>
+      </div>
     </div>
   `;
 }
@@ -133,7 +247,7 @@ export function SimplifiedNutritionPdf({
         ? 'Berçário (6m - 1a 11m)' 
         : 'Maternal / Jardim';
         
-    const title = `Relatório Nutricional Detalhado - ${menuTypeLabel}`;
+    const title = `Relatório Nutricional Completo - ${menuTypeLabel}`;
     const weekRange = `${format(weekStart, "d 'de' MMMM", { locale: ptBR })} a ${format(addDays(weekStart, 4), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`;
 
     // Generate per-day, per-meal content
@@ -173,7 +287,7 @@ export function SimplifiedNutritionPdf({
             <span class="day-date">${dayDate}</span>
           </div>
           <div class="day-content">
-            <div class="meals-grid">
+            <div class="meals-container">
               ${mealsContent}
             </div>
             ${dayTotalsContent}
@@ -182,20 +296,39 @@ export function SimplifiedNutritionPdf({
       `;
     }).join('');
 
-    // Calculate weekly averages
+    // Calculate weekly averages with all nutrients
     const daysWithData = nutritionData.filter(d => d.totals && d.totals.energy > 0);
     const divisor = daysWithData.length || 1;
+    
+    const sumNutrient = (key: keyof NutritionTotals) => 
+      daysWithData.reduce((sum, d) => sum + ((d.totals as any)?.[key] || 0), 0) / divisor;
+    
     const weeklyAvg: NutritionTotals = {
-      energy: daysWithData.reduce((sum, d) => sum + (d.totals?.energy || 0), 0) / divisor,
-      protein: daysWithData.reduce((sum, d) => sum + (d.totals?.protein || 0), 0) / divisor,
-      carbohydrate: daysWithData.reduce((sum, d) => sum + (d.totals?.carbohydrate || 0), 0) / divisor,
-      lipid: daysWithData.reduce((sum, d) => sum + (d.totals?.lipid || 0), 0) / divisor,
-      fiber: daysWithData.reduce((sum, d) => sum + (d.totals?.fiber || 0), 0) / divisor,
-      calcium: daysWithData.reduce((sum, d) => sum + (d.totals?.calcium || 0), 0) / divisor,
-      iron: daysWithData.reduce((sum, d) => sum + (d.totals?.iron || 0), 0) / divisor,
-      sodium: daysWithData.reduce((sum, d) => sum + (d.totals?.sodium || 0), 0) / divisor,
-      vitamin_c: daysWithData.reduce((sum, d) => sum + (d.totals?.vitamin_c || 0), 0) / divisor,
-      vitamin_a: daysWithData.reduce((sum, d) => sum + (d.totals?.vitamin_a || 0), 0) / divisor,
+      energy: sumNutrient('energy'),
+      protein: sumNutrient('protein'),
+      carbohydrate: sumNutrient('carbohydrate'),
+      lipid: sumNutrient('lipid'),
+      fiber: sumNutrient('fiber'),
+      calcium: sumNutrient('calcium'),
+      iron: sumNutrient('iron'),
+      sodium: sumNutrient('sodium'),
+      potassium: sumNutrient('potassium'),
+      magnesium: sumNutrient('magnesium'),
+      phosphorus: sumNutrient('phosphorus'),
+      zinc: sumNutrient('zinc'),
+      copper: sumNutrient('copper'),
+      manganese: sumNutrient('manganese'),
+      vitamin_c: sumNutrient('vitamin_c'),
+      vitamin_a: sumNutrient('vitamin_a'),
+      retinol: sumNutrient('retinol'),
+      thiamine: sumNutrient('thiamine'),
+      riboflavin: sumNutrient('riboflavin'),
+      pyridoxine: sumNutrient('pyridoxine'),
+      niacin: sumNutrient('niacin'),
+      cholesterol: sumNutrient('cholesterol'),
+      saturated: sumNutrient('saturated'),
+      monounsaturated: sumNutrient('monounsaturated'),
+      polyunsaturated: sumNutrient('polyunsaturated'),
     };
 
     const content = `
@@ -208,59 +341,60 @@ export function SimplifiedNutritionPdf({
           @media print {
             @page {
               size: A4;
-              margin: 10mm;
+              margin: 8mm;
             }
             .no-print { display: none !important; }
             .day-section { page-break-inside: avoid; }
+            .meal-block { page-break-inside: avoid; }
           }
           
           * { margin: 0; padding: 0; box-sizing: border-box; }
           
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 15px;
+            padding: 10px;
             background: white;
             color: #333;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 9px;
+            line-height: 1.3;
           }
           
           .header {
             text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
             border-bottom: 3px solid #22c55e;
           }
           
           .header h1 {
-            font-size: 18px;
+            font-size: 16px;
             color: #22c55e;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
           }
           
           .header .week {
-            font-size: 12px;
+            font-size: 10px;
             color: #666;
           }
           
           .header .school-name {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             color: #333;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
           }
           
           .day-section {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            border-radius: 6px;
             overflow: hidden;
           }
           
           .day-header {
             background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
             color: white;
-            padding: 10px 15px;
+            padding: 8px 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -268,77 +402,82 @@ export function SimplifiedNutritionPdf({
           
           .day-name {
             font-weight: 600;
-            font-size: 13px;
+            font-size: 11px;
           }
           
           .day-date {
-            font-size: 11px;
+            font-size: 9px;
             opacity: 0.9;
           }
           
           .day-content {
-            padding: 15px;
+            padding: 10px;
           }
           
-          .meals-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 15px;
+          .meals-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
           }
           
           .meal-block {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 10px;
+            border-radius: 5px;
+            padding: 8px;
           }
           
           .meal-title {
             font-weight: 600;
             color: #374151;
-            margin-bottom: 8px;
-            padding-bottom: 5px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
             border-bottom: 1px solid #e5e7eb;
-            font-size: 11px;
+            font-size: 10px;
           }
           
           .ingredients-list {
-            margin-bottom: 10px;
-            padding-bottom: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
             border-bottom: 1px dashed #d1d5db;
           }
           
           .ingredients-title {
             font-weight: 600;
             color: #059669;
-            font-size: 9px;
+            font-size: 8px;
+            margin-bottom: 4px;
+          }
+          
+          .ingredients-table, .micro-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7px;
             margin-bottom: 6px;
           }
           
-          .ingredients-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 8px;
-          }
-          
-          .ingredients-table th {
+          .ingredients-table th, .micro-table th {
             background: #f3f4f6;
-            padding: 4px 6px;
+            padding: 3px 4px;
             text-align: left;
             font-weight: 600;
             color: #4b5563;
             border-bottom: 1px solid #d1d5db;
           }
           
-          .ingredients-table td {
-            padding: 3px 6px;
+          .ingredients-table td, .micro-table td {
+            padding: 2px 4px;
             border-bottom: 1px solid #e5e7eb;
             color: #374151;
           }
           
-          .ingredients-table .ing-name {
+          .ingredients-table .ing-name, .micro-table .ing-name {
             font-weight: 500;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
           
           .ingredients-table .ing-qty {
@@ -346,94 +485,126 @@ export function SimplifiedNutritionPdf({
             font-weight: 600;
           }
           
-          .nutrients-list {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            font-size: 10px;
+          .micro-detail {
+            margin-top: 6px;
           }
           
-          .nutrients-list span {
+          .micro-title {
+            font-weight: 600;
+            color: #7c3aed;
+            font-size: 7px;
+            margin-bottom: 3px;
+          }
+          
+          .nutrients-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            font-size: 8px;
+          }
+          
+          .nutrient-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 6px;
+          }
+          
+          .section-title {
+            font-weight: 700;
+            color: #374151;
+            font-size: 8px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 2px;
+          }
+          
+          .nutrient-row {
             display: flex;
             justify-content: space-between;
+            padding: 1px 0;
           }
           
-          .nutrients-list strong {
+          .nutrient-row span {
             color: #6b7280;
-            font-weight: 500;
+          }
+          
+          .nutrient-row strong {
+            color: #111827;
+            font-weight: 600;
           }
           
           .day-totals {
             background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
             border: 2px solid #22c55e;
-            border-radius: 8px;
-            padding: 12px;
+            border-radius: 6px;
+            padding: 10px;
           }
           
           .totals-title {
             font-weight: 700;
             color: #166534;
-            margin-bottom: 10px;
-            font-size: 12px;
-          }
-          
-          .day-totals .nutrients-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 5px 15px;
+            margin-bottom: 8px;
+            font-size: 10px;
           }
           
           .no-data {
             color: #9ca3af;
             font-style: italic;
             text-align: center;
-            padding: 10px;
+            padding: 8px;
           }
           
           .weekly-summary {
-            margin-top: 25px;
+            margin-top: 20px;
             background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
             border: 2px solid #f59e0b;
-            border-radius: 10px;
-            padding: 15px;
+            border-radius: 8px;
+            padding: 12px;
           }
           
           .weekly-summary h2 {
             color: #92400e;
-            font-size: 14px;
-            margin-bottom: 10px;
+            font-size: 12px;
+            margin-bottom: 8px;
             text-align: center;
-          }
-          
-          .weekly-summary .nutrients-list {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 5px 20px;
-            font-size: 11px;
           }
           
           .legend {
-            margin-top: 20px;
-            padding: 10px;
+            margin-top: 15px;
+            padding: 8px;
             background: #f9fafb;
-            border-radius: 5px;
-            font-size: 9px;
+            border-radius: 4px;
+            font-size: 7px;
           }
           
           .legend h3 {
-            font-size: 10px;
-            margin-bottom: 5px;
+            font-size: 8px;
+            margin-bottom: 4px;
+          }
+          
+          .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            margin-top: 4px;
+          }
+          
+          .legend-item {
+            background: #e5e7eb;
+            padding: 2px 4px;
+            border-radius: 2px;
           }
           
           .footer {
-            margin-top: 20px;
+            margin-top: 15px;
             text-align: center;
-            font-size: 9px;
+            font-size: 8px;
             color: #999;
           }
           
           .no-print {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
           }
         </style>
@@ -449,8 +620,8 @@ export function SimplifiedNutritionPdf({
           <div class="school-name">Creche Pimpolinhos</div>
           <h1>${title}</h1>
           <div class="week">${weekRange}</div>
-          <p style="margin-top: 5px; font-size: 9px; color: #666;">
-            ✨ Nutrientes calculados por refeição via TACO (Tabela Brasileira de Composição de Alimentos)
+          <p style="margin-top: 3px; font-size: 8px; color: #666;">
+            ✨ 25+ nutrientes calculados via TACO (Tabela Brasileira de Composição de Alimentos)
           </p>
         </div>
         
@@ -464,9 +635,22 @@ export function SimplifiedNutritionPdf({
         ` : ''}
         
         <div class="legend">
-          <h3>📊 Referências Nutricionais</h3>
-          <p>Os valores diários de referência para crianças variam de acordo com a faixa etária. Consulte as diretrizes do PNAE para recomendações específicas.</p>
-          <p style="margin-top: 3px;">Fonte: TACO - Tabela Brasileira de Composição de Alimentos (UNICAMP/NEPA)</p>
+          <h3>📊 Legenda de Abreviações</h3>
+          <div class="legend-grid">
+            <div class="legend-item"><strong>Ca</strong> = Cálcio (mg)</div>
+            <div class="legend-item"><strong>Fe</strong> = Ferro (mg)</div>
+            <div class="legend-item"><strong>K</strong> = Potássio (mg)</div>
+            <div class="legend-item"><strong>Mg</strong> = Magnésio (mg)</div>
+            <div class="legend-item"><strong>P</strong> = Fósforo (mg)</div>
+            <div class="legend-item"><strong>Zn</strong> = Zinco (mg)</div>
+            <div class="legend-item"><strong>Vit.C</strong> = Vitamina C (mg)</div>
+            <div class="legend-item"><strong>Vit.A</strong> = Vitamina A RAE (µg)</div>
+            <div class="legend-item"><strong>B1</strong> = Tiamina (mg)</div>
+            <div class="legend-item"><strong>B2</strong> = Riboflavina (mg)</div>
+            <div class="legend-item"><strong>B3</strong> = Niacina (mg)</div>
+            <div class="legend-item"><strong>B6</strong> = Piridoxina (mg)</div>
+          </div>
+          <p style="margin-top: 6px;">Fonte: TACO - Tabela Brasileira de Composição de Alimentos (UNICAMP/NEPA)</p>
         </div>
         
         <div class="footer">
@@ -501,13 +685,11 @@ export function SimplifiedNutritionPdf({
       variant="outline"
       size="sm"
       onClick={exportPdf}
-      disabled={disabled}
-      className="border-primary text-primary hover:bg-primary/10"
-      title={!hasData ? 'Os nutrientes serão calculados automaticamente ao preencher as refeições' : undefined}
+      disabled={disabled || !hasData}
+      className="gap-2"
     >
-      <FileDown className="w-4 h-4 mr-1" />
-      PDF Nutricional
-      {!hasData && <span className="text-[10px] ml-1 text-muted-foreground">(sem dados)</span>}
+      <FileDown className="w-4 h-4" />
+      PDF Nutricional Completo
     </Button>
   );
 }
