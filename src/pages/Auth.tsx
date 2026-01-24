@@ -47,10 +47,12 @@ export default function Auth() {
       parent_name: string;
       email: string;
       phone: string;
+      cpf: string | null;
       child_name: string;
       child_birth_date: string;
       desired_class_type: string;
       desired_shift_type: string;
+      vacancy_type: string;
     } | null;
   } | null>(null);
 
@@ -159,18 +161,19 @@ export default function Auth() {
       if (parentData.pre_enrollment_id) {
         const { data: preEnrollment } = await supabase
           .from("pre_enrollments")
-          .select("parent_name, email, phone, child_name, child_birth_date, desired_class_type, desired_shift_type")
+          .select("parent_name, email, phone, cpf, child_name, child_birth_date, desired_class_type, desired_shift_type, vacancy_type")
           .eq("id", parentData.pre_enrollment_id)
           .single();
         
         if (preEnrollment) {
           preEnrollmentData = preEnrollment;
-          // Pre-fill form with pre-enrollment data
+          // Pre-fill form with pre-enrollment data (including CPF)
           setFormData(prev => ({
             ...prev,
             fullName: preEnrollment.parent_name || prev.fullName,
             email: preEnrollment.email || prev.email,
             phone: preEnrollment.phone || prev.phone,
+            cpf: preEnrollment.cpf ? formatCPF(preEnrollment.cpf) : prev.cpf,
           }));
         }
       }

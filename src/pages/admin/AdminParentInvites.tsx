@@ -26,7 +26,8 @@ import {
   Percent,
   DollarSign,
   ChevronDown,
-  Gift
+  Gift,
+  FileText
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,6 +44,7 @@ interface ParentInvite {
   expires_at: string | null;
   created_at: string;
   coupon_code: string | null;
+  pre_enrollment_id: string | null;
 }
 
 interface DiscountCoupon {
@@ -82,7 +84,7 @@ export default function AdminParentInvites() {
   const fetchInvites = async () => {
     const { data, error } = await supabase
       .from("parent_invites")
-      .select("*")
+      .select("*, pre_enrollment_id")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -677,6 +679,12 @@ export default function AdminParentInvites() {
                           <Badge variant="outline" className="gap-1 border-pimpo-yellow text-pimpo-yellow">
                             <Gift className="w-3 h-3" />
                             {invite.coupon_code}
+                          </Badge>
+                        )}
+                        {invite.pre_enrollment_id && (
+                          <Badge variant="outline" className="gap-1 border-primary/50 text-primary">
+                            <FileText className="w-3 h-3" />
+                            Via Pré-Matrícula
                           </Badge>
                         )}
                       </div>
