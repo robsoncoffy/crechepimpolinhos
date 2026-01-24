@@ -88,19 +88,19 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
   };
 
   return (
-    <Card className="overflow-hidden relative z-10">
+    <Card className="overflow-visible">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-primary" />
           Resumo Nutricional Semanal
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 overflow-hidden">
+      <CardContent className="space-y-4">
         {/* Energy Bar Chart */}
-        <div className="h-48 relative">
+        <div className="h-48 w-full">
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={2}>
+              <BarChart data={chartData} barGap={2} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                 <XAxis 
                   dataKey="day" 
                   tick={{ fontSize: 12 }}
@@ -115,14 +115,14 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
                 />
                 <ChartTooltip 
                   content={<ChartTooltipContent />}
-                formatter={(value: number, name: string) => {
-                  // Format based on metric type
-                  if (name === 'protein' || name === 'carbohydrate' || name === 'lipid') {
-                    return `${value.toFixed(1)}g`;
-                  }
-                  return value.toFixed(1);
-                }}
-                  wrapperStyle={{ zIndex: 50 }}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'protein' || name === 'carbohydrate' || name === 'lipid') {
+                      return `${value.toFixed(1)}g`;
+                    }
+                    return value.toFixed(1);
+                  }}
+                  wrapperStyle={{ zIndex: 1000, pointerEvents: 'none' }}
+                  cursor={{ fill: 'hsl(var(--muted))' }}
                 />
                 <Bar dataKey="protein" stackId="a" radius={[0, 0, 0, 0]}>
                   {chartData.map((_, index) => (
