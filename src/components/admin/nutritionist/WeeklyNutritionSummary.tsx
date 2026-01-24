@@ -88,16 +88,16 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
   };
 
   return (
-    <Card>
+    <Card className="overflow-hidden relative z-10">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-primary" />
           Resumo Nutricional Semanal
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 overflow-hidden">
         {/* Energy Bar Chart */}
-        <div className="h-48">
+        <div className="h-48 relative">
           <ChartContainer config={chartConfig}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} barGap={2}>
@@ -116,6 +116,7 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
                 <ChartTooltip 
                   content={<ChartTooltipContent />}
                   formatter={(value: number) => `${value.toFixed(1)}g`}
+                  wrapperStyle={{ zIndex: 50 }}
                 />
                 <Bar dataKey="protein" stackId="a" radius={[0, 0, 0, 0]}>
                   {chartData.map((_, index) => (
