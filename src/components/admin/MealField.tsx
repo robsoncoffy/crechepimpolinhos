@@ -1,17 +1,10 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
-import { TacoFoodSearch } from './TacoFoodSearch';
-import { MealNutritionSummary } from './MealNutritionSummary';
-import { TacoFood } from '@/hooks/useTacoSearch';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { AutoNutritionBadges } from './AutoNutritionBadges';
+import { useAutoNutrition } from '@/hooks/useAutoNutrition';
 
 export interface MenuItem {
   id?: string;
@@ -35,8 +28,17 @@ export interface MenuItem {
   menu_type: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 }
 
-interface SelectedFood extends TacoFood {
-  quantity: number;
+interface NutritionTotals {
+  energy: number;
+  protein: number;
+  lipid: number;
+  carbohydrate: number;
+  fiber: number;
+  calcium: number;
+  iron: number;
+  sodium: number;
+  vitamin_c: number;
+  vitamin_a: number;
 }
 
 interface MealFieldProps {
@@ -51,8 +53,7 @@ interface MealFieldProps {
   dayOfWeek: number;
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
-  selectedFoods?: SelectedFood[];
-  onFoodsChange?: (foods: SelectedFood[]) => void;
+  onNutritionCalculated?: (totals: NutritionTotals | null, foodCount: number) => void;
 }
 
 // Memoized component to prevent unnecessary re-renders
@@ -68,10 +69,13 @@ export const MealField = memo(function MealField({
   dayOfWeek,
   onValueChange,
   onTimeChange,
-  selectedFoods = [],
-  onFoodsChange,
+  onNutritionCalculated,
 }: MealFieldProps) {
-  const [isNutritionOpen, setIsNutritionOpen] = useState(false);
+  const { parseNutrition, loading } = useAutoNutrition();
+  const [nutritionTotals, setNutritionTotals] = useState<NutritionTotals | null>(null);
+  const [foodCount, setFoodCount] = useState(0);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const lastValueRef = useRef<string>('');
   
   const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
     breakfast: "breakfast",
@@ -87,6 +91,51 @@ export const MealField = memo(function MealField({
   
   // Map new menu types to the API expected types
   const apiMenuType = menuType === 'maternal' ? 'maternal' : 'bercario';
+
+  // Auto-calculate nutrition when value changes (debounced)
+  const calculateNutrition = useCallback(async (mealText: string) => {
+    if (mealText.trim().length < 3) {
+      setNutritionTotals(null);
+      setFoodCount(0);
+      onNutritionCalculated?.(null, 0);
+      return;
+    }
+
+    const result = await parseNutrition(mealText);
+    setNutritionTotals(result.totals);
+    setFoodCount(result.foods?.length || 0);
+    onNutritionCalculated?.(result.totals, result.foods?.length || 0);
+  }, [parseNutrition, onNutritionCalculated]);
+
+  useEffect(() => {
+    // Skip if value hasn't changed
+    if (lastValueRef.current === value) return;
+    lastValueRef.current = value;
+
+    // Clear previous debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Debounce the calculation (800ms after user stops typing)
+    debounceRef.current = setTimeout(() => {
+      calculateNutrition(value);
+    }, 800);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [value, calculateNutrition]);
+
+  // Calculate on mount if there's existing content
+  useEffect(() => {
+    if (value && value.trim().length >= 3) {
+      calculateNutrition(value);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-2">
@@ -122,28 +171,12 @@ export const MealField = memo(function MealField({
         </div>
       </div>
       
-      {/* Inline nutrition summary if foods are selected */}
-      {selectedFoods.length > 0 && (
-        <MealNutritionSummary foods={selectedFoods} compact />
-      )}
-      
-      {/* Collapsible TACO Search */}
-      {onFoodsChange && (
-        <Collapsible open={isNutritionOpen} onOpenChange={setIsNutritionOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground hover:text-foreground">
-              <span>📊 Análise nutricional TACO</span>
-              {isNutritionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <TacoFoodSearch
-              selectedFoods={selectedFoods}
-              onFoodsChange={onFoodsChange}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      {/* Auto-calculated nutrition badges */}
+      <AutoNutritionBadges 
+        totals={nutritionTotals} 
+        loading={loading} 
+        foodCount={foodCount} 
+      />
     </div>
   );
 });
