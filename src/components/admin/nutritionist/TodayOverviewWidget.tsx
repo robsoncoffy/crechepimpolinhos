@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Flame, Zap, Droplets, Wheat } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { AlertTriangle, Flame, Zap, Droplets, Wheat, Baby, Users } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface NutritionTotals {
   energy: number;
@@ -24,141 +24,210 @@ const MENU_LABELS: Record<MenuType, string> = {
   maternal: 'Maternal'
 };
 
+const MENU_SHORT_LABELS: Record<MenuType, string> = {
+  bercario_0_6: '0-6m',
+  bercario_6_24: '6m-2a',
+  maternal: 'Mat.'
+};
+
+const MENU_COLORS: Record<MenuType, string> = {
+  bercario_0_6: 'hsl(var(--pimpo-pink))',
+  bercario_6_24: 'hsl(var(--pimpo-purple))',
+  maternal: 'hsl(var(--pimpo-blue))'
+};
+
+interface ConsolidatedNutrition {
+  bercario_0_6: NutritionTotals | null;
+  bercario_6_24: NutritionTotals | null;
+  maternal: NutritionTotals | null;
+}
+
 interface TodayOverviewWidgetProps {
-  todayNutrition: NutritionTotals | null;
+  consolidatedNutrition: ConsolidatedNutrition;
   childrenWithAllergies: number;
   allergyConflicts?: string[];
-  menuType?: MenuType;
 }
 
 export function TodayOverviewWidget({ 
-  todayNutrition, 
+  consolidatedNutrition, 
   childrenWithAllergies,
   allergyConflicts = [],
-  menuType
 }: TodayOverviewWidgetProps) {
-  const hasTodayData = todayNutrition && todayNutrition.energy > 0;
+  const menuTypes: MenuType[] = ['bercario_0_6', 'bercario_6_24', 'maternal'];
   
-  // Prepare pie chart data for macros
-  const macroData = hasTodayData ? [
-    { name: "Proteínas", value: todayNutrition.protein, color: "hsl(var(--pimpo-blue))" },
-    { name: "Carboidratos", value: todayNutrition.carbohydrate, color: "hsl(var(--pimpo-yellow))" },
-    { name: "Lipídios", value: todayNutrition.lipid, color: "hsl(var(--pimpo-purple))" },
-  ] : [];
+  // Count how many menus have data
+  const menusWithData = menuTypes.filter(type => 
+    consolidatedNutrition[type] && consolidatedNutrition[type]!.energy > 0
+  );
+  
+  const hasAnyData = menusWithData.length > 0;
 
-  const totalMacros = hasTodayData 
-    ? todayNutrition.protein + todayNutrition.carbohydrate + todayNutrition.lipid 
-    : 0;
+  // Prepare bar chart data for energy comparison
+  const energyData = menuTypes.map(type => ({
+    name: MENU_SHORT_LABELS[type],
+    fullName: MENU_LABELS[type],
+    energy: consolidatedNutrition[type]?.energy || 0,
+    fill: MENU_COLORS[type],
+  })).filter(d => d.energy > 0);
+
+  // Calculate consolidated totals for macros pie chart
+  const consolidatedTotals: NutritionTotals = {
+    energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+    calcium: 0, iron: 0, sodium: 0, vitamin_c: 0, vitamin_a: 0
+  };
+
+  menuTypes.forEach(type => {
+    const nutrition = consolidatedNutrition[type];
+    if (nutrition) {
+      (Object.keys(consolidatedTotals) as (keyof NutritionTotals)[]).forEach(key => {
+        consolidatedTotals[key] += nutrition[key] || 0;
+      });
+    }
+  });
+
+  // Prepare pie chart data for consolidated macros
+  const macroData = hasAnyData ? [
+    { name: "Proteínas", value: consolidatedTotals.protein, color: "hsl(var(--pimpo-blue))" },
+    { name: "Carboidratos", value: consolidatedTotals.carbohydrate, color: "hsl(var(--pimpo-yellow))" },
+    { name: "Lipídios", value: consolidatedTotals.lipid, color: "hsl(var(--pimpo-purple))" },
+  ] : [];
 
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Flame className="w-5 h-5 text-primary" />
             Visão Geral - Hoje
           </CardTitle>
-          {menuType && (
-            <Badge variant="secondary" className="text-xs font-medium">
-              {MENU_LABELS[menuType]}
-            </Badge>
-          )}
+          <div className="flex gap-1">
+            {menuTypes.map(type => {
+              const hasData = consolidatedNutrition[type] && consolidatedNutrition[type]!.energy > 0;
+              return (
+                <Badge 
+                  key={type}
+                  variant={hasData ? "default" : "outline"} 
+                  className={`text-xs ${hasData ? '' : 'opacity-50'}`}
+                >
+                  {MENU_SHORT_LABELS[type]}
+                </Badge>
+              );
+            })}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Macro Pie Chart */}
-          <div className="flex flex-col items-center">
-            {hasTodayData ? (
-              <>
-                <div className="w-32 h-32">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={macroData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={35}
-                        outerRadius={55}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {macroData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => `${value.toFixed(1)}g`}
-                        contentStyle={{ 
-                          background: 'hsl(var(--background))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px'
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="text-center mt-2">
-                  <p className="text-2xl font-fredoka font-bold text-primary">
-                    {todayNutrition.energy.toFixed(0)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">kcal total</p>
-                </div>
-              </>
-            ) : (
-              <div className="w-32 h-32 flex items-center justify-center">
-                <p className="text-sm text-muted-foreground text-center">
-                  Preencha o cardápio de hoje para ver o resumo
-                </p>
+        {hasAnyData ? (
+          <div className="space-y-4">
+            {/* Energy Comparison Bar Chart */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Calorias por Cardápio</p>
+              <div className="h-24">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={energyData} layout="vertical" margin={{ left: 0, right: 10 }}>
+                    <XAxis type="number" hide />
+                    <YAxis 
+                      type="category" 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      width={40}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${value.toFixed(0)} kcal`, 'Energia']}
+                      labelFormatter={(label) => {
+                        const item = energyData.find(d => d.name === label);
+                        return item?.fullName || label;
+                      }}
+                      contentStyle={{ 
+                        background: 'hsl(var(--background))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }}
+                    />
+                    <Bar dataKey="energy" radius={[0, 4, 4, 0]}>
+                      {energyData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-pimpo-blue/10">
-              <Zap className="w-4 h-4 text-pimpo-blue" />
-              <div>
-                <p className="text-xs text-muted-foreground">Proteínas</p>
-                <p className="font-semibold text-sm">
-                  {hasTodayData ? `${todayNutrition.protein.toFixed(1)}g` : "-"}
-                </p>
-              </div>
+            {/* Cards per menu type */}
+            <div className="grid grid-cols-3 gap-2">
+              {menuTypes.map(type => {
+                const nutrition = consolidatedNutrition[type];
+                const hasData = nutrition && nutrition.energy > 0;
+                const Icon = type === 'maternal' ? Users : Baby;
+                
+                return (
+                  <div 
+                    key={type}
+                    className={`p-2 rounded-lg text-center transition-all ${
+                      hasData 
+                        ? 'bg-primary/10' 
+                        : 'bg-muted/30 opacity-60'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground truncate">{MENU_SHORT_LABELS[type]}</p>
+                    <p className="font-bold text-sm">
+                      {hasData ? `${nutrition!.energy.toFixed(0)}` : '-'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">kcal</p>
+                  </div>
+                );
+              })}
             </div>
-            
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-pimpo-yellow/10">
-              <Wheat className="w-4 h-4 text-pimpo-yellow" />
-              <div>
-                <p className="text-xs text-muted-foreground">Carboidratos</p>
-                <p className="font-semibold text-sm">
-                  {hasTodayData ? `${todayNutrition.carbohydrate.toFixed(1)}g` : "-"}
-                </p>
+
+            {/* Consolidated Macros Summary */}
+            <div className="grid grid-cols-4 gap-2">
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-pimpo-blue/10">
+                <Zap className="w-3 h-3 text-pimpo-blue" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground truncate">Prot.</p>
+                  <p className="font-semibold text-xs">{consolidatedTotals.protein.toFixed(0)}g</p>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-pimpo-purple/10">
-              <Droplets className="w-4 h-4 text-pimpo-purple" />
-              <div>
-                <p className="text-xs text-muted-foreground">Lipídios</p>
-                <p className="font-semibold text-sm">
-                  {hasTodayData ? `${todayNutrition.lipid.toFixed(1)}g` : "-"}
-                </p>
+              
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-pimpo-yellow/10">
+                <Wheat className="w-3 h-3 text-pimpo-yellow" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground truncate">Carb.</p>
+                  <p className="font-semibold text-xs">{consolidatedTotals.carbohydrate.toFixed(0)}g</p>
+                </div>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-pimpo-green/10">
-              <div className="w-4 h-4 flex items-center justify-center text-pimpo-green font-bold text-xs">
-                Fe
+              
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-pimpo-purple/10">
+                <Droplets className="w-3 h-3 text-pimpo-purple" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground truncate">Lip.</p>
+                  <p className="font-semibold text-xs">{consolidatedTotals.lipid.toFixed(0)}g</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Ferro</p>
-                <p className="font-semibold text-sm">
-                  {hasTodayData ? `${todayNutrition.iron.toFixed(1)}mg` : "-"}
-                </p>
+              
+              <div className="flex items-center gap-1.5 p-2 rounded-lg bg-pimpo-green/10">
+                <div className="w-3 h-3 flex items-center justify-center text-pimpo-green font-bold text-[10px]">
+                  Fe
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground truncate">Ferro</p>
+                  <p className="font-semibold text-xs">{consolidatedTotals.iron.toFixed(1)}mg</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="py-8 flex items-center justify-center">
+            <p className="text-sm text-muted-foreground text-center">
+              Preencha os cardápios de hoje para ver o resumo consolidado
+            </p>
+          </div>
+        )}
 
         {/* Allergy Alerts */}
         {(childrenWithAllergies > 0 || allergyConflicts.length > 0) && (
