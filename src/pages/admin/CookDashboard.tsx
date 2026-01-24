@@ -47,6 +47,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { MealIngredientsList } from "@/components/admin/MealIngredientsList";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 
@@ -456,63 +457,69 @@ export default function CookDashboard() {
                 ) : currentMenu ? (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {currentMenu.breakfast && (
-                      <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-amber-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-amber-700 mb-1">
                           <Coffee className="w-4 h-4" />
                           Café da Manhã
                           <span className="text-xs ml-auto">{currentMenu.breakfast_time || "07:30"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.breakfast}</p>
+                        <MealIngredientsList qtyString={currentMenu.breakfast_qty} />
                       </div>
                     )}
                     {currentMenu.morning_snack && (
-                      <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-orange-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-orange-700 mb-1">
                           <Cookie className="w-4 h-4" />
                           Lanche da Manhã
                           <span className="text-xs ml-auto">{currentMenu.morning_snack_time || "09:30"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.morning_snack}</p>
+                        <MealIngredientsList qtyString={currentMenu.morning_snack_qty} />
                       </div>
                     )}
                     {currentMenu.lunch && (
-                      <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="p-3 bg-red-50 rounded-lg border border-red-200 text-red-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-red-700 mb-1">
                           <Salad className="w-4 h-4" />
                           Almoço
                           <span className="text-xs ml-auto">{currentMenu.lunch_time || "11:30"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.lunch}</p>
+                        <MealIngredientsList qtyString={currentMenu.lunch_qty} />
                       </div>
                     )}
                     {menuType === "bercario" && currentMenu.bottle && (
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-blue-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-blue-700 mb-1">
                           <Milk className="w-4 h-4" />
                           Mamadeira
                           <span className="text-xs ml-auto">{currentMenu.bottle_time || "13:00"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.bottle}</p>
+                        <MealIngredientsList qtyString={currentMenu.bottle_qty} />
                       </div>
                     )}
                     {currentMenu.snack && (
-                      <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="p-3 bg-green-50 rounded-lg border border-green-200 text-green-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-green-700 mb-1">
                           <Apple className="w-4 h-4" />
                           Lanche da Tarde
                           <span className="text-xs ml-auto">{currentMenu.snack_time || "15:00"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.snack}</p>
+                        <MealIngredientsList qtyString={currentMenu.snack_qty} />
                       </div>
                     )}
                     {currentMenu.dinner && (
-                      <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                      <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200 text-indigo-900">
                         <div className="flex items-center gap-2 text-sm font-medium text-indigo-700 mb-1">
                           <Moon className="w-4 h-4" />
                           Jantar
                           <span className="text-xs ml-auto">{currentMenu.dinner_time || "17:30"}</span>
                         </div>
                         <p className="text-sm">{currentMenu.dinner}</p>
+                        <MealIngredientsList qtyString={currentMenu.dinner_qty} />
                       </div>
                     )}
                   </div>
