@@ -562,9 +562,12 @@ export default function NutritionistDashboard() {
       if (data?.suggestion) {
         const suggestion = data.suggestion;
         
-        // Update each field from the suggestion
+        // Update each field from the suggestion (including qty fields)
         if (suggestion.breakfast) {
           updateMenuItem(menuType, dayOfWeek, 'breakfast', suggestion.breakfast);
+        }
+        if (suggestion.breakfast_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast_qty', suggestion.breakfast_qty);
         }
         if (suggestion.breakfast_time) {
           updateMenuItem(menuType, dayOfWeek, 'breakfast_time', suggestion.breakfast_time);
@@ -572,11 +575,17 @@ export default function NutritionistDashboard() {
         if (suggestion.morning_snack) {
           updateMenuItem(menuType, dayOfWeek, 'morning_snack', suggestion.morning_snack);
         }
+        if (suggestion.morning_snack_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack_qty', suggestion.morning_snack_qty);
+        }
         if (suggestion.morning_snack_time) {
           updateMenuItem(menuType, dayOfWeek, 'morning_snack_time', suggestion.morning_snack_time);
         }
         if (suggestion.lunch) {
           updateMenuItem(menuType, dayOfWeek, 'lunch', suggestion.lunch);
+        }
+        if (suggestion.lunch_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch_qty', suggestion.lunch_qty);
         }
         if (suggestion.lunch_time) {
           updateMenuItem(menuType, dayOfWeek, 'lunch_time', suggestion.lunch_time);
@@ -584,17 +593,35 @@ export default function NutritionistDashboard() {
         if (suggestion.bottle) {
           updateMenuItem(menuType, dayOfWeek, 'bottle', suggestion.bottle);
         }
+        if (suggestion.bottle_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle_qty', suggestion.bottle_qty);
+        }
         if (suggestion.bottle_time) {
           updateMenuItem(menuType, dayOfWeek, 'bottle_time', suggestion.bottle_time);
         }
         if (suggestion.snack) {
           updateMenuItem(menuType, dayOfWeek, 'snack', suggestion.snack);
         }
+        if (suggestion.snack_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'snack_qty', suggestion.snack_qty);
+        }
         if (suggestion.snack_time) {
           updateMenuItem(menuType, dayOfWeek, 'snack_time', suggestion.snack_time);
         }
+        if (suggestion.pre_dinner) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner', suggestion.pre_dinner);
+        }
+        if (suggestion.pre_dinner_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner_qty', suggestion.pre_dinner_qty);
+        }
+        if (suggestion.pre_dinner_time) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner_time', suggestion.pre_dinner_time);
+        }
         if (suggestion.dinner) {
           updateMenuItem(menuType, dayOfWeek, 'dinner', suggestion.dinner);
+        }
+        if (suggestion.dinner_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner_qty', suggestion.dinner_qty);
         }
         if (suggestion.dinner_time) {
           updateMenuItem(menuType, dayOfWeek, 'dinner_time', suggestion.dinner_time);
