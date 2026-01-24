@@ -41,10 +41,33 @@ serve(async (req: Request): Promise<Response> => {
     const mealLabel = mealLabels[mealType] || mealType;
     const ageGroup = menuType === "bercario" ? "bebês de 4 meses a 1 ano" : "crianças de 1 a 5 anos";
 
-    const systemPrompt = `Você é uma nutricionista especializada em alimentação infantil para creches no Brasil. 
+    // Portion guidelines based on age and meal type
+    const portionGuide = menuType === "bercario" 
+      ? {
+          breakfast: "80-120ml ou 50-80g",
+          morning_snack: "50-80g ou 80-100ml",
+          lunch: "100-150g total",
+          bottle: "120-180ml",
+          snack: "50-80g ou 80-100ml",
+          pre_dinner: "50-80g",
+          dinner: "100-150g total"
+        }
+      : {
+          breakfast: "150-200ml ou 80-120g",
+          morning_snack: "80-100g ou 150ml",
+          lunch: "200-300g total",
+          bottle: "200ml",
+          snack: "80-100g ou 150ml",
+          pre_dinner: "80-100g",
+          dinner: "200-250g total"
+        };
+
+    const portionForMeal = portionGuide[mealType as keyof typeof portionGuide] || "100g";
+
+    const systemPrompt = `Você é uma nutricionista especializada em alimentação infantil para creches no Brasil.
 Gere sugestões de refeições saudáveis, nutritivas e adequadas para a faixa etária.
-Responda APENAS com um array JSON de 4 strings curtas (máximo 60 caracteres cada), sem explicações.
-As sugestões devem ser variadas e realistas para uma creche brasileira.`;
+IMPORTANTE: Cada sugestão DEVE incluir a quantidade/porção apropriada.
+Responda APENAS com um array JSON de objetos, sem explicações.`;
 
     const ingredientInstruction = ingredient 
       ? `IMPORTANTE: Todas as sugestões DEVEM incluir "${ingredient}" como ingrediente principal ou secundário.`
@@ -52,12 +75,14 @@ As sugestões devem ser variadas e realistas para uma creche brasileira.`;
 
     const userPrompt = `Gere 4 sugestões de ${mealLabel} para ${ageGroup}. 
 ${ingredientInstruction}
-${menuType === "bercario" && mealType === "bottle" ? "Inclua opções de fórmulas e papinhas líquidas." : ""}
+Porção recomendada para esta refeição: ${portionForMeal}
+${menuType === "bercario" && mealType === "bottle" ? "Inclua opções de fórmulas e leites." : ""}
 ${mealType === "breakfast" ? "Inclua opções com carboidratos, proteínas e frutas." : ""}
-${mealType === "lunch" || mealType === "dinner" ? "Inclua proteína, carboidrato, legumes e salada quando apropriado." : ""}
-${mealType === "snack" || mealType === "morning_snack" || mealType === "pre_dinner" ? "Opções leves e nutritivas como frutas, biscoitos saudáveis ou vitaminas." : ""}
+${mealType === "lunch" || mealType === "dinner" ? "Inclua proteína, carboidrato, legumes." : ""}
+${mealType === "snack" || mealType === "morning_snack" || mealType === "pre_dinner" ? "Opções leves como frutas ou vitaminas." : ""}
 
-Responda APENAS com o array JSON, exemplo: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4"]`;
+Responda APENAS com o array JSON no formato:
+[{"description": "Nome da refeição (max 50 chars)", "qty": "quantidade ex: 100g, 150ml"}]`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -66,13 +91,13 @@ Responda APENAS com o array JSON, exemplo: ["Sugestão 1", "Sugestão 2", "Suges
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
         temperature: 0.8,
-        max_tokens: 300,
+        max_tokens: 500,
       }),
     });
 
@@ -101,21 +126,27 @@ Responda APENAS com o array JSON, exemplo: ["Sugestão 1", "Sugestão 2", "Suges
     const content = data.choices?.[0]?.message?.content || "[]";
     
     // Parse the JSON array from the response
-    let suggestions: string[] = [];
+    let suggestions: Array<{description: string, qty: string}> = [];
     try {
-      // Try to extract JSON array from the response
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        suggestions = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Handle both old format (strings) and new format (objects)
+        suggestions = parsed.map((item: string | {description: string, qty: string}) => {
+          if (typeof item === 'string') {
+            return { description: item, qty: portionForMeal.split(' ou ')[0] };
+          }
+          return item;
+        });
       }
     } catch (parseError) {
       console.error("Error parsing AI response:", parseError, content);
-      // Fallback suggestions
+      // Fallback suggestions with quantities
       suggestions = [
-        "Arroz, feijão e frango grelhado",
-        "Macarrão com carne moída",
-        "Purê de batata com legumes",
-        "Sopa de legumes com frango",
+        { description: "Arroz, feijão e frango grelhado", qty: menuType === "bercario" ? "120g" : "250g" },
+        { description: "Macarrão com carne moída", qty: menuType === "bercario" ? "100g" : "200g" },
+        { description: "Purê de batata com legumes", qty: menuType === "bercario" ? "100g" : "180g" },
+        { description: "Sopa de legumes com frango", qty: menuType === "bercario" ? "150ml" : "250ml" },
       ];
     }
 
