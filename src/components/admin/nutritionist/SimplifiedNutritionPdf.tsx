@@ -16,12 +16,23 @@ interface NutritionTotals {
   vitamin_a: number;
 }
 
+interface IngredientWithNutrition {
+  name: string;
+  quantity: number;
+  unit: string;
+  energy?: number;
+  protein?: number;
+  lipid?: number;
+  carbohydrate?: number;
+}
+
 interface DayNutritionData {
   dayOfWeek: number;
   dayName: string;
   date: string;
   totals: NutritionTotals | null;
   meals: Record<string, NutritionTotals | null>;
+  ingredients?: Record<string, IngredientWithNutrition[]>;
 }
 
 interface SimplifiedNutritionPdfProps {
@@ -46,6 +57,23 @@ const mealLabels: Record<string, string> = {
 function formatNutrientValue(value: number | undefined, decimals = 1): string {
   if (value === undefined || value === null || isNaN(value)) return '-';
   return value.toFixed(decimals);
+}
+
+function generateIngredientsList(ingredients: IngredientWithNutrition[]): string {
+  if (!ingredients || ingredients.length === 0) return '';
+  
+  return `
+    <div class="ingredients-list">
+      <div class="ingredients-title">📋 Ingredientes:</div>
+      ${ingredients.map(ing => `
+        <div class="ingredient-item">
+          <span class="ingredient-name">${ing.name}</span>
+          <span class="ingredient-qty">${ing.quantity}g</span>
+          <span class="ingredient-kcal">${((ing.energy || 0) * ing.quantity / 100).toFixed(0)} kcal</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function generateNutrientsList(totals: NutritionTotals): string {
@@ -91,12 +119,16 @@ export function SimplifiedNutritionPdf({
         .filter(([_, nutrition]) => nutrition && nutrition.energy > 0);
       
       const mealsContent = mealsWithData.length > 0 
-        ? mealsWithData.map(([mealKey, nutrition]) => `
-            <div class="meal-block">
-              <div class="meal-title">${mealLabels[mealKey] || mealKey}</div>
-              ${nutrition ? generateNutrientsList(nutrition) : '<p class="no-data">Sem dados</p>'}
-            </div>
-          `).join('')
+        ? mealsWithData.map(([mealKey, nutrition]) => {
+            const mealIngredients = day.ingredients?.[mealKey] || [];
+            return `
+              <div class="meal-block">
+                <div class="meal-title">${mealLabels[mealKey] || mealKey}</div>
+                ${generateIngredientsList(mealIngredients)}
+                ${nutrition ? generateNutrientsList(nutrition) : '<p class="no-data">Sem dados</p>'}
+              </div>
+            `;
+          }).join('')
         : '<p class="no-data">Nenhuma refeição com dados nutricionais</p>';
       
       const dayTotalsContent = day.totals && day.totals.energy > 0
@@ -243,6 +275,47 @@ export function SimplifiedNutritionPdf({
             padding-bottom: 5px;
             border-bottom: 1px solid #e5e7eb;
             font-size: 11px;
+          }
+          
+          .ingredients-list {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #d1d5db;
+          }
+          
+          .ingredients-title {
+            font-weight: 600;
+            color: #4b5563;
+            font-size: 9px;
+            margin-bottom: 4px;
+          }
+          
+          .ingredient-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            padding: 2px 0;
+            gap: 8px;
+          }
+          
+          .ingredient-name {
+            flex: 1;
+            color: #374151;
+          }
+          
+          .ingredient-qty {
+            color: #6b7280;
+            font-weight: 500;
+            min-width: 40px;
+            text-align: right;
+          }
+          
+          .ingredient-kcal {
+            color: #059669;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: right;
           }
           
           .nutrients-list {
