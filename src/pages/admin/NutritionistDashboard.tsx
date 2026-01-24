@@ -39,6 +39,7 @@ import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
+import { IngredientWithNutrition } from "@/components/admin/IngredientQuantityEditor";
 import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
 import { WeeklyNutritionSummary } from "@/components/admin/nutritionist/WeeklyNutritionSummary";
 import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
@@ -75,6 +76,10 @@ interface MealNutritionState {
   [key: string]: NutritionTotals | null; // key: `${dayOfWeek}-${field}`
 }
 
+interface MealIngredientsState {
+  [key: string]: IngredientWithNutrition[]; // key: `${dayOfWeek}-${field}`
+}
+
 interface ChildAllergy {
   childName: string;
   allergies: string;
@@ -97,6 +102,13 @@ export default function NutritionistDashboard() {
   
   // Nutrition tracking state
   const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
+    bercario_0_6: {},
+    bercario_6_24: {},
+    maternal: {},
+  });
+  
+  // Ingredients tracking state for PDF export
+  const [ingredientsByMeal, setIngredientsByMeal] = useState<Record<MenuType, MealIngredientsState>>({
     bercario_0_6: {},
     bercario_6_24: {},
     maternal: {},
@@ -259,12 +271,13 @@ export default function NutritionistDashboard() {
     );
   }, []);
 
-  // Handle nutrition calculation callback
+  // Handle nutrition calculation callback with ingredients
   const handleNutritionCalculated = useCallback((
     menuType: MenuType, 
     dayOfWeek: number, 
     field: string, 
-    totals: NutritionTotals | null
+    totals: NutritionTotals | null,
+    ingredients?: IngredientWithNutrition[]
   ) => {
     setNutritionByMeal(prev => ({
       ...prev,
@@ -273,6 +286,17 @@ export default function NutritionistDashboard() {
         [`${dayOfWeek}-${field}`]: totals,
       }
     }));
+    
+    // Store ingredients for PDF export
+    if (ingredients) {
+      setIngredientsByMeal(prev => ({
+        ...prev,
+        [menuType]: {
+          ...prev[menuType],
+          [`${dayOfWeek}-${field}`]: ingredients,
+        }
+      }));
+    }
   }, []);
 
   // Calculate day totals for a menu type
@@ -316,14 +340,17 @@ export default function NutritionistDashboard() {
     totals: getDayTotals(activeMenuTab, day),
   }));
 
-  // Prepare data for PDF export - include per-meal nutrition data
+  // Prepare data for PDF export - include per-meal nutrition data and ingredients
   const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
     const dayMeals = nutritionByMeal[activeMenuTab];
+    const dayIngredients = ingredientsByMeal[activeMenuTab];
     const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
     const meals: Record<string, NutritionTotals | null> = {};
+    const ingredients: Record<string, IngredientWithNutrition[]> = {};
     
     mealFields.forEach(field => {
       meals[field] = dayMeals[`${day.dayOfWeek}-${field}`] || null;
+      ingredients[field] = dayIngredients[`${day.dayOfWeek}-${field}`] || [];
     });
     
     return {
@@ -332,6 +359,7 @@ export default function NutritionistDashboard() {
       date: format(addDays(weekStart, idx), 'd/MM'),
       totals: day.totals,
       meals,
+      ingredients,
     };
   });
 
@@ -667,8 +695,8 @@ export default function NutritionistDashboard() {
             updateMenuItem(menuType, item.day_of_week, field, value);
           };
           
-          const handleNutritionCallback = (field: string) => (totals: NutritionTotals | null) => {
-            handleNutritionCalculated(menuType, item.day_of_week, field, totals);
+          const handleNutritionCallback = (field: string) => (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => {
+            handleNutritionCalculated(menuType, item.day_of_week, field, totals, ingredients);
           };
 
           // Get all meal texts for allergy checking

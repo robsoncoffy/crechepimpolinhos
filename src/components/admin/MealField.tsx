@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Clock } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
 import { AutoNutritionBadges } from './AutoNutritionBadges';
-import { useAutoNutrition } from '@/hooks/useAutoNutrition';
+import { IngredientQuantityEditor, IngredientWithNutrition } from './IngredientQuantityEditor';
 
 export interface MenuItem {
   id?: string;
@@ -63,7 +63,7 @@ interface MealFieldProps {
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
   onQtyChange: (field: keyof MenuItem, value: string) => void;
-  onNutritionCalculated?: (totals: NutritionTotals | null) => void;
+  onNutritionCalculated?: (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => void;
 }
 
 // Memoized component to prevent unnecessary re-renders
@@ -84,10 +84,9 @@ export const MealField = memo(function MealField({
   onQtyChange,
   onNutritionCalculated,
 }: MealFieldProps) {
-  const { parseNutrition, loading } = useAutoNutrition();
   const [nutritionTotals, setNutritionTotals] = useState<NutritionTotals | null>(null);
-  const [foodCount, setFoodCount] = useState(0);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [ingredients, setIngredients] = useState<IngredientWithNutrition[]>([]);
+  const [loading, setLoading] = useState(false);
   
   const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
     breakfast: "breakfast",
@@ -104,52 +103,21 @@ export const MealField = memo(function MealField({
   // Map new menu types to the API expected types
   const apiMenuType = menuType === 'maternal' ? 'maternal' : 'bercario';
 
-  // Auto-calculate nutrition when value or quantity changes (debounced)
-  const calculateNutrition = useCallback(async (mealText: string, qty: string) => {
-    if (mealText.trim().length < 3) {
-      setNutritionTotals(null);
-      setFoodCount(0);
-      onNutritionCalculated?.(null);
-      return;
-    }
+  // Handle ingredients change from editor
+  const handleIngredientsChange = useCallback((newIngredients: IngredientWithNutrition[]) => {
+    setIngredients(newIngredients);
+    // Update qtyValue with formatted ingredients string for storage
+    const qtyString = newIngredients
+      .map(i => `${i.name}: ${i.quantity}g`)
+      .join(', ');
+    onQtyChange(qtyField, qtyString);
+  }, [onQtyChange, qtyField]);
 
-    // Include quantity in the description if provided, so AI can use it
-    const descriptionWithQty = qty && qty.trim() 
-      ? `${mealText} (${qty.trim()})`
-      : mealText;
-
-    const result = await parseNutrition(descriptionWithQty);
-    setNutritionTotals(result.totals);
-    setFoodCount(result.foods?.length || 0);
-    onNutritionCalculated?.(result.totals);
-  }, [parseNutrition, onNutritionCalculated]);
-
-  // Debounced nutrition calculation - triggers on value or qty changes
-  useEffect(() => {
-    // Clear previous debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Only calculate if we have enough text
-    if (!value || value.trim().length < 3) {
-      setNutritionTotals(null);
-      setFoodCount(0);
-      onNutritionCalculated?.(null);
-      return;
-    }
-
-    // Always debounce - 600ms for responsive feel
-    debounceRef.current = setTimeout(() => {
-      calculateNutrition(value, qtyValue);
-    }, 600);
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [value, qtyValue, calculateNutrition, onNutritionCalculated]);
+  // Handle totals calculated from editor
+  const handleTotalsCalculated = useCallback((totals: NutritionTotals | null) => {
+    setNutritionTotals(totals);
+    onNutritionCalculated?.(totals, ingredients);
+  }, [onNutritionCalculated, ingredients]);
 
   return (
     <div className="space-y-2">
@@ -179,12 +147,6 @@ export const MealField = memo(function MealField({
           placeholder={placeholder}
           className="flex-1 min-w-0"
         />
-        <Input
-          value={qtyValue}
-          onChange={(e) => onQtyChange(qtyField, e.target.value)}
-          placeholder="Ex: 100g, 150ml"
-          className="w-full sm:w-28 text-sm"
-        />
         <div className="relative flex-shrink-0">
           <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -196,11 +158,20 @@ export const MealField = memo(function MealField({
         </div>
       </div>
       
-      {/* Auto-calculated nutrition badges */}
+      {/* Ingredient quantity editor - shows individual fields for each ingredient */}
+      <IngredientQuantityEditor
+        mealDescription={value}
+        ingredients={ingredients}
+        onIngredientsChange={handleIngredientsChange}
+        onTotalsCalculated={handleTotalsCalculated}
+        loading={loading}
+      />
+      
+      {/* Auto-calculated nutrition badges - totals */}
       <AutoNutritionBadges 
         totals={nutritionTotals} 
         loading={loading} 
-        foodCount={foodCount} 
+        foodCount={ingredients.length} 
       />
     </div>
   );
