@@ -21,53 +21,147 @@ serve(async (req) => {
       );
     }
 
-    const menuTypeDescription = menuType === 'bercario_0_6' 
-      ? 'bebês de 0 a 6 meses (apenas leite materno ou fórmula)'
-      : menuType === 'bercario_6_24'
-        ? 'bebês de 6 meses a 2 anos (papinhas, frutas amassadas, sopas leves)'
-        : 'crianças de 2 a 5 anos (refeições completas, variedade de alimentos)';
-
     const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
     const dayName = dayNames[dayOfWeek - 1] || 'Segunda-feira';
 
+    // Random seed to ensure variety
+    const randomSeed = Math.random().toString(36).substring(7);
+    const seasonalFoods = ['abóbora', 'batata doce', 'cenoura', 'chuchu', 'mandioquinha', 'beterraba', 'abobrinha'];
+    const randomSeasonal = seasonalFoods[Math.floor(Math.random() * seasonalFoods.length)];
+
     const previousMenusContext = previousMenus && previousMenus.length > 0
-      ? `\n\nCardápios anteriores para referência de preferências:\n${previousMenus.map((m: any) => 
-          `- ${m.day}: Café: ${m.breakfast || 'N/A'}, Almoço: ${m.lunch || 'N/A'}, Lanche: ${m.snack || 'N/A'}`
+      ? `\n\nCardápios anteriores (EVITE repetir esses alimentos):\n${previousMenus.map((m: any) => 
+          `- ${m.day}: ${m.breakfast || ''}, ${m.lunch || ''}, ${m.snack || ''}`
         ).join('\n')}`
       : '';
 
-    const systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação infantil.
-    
-Sua tarefa é sugerir um cardápio completo para ${dayName} para ${menuTypeDescription}.
+    let systemPrompt = '';
+    let jsonFormat = '';
+
+    if (menuType === 'bercario_0_6') {
+      // For 0-6 months - only milk but with variations in quantity and type
+      const milkOptions = [
+        { desc: 'Leite materno exclusivo', qty: 'sob demanda' },
+        { desc: 'Fórmula infantil NAN 1', qty: '120ml' },
+        { desc: 'Fórmula infantil Aptamil 1', qty: '150ml' },
+        { desc: 'Leite materno', qty: '100-150ml' },
+        { desc: 'Fórmula infantil Nestogeno 1', qty: '130ml' },
+        { desc: 'Leite materno ou fórmula', qty: '120-180ml' },
+      ];
+      
+      // Generate different random options for each meal
+      const getRandomMilk = () => milkOptions[Math.floor(Math.random() * milkOptions.length)];
+      const breakfast = getRandomMilk();
+      const morningSnack = getRandomMilk();
+      const lunch = getRandomMilk();
+      const bottle = getRandomMilk();
+      const snack = getRandomMilk();
+      const preDinner = getRandomMilk();
+      const dinner = getRandomMilk();
+
+      // Return directly without AI call for 0-6 months
+      const suggestion = {
+        breakfast: breakfast.desc,
+        breakfast_qty: breakfast.qty,
+        breakfast_time: '07:30',
+        morning_snack: morningSnack.desc,
+        morning_snack_qty: morningSnack.qty,
+        morning_snack_time: '09:30',
+        lunch: lunch.desc,
+        lunch_qty: lunch.qty,
+        lunch_time: '11:30',
+        bottle: bottle.desc,
+        bottle_qty: bottle.qty,
+        bottle_time: '13:00',
+        snack: snack.desc,
+        snack_qty: snack.qty,
+        snack_time: '14:30',
+        pre_dinner: preDinner.desc,
+        pre_dinner_qty: preDinner.qty,
+        pre_dinner_time: '16:30',
+        dinner: dinner.desc,
+        dinner_qty: dinner.qty,
+        dinner_time: '17:30'
+      };
+
+      return new Response(
+        JSON.stringify({ suggestion }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (menuType === 'bercario_6_24') {
+      systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação infantil para bebês de 6 meses a 2 anos.
+
+REGRAS OBRIGATÓRIAS:
+1. Sugira papinhas de frutas, legumes e carnes bem cozidas
+2. Varie as texturas: amassados, raspados, em pedaços macios
+3. Use ingredientes brasileiros: ${randomSeasonal}, banana, maçã, pera, mamão
+4. Inclua proteínas: frango desfiado, carne moída, peixe sem espinha, ovo cozido
+5. EVITE: mel, açúcar, sal em excesso, alimentos duros
+6. Cada descrição deve ter NO MÁXIMO 40 caracteres
 
 ${previousMenusContext}
 
-REGRAS IMPORTANTES:
-1. Siga as recomendações do PNAE (Programa Nacional de Alimentação Escolar)
-2. Varie os alimentos em relação aos cardápios anteriores
-3. Use ingredientes típicos brasileiros e sazonais
-4. Considere a faixa etária e textura adequada dos alimentos
-5. Evite alimentos ultraprocessados
-6. Inclua proteínas, carboidratos, vitaminas e minerais de forma equilibrada
-7. SEMPRE inclua as quantidades em gramas/ml para cada alimento (ex: "Arroz integral (80g), feijão carioca (60g), frango desfiado (50g)")
+Gere um cardápio DIFERENTE e CRIATIVO para ${dayName}. Código de variação: ${randomSeed}`;
 
-Retorne APENAS um JSON válido no formato:
-{
-  "breakfast": "descrição com quantidades em gramas",
+      jsonFormat = `{
+  "breakfast": "descrição curta (max 40 chars)",
+  "breakfast_qty": "quantidade por criança (ex: 100g, 150ml)",
   "breakfast_time": "07:30",
-  "morning_snack": "descrição com quantidades em gramas",
+  "morning_snack": "descrição curta",
+  "morning_snack_qty": "quantidade",
   "morning_snack_time": "09:30",
-  "lunch": "descrição com quantidades em gramas",
-  "lunch_time": "11:30",
-  "snack": "descrição com quantidades em gramas",
-  "snack_time": "14:30",
-  "dinner": "descrição com quantidades em gramas",
-  "dinner_time": "17:00"
-}
+  "lunch": "descrição curta",
+  "lunch_qty": "quantidade",
+  "lunch_time": "11:00",
+  "bottle": "tipo de leite/fórmula",
+  "bottle_qty": "quantidade em ml",
+  "bottle_time": "13:00",
+  "snack": "descrição curta",
+  "snack_qty": "quantidade",
+  "snack_time": "15:00",
+  "pre_dinner": "descrição curta",
+  "pre_dinner_qty": "quantidade",
+  "pre_dinner_time": "16:30",
+  "dinner": "descrição curta",
+  "dinner_qty": "quantidade",
+  "dinner_time": "17:30"
+}`;
+    } else {
+      // maternal (2-5 years)
+      systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação escolar para crianças de 2 a 5 anos.
 
-${menuType === 'bercario_0_6' ? 'Para bebês de 0-6 meses, use apenas "Leite materno (sob demanda)" ou "Fórmula infantil (120-180ml)" em todas as refeições, com as quantidades em ml.' : ''}
-${menuType === 'bercario_6_24' ? 'Para bebês de 6 meses a 2 anos, sugira papinhas, frutas amassadas/raspadas, sopinhas com legumes e proteínas bem cozidas. SEMPRE com quantidades (ex: "Papinha de banana (50g) com aveia (10g)", "Sopa de legumes com frango (100ml)"). Adicione também "bottle": "Fórmula ou leite (150ml)" e "bottle_time": "16:00" no JSON.' : ''}
-${menuType === 'maternal' ? 'Para crianças de 2 a 5 anos, sugira refeições completas e variadas com proteínas, carboidratos, legumes e frutas. SEMPRE com quantidades em gramas (ex: "Arroz (80g), feijão (60g), frango grelhado (50g), salada de alface (30g)").' : ''}`;
+REGRAS OBRIGATÓRIAS:
+1. Siga as recomendações do PNAE
+2. Inclua: arroz, feijão, proteínas variadas, legumes, frutas
+3. Use ingredientes brasileiros e sazonais como ${randomSeasonal}
+4. Varie as preparações: grelhado, cozido, assado, refogado
+5. Evite ultraprocessados e frituras
+6. Cada descrição deve ter NO MÁXIMO 60 caracteres
+
+${previousMenusContext}
+
+Gere um cardápio DIFERENTE e CRIATIVO para ${dayName}. Código de variação: ${randomSeed}`;
+
+      jsonFormat = `{
+  "breakfast": "descrição do café (max 60 chars)",
+  "breakfast_qty": "quantidade por criança (ex: 200ml, 80g)",
+  "breakfast_time": "08:00",
+  "morning_snack": "descrição do lanche",
+  "morning_snack_qty": "quantidade",
+  "morning_snack_time": "09:30",
+  "lunch": "descrição do almoço",
+  "lunch_qty": "porção por criança",
+  "lunch_time": "11:30",
+  "snack": "descrição do lanche da tarde",
+  "snack_qty": "quantidade",
+  "snack_time": "15:30",
+  "dinner": "descrição do jantar",
+  "dinner_qty": "porção por criança",
+  "dinner_time": "18:00"
+}`;
+    }
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -79,10 +173,10 @@ ${menuType === 'maternal' ? 'Para crianças de 2 a 5 anos, sugira refeições co
         model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Gere um cardápio saudável e balanceado para ${dayName}.` }
+          { role: 'user', content: `Gere um cardápio saudável para ${dayName}. Retorne APENAS o JSON no formato:\n${jsonFormat}` }
         ],
-        temperature: 0.7,
-        max_tokens: 800
+        temperature: 1.0,
+        max_tokens: 1000
       })
     });
 
