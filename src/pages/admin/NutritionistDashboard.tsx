@@ -40,8 +40,6 @@ import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
 
-import { NutritionPdfExport } from "@/components/admin/NutritionPdfExport";
-import { TacoFood } from "@/hooks/useTacoSearch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,16 +54,6 @@ import {
 
 type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 
-interface SelectedFood extends TacoFood {
-  quantity: number;
-}
-
-interface MealNutritionData {
-  [dayOfWeek: number]: {
-    [mealField: string]: SelectedFood[];
-  };
-}
-
 export default function NutritionistDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("cardapio");
@@ -79,11 +67,6 @@ export default function NutritionistDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
-  const [nutritionData, setNutritionData] = useState<Record<MenuType, MealNutritionData>>({
-    bercario_0_6: {},
-    bercario_6_24: {},
-    maternal: {},
-  });
   
   const [stats, setStats] = useState({
     childrenWithAllergies: 0,
@@ -208,23 +191,6 @@ export default function NutritionistDashboard() {
     );
   }, []);
 
-  const updateNutritionData = useCallback((
-    menuType: MenuType, 
-    dayOfWeek: number, 
-    mealField: string, 
-    foods: SelectedFood[]
-  ) => {
-    setNutritionData(prev => ({
-      ...prev,
-      [menuType]: {
-        ...prev[menuType],
-        [dayOfWeek]: {
-          ...(prev[menuType][dayOfWeek] || {}),
-          [mealField]: foods
-        }
-      }
-    }));
-  }, []);
 
   const copyFromPreviousWeek = async () => {
     setCopying(true);
@@ -482,8 +448,6 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
-                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.breakfast || []}
-                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'breakfast', foods)}
                 />
                 
                 <MealField
@@ -498,8 +462,6 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
-                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.morning_snack || []}
-                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'morning_snack', foods)}
                 />
                 
                 <MealField
@@ -514,8 +476,6 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
-                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.lunch || []}
-                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'lunch', foods)}
                 />
                 
                 {isBercario && (
@@ -531,8 +491,6 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
-                    selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.bottle || []}
-                    onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'bottle', foods)}
                   />
                 )}
                 
@@ -548,8 +506,6 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
-                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.snack || []}
-                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'snack', foods)}
                 />
                 
                 {isBercario && (
@@ -565,8 +521,6 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
-                    selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.pre_dinner || []}
-                    onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'pre_dinner', foods)}
                   />
                 )}
                 
@@ -582,8 +536,6 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
-                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.dinner || []}
-                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'dinner', foods)}
                 />
                 
                 <div className="space-y-2">
@@ -603,18 +555,6 @@ export default function NutritionistDashboard() {
     );
   };
 
-  // Prepare nutrition data for PDF export
-  const getNutritionExportData = () => {
-    const currentNutrition = nutritionData[activeMenuTab] || {};
-    return currentMenuItems.map(item => ({
-      dayName: dayNames[item.day_of_week - 1],
-      date: format(addDays(weekStart, item.day_of_week - 1), 'd/MM'),
-      meals: Object.entries(currentNutrition[item.day_of_week] || {}).map(([mealName, foods]) => ({
-        mealName,
-        foods: foods as SelectedFood[],
-      })),
-    }));
-  };
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
@@ -766,12 +706,6 @@ export default function NutritionistDashboard() {
                 menuItems={currentMenuItems as any} 
                 weekStart={weekStart} 
                 disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
-              />
-              <NutritionPdfExport
-                weekStart={weekStart}
-                nutritionData={getNutritionExportData()}
-                menuType={getMenuTypeLabel(activeMenuTab)}
-                disabled={loading || Object.keys(nutritionData[activeMenuTab] || {}).length === 0}
               />
             </div>
           </div>
