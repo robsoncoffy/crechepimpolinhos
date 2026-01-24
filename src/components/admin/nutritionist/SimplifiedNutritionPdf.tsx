@@ -297,6 +297,7 @@ export function SimplifiedNutritionPdf({
     }
   };
 
+  // Allow PDF generation even without data (will show dashes)
   const hasData = nutritionData.some(d => d.totals && d.totals.energy > 0);
 
   return (
@@ -304,11 +305,13 @@ export function SimplifiedNutritionPdf({
       variant="outline"
       size="sm"
       onClick={exportPdf}
-      disabled={disabled || !hasData}
+      disabled={disabled}
       className="border-primary text-primary hover:bg-primary/10"
+      title={!hasData ? 'Os nutrientes serão calculados automaticamente ao preencher as refeições' : undefined}
     >
       <FileDown className="w-4 h-4 mr-1" />
       PDF Nutricional
+      {!hasData && <span className="text-[10px] ml-1 text-muted-foreground">(sem dados)</span>}
     </Button>
   );
 }
