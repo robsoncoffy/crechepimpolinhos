@@ -1,8 +1,17 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
+import { TacoFoodSearch } from './TacoFoodSearch';
+import { MealNutritionSummary } from './MealNutritionSummary';
+import { TacoFood } from '@/hooks/useTacoSearch';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 export interface MenuItem {
   id?: string;
@@ -26,6 +35,10 @@ export interface MenuItem {
   menu_type: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 }
 
+interface SelectedFood extends TacoFood {
+  quantity: number;
+}
+
 interface MealFieldProps {
   icon: React.ReactNode;
   label: string;
@@ -38,6 +51,8 @@ interface MealFieldProps {
   dayOfWeek: number;
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
+  selectedFoods?: SelectedFood[];
+  onFoodsChange?: (foods: SelectedFood[]) => void;
 }
 
 // Memoized component to prevent unnecessary re-renders
@@ -53,7 +68,11 @@ export const MealField = memo(function MealField({
   dayOfWeek,
   onValueChange,
   onTimeChange,
+  selectedFoods = [],
+  onFoodsChange,
 }: MealFieldProps) {
+  const [isNutritionOpen, setIsNutritionOpen] = useState(false);
+  
   const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
     breakfast: "breakfast",
     morning_snack: "morning_snack",
@@ -102,6 +121,29 @@ export const MealField = memo(function MealField({
           />
         </div>
       </div>
+      
+      {/* Inline nutrition summary if foods are selected */}
+      {selectedFoods.length > 0 && (
+        <MealNutritionSummary foods={selectedFoods} compact />
+      )}
+      
+      {/* Collapsible TACO Search */}
+      {onFoodsChange && (
+        <Collapsible open={isNutritionOpen} onOpenChange={setIsNutritionOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full justify-between text-xs text-muted-foreground hover:text-foreground">
+              <span>📊 Análise nutricional TACO</span>
+              {isNutritionOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <TacoFoodSearch
+              selectedFoods={selectedFoods}
+              onFoodsChange={onFoodsChange}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 });
