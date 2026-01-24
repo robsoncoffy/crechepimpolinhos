@@ -75,7 +75,7 @@ export function AllergyCheckBadge({ mealText, childrenWithAllergies }: AllergyCh
   }, {} as Record<string, string[]>);
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={0}>
       <Tooltip>
         <TooltipTrigger asChild>
           <Badge 
@@ -86,7 +86,11 @@ export function AllergyCheckBadge({ mealText, childrenWithAllergies }: AllergyCh
             {conflicts.length} alerta{conflicts.length > 1 ? "s" : ""}
           </Badge>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
+        <TooltipContent 
+          side="bottom" 
+          className="max-w-xs z-[100] bg-popover border shadow-lg"
+          sideOffset={5}
+        >
           <div className="text-xs space-y-2">
             <p className="font-medium flex items-center gap-1 text-destructive">
               <AlertTriangle className="w-3 h-3" />
