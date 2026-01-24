@@ -131,13 +131,24 @@ Exemplos de porções infantis típicas:
       try {
         const searchResponse = await fetch(`${TACO_API_BASE}/foods?q=${encodeURIComponent(parsedFood.name)}`);
         if (searchResponse.ok) {
-          const searchResults = await searchResponse.json();
+          // Some TACO endpoints return an array, others return an object like { foods: [...] }.
+          const raw = await searchResponse.json();
+          const searchResults: TacoFood[] = Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.foods)
+              ? raw.foods
+              : Array.isArray(raw?.data)
+                ? raw.data
+                : Array.isArray(raw?.results)
+                  ? raw.results
+                  : [];
+
           if (searchResults.length > 0) {
             // Get the first (best) match
             const bestMatch = searchResults[0];
             foodsWithNutrition.push({
               ...bestMatch,
-              quantity: parsedFood.quantity
+              quantity: parsedFood.quantity,
             });
           }
         }

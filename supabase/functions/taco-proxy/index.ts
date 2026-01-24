@@ -6,7 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-const TACO_API_BASE = "https://taco-api.netlify.app/api/v1";
+// Public REST endpoint used by our nutrition automation.
+// NOTE: this is intentionally the same base used by `parse-meal-nutrition`.
+const TACO_API_BASE = "https://taco.deno.dev/api/v1";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -23,7 +25,8 @@ serve(async (req) => {
     let tacoUrl: string;
 
     if (action === "search" && query) {
-      tacoUrl = `${TACO_API_BASE}/foods/search?q=${encodeURIComponent(query)}`;
+      // taco.deno.dev uses a `q` parameter for searching foods
+      tacoUrl = `${TACO_API_BASE}/foods?q=${encodeURIComponent(query)}`;
     } else if (action === "get" && foodId) {
       tacoUrl = `${TACO_API_BASE}/foods/${foodId}`;
     } else if (action === "all") {
