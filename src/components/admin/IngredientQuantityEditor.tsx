@@ -43,7 +43,7 @@ interface IngredientQuantityEditorProps {
   mealDescription: string;
   ingredients: IngredientWithNutrition[];
   onIngredientsChange: (ingredients: IngredientWithNutrition[]) => void;
-  onTotalsCalculated: (totals: NutritionTotals | null) => void;
+  onTotalsCalculated: (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => void;
   loading?: boolean;
 }
 
@@ -70,7 +70,7 @@ export function IngredientQuantityEditor({
     if (mealDescription.trim().length < 3) {
       setLocalIngredients([]);
       onIngredientsChange([]);
-      onTotalsCalculated(null);
+      onTotalsCalculated(null, []);
       return;
     }
     
@@ -119,10 +119,9 @@ export function IngredientQuantityEditor({
 
       setLocalIngredients(parsedIngredients);
       onIngredientsChange(parsedIngredients);
-      
-      if (data?.totals) {
-        onTotalsCalculated(data.totals);
-      }
+
+      // Always emit totals along with the ingredient list (avoids race with setState in parent)
+      onTotalsCalculated(data?.totals ?? null, parsedIngredients);
     } catch (err) {
       console.error('Error parsing ingredients:', err);
     } finally {
@@ -149,7 +148,7 @@ export function IngredientQuantityEditor({
 
   const recalculateTotals = useCallback((items: IngredientWithNutrition[]) => {
     if (items.length === 0) {
-      onTotalsCalculated(null);
+      onTotalsCalculated(null, []);
       return;
     }
 
@@ -173,7 +172,7 @@ export function IngredientQuantityEditor({
       calcium: 0, iron: 0, sodium: 0, vitamin_c: 0, vitamin_a: 0
     });
 
-    onTotalsCalculated(totals);
+    onTotalsCalculated(totals, items);
   }, [onTotalsCalculated]);
 
   const handleRefresh = () => {
