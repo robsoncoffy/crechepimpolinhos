@@ -111,6 +111,7 @@ export default function NutritionistDashboard() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [activeMenuTab, setActiveMenuTab] = useState<MenuType>('bercario_0_6');
+  const [activeDayTab, setActiveDayTab] = useState<number>(1); // 1 = Segunda, 5 = Sexta
   const [bercario06Items, setBercario06Items] = useState<MenuItem[]>([]);
   const [bercario624Items, setBercario624Items] = useState<MenuItem[]>([]);
   const [maternalItems, setMaternalItems] = useState<MenuItem[]>([]);
@@ -695,227 +696,226 @@ export default function NutritionistDashboard() {
     const color = getMenuTypeColor(menuType);
     const isBercario = menuType !== 'maternal';
     
+    // Filter to show only the selected day
+    const selectedDayItem = items.find(item => item.day_of_week === activeDayTab);
+    
+    if (!selectedDayItem) return null;
+    
+    const item = selectedDayItem;
+    const dayDate = addDays(weekStart, item.day_of_week - 1);
+    const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
+                      item.morning_snack || item.bottle || item.pre_dinner;
+    const dayTotals = getDayTotals(menuType, item.day_of_week);
+
+    const handleValueChange = (field: keyof MenuItem, value: string) => {
+      updateMenuItem(menuType, item.day_of_week, field, value);
+    };
+
+    const handleTimeChange = (field: keyof MenuItem, value: string) => {
+      updateMenuItem(menuType, item.day_of_week, field, value);
+    };
+    
+    const handleNutritionCallback = (field: string) => (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => {
+      handleNutritionCalculated(menuType, item.day_of_week, field, totals, ingredients);
+    };
+
+    // Get all meal texts for allergy checking
+    const allMealTexts = [
+      item.breakfast, item.morning_snack, item.lunch, 
+      item.bottle, item.snack, item.pre_dinner, item.dinner
+    ].filter(Boolean).join(', ');
+
     return (
-      <div className="grid gap-6">
-        {items.map((item) => {
-          const dayDate = addDays(weekStart, item.day_of_week - 1);
-          const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
-                            item.morning_snack || item.bottle || item.pre_dinner;
-          const dayTotals = getDayTotals(menuType, item.day_of_week);
-
-          const handleValueChange = (field: keyof MenuItem, value: string) => {
-            updateMenuItem(menuType, item.day_of_week, field, value);
-          };
-
-          const handleTimeChange = (field: keyof MenuItem, value: string) => {
-            updateMenuItem(menuType, item.day_of_week, field, value);
-          };
+      <Card 
+        className={`transition-all ${
+          hasContent 
+            ? `border-${color}/30 bg-${color}/5`
+            : ''
+        }`}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              {dayNames[item.day_of_week - 1]}
+              <span className="text-sm font-normal text-muted-foreground">
+                ({format(dayDate, 'd/MM')})
+              </span>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {/* AI Generate button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateDayMenu(item.day_of_week, menuType)}
+                disabled={generatingDay === item.day_of_week}
+                className="gap-1 text-xs h-7"
+              >
+                {generatingDay === item.day_of_week ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3 h-3" />
+                )}
+                <span className="hidden sm:inline">IA</span>
+              </Button>
+              {/* Allergy alert badge */}
+              <AllergyCheckBadge 
+                mealText={allMealTexts} 
+                childrenWithAllergies={childrenWithAllergies} 
+              />
+              {/* Day total calories */}
+              {dayTotals && (
+                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  {dayTotals.energy.toFixed(0)} kcal
+                </Badge>
+              )}
+              {hasContent && (
+                <Check className={`w-5 h-5 text-${color}`} />
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <MealField
+            icon={<Coffee className="w-4 h-4 text-amber-600" />}
+            label="Café da Manhã"
+            value={item.breakfast}
+            timeValue={item.breakfast_time}
+            qtyValue={item.breakfast_qty}
+            field="breakfast"
+            timeField="breakfast_time"
+            qtyField="breakfast_qty"
+            placeholder={menuType === 'bercario_0_6' ? "Leite materno, fórmula..." : "Descreva o café da manhã..."}
+            menuType={menuType}
+            dayOfWeek={item.day_of_week}
+            onValueChange={handleValueChange}
+            onTimeChange={handleTimeChange}
+            onQtyChange={handleValueChange}
+            onNutritionCalculated={handleNutritionCallback('breakfast')}
+          />
           
-          const handleNutritionCallback = (field: string) => (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => {
-            handleNutritionCalculated(menuType, item.day_of_week, field, totals, ingredients);
-          };
-
-          // Get all meal texts for allergy checking
-          const allMealTexts = [
-            item.breakfast, item.morning_snack, item.lunch, 
-            item.bottle, item.snack, item.pre_dinner, item.dinner
-          ].filter(Boolean).join(', ');
-
-          return (
-            <Card 
-              key={item.day_of_week}
-              className={`transition-all ${
-                hasContent 
-                  ? `border-${color}/30 bg-${color}/5`
-                  : ''
-              }`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    {dayNames[item.day_of_week - 1]}
-                    <span className="text-sm font-normal text-muted-foreground">
-                      ({format(dayDate, 'd/MM')})
-                    </span>
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
-                    {/* AI Generate button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => generateDayMenu(item.day_of_week, menuType)}
-                      disabled={generatingDay === item.day_of_week}
-                      className="gap-1 text-xs h-7"
-                    >
-                      {generatingDay === item.day_of_week ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
-                      <span className="hidden sm:inline">IA</span>
-                    </Button>
-                    {/* Allergy alert badge */}
-                    <AllergyCheckBadge 
-                      mealText={allMealTexts} 
-                      childrenWithAllergies={childrenWithAllergies} 
-                    />
-                    {/* Day total calories */}
-                    {dayTotals && (
-                      <Badge variant="secondary" className="bg-primary/10 text-primary">
-                        {dayTotals.energy.toFixed(0)} kcal
-                      </Badge>
-                    )}
-                    {hasContent && (
-                      <Check className={`w-5 h-5 text-${color}`} />
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <MealField
-                  icon={<Coffee className="w-4 h-4 text-amber-600" />}
-                  label="Café da Manhã"
-                  value={item.breakfast}
-                  timeValue={item.breakfast_time}
-                  qtyValue={item.breakfast_qty}
-                  field="breakfast"
-                  timeField="breakfast_time"
-                  qtyField="breakfast_qty"
-                  placeholder={menuType === 'bercario_0_6' ? "Leite materno, fórmula..." : "Descreva o café da manhã..."}
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                  onValueChange={handleValueChange}
-                  onTimeChange={handleTimeChange}
-                  onQtyChange={handleValueChange}
-                  onNutritionCalculated={handleNutritionCallback('breakfast')}
-                />
-                
-                <MealField
-                  icon={<Cookie className="w-4 h-4 text-orange-500" />}
-                  label="Lanche da Manhã"
-                  value={item.morning_snack}
-                  timeValue={item.morning_snack_time}
-                  qtyValue={item.morning_snack_qty}
-                  field="morning_snack"
-                  timeField="morning_snack_time"
-                  qtyField="morning_snack_qty"
-                  placeholder={menuType === 'bercario_0_6' ? "Papinha, fruta amassada..." : "Descreva o lanche da manhã..."}
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                  onValueChange={handleValueChange}
-                  onTimeChange={handleTimeChange}
-                  onQtyChange={handleValueChange}
-                  onNutritionCalculated={handleNutritionCallback('morning_snack')}
-                />
-                
-                <MealField
-                  icon={<Soup className="w-4 h-4 text-red-500" />}
-                  label="Almoço"
-                  value={item.lunch}
-                  timeValue={item.lunch_time}
-                  qtyValue={item.lunch_qty}
-                  field="lunch"
-                  timeField="lunch_time"
-                  qtyField="lunch_qty"
-                  placeholder={menuType === 'bercario_0_6' ? "Papinha salgada, sopinha..." : "Descreva o almoço..."}
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                  onValueChange={handleValueChange}
-                  onTimeChange={handleTimeChange}
-                  onQtyChange={handleValueChange}
-                  onNutritionCalculated={handleNutritionCallback('lunch')}
-                />
-                
-                {isBercario && (
-                  <MealField
-                    icon={<Milk className="w-4 h-4 text-blue-400" />}
-                    label="Mamadeira"
-                    value={item.bottle}
-                    timeValue={item.bottle_time}
-                    qtyValue={item.bottle_qty}
-                    field="bottle"
-                    timeField="bottle_time"
-                    qtyField="bottle_qty"
-                    placeholder="Fórmula/Leite..."
-                    menuType={menuType}
-                    dayOfWeek={item.day_of_week}
-                    onValueChange={handleValueChange}
-                    onTimeChange={handleTimeChange}
-                    onQtyChange={handleValueChange}
-                    onNutritionCalculated={handleNutritionCallback('bottle')}
-                  />
-                )}
-                
-                <MealField
-                  icon={<Apple className="w-4 h-4 text-green-500" />}
-                  label="Lanche da Tarde"
-                  value={item.snack}
-                  timeValue={item.snack_time}
-                  qtyValue={item.snack_qty}
-                  field="snack"
-                  timeField="snack_time"
-                  qtyField="snack_qty"
-                  placeholder={menuType === 'bercario_0_6' ? "Fruta amassada, vitamina..." : "Descreva o lanche da tarde..."}
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                  onValueChange={handleValueChange}
-                  onTimeChange={handleTimeChange}
-                  onQtyChange={handleValueChange}
-                  onNutritionCalculated={handleNutritionCallback('snack')}
-                />
-                
-                {isBercario && (
-                  <MealField
-                    icon={<Cookie className="w-4 h-4 text-purple-500" />}
-                    label="Pré-Janta"
-                    value={item.pre_dinner}
-                    timeValue={item.pre_dinner_time}
-                    qtyValue={item.pre_dinner_qty}
-                    field="pre_dinner"
-                    timeField="pre_dinner_time"
-                    qtyField="pre_dinner_qty"
-                    placeholder="Papa de frutas, vitamina..."
-                    menuType={menuType}
-                    dayOfWeek={item.day_of_week}
-                    onValueChange={handleValueChange}
-                    onTimeChange={handleTimeChange}
-                    onQtyChange={handleValueChange}
-                    onNutritionCalculated={handleNutritionCallback('pre_dinner')}
-                  />
-                )}
-                
-                <MealField
-                  icon={<Moon className="w-4 h-4 text-indigo-500" />}
-                  label="Jantar"
-                  value={item.dinner}
-                  timeValue={item.dinner_time}
-                  qtyValue={item.dinner_qty}
-                  field="dinner"
-                  timeField="dinner_time"
-                  qtyField="dinner_qty"
-                  placeholder={menuType === 'bercario_0_6' ? "Papinha, sopinha..." : "Descreva o jantar..."}
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                  onValueChange={handleValueChange}
-                  onTimeChange={handleTimeChange}
-                  onQtyChange={handleValueChange}
-                  onNutritionCalculated={handleNutritionCallback('dinner')}
-                />
-                
-                <div className="space-y-2">
-                  <Label className="text-sm">Observações</Label>
-                  <Textarea
-                    value={item.notes}
-                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'notes', e.target.value)}
-                    placeholder="Notas especiais, substituições, alertas de alergia..."
-                    rows={2}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+          <MealField
+            icon={<Cookie className="w-4 h-4 text-orange-500" />}
+            label="Lanche da Manhã"
+            value={item.morning_snack}
+            timeValue={item.morning_snack_time}
+            qtyValue={item.morning_snack_qty}
+            field="morning_snack"
+            timeField="morning_snack_time"
+            qtyField="morning_snack_qty"
+            placeholder={menuType === 'bercario_0_6' ? "Papinha, fruta amassada..." : "Descreva o lanche da manhã..."}
+            menuType={menuType}
+            dayOfWeek={item.day_of_week}
+            onValueChange={handleValueChange}
+            onTimeChange={handleTimeChange}
+            onQtyChange={handleValueChange}
+            onNutritionCalculated={handleNutritionCallback('morning_snack')}
+          />
+          
+          <MealField
+            icon={<Soup className="w-4 h-4 text-red-500" />}
+            label="Almoço"
+            value={item.lunch}
+            timeValue={item.lunch_time}
+            qtyValue={item.lunch_qty}
+            field="lunch"
+            timeField="lunch_time"
+            qtyField="lunch_qty"
+            placeholder={menuType === 'bercario_0_6' ? "Papinha salgada, sopinha..." : "Descreva o almoço..."}
+            menuType={menuType}
+            dayOfWeek={item.day_of_week}
+            onValueChange={handleValueChange}
+            onTimeChange={handleTimeChange}
+            onQtyChange={handleValueChange}
+            onNutritionCalculated={handleNutritionCallback('lunch')}
+          />
+          
+          {isBercario && (
+            <MealField
+              icon={<Milk className="w-4 h-4 text-blue-400" />}
+              label="Mamadeira"
+              value={item.bottle}
+              timeValue={item.bottle_time}
+              qtyValue={item.bottle_qty}
+              field="bottle"
+              timeField="bottle_time"
+              qtyField="bottle_qty"
+              placeholder="Fórmula/Leite..."
+              menuType={menuType}
+              dayOfWeek={item.day_of_week}
+              onValueChange={handleValueChange}
+              onTimeChange={handleTimeChange}
+              onQtyChange={handleValueChange}
+              onNutritionCalculated={handleNutritionCallback('bottle')}
+            />
+          )}
+          
+          <MealField
+            icon={<Apple className="w-4 h-4 text-green-500" />}
+            label="Lanche da Tarde"
+            value={item.snack}
+            timeValue={item.snack_time}
+            qtyValue={item.snack_qty}
+            field="snack"
+            timeField="snack_time"
+            qtyField="snack_qty"
+            placeholder={menuType === 'bercario_0_6' ? "Fruta amassada, vitamina..." : "Descreva o lanche da tarde..."}
+            menuType={menuType}
+            dayOfWeek={item.day_of_week}
+            onValueChange={handleValueChange}
+            onTimeChange={handleTimeChange}
+            onQtyChange={handleValueChange}
+            onNutritionCalculated={handleNutritionCallback('snack')}
+          />
+          
+          {isBercario && (
+            <MealField
+              icon={<Cookie className="w-4 h-4 text-purple-500" />}
+              label="Pré-Janta"
+              value={item.pre_dinner}
+              timeValue={item.pre_dinner_time}
+              qtyValue={item.pre_dinner_qty}
+              field="pre_dinner"
+              timeField="pre_dinner_time"
+              qtyField="pre_dinner_qty"
+              placeholder="Papa de frutas, vitamina..."
+              menuType={menuType}
+              dayOfWeek={item.day_of_week}
+              onValueChange={handleValueChange}
+              onTimeChange={handleTimeChange}
+              onQtyChange={handleValueChange}
+              onNutritionCalculated={handleNutritionCallback('pre_dinner')}
+            />
+          )}
+          
+          <MealField
+            icon={<Moon className="w-4 h-4 text-indigo-500" />}
+            label="Jantar"
+            value={item.dinner}
+            timeValue={item.dinner_time}
+            qtyValue={item.dinner_qty}
+            field="dinner"
+            timeField="dinner_time"
+            qtyField="dinner_qty"
+            placeholder={menuType === 'bercario_0_6' ? "Papinha, sopinha..." : "Descreva o jantar..."}
+            menuType={menuType}
+            dayOfWeek={item.day_of_week}
+            onValueChange={handleValueChange}
+            onTimeChange={handleTimeChange}
+            onQtyChange={handleValueChange}
+            onNutritionCalculated={handleNutritionCallback('dinner')}
+          />
+          
+          <div className="space-y-2">
+            <Label className="text-sm">Observações</Label>
+            <Textarea
+              value={item.notes}
+              onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'notes', e.target.value)}
+              placeholder="Notas especiais, substituições, alertas de alergia..."
+              rows={2}
+            />
+          </div>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -1139,10 +1139,40 @@ export default function NutritionistDashboard() {
                 </TabsList>
               </div>
 
-              <div className="mt-2 mb-4">
-                <Badge variant="outline" className="text-xs">
-                  {getMenuTypeLabel(activeMenuTab)}
-                </Badge>
+              {/* Day sub-tabs */}
+              <div className="mt-4 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-max min-w-full">
+                  {[1, 2, 3, 4, 5].map((day) => {
+                    const dayDate = addDays(weekStart, day - 1);
+                    const currentItems = activeMenuTab === 'bercario_0_6' ? bercario06Items 
+                      : activeMenuTab === 'bercario_6_24' ? bercario624Items 
+                      : maternalItems;
+                    const dayItem = currentItems.find(item => item.day_of_week === day);
+                    const hasContent = dayItem && (dayItem.breakfast || dayItem.lunch || dayItem.snack || dayItem.dinner || 
+                                      dayItem.morning_snack || dayItem.bottle || dayItem.pre_dinner);
+                    
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setActiveDayTab(day)}
+                        className={`flex-1 min-w-[60px] sm:min-w-[80px] px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex flex-col items-center gap-0.5 ${
+                          activeDayTab === day
+                            ? 'bg-background shadow-sm text-primary'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">{dayNames[day - 1]}</span>
+                        <span className="sm:hidden">{dayNames[day - 1].slice(0, 3)}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(dayDate, 'd/MM')}
+                        </span>
+                        {hasContent && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <TabsContent value="bercario_0_6" className="mt-4">
