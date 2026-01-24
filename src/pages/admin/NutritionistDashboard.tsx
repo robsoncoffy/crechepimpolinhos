@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { format, startOfWeek, addWeeks, subWeeks, addDays } from "date-fns";
+import { format, startOfWeek, addWeeks, subWeeks, addDays, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   ChevronLeft, 
@@ -29,7 +29,6 @@ import {
   Calendar,
   MessageSquare,
   DollarSign,
-  
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -39,6 +38,10 @@ import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
+import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
+import { WeeklyNutritionSummary } from "@/components/admin/nutritionist/WeeklyNutritionSummary";
+import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
+import { AllergyCheckBadge } from "@/components/admin/nutritionist/AllergyCheckBadge";
 
 import {
   AlertDialog,
@@ -54,6 +57,28 @@ import {
 
 type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 
+interface NutritionTotals {
+  energy: number;
+  protein: number;
+  lipid: number;
+  carbohydrate: number;
+  fiber: number;
+  calcium: number;
+  iron: number;
+  sodium: number;
+  vitamin_c: number;
+  vitamin_a: number;
+}
+
+interface MealNutritionState {
+  [key: string]: NutritionTotals | null; // key: `${dayOfWeek}-${field}`
+}
+
+interface ChildAllergy {
+  childName: string;
+  allergies: string;
+}
+
 export default function NutritionistDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("cardapio");
@@ -68,26 +93,52 @@ export default function NutritionistDashboard() {
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
   
+  // Nutrition tracking state
+  const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
+    bercario_0_6: {},
+    bercario_6_24: {},
+    maternal: {},
+  });
+  
+  // Children with allergies
+  const [childrenWithAllergies, setChildrenWithAllergies] = useState<ChildAllergy[]>([]);
+  
   const [stats, setStats] = useState({
     childrenWithAllergies: 0,
     menuDaysConfigured: 0,
   });
 
   const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+  
+  // Get today's day of week (1-5 for Mon-Fri, 0 otherwise)
+  const todayDayOfWeek = (() => {
+    const day = getDay(new Date());
+    return day >= 1 && day <= 5 ? day : 1; // Default to Monday if weekend
+  })();
 
-  // Fetch stats
+  // Fetch stats and children with allergies
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [allergiesRes, menuRes] = await Promise.all([
+        const [allergiesRes, menuRes, childrenRes] = await Promise.all([
           supabase.from("children").select("id", { count: "exact", head: true }).not("allergies", "is", null),
           supabase.from("weekly_menus").select("id", { count: "exact", head: true }),
+          supabase.from("children").select("full_name, allergies").not("allergies", "is", null),
         ]);
 
         setStats({
           childrenWithAllergies: allergiesRes.count || 0,
           menuDaysConfigured: menuRes.count || 0,
         });
+        
+        if (childrenRes.data) {
+          setChildrenWithAllergies(
+            childrenRes.data.map(c => ({ 
+              childName: c.full_name, 
+              allergies: c.allergies || '' 
+            }))
+          );
+        }
       } catch (error) {
         console.error("Error fetching stats:", error);
       }
@@ -161,6 +212,13 @@ export default function NutritionistDashboard() {
         setBercario624Items(createMenuItems('bercario_6_24', 'bercario_6_24', '07:30', '11:00', '15:00', '17:30'));
         // Maternal uses 'maternal' in the database
         setMaternalItems(createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'));
+        
+        // Reset nutrition state when week changes
+        setNutritionByMeal({
+          bercario_0_6: {},
+          bercario_6_24: {},
+          maternal: {},
+        });
       } catch (err) {
         console.error('Unexpected error fetching menu:', err);
         toast.error('Erro inesperado ao carregar cardápio');
@@ -191,6 +249,71 @@ export default function NutritionistDashboard() {
     );
   }, []);
 
+  // Handle nutrition calculation callback
+  const handleNutritionCalculated = useCallback((
+    menuType: MenuType, 
+    dayOfWeek: number, 
+    field: string, 
+    totals: NutritionTotals | null
+  ) => {
+    setNutritionByMeal(prev => ({
+      ...prev,
+      [menuType]: {
+        ...prev[menuType],
+        [`${dayOfWeek}-${field}`]: totals,
+      }
+    }));
+  }, []);
+
+  // Calculate day totals for a menu type
+  const getDayTotals = useCallback((menuType: MenuType, dayOfWeek: number): NutritionTotals | null => {
+    const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+    const dayMeals = nutritionByMeal[menuType];
+    
+    let hasAnyData = false;
+    const totals: NutritionTotals = {
+      energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+      calcium: 0, iron: 0, sodium: 0, vitamin_c: 0, vitamin_a: 0
+    };
+    
+    mealFields.forEach(field => {
+      const mealNutrition = dayMeals[`${dayOfWeek}-${field}`];
+      if (mealNutrition) {
+        hasAnyData = true;
+        totals.energy += mealNutrition.energy;
+        totals.protein += mealNutrition.protein;
+        totals.lipid += mealNutrition.lipid;
+        totals.carbohydrate += mealNutrition.carbohydrate;
+        totals.fiber += mealNutrition.fiber;
+        totals.calcium += mealNutrition.calcium;
+        totals.iron += mealNutrition.iron;
+        totals.sodium += mealNutrition.sodium;
+        totals.vitamin_c += mealNutrition.vitamin_c;
+        totals.vitamin_a += mealNutrition.vitamin_a;
+      }
+    });
+    
+    return hasAnyData ? totals : null;
+  }, [nutritionByMeal]);
+
+  // Get today's nutrition for the active menu type
+  const todayNutrition = getDayTotals(activeMenuTab, todayDayOfWeek);
+
+  // Get weekly nutrition data for the active menu type
+  const weeklyNutritionData = [1, 2, 3, 4, 5].map(day => ({
+    dayOfWeek: day,
+    dayName: dayNames[day - 1],
+    totals: getDayTotals(activeMenuTab, day),
+  }));
+
+  // Prepare data for PDF export
+  const pdfNutritionData = weeklyNutritionData.map((day, idx) => ({
+    dayOfWeek: day.dayOfWeek,
+    dayName: day.dayName,
+    date: format(addDays(weekStart, idx), 'd/MM'),
+    totals: day.totals,
+    meals: {} as Record<string, NutritionTotals | null>,
+  }));
 
   const copyFromPreviousWeek = async () => {
     setCopying(true);
@@ -404,6 +527,7 @@ export default function NutritionistDashboard() {
           const dayDate = addDays(weekStart, item.day_of_week - 1);
           const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
                             item.morning_snack || item.bottle || item.pre_dinner;
+          const dayTotals = getDayTotals(menuType, item.day_of_week);
 
           const handleValueChange = (field: keyof MenuItem, value: string) => {
             updateMenuItem(menuType, item.day_of_week, field, value);
@@ -412,6 +536,16 @@ export default function NutritionistDashboard() {
           const handleTimeChange = (field: keyof MenuItem, value: string) => {
             updateMenuItem(menuType, item.day_of_week, field, value);
           };
+          
+          const handleNutritionCallback = (field: string) => (totals: NutritionTotals | null) => {
+            handleNutritionCalculated(menuType, item.day_of_week, field, totals);
+          };
+
+          // Get all meal texts for allergy checking
+          const allMealTexts = [
+            item.breakfast, item.morning_snack, item.lunch, 
+            item.bottle, item.snack, item.pre_dinner, item.dinner
+          ].filter(Boolean).join(', ');
 
           return (
             <Card 
@@ -423,16 +557,29 @@ export default function NutritionistDashboard() {
               }`}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <CardTitle className="text-lg flex items-center gap-2">
                     {dayNames[item.day_of_week - 1]}
                     <span className="text-sm font-normal text-muted-foreground">
                       ({format(dayDate, 'd/MM')})
                     </span>
                   </CardTitle>
-                  {hasContent && (
-                    <Check className={`w-5 h-5 text-${color}`} />
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Allergy alert badge */}
+                    <AllergyCheckBadge 
+                      mealText={allMealTexts} 
+                      childrenWithAllergies={childrenWithAllergies} 
+                    />
+                    {/* Day total calories */}
+                    {dayTotals && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary">
+                        {dayTotals.energy.toFixed(0)} kcal
+                      </Badge>
+                    )}
+                    {hasContent && (
+                      <Check className={`w-5 h-5 text-${color}`} />
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-4">
@@ -448,6 +595,7 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onNutritionCalculated={handleNutritionCallback('breakfast')}
                 />
                 
                 <MealField
@@ -462,6 +610,7 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onNutritionCalculated={handleNutritionCallback('morning_snack')}
                 />
                 
                 <MealField
@@ -476,6 +625,7 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onNutritionCalculated={handleNutritionCallback('lunch')}
                 />
                 
                 {isBercario && (
@@ -491,6 +641,7 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    onNutritionCalculated={handleNutritionCallback('bottle')}
                   />
                 )}
                 
@@ -506,6 +657,7 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onNutritionCalculated={handleNutritionCallback('snack')}
                 />
                 
                 {isBercario && (
@@ -521,6 +673,7 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    onNutritionCalculated={handleNutritionCallback('pre_dinner')}
                   />
                 )}
                 
@@ -536,6 +689,7 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onNutritionCalculated={handleNutritionCallback('dinner')}
                 />
                 
                 <div className="space-y-2">
@@ -567,6 +721,12 @@ export default function NutritionistDashboard() {
           Painel da Nutricionista
         </p>
       </div>
+
+      {/* Today Overview Widget */}
+      <TodayOverviewWidget 
+        todayNutrition={todayNutrition}
+        childrenWithAllergies={stats.childrenWithAllergies}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
@@ -707,6 +867,12 @@ export default function NutritionistDashboard() {
                 weekStart={weekStart} 
                 disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
               />
+              <SimplifiedNutritionPdf
+                weekStart={weekStart}
+                nutritionData={pdfNutritionData}
+                menuType={activeMenuTab}
+                disabled={loading}
+              />
             </div>
           </div>
 
@@ -731,6 +897,9 @@ export default function NutritionistDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Weekly Nutrition Summary */}
+          <WeeklyNutritionSummary weeklyData={weeklyNutritionData} />
 
           {/* Menu Type Tabs - Now with 3 tabs */}
           {loading ? (
