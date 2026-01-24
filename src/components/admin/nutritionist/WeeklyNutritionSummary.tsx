@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
 import { BarChart3, TrendingUp, AlertCircle } from "lucide-react";
 
 interface NutritionTotals {
@@ -31,7 +30,7 @@ const dayShortNames = ["Seg", "Ter", "Qua", "Qui", "Sex"];
 
 // PNAE recommendations for children 1-3 years (reference)
 const PNAE_TARGETS = {
-  energy: 450, // 30% of daily 1500kcal
+  energy: 450,
   protein: 12,
   carbohydrate: 58,
   lipid: 15,
@@ -74,12 +73,6 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
     iron: weeklyTotals.iron / weeklyTotals.count,
   } : null;
 
-  const chartConfig = {
-    protein: { label: "Proteínas", color: "hsl(var(--pimpo-blue))" },
-    carbohydrate: { label: "Carboidratos", color: "hsl(var(--pimpo-yellow))" },
-    lipid: { label: "Lipídios", color: "hsl(var(--pimpo-purple))" },
-  };
-
   const getStatusColor = (value: number, target: number) => {
     const ratio = value / target;
     if (ratio >= 0.9 && ratio <= 1.1) return "text-pimpo-green";
@@ -87,8 +80,32 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
     return "text-pimpo-red";
   };
 
+  // Custom tooltip component
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload || !payload.length) return null;
+    
+    return (
+      <div className="bg-background border border-border rounded-lg shadow-lg p-2 text-xs z-50">
+        <p className="font-semibold mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center gap-2">
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: entry.fill }}
+            />
+            <span className="text-muted-foreground">
+              {entry.dataKey === 'protein' ? 'Proteínas' : 
+               entry.dataKey === 'carbohydrate' ? 'Carboidratos' : 'Lipídios'}:
+            </span>
+            <span className="font-medium">{entry.value.toFixed(1)}g</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <Card className="overflow-visible">
+    <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-primary" />
@@ -96,66 +113,42 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Energy Bar Chart */}
-        <div className="h-48 w-full">
-          <ChartContainer config={chartConfig}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={2} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                <XAxis 
-                  dataKey="day" 
-                  tick={{ fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  width={30}
-                />
-                <ChartTooltip 
-                  content={<ChartTooltipContent />}
-                  formatter={(value: number, name: string) => {
-                    if (name === 'protein' || name === 'carbohydrate' || name === 'lipid') {
-                      return `${value.toFixed(1)}g`;
-                    }
-                    return value.toFixed(1);
-                  }}
-                  wrapperStyle={{ zIndex: 1000, pointerEvents: 'none' }}
-                  cursor={{ fill: 'hsl(var(--muted))' }}
-                />
-                <Bar dataKey="protein" stackId="a" radius={[0, 0, 0, 0]}>
-                  {chartData.map((_, index) => (
-                    <Cell key={`protein-${index}`} fill="hsl(var(--pimpo-blue))" />
-                  ))}
-                </Bar>
-                <Bar dataKey="carbohydrate" stackId="a" radius={[0, 0, 0, 0]}>
-                  {chartData.map((_, index) => (
-                    <Cell key={`carb-${index}`} fill="hsl(var(--pimpo-yellow))" />
-                  ))}
-                </Bar>
-                <Bar dataKey="lipid" stackId="a" radius={[4, 4, 0, 0]}>
-                  {chartData.map((_, index) => (
-                    <Cell key={`lipid-${index}`} fill="hsl(var(--pimpo-purple))" />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
+        {/* Chart container with fixed height */}
+        <div style={{ width: '100%', height: 180, position: 'relative' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} barGap={2} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+              <XAxis 
+                dataKey="day" 
+                tick={{ fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis 
+                tick={{ fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                width={35}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="protein" stackId="a" radius={[0, 0, 0, 0]} fill="hsl(210, 80%, 45%)" />
+              <Bar dataKey="carbohydrate" stackId="a" radius={[0, 0, 0, 0]} fill="hsl(45, 95%, 55%)" />
+              <Bar dataKey="lipid" stackId="a" radius={[4, 4, 0, 0]} fill="hsl(270, 60%, 55%)" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Legend */}
         <div className="flex justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-pimpo-blue" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(210, 80%, 45%)' }} />
             <span>Proteínas</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-pimpo-yellow" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(45, 95%, 55%)' }} />
             <span>Carboidratos</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-pimpo-purple" />
+            <div className="w-3 h-3 rounded" style={{ backgroundColor: 'hsl(270, 60%, 55%)' }} />
             <span>Lipídios</span>
           </div>
         </div>
