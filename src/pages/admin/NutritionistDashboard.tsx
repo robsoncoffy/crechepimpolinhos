@@ -29,6 +29,7 @@ import {
   Calendar,
   MessageSquare,
   DollarSign,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -92,6 +93,7 @@ export default function NutritionistDashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [generatingDay, setGeneratingDay] = useState<number | null>(null);
   
   // Nutrition tracking state
   const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
@@ -517,6 +519,81 @@ export default function NutritionistDashboard() {
     }
   };
 
+  // Generate AI menu suggestion for a specific day
+  const generateDayMenu = async (dayOfWeek: number, menuType: MenuType) => {
+    setGeneratingDay(dayOfWeek);
+    try {
+      // Get previous menus for context
+      const currentItems = menuType === 'bercario_0_6' ? bercario06Items 
+        : menuType === 'bercario_6_24' ? bercario624Items 
+        : maternalItems;
+      
+      const previousMenus = currentItems
+        .filter(item => item.day_of_week !== dayOfWeek && (item.breakfast || item.lunch))
+        .map(item => ({
+          day: dayNames[item.day_of_week - 1],
+          breakfast: item.breakfast,
+          lunch: item.lunch,
+          snack: item.snack,
+        }));
+
+      const { data, error } = await supabase.functions.invoke('suggest-daily-menu', {
+        body: { menuType, dayOfWeek, previousMenus }
+      });
+
+      if (error) throw error;
+
+      if (data?.suggestion) {
+        const suggestion = data.suggestion;
+        
+        // Update each field from the suggestion
+        if (suggestion.breakfast) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast', suggestion.breakfast);
+        }
+        if (suggestion.breakfast_time) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast_time', suggestion.breakfast_time);
+        }
+        if (suggestion.morning_snack) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack', suggestion.morning_snack);
+        }
+        if (suggestion.morning_snack_time) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack_time', suggestion.morning_snack_time);
+        }
+        if (suggestion.lunch) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch', suggestion.lunch);
+        }
+        if (suggestion.lunch_time) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch_time', suggestion.lunch_time);
+        }
+        if (suggestion.bottle) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle', suggestion.bottle);
+        }
+        if (suggestion.bottle_time) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle_time', suggestion.bottle_time);
+        }
+        if (suggestion.snack) {
+          updateMenuItem(menuType, dayOfWeek, 'snack', suggestion.snack);
+        }
+        if (suggestion.snack_time) {
+          updateMenuItem(menuType, dayOfWeek, 'snack_time', suggestion.snack_time);
+        }
+        if (suggestion.dinner) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner', suggestion.dinner);
+        }
+        if (suggestion.dinner_time) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner_time', suggestion.dinner_time);
+        }
+
+        toast.success(`Cardápio de ${dayNames[dayOfWeek - 1]} gerado com sucesso!`);
+      }
+    } catch (error) {
+      console.error('Error generating menu:', error);
+      toast.error('Erro ao gerar sugestão. Tente novamente.');
+    } finally {
+      setGeneratingDay(null);
+    }
+  };
+
   const renderMenuForm = (items: MenuItem[], menuType: MenuType) => {
     const color = getMenuTypeColor(menuType);
     const isBercario = menuType !== 'maternal';
@@ -565,6 +642,21 @@ export default function NutritionistDashboard() {
                     </span>
                   </CardTitle>
                   <div className="flex items-center gap-2">
+                    {/* AI Generate button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateDayMenu(item.day_of_week, menuType)}
+                      disabled={generatingDay === item.day_of_week}
+                      className="gap-1 text-xs h-7"
+                    >
+                      {generatingDay === item.day_of_week ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3" />
+                      )}
+                      <span className="hidden sm:inline">IA</span>
+                    </Button>
                     {/* Allergy alert badge */}
                     <AllergyCheckBadge 
                       mealText={allMealTexts} 
