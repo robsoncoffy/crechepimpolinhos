@@ -182,24 +182,32 @@ export default function NutritionistDashboard() {
               item.day_of_week === dayOfWeek && item.menu_type === dbMenuType
             );
             if (existing) {
+              const existingAny = existing as any;
               return {
                 id: existing.id,
                 week_start: existing.week_start,
                 day_of_week: existing.day_of_week,
                 breakfast: existing.breakfast || '',
                 breakfast_time: existing.breakfast_time || defaultBreakfastTime,
+                breakfast_qty: existingAny.breakfast_qty || '',
                 morning_snack: existing.morning_snack || '',
                 morning_snack_time: existing.morning_snack_time || '09:30',
+                morning_snack_qty: existingAny.morning_snack_qty || '',
                 lunch: existing.lunch || '',
                 lunch_time: existing.lunch_time || defaultLunchTime,
+                lunch_qty: existingAny.lunch_qty || '',
                 bottle: existing.bottle || '',
                 bottle_time: existing.bottle_time || '13:00',
+                bottle_qty: existingAny.bottle_qty || '',
                 snack: existing.snack || '',
                 snack_time: existing.snack_time || defaultSnackTime,
+                snack_qty: existingAny.snack_qty || '',
                 pre_dinner: existing.pre_dinner || '',
                 pre_dinner_time: existing.pre_dinner_time || '16:30',
+                pre_dinner_qty: existingAny.pre_dinner_qty || '',
                 dinner: existing.dinner || '',
                 dinner_time: existing.dinner_time || defaultDinnerTime,
+                dinner_qty: existingAny.dinner_qty || '',
                 notes: existing.notes || '',
                 menu_type: menuType
               };
@@ -342,24 +350,32 @@ export default function NutritionistDashboard() {
           const existing = filteredData.find(item => item.day_of_week === dayOfWeek);
           const currentItem = currentItems.find(b => b.day_of_week === dayOfWeek);
           if (existing) {
+            const existingAny = existing as any;
             return {
               id: currentItem?.id,
               week_start: weekStartStr,
               day_of_week: dayOfWeek,
               breakfast: existing.breakfast || '',
               breakfast_time: existing.breakfast_time || '07:30',
+              breakfast_qty: existingAny.breakfast_qty || '',
               morning_snack: existing.morning_snack || '',
               morning_snack_time: existing.morning_snack_time || '09:30',
+              morning_snack_qty: existingAny.morning_snack_qty || '',
               lunch: existing.lunch || '',
               lunch_time: existing.lunch_time || '11:00',
+              lunch_qty: existingAny.lunch_qty || '',
               bottle: existing.bottle || '',
               bottle_time: existing.bottle_time || '13:00',
+              bottle_qty: existingAny.bottle_qty || '',
               snack: existing.snack || '',
               snack_time: existing.snack_time || '15:00',
+              snack_qty: existingAny.snack_qty || '',
               pre_dinner: existing.pre_dinner || '',
               pre_dinner_time: existing.pre_dinner_time || '16:30',
+              pre_dinner_qty: existingAny.pre_dinner_qty || '',
               dinner: existing.dinner || '',
               dinner_time: existing.dinner_time || '17:30',
+              dinner_qty: existingAny.dinner_qty || '',
               notes: existing.notes || '',
               menu_type: menuType
             };
@@ -680,13 +696,16 @@ export default function NutritionistDashboard() {
                   label="Café da Manhã"
                   value={item.breakfast}
                   timeValue={item.breakfast_time}
+                  qtyValue={item.breakfast_qty}
                   field="breakfast"
                   timeField="breakfast_time"
+                  qtyField="breakfast_qty"
                   placeholder={menuType === 'bercario_0_6' ? "Leite materno, fórmula..." : "Descreva o café da manhã..."}
                   menuType={menuType}
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onQtyChange={handleValueChange}
                   onNutritionCalculated={handleNutritionCallback('breakfast')}
                 />
                 
@@ -695,13 +714,16 @@ export default function NutritionistDashboard() {
                   label="Lanche da Manhã"
                   value={item.morning_snack}
                   timeValue={item.morning_snack_time}
+                  qtyValue={item.morning_snack_qty}
                   field="morning_snack"
                   timeField="morning_snack_time"
+                  qtyField="morning_snack_qty"
                   placeholder={menuType === 'bercario_0_6' ? "Papinha, fruta amassada..." : "Descreva o lanche da manhã..."}
                   menuType={menuType}
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onQtyChange={handleValueChange}
                   onNutritionCalculated={handleNutritionCallback('morning_snack')}
                 />
                 
@@ -710,13 +732,16 @@ export default function NutritionistDashboard() {
                   label="Almoço"
                   value={item.lunch}
                   timeValue={item.lunch_time}
+                  qtyValue={item.lunch_qty}
                   field="lunch"
                   timeField="lunch_time"
+                  qtyField="lunch_qty"
                   placeholder={menuType === 'bercario_0_6' ? "Papinha salgada, sopinha..." : "Descreva o almoço..."}
                   menuType={menuType}
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onQtyChange={handleValueChange}
                   onNutritionCalculated={handleNutritionCallback('lunch')}
                 />
                 
@@ -726,13 +751,16 @@ export default function NutritionistDashboard() {
                     label="Mamadeira"
                     value={item.bottle}
                     timeValue={item.bottle_time}
+                    qtyValue={item.bottle_qty}
                     field="bottle"
                     timeField="bottle_time"
+                    qtyField="bottle_qty"
                     placeholder="Fórmula/Leite..."
                     menuType={menuType}
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    onQtyChange={handleValueChange}
                     onNutritionCalculated={handleNutritionCallback('bottle')}
                   />
                 )}
@@ -742,13 +770,16 @@ export default function NutritionistDashboard() {
                   label="Lanche da Tarde"
                   value={item.snack}
                   timeValue={item.snack_time}
+                  qtyValue={item.snack_qty}
                   field="snack"
                   timeField="snack_time"
+                  qtyField="snack_qty"
                   placeholder={menuType === 'bercario_0_6' ? "Fruta amassada, vitamina..." : "Descreva o lanche da tarde..."}
                   menuType={menuType}
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onQtyChange={handleValueChange}
                   onNutritionCalculated={handleNutritionCallback('snack')}
                 />
                 
@@ -758,13 +789,16 @@ export default function NutritionistDashboard() {
                     label="Pré-Janta"
                     value={item.pre_dinner}
                     timeValue={item.pre_dinner_time}
+                    qtyValue={item.pre_dinner_qty}
                     field="pre_dinner"
                     timeField="pre_dinner_time"
+                    qtyField="pre_dinner_qty"
                     placeholder="Papa de frutas, vitamina..."
                     menuType={menuType}
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    onQtyChange={handleValueChange}
                     onNutritionCalculated={handleNutritionCallback('pre_dinner')}
                   />
                 )}
@@ -774,13 +808,16 @@ export default function NutritionistDashboard() {
                   label="Jantar"
                   value={item.dinner}
                   timeValue={item.dinner_time}
+                  qtyValue={item.dinner_qty}
                   field="dinner"
                   timeField="dinner_time"
+                  qtyField="dinner_qty"
                   placeholder={menuType === 'bercario_0_6' ? "Papinha, sopinha..." : "Descreva o jantar..."}
                   menuType={menuType}
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  onQtyChange={handleValueChange}
                   onNutritionCalculated={handleNutritionCallback('dinner')}
                 />
                 
