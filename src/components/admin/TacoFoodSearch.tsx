@@ -154,7 +154,7 @@ export function TacoFoodSearch({ selectedFoods, onFoodsChange }: TacoFoodSearchP
                 key={food.id}
                 className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg"
               >
-                <Apple className="w-4 h-4 text-green-600 flex-shrink-0" />
+                <Apple className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{food.description}</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -204,33 +204,33 @@ export function TacoFoodSearch({ selectedFoods, onFoodsChange }: TacoFoodSearchP
 
       {/* Nutritional Summary */}
       {selectedFoods.length > 0 && (
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/30">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-800 dark:text-green-200">
+            <CardTitle className="text-sm font-medium text-primary">
               Resumo Nutricional da Refeição
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-              <div className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+              <div className="text-center p-2 bg-background/60 rounded">
                 <p className="text-xs text-muted-foreground">Energia</p>
-                <p className="font-bold text-amber-600">{totals.energy.toFixed(1)} kcal</p>
+                <p className="font-bold text-accent-foreground">{totals.energy.toFixed(1)} kcal</p>
               </div>
-              <div className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+              <div className="text-center p-2 bg-background/60 rounded">
                 <p className="text-xs text-muted-foreground">Proteínas</p>
-                <p className="font-bold text-red-600">{totals.protein.toFixed(1)} g</p>
+                <p className="font-bold text-destructive">{totals.protein.toFixed(1)} g</p>
               </div>
-              <div className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+              <div className="text-center p-2 bg-background/60 rounded">
                 <p className="text-xs text-muted-foreground">Carboidratos</p>
-                <p className="font-bold text-blue-600">{totals.carbohydrate.toFixed(1)} g</p>
+                <p className="font-bold text-primary">{totals.carbohydrate.toFixed(1)} g</p>
               </div>
-              <div className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+              <div className="text-center p-2 bg-background/60 rounded">
                 <p className="text-xs text-muted-foreground">Lipídios</p>
-                <p className="font-bold text-yellow-600">{totals.lipid.toFixed(1)} g</p>
+                <p className="font-bold text-secondary-foreground">{totals.lipid.toFixed(1)} g</p>
               </div>
-              <div className="text-center p-2 bg-white/60 dark:bg-black/20 rounded">
+              <div className="text-center p-2 bg-background/60 rounded">
                 <p className="text-xs text-muted-foreground">Fibras</p>
-                <p className="font-bold text-green-600">{totals.fiber.toFixed(1)} g</p>
+                <p className="font-bold text-primary">{totals.fiber.toFixed(1)} g</p>
               </div>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
