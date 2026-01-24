@@ -114,10 +114,14 @@ export const MealField = memo(function MealField({
   }, [onQtyChange, qtyField]);
 
   // Handle totals calculated from editor
-  const handleTotalsCalculated = useCallback((totals: NutritionTotals | null) => {
-    setNutritionTotals(totals);
-    onNutritionCalculated?.(totals, ingredients);
-  }, [onNutritionCalculated, ingredients]);
+  const handleTotalsCalculated = useCallback(
+    (totals: NutritionTotals | null, ingredientsFromEditor?: IngredientWithNutrition[]) => {
+      setNutritionTotals(totals);
+      // Use the fresh ingredient list coming from the editor (prevents setState race)
+      onNutritionCalculated?.(totals, ingredientsFromEditor ?? ingredients);
+    },
+    [onNutritionCalculated, ingredients]
+  );
 
   return (
     <div className="space-y-2">
