@@ -88,7 +88,6 @@ export const MealField = memo(function MealField({
   const [nutritionTotals, setNutritionTotals] = useState<NutritionTotals | null>(null);
   const [foodCount, setFoodCount] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const lastValueRef = useRef<string>('');
   
   const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
     breakfast: "breakfast",
@@ -120,43 +119,48 @@ export const MealField = memo(function MealField({
     onNutritionCalculated?.(result.totals);
   }, [parseNutrition, onNutritionCalculated]);
 
+  // Track if we've done the initial calculation
+  const hasCalculatedRef = useRef(false);
+  const previousValueRef = useRef<string>('');
+
+  // Calculate nutrition - handles both user typing (debounced) and initial load
   useEffect(() => {
-    // Skip if value hasn't changed
-    if (lastValueRef.current === value) return;
-    lastValueRef.current = value;
+    // If value is the same, skip
+    if (previousValueRef.current === value) return;
+    
+    const previousValue = previousValueRef.current;
+    previousValueRef.current = value;
 
     // Clear previous debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // Debounce the calculation (800ms after user stops typing)
-    debounceRef.current = setTimeout(() => {
+    // If this is the first time we're seeing a value with content (initial load from DB)
+    const isInitialLoad = !hasCalculatedRef.current && value && value.trim().length >= 3;
+    
+    if (isInitialLoad) {
+      // Calculate immediately for initial load
+      hasCalculatedRef.current = true;
       calculateNutrition(value);
-    }, 800);
+    } else if (value && value.trim().length >= 3) {
+      // Debounce for user typing
+      debounceRef.current = setTimeout(() => {
+        calculateNutrition(value);
+      }, 800);
+    } else if (!value || value.trim().length < 3) {
+      // Clear nutrition if text is too short
+      setNutritionTotals(null);
+      setFoodCount(0);
+      onNutritionCalculated?.(null);
+    }
 
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [value, calculateNutrition]);
-
-  // Calculate on mount or when value is loaded from database
-  const initialValueRef = useRef<string | null>(null);
-  
-  useEffect(() => {
-    // Only trigger if value changed from empty/null to having content
-    // This handles loading data from the database
-    if (value && value.trim().length >= 3 && initialValueRef.current !== value) {
-      if (initialValueRef.current === null || initialValueRef.current === '') {
-        calculateNutrition(value);
-      }
-      initialValueRef.current = value;
-    } else if (!value || value.trim().length < 3) {
-      initialValueRef.current = value || '';
-    }
-  }, [value, calculateNutrition]);
+  }, [value, calculateNutrition, onNutritionCalculated]);
 
   return (
     <div className="space-y-2">
