@@ -49,23 +49,25 @@ REGRAS IMPORTANTES:
 4. Considere a faixa etária e textura adequada dos alimentos
 5. Evite alimentos ultraprocessados
 6. Inclua proteínas, carboidratos, vitaminas e minerais de forma equilibrada
+7. SEMPRE inclua as quantidades em gramas/ml para cada alimento (ex: "Arroz integral (80g), feijão carioca (60g), frango desfiado (50g)")
 
 Retorne APENAS um JSON válido no formato:
 {
-  "breakfast": "descrição do café da manhã",
+  "breakfast": "descrição com quantidades em gramas",
   "breakfast_time": "07:30",
-  "morning_snack": "descrição do lanche da manhã",
+  "morning_snack": "descrição com quantidades em gramas",
   "morning_snack_time": "09:30",
-  "lunch": "descrição do almoço",
+  "lunch": "descrição com quantidades em gramas",
   "lunch_time": "11:30",
-  "snack": "descrição do lanche da tarde",
+  "snack": "descrição com quantidades em gramas",
   "snack_time": "14:30",
-  "dinner": "descrição do jantar",
+  "dinner": "descrição com quantidades em gramas",
   "dinner_time": "17:00"
 }
 
-${menuType === 'bercario_0_6' ? 'Para bebês de 0-6 meses, use apenas "Leite materno" ou "Fórmula infantil" em todas as refeições.' : ''}
-${menuType === 'bercario_6_24' ? 'Adicione também "bottle": "Fórmula ou leite" e "bottle_time": "16:00" no JSON.' : ''}`;
+${menuType === 'bercario_0_6' ? 'Para bebês de 0-6 meses, use apenas "Leite materno (sob demanda)" ou "Fórmula infantil (120-180ml)" em todas as refeições, com as quantidades em ml.' : ''}
+${menuType === 'bercario_6_24' ? 'Para bebês de 6 meses a 2 anos, sugira papinhas, frutas amassadas/raspadas, sopinhas com legumes e proteínas bem cozidas. SEMPRE com quantidades (ex: "Papinha de banana (50g) com aveia (10g)", "Sopa de legumes com frango (100ml)"). Adicione também "bottle": "Fórmula ou leite (150ml)" e "bottle_time": "16:00" no JSON.' : ''}
+${menuType === 'maternal' ? 'Para crianças de 2 a 5 anos, sugira refeições completas e variadas com proteínas, carboidratos, legumes e frutas. SEMPRE com quantidades em gramas (ex: "Arroz (80g), feijão (60g), frango grelhado (50g), salada de alface (30g)").' : ''}`;
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
