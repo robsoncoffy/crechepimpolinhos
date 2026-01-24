@@ -53,7 +53,7 @@ interface MealFieldProps {
   dayOfWeek: number;
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
-  onNutritionCalculated?: (totals: NutritionTotals | null, foodCount: number) => void;
+  onNutritionCalculated?: (totals: NutritionTotals | null) => void;
 }
 
 // Memoized component to prevent unnecessary re-renders
@@ -97,14 +97,14 @@ export const MealField = memo(function MealField({
     if (mealText.trim().length < 3) {
       setNutritionTotals(null);
       setFoodCount(0);
-      onNutritionCalculated?.(null, 0);
+      onNutritionCalculated?.(null);
       return;
     }
 
     const result = await parseNutrition(mealText);
     setNutritionTotals(result.totals);
     setFoodCount(result.foods?.length || 0);
-    onNutritionCalculated?.(result.totals, result.foods?.length || 0);
+    onNutritionCalculated?.(result.totals);
   }, [parseNutrition, onNutritionCalculated]);
 
   useEffect(() => {
