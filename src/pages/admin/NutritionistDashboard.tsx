@@ -363,8 +363,12 @@ export default function NutritionistDashboard() {
     return hasAnyData ? totals : null;
   }, [nutritionByMeal]);
 
-  // Get today's nutrition for the active menu type
-  const todayNutrition = getDayTotals(activeMenuTab, todayDayOfWeek);
+  // Get consolidated nutrition for all menu types for today
+  const consolidatedNutrition = {
+    bercario_0_6: getDayTotals('bercario_0_6', todayDayOfWeek),
+    bercario_6_24: getDayTotals('bercario_6_24', todayDayOfWeek),
+    maternal: getDayTotals('maternal', todayDayOfWeek),
+  };
 
   // Get weekly nutrition data for the active menu type
   const weeklyNutritionData = [1, 2, 3, 4, 5].map(day => ({
@@ -960,11 +964,10 @@ export default function NutritionistDashboard() {
         </p>
       </div>
 
-      {/* Today Overview Widget */}
+      {/* Today Overview Widget - Consolidated */}
       <TodayOverviewWidget 
-        todayNutrition={todayNutrition}
+        consolidatedNutrition={consolidatedNutrition}
         childrenWithAllergies={stats.childrenWithAllergies}
-        menuType={activeMenuTab}
       />
 
       {/* Stats Grid */}
