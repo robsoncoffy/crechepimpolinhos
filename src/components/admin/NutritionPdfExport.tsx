@@ -286,7 +286,7 @@ export function NutritionPdfExport({
       size="sm"
       onClick={exportPdf}
       disabled={disabled}
-      className="border-green-500 text-green-600 hover:bg-green-50"
+      className="border-primary text-primary hover:bg-primary/10"
     >
       <FileDown className="w-4 h-4 mr-1" />
       PDF Nutricional
