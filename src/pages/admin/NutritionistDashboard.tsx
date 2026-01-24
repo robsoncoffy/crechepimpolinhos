@@ -29,7 +29,7 @@ import {
   Calendar,
   MessageSquare,
   DollarSign,
-  Salad,
+  
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -39,7 +39,7 @@ import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
-import { TacoFoodSearch } from "@/components/admin/TacoFoodSearch";
+
 import { NutritionPdfExport } from "@/components/admin/NutritionPdfExport";
 import { TacoFood } from "@/hooks/useTacoSearch";
 import {
@@ -53,11 +53,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
 type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 
@@ -89,7 +84,7 @@ export default function NutritionistDashboard() {
     bercario_6_24: {},
     maternal: {},
   });
-  const [expandedNutrition, setExpandedNutrition] = useState<Record<string, boolean>>({});
+  
   const [stats, setStats] = useState({
     childrenWithAllergies: 0,
     menuDaysConfigured: 0,
@@ -443,8 +438,6 @@ export default function NutritionistDashboard() {
           const dayDate = addDays(weekStart, item.day_of_week - 1);
           const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
                             item.morning_snack || item.bottle || item.pre_dinner;
-          const nutritionKey = `${menuType}-${item.day_of_week}`;
-          const isNutritionExpanded = expandedNutrition[nutritionKey];
 
           const handleValueChange = (field: keyof MenuItem, value: string) => {
             updateMenuItem(menuType, item.day_of_week, field, value);
@@ -489,6 +482,8 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.breakfast || []}
+                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'breakfast', foods)}
                 />
                 
                 <MealField
@@ -503,6 +498,8 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.morning_snack || []}
+                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'morning_snack', foods)}
                 />
                 
                 <MealField
@@ -517,6 +514,8 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.lunch || []}
+                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'lunch', foods)}
                 />
                 
                 {isBercario && (
@@ -532,6 +531,8 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.bottle || []}
+                    onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'bottle', foods)}
                   />
                 )}
                 
@@ -547,6 +548,8 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.snack || []}
+                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'snack', foods)}
                 />
                 
                 {isBercario && (
@@ -562,6 +565,8 @@ export default function NutritionistDashboard() {
                     dayOfWeek={item.day_of_week}
                     onValueChange={handleValueChange}
                     onTimeChange={handleTimeChange}
+                    selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.pre_dinner || []}
+                    onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'pre_dinner', foods)}
                   />
                 )}
                 
@@ -577,6 +582,8 @@ export default function NutritionistDashboard() {
                   dayOfWeek={item.day_of_week}
                   onValueChange={handleValueChange}
                   onTimeChange={handleTimeChange}
+                  selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.dinner || []}
+                  onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'dinner', foods)}
                 />
                 
                 <div className="space-y-2">
@@ -588,33 +595,6 @@ export default function NutritionistDashboard() {
                     rows={2}
                   />
                 </div>
-
-                {/* Nutritional Analysis Section */}
-                <Collapsible
-                  open={isNutritionExpanded}
-                  onOpenChange={(open) => setExpandedNutrition(prev => ({ ...prev, [nutritionKey]: open }))}
-                >
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between" size="sm">
-                      <span className="flex items-center gap-2">
-                        <Salad className="w-4 h-4" />
-                        Análise Nutricional (TACO)
-                      </span>
-                      <Badge variant="secondary" className="text-xs">
-                        {isNutritionExpanded ? 'Recolher' : 'Expandir'}
-                      </Badge>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-4 space-y-4">
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Busque alimentos na Tabela TACO para calcular os valores nutricionais desta refeição.
-                    </div>
-                    <TacoFoodSearch
-                      selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.lunch || []}
-                      onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'lunch', foods)}
-                    />
-                  </CollapsibleContent>
-                </Collapsible>
               </CardContent>
             </Card>
           );

@@ -34,7 +34,8 @@ interface TacoSearchResult {
   getFoodById: (id: number) => Promise<TacoFood | null>;
 }
 
-const TACO_API_BASE = 'https://taco-api.netlify.app/api/v1';
+// Use Edge Function proxy to avoid CORS issues
+const TACO_PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/taco-proxy`;
 
 export function useTacoSearch(): TacoSearchResult {
   const [foods, setFoods] = useState<TacoFood[]>([]);
@@ -51,7 +52,7 @@ export function useTacoSearch(): TacoSearchResult {
     setError(null);
 
     try {
-      const response = await fetch(`${TACO_API_BASE}/foods/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${TACO_PROXY_URL}?action=search&q=${encodeURIComponent(query)}`);
       
       if (!response.ok) {
         throw new Error('Erro ao buscar alimentos');
@@ -70,7 +71,7 @@ export function useTacoSearch(): TacoSearchResult {
 
   const getFoodById = useCallback(async (id: number): Promise<TacoFood | null> => {
     try {
-      const response = await fetch(`${TACO_API_BASE}/foods/${id}`);
+      const response = await fetch(`${TACO_PROXY_URL}?action=get&id=${id}`);
       
       if (!response.ok) {
         throw new Error('Alimento não encontrado');
