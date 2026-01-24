@@ -115,7 +115,13 @@ export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryPro
                 />
                 <ChartTooltip 
                   content={<ChartTooltipContent />}
-                  formatter={(value: number) => `${value.toFixed(1)}g`}
+                formatter={(value: number, name: string) => {
+                  // Format based on metric type
+                  if (name === 'protein' || name === 'carbohydrate' || name === 'lipid') {
+                    return `${value.toFixed(1)}g`;
+                  }
+                  return value.toFixed(1);
+                }}
                   wrapperStyle={{ zIndex: 50 }}
                 />
                 <Bar dataKey="protein" stackId="a" radius={[0, 0, 0, 0]}>

@@ -67,6 +67,8 @@ export default {
           "yellow-light": "hsl(var(--pimpo-yellow-light))",
           green: "hsl(var(--pimpo-green))",
           "green-light": "hsl(var(--pimpo-green-light))",
+          purple: "hsl(var(--pimpo-purple))",
+          "purple-light": "hsl(var(--pimpo-purple-light))",
         },
       },
       fontFamily: {
