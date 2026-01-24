@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,22 +23,25 @@ import {
   Baby,
   Users,
   Copy,
-  Clock,
   Milk,
   Apple,
   AlertTriangle,
   Calendar,
   MessageSquare,
   DollarSign,
+  Salad,
 } from "lucide-react";
 import { toast } from "sonner";
-import { MealSuggestions } from "@/components/admin/MealSuggestions";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
+import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
+import { TacoFoodSearch } from "@/components/admin/TacoFoodSearch";
+import { NutritionPdfExport } from "@/components/admin/NutritionPdfExport";
+import { TacoFood } from "@/hooks/useTacoSearch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,51 +53,23 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
-interface MenuItem {
-  id?: string;
-  week_start: string;
-  day_of_week: number;
-  breakfast: string;
-  breakfast_time: string;
-  morning_snack: string;
-  morning_snack_time: string;
-  lunch: string;
-  lunch_time: string;
-  bottle: string;
-  bottle_time: string;
-  snack: string;
-  snack_time: string;
-  pre_dinner: string;
-  pre_dinner_time: string;
-  dinner: string;
-  dinner_time: string;
-  notes: string;
-  menu_type: 'bercario' | 'maternal';
+type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+
+interface SelectedFood extends TacoFood {
+  quantity: number;
 }
 
-const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
-
-const emptyMenuItem = (weekStart: string, dayOfWeek: number, menuType: 'bercario' | 'maternal'): MenuItem => ({
-  week_start: weekStart,
-  day_of_week: dayOfWeek,
-  breakfast: '',
-  breakfast_time: menuType === 'bercario' ? '07:30' : '08:00',
-  morning_snack: '',
-  morning_snack_time: '09:30',
-  lunch: '',
-  lunch_time: menuType === 'bercario' ? '11:00' : '11:30',
-  bottle: '',
-  bottle_time: '13:00',
-  snack: '',
-  snack_time: menuType === 'bercario' ? '15:00' : '15:30',
-  pre_dinner: '',
-  pre_dinner_time: '16:30',
-  dinner: '',
-  dinner_time: menuType === 'bercario' ? '17:30' : '18:00',
-  notes: '',
-  menu_type: menuType
-});
+interface MealNutritionData {
+  [dayOfWeek: number]: {
+    [mealField: string]: SelectedFood[];
+  };
+}
 
 export default function NutritionistDashboard() {
   const { profile } = useAuth();
@@ -104,12 +77,19 @@ export default function NutritionistDashboard() {
   const [weekStart, setWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
-  const [activeMenuTab, setActiveMenuTab] = useState<'bercario' | 'maternal'>('bercario');
-  const [bercarioItems, setBercarioItems] = useState<MenuItem[]>([]);
+  const [activeMenuTab, setActiveMenuTab] = useState<MenuType>('bercario_0_6');
+  const [bercario06Items, setBercario06Items] = useState<MenuItem[]>([]);
+  const [bercario624Items, setBercario624Items] = useState<MenuItem[]>([]);
   const [maternalItems, setMaternalItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [nutritionData, setNutritionData] = useState<Record<MenuType, MealNutritionData>>({
+    bercario_0_6: {},
+    bercario_6_24: {},
+    maternal: {},
+  });
+  const [expandedNutrition, setExpandedNutrition] = useState<Record<string, boolean>>({});
   const [stats, setStats] = useState({
     childrenWithAllergies: 0,
     menuDaysConfigured: 0,
@@ -138,7 +118,7 @@ export default function NutritionistDashboard() {
     fetchStats();
   }, []);
 
-  // Fetch menu
+  // Fetch menu - maps old database types to new UI types
   useEffect(() => {
     const fetchMenu = async () => {
       setLoading(true);
@@ -158,64 +138,51 @@ export default function NutritionistDashboard() {
         }
 
         // Create menu items for all 5 days for each type
-        const bercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-          const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'bercario');
-          if (existing) {
-            return {
-              id: existing.id,
-              week_start: existing.week_start,
-              day_of_week: existing.day_of_week,
-              breakfast: existing.breakfast || '',
-              breakfast_time: existing.breakfast_time || '07:30',
-              morning_snack: existing.morning_snack || '',
-              morning_snack_time: existing.morning_snack_time || '09:30',
-              lunch: existing.lunch || '',
-              lunch_time: existing.lunch_time || '11:00',
-              bottle: existing.bottle || '',
-              bottle_time: existing.bottle_time || '13:00',
-              snack: existing.snack || '',
-              snack_time: existing.snack_time || '15:00',
-              pre_dinner: existing.pre_dinner || '',
-              pre_dinner_time: existing.pre_dinner_time || '16:30',
-              dinner: existing.dinner || '',
-              dinner_time: existing.dinner_time || '17:30',
-              notes: existing.notes || '',
-              menu_type: 'bercario' as const
-            };
-          }
-          return emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
-        });
+        const createMenuItems = (
+          menuType: MenuType, 
+          dbMenuType: string,
+          defaultBreakfastTime: string,
+          defaultLunchTime: string,
+          defaultSnackTime: string,
+          defaultDinnerTime: string
+        ): MenuItem[] => {
+          return [1, 2, 3, 4, 5].map(dayOfWeek => {
+            const existing = data?.find(item => 
+              item.day_of_week === dayOfWeek && item.menu_type === dbMenuType
+            );
+            if (existing) {
+              return {
+                id: existing.id,
+                week_start: existing.week_start,
+                day_of_week: existing.day_of_week,
+                breakfast: existing.breakfast || '',
+                breakfast_time: existing.breakfast_time || defaultBreakfastTime,
+                morning_snack: existing.morning_snack || '',
+                morning_snack_time: existing.morning_snack_time || '09:30',
+                lunch: existing.lunch || '',
+                lunch_time: existing.lunch_time || defaultLunchTime,
+                bottle: existing.bottle || '',
+                bottle_time: existing.bottle_time || '13:00',
+                snack: existing.snack || '',
+                snack_time: existing.snack_time || defaultSnackTime,
+                pre_dinner: existing.pre_dinner || '',
+                pre_dinner_time: existing.pre_dinner_time || '16:30',
+                dinner: existing.dinner || '',
+                dinner_time: existing.dinner_time || defaultDinnerTime,
+                notes: existing.notes || '',
+                menu_type: menuType
+              };
+            }
+            return emptyMenuItem(weekStartStr, dayOfWeek, menuType);
+          });
+        };
 
-        const maternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-          const existing = data?.find(item => item.day_of_week === dayOfWeek && item.menu_type === 'maternal');
-          if (existing) {
-            return {
-              id: existing.id,
-              week_start: existing.week_start,
-              day_of_week: existing.day_of_week,
-              breakfast: existing.breakfast || '',
-              breakfast_time: existing.breakfast_time || '08:00',
-              morning_snack: existing.morning_snack || '',
-              morning_snack_time: existing.morning_snack_time || '09:30',
-              lunch: existing.lunch || '',
-              lunch_time: existing.lunch_time || '11:30',
-              bottle: existing.bottle || '',
-              bottle_time: existing.bottle_time || '13:00',
-              snack: existing.snack || '',
-              snack_time: existing.snack_time || '15:30',
-              pre_dinner: existing.pre_dinner || '',
-              pre_dinner_time: existing.pre_dinner_time || '16:30',
-              dinner: existing.dinner || '',
-              dinner_time: existing.dinner_time || '18:00',
-              notes: existing.notes || '',
-              menu_type: 'maternal' as const
-            };
-          }
-          return emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
-        });
-
-        setBercarioItems(bercario);
-        setMaternalItems(maternal);
+        // Berçário 0-6 meses uses 'bercario' in the database
+        setBercario06Items(createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'));
+        // Berçário 6-24 meses also uses 'bercario' but we'll create separate entries
+        setBercario624Items(createMenuItems('bercario_6_24', 'bercario_6_24', '07:30', '11:00', '15:00', '17:30'));
+        // Maternal uses 'maternal' in the database
+        setMaternalItems(createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'));
       } catch (err) {
         console.error('Unexpected error fetching menu:', err);
         toast.error('Erro inesperado ao carregar cardápio');
@@ -230,8 +197,13 @@ export default function NutritionistDashboard() {
   const goToPreviousWeek = () => setWeekStart(subWeeks(weekStart, 1));
   const goToNextWeek = () => setWeekStart(addWeeks(weekStart, 1));
 
-  const updateMenuItem = (menuType: 'bercario' | 'maternal', dayOfWeek: number, field: keyof MenuItem, value: string) => {
-    const setItems = menuType === 'bercario' ? setBercarioItems : setMaternalItems;
+  const updateMenuItem = useCallback((menuType: MenuType, dayOfWeek: number, field: keyof MenuItem, value: string) => {
+    const setItems = menuType === 'bercario_0_6' 
+      ? setBercario06Items 
+      : menuType === 'bercario_6_24' 
+        ? setBercario624Items 
+        : setMaternalItems;
+    
     setItems(prev => 
       prev.map(item => 
         item.day_of_week === dayOfWeek 
@@ -239,7 +211,25 @@ export default function NutritionistDashboard() {
           : item
       )
     );
-  };
+  }, []);
+
+  const updateNutritionData = useCallback((
+    menuType: MenuType, 
+    dayOfWeek: number, 
+    mealField: string, 
+    foods: SelectedFood[]
+  ) => {
+    setNutritionData(prev => ({
+      ...prev,
+      [menuType]: {
+        ...prev[menuType],
+        [dayOfWeek]: {
+          ...(prev[menuType][dayOfWeek] || {}),
+          [mealField]: foods
+        }
+      }
+    }));
+  }, []);
 
   const copyFromPreviousWeek = async () => {
     setCopying(true);
@@ -260,67 +250,42 @@ export default function NutritionistDashboard() {
         return;
       }
 
-      const bercarioData = data.filter(item => item.menu_type === 'bercario');
-      const maternalData = data.filter(item => item.menu_type === 'maternal');
+      const copyMenuItems = (currentItems: MenuItem[], dbMenuType: string, menuType: MenuType): MenuItem[] => {
+        const filteredData = data.filter(item => item.menu_type === dbMenuType);
+        return [1, 2, 3, 4, 5].map(dayOfWeek => {
+          const existing = filteredData.find(item => item.day_of_week === dayOfWeek);
+          const currentItem = currentItems.find(b => b.day_of_week === dayOfWeek);
+          if (existing) {
+            return {
+              id: currentItem?.id,
+              week_start: weekStartStr,
+              day_of_week: dayOfWeek,
+              breakfast: existing.breakfast || '',
+              breakfast_time: existing.breakfast_time || '07:30',
+              morning_snack: existing.morning_snack || '',
+              morning_snack_time: existing.morning_snack_time || '09:30',
+              lunch: existing.lunch || '',
+              lunch_time: existing.lunch_time || '11:00',
+              bottle: existing.bottle || '',
+              bottle_time: existing.bottle_time || '13:00',
+              snack: existing.snack || '',
+              snack_time: existing.snack_time || '15:00',
+              pre_dinner: existing.pre_dinner || '',
+              pre_dinner_time: existing.pre_dinner_time || '16:30',
+              dinner: existing.dinner || '',
+              dinner_time: existing.dinner_time || '17:30',
+              notes: existing.notes || '',
+              menu_type: menuType
+            };
+          }
+          return currentItem || emptyMenuItem(weekStartStr, dayOfWeek, menuType);
+        });
+      };
 
-      const newBercario: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-        const existing = bercarioData.find(item => item.day_of_week === dayOfWeek);
-        if (existing) {
-          return {
-            id: bercarioItems.find(b => b.day_of_week === dayOfWeek)?.id,
-            week_start: weekStartStr,
-            day_of_week: dayOfWeek,
-            breakfast: existing.breakfast || '',
-            breakfast_time: existing.breakfast_time || '07:30',
-            morning_snack: existing.morning_snack || '',
-            morning_snack_time: existing.morning_snack_time || '09:30',
-            lunch: existing.lunch || '',
-            lunch_time: existing.lunch_time || '11:00',
-            bottle: existing.bottle || '',
-            bottle_time: existing.bottle_time || '13:00',
-            snack: existing.snack || '',
-            snack_time: existing.snack_time || '15:00',
-            pre_dinner: existing.pre_dinner || '',
-            pre_dinner_time: existing.pre_dinner_time || '16:30',
-            dinner: existing.dinner || '',
-            dinner_time: existing.dinner_time || '17:30',
-            notes: existing.notes || '',
-            menu_type: 'bercario' as const
-          };
-        }
-        return bercarioItems.find(b => b.day_of_week === dayOfWeek) || emptyMenuItem(weekStartStr, dayOfWeek, 'bercario');
-      });
-
-      const newMaternal: MenuItem[] = [1, 2, 3, 4, 5].map(dayOfWeek => {
-        const existing = maternalData.find(item => item.day_of_week === dayOfWeek);
-        if (existing) {
-          return {
-            id: maternalItems.find(m => m.day_of_week === dayOfWeek)?.id,
-            week_start: weekStartStr,
-            day_of_week: dayOfWeek,
-            breakfast: existing.breakfast || '',
-            breakfast_time: existing.breakfast_time || '08:00',
-            morning_snack: existing.morning_snack || '',
-            morning_snack_time: existing.morning_snack_time || '09:30',
-            lunch: existing.lunch || '',
-            lunch_time: existing.lunch_time || '11:30',
-            bottle: existing.bottle || '',
-            bottle_time: existing.bottle_time || '13:00',
-            snack: existing.snack || '',
-            snack_time: existing.snack_time || '15:30',
-            pre_dinner: existing.pre_dinner || '',
-            pre_dinner_time: existing.pre_dinner_time || '16:30',
-            dinner: existing.dinner || '',
-            dinner_time: existing.dinner_time || '18:00',
-            notes: existing.notes || '',
-            menu_type: 'maternal' as const
-          };
-        }
-        return maternalItems.find(m => m.day_of_week === dayOfWeek) || emptyMenuItem(weekStartStr, dayOfWeek, 'maternal');
-      });
-
-      setBercarioItems(newBercario);
-      setMaternalItems(newMaternal);
+      setBercario06Items(copyMenuItems(bercario06Items, 'bercario', 'bercario_0_6'));
+      setBercario624Items(copyMenuItems(bercario624Items, 'bercario_6_24', 'bercario_6_24'));
+      setMaternalItems(copyMenuItems(maternalItems, 'maternal', 'maternal'));
+      
       toast.success('Cardápio da semana anterior copiado! Não esqueça de salvar.');
     } catch (error) {
       console.error('Error copying menu:', error);
@@ -332,13 +297,21 @@ export default function NutritionistDashboard() {
 
   const handleSave = async () => {
     setSaving(true);
-    const allItems = [...bercarioItems, ...maternalItems];
+    const allItems = [...bercario06Items, ...bercario624Items, ...maternalItems];
     let hasErrors = false;
 
     try {
       for (const item of allItems) {
         const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
                           item.morning_snack || item.bottle || item.pre_dinner || item.notes;
+        
+        // Map UI menu type to database menu type
+        const dbMenuType = item.menu_type === 'bercario_0_6' 
+          ? 'bercario' 
+          : item.menu_type === 'bercario_6_24' 
+            ? 'bercario_6_24' 
+            : 'maternal';
+        
         if (!hasContent) {
           if (item.id) {
             const { error } = await supabase
@@ -372,7 +345,7 @@ export default function NutritionistDashboard() {
           dinner: item.dinner || null,
           dinner_time: item.dinner_time || null,
           notes: item.notes || null,
-          menu_type: item.menu_type
+          menu_type: dbMenuType
         };
 
         if (item.id) {
@@ -396,7 +369,11 @@ export default function NutritionistDashboard() {
             console.error('Error inserting menu item:', error);
             hasErrors = true;
           } else if (data) {
-            const updateFn = item.menu_type === 'bercario' ? setBercarioItems : setMaternalItems;
+            const updateFn = item.menu_type === 'bercario_0_6' 
+              ? setBercario06Items 
+              : item.menu_type === 'bercario_6_24'
+                ? setBercario624Items
+                : setMaternalItems;
             updateFn(prev => prev.map(prevItem => 
               prevItem.day_of_week === item.day_of_week && prevItem.menu_type === item.menu_type
                 ? { ...prevItem, id: data.id }
@@ -419,212 +396,245 @@ export default function NutritionistDashboard() {
     }
   };
 
-  const currentMenuItems = activeMenuTab === 'bercario' ? bercarioItems : maternalItems;
+  const getCurrentMenuItems = () => {
+    switch (activeMenuTab) {
+      case 'bercario_0_6':
+        return bercario06Items;
+      case 'bercario_6_24':
+        return bercario624Items;
+      case 'maternal':
+        return maternalItems;
+      default:
+        return [];
+    }
+  };
 
-  const MealField = ({ 
-    icon, 
-    label, 
-    value, 
-    timeValue, 
-    field, 
-    timeField, 
-    placeholder,
-    menuType,
-    dayOfWeek,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    value: string;
-    timeValue: string;
-    field: keyof MenuItem;
-    timeField: keyof MenuItem;
-    placeholder: string;
-    menuType: 'bercario' | 'maternal';
-    dayOfWeek: number;
-  }) => {
-    const mealTypeMap: Record<string, "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner"> = {
-      breakfast: "breakfast",
-      morning_snack: "morning_snack",
-      lunch: "lunch",
-      bottle: "bottle",
-      snack: "snack",
-      pre_dinner: "pre_dinner",
-      dinner: "dinner",
-    };
-    const mealType = mealTypeMap[field as string];
+  const currentMenuItems = getCurrentMenuItems();
 
+  const getMenuTypeLabel = (type: MenuType) => {
+    switch (type) {
+      case 'bercario_0_6':
+        return 'Berçário (0-6 meses)';
+      case 'bercario_6_24':
+        return 'Berçário (6m - 1a 11m)';
+      case 'maternal':
+        return 'Maternal / Jardim';
+    }
+  };
+
+  const getMenuTypeColor = (type: MenuType) => {
+    switch (type) {
+      case 'bercario_0_6':
+        return 'pimpo-blue';
+      case 'bercario_6_24':
+        return 'pimpo-purple';
+      case 'maternal':
+        return 'pimpo-green';
+    }
+  };
+
+  const renderMenuForm = (items: MenuItem[], menuType: MenuType) => {
+    const color = getMenuTypeColor(menuType);
+    const isBercario = menuType !== 'maternal';
+    
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <Label className="flex items-center gap-2 text-sm min-w-0">
-            {icon}
-            <span className="truncate">{label}</span>
-          </Label>
-          {mealType && (
-            <MealSuggestions
-              mealType={mealType}
-              menuType={menuType}
-              dayOfWeek={dayOfWeek}
-              onSelect={(suggestion) => updateMenuItem(menuType, dayOfWeek, field, suggestion)}
-            />
-          )}
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            value={value}
-            onChange={(e) => updateMenuItem(menuType, dayOfWeek, field, e.target.value)}
-            placeholder={placeholder}
-            className="flex-1 min-w-0"
-          />
-          <div className="relative flex-shrink-0">
-            <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              type="time"
-              value={timeValue}
-              onChange={(e) => updateMenuItem(menuType, dayOfWeek, timeField, e.target.value)}
-              className="w-full sm:w-24 pl-7 text-sm"
-            />
-          </div>
-        </div>
+      <div className="grid gap-6">
+        {items.map((item) => {
+          const dayDate = addDays(weekStart, item.day_of_week - 1);
+          const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
+                            item.morning_snack || item.bottle || item.pre_dinner;
+          const nutritionKey = `${menuType}-${item.day_of_week}`;
+          const isNutritionExpanded = expandedNutrition[nutritionKey];
+
+          const handleValueChange = (field: keyof MenuItem, value: string) => {
+            updateMenuItem(menuType, item.day_of_week, field, value);
+          };
+
+          const handleTimeChange = (field: keyof MenuItem, value: string) => {
+            updateMenuItem(menuType, item.day_of_week, field, value);
+          };
+
+          return (
+            <Card 
+              key={item.day_of_week}
+              className={`transition-all ${
+                hasContent 
+                  ? `border-${color}/30 bg-${color}/5`
+                  : ''
+              }`}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    {dayNames[item.day_of_week - 1]}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      ({format(dayDate, 'd/MM')})
+                    </span>
+                  </CardTitle>
+                  {hasContent && (
+                    <Check className={`w-5 h-5 text-${color}`} />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <MealField
+                  icon={<Coffee className="w-4 h-4 text-amber-600" />}
+                  label="Café da Manhã"
+                  value={item.breakfast}
+                  timeValue={item.breakfast_time}
+                  field="breakfast"
+                  timeField="breakfast_time"
+                  placeholder={menuType === 'bercario_0_6' ? "Leite materno, fórmula..." : "Descreva o café da manhã..."}
+                  menuType={menuType}
+                  dayOfWeek={item.day_of_week}
+                  onValueChange={handleValueChange}
+                  onTimeChange={handleTimeChange}
+                />
+                
+                <MealField
+                  icon={<Cookie className="w-4 h-4 text-orange-500" />}
+                  label="Lanche da Manhã"
+                  value={item.morning_snack}
+                  timeValue={item.morning_snack_time}
+                  field="morning_snack"
+                  timeField="morning_snack_time"
+                  placeholder={menuType === 'bercario_0_6' ? "Papinha, fruta amassada..." : "Descreva o lanche da manhã..."}
+                  menuType={menuType}
+                  dayOfWeek={item.day_of_week}
+                  onValueChange={handleValueChange}
+                  onTimeChange={handleTimeChange}
+                />
+                
+                <MealField
+                  icon={<Soup className="w-4 h-4 text-red-500" />}
+                  label="Almoço"
+                  value={item.lunch}
+                  timeValue={item.lunch_time}
+                  field="lunch"
+                  timeField="lunch_time"
+                  placeholder={menuType === 'bercario_0_6' ? "Papinha salgada, sopinha..." : "Descreva o almoço..."}
+                  menuType={menuType}
+                  dayOfWeek={item.day_of_week}
+                  onValueChange={handleValueChange}
+                  onTimeChange={handleTimeChange}
+                />
+                
+                {isBercario && (
+                  <MealField
+                    icon={<Milk className="w-4 h-4 text-blue-400" />}
+                    label="Mamadeira"
+                    value={item.bottle}
+                    timeValue={item.bottle_time}
+                    field="bottle"
+                    timeField="bottle_time"
+                    placeholder="Fórmula/Leite..."
+                    menuType={menuType}
+                    dayOfWeek={item.day_of_week}
+                    onValueChange={handleValueChange}
+                    onTimeChange={handleTimeChange}
+                  />
+                )}
+                
+                <MealField
+                  icon={<Apple className="w-4 h-4 text-green-500" />}
+                  label="Lanche da Tarde"
+                  value={item.snack}
+                  timeValue={item.snack_time}
+                  field="snack"
+                  timeField="snack_time"
+                  placeholder={menuType === 'bercario_0_6' ? "Fruta amassada, vitamina..." : "Descreva o lanche da tarde..."}
+                  menuType={menuType}
+                  dayOfWeek={item.day_of_week}
+                  onValueChange={handleValueChange}
+                  onTimeChange={handleTimeChange}
+                />
+                
+                {isBercario && (
+                  <MealField
+                    icon={<Cookie className="w-4 h-4 text-purple-500" />}
+                    label="Pré-Janta"
+                    value={item.pre_dinner}
+                    timeValue={item.pre_dinner_time}
+                    field="pre_dinner"
+                    timeField="pre_dinner_time"
+                    placeholder="Papa de frutas, vitamina..."
+                    menuType={menuType}
+                    dayOfWeek={item.day_of_week}
+                    onValueChange={handleValueChange}
+                    onTimeChange={handleTimeChange}
+                  />
+                )}
+                
+                <MealField
+                  icon={<Moon className="w-4 h-4 text-indigo-500" />}
+                  label="Jantar"
+                  value={item.dinner}
+                  timeValue={item.dinner_time}
+                  field="dinner"
+                  timeField="dinner_time"
+                  placeholder={menuType === 'bercario_0_6' ? "Papinha, sopinha..." : "Descreva o jantar..."}
+                  menuType={menuType}
+                  dayOfWeek={item.day_of_week}
+                  onValueChange={handleValueChange}
+                  onTimeChange={handleTimeChange}
+                />
+                
+                <div className="space-y-2">
+                  <Label className="text-sm">Observações</Label>
+                  <Textarea
+                    value={item.notes}
+                    onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'notes', e.target.value)}
+                    placeholder="Notas especiais, substituições, alertas de alergia..."
+                    rows={2}
+                  />
+                </div>
+
+                {/* Nutritional Analysis Section */}
+                <Collapsible
+                  open={isNutritionExpanded}
+                  onOpenChange={(open) => setExpandedNutrition(prev => ({ ...prev, [nutritionKey]: open }))}
+                >
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between" size="sm">
+                      <span className="flex items-center gap-2">
+                        <Salad className="w-4 h-4" />
+                        Análise Nutricional (TACO)
+                      </span>
+                      <Badge variant="secondary" className="text-xs">
+                        {isNutritionExpanded ? 'Recolher' : 'Expandir'}
+                      </Badge>
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-4">
+                    <div className="text-sm text-muted-foreground mb-2">
+                      Busque alimentos na Tabela TACO para calcular os valores nutricionais desta refeição.
+                    </div>
+                    <TacoFoodSearch
+                      selectedFoods={nutritionData[menuType]?.[item.day_of_week]?.lunch || []}
+                      onFoodsChange={(foods) => updateNutritionData(menuType, item.day_of_week, 'lunch', foods)}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     );
   };
 
-  const renderMenuForm = (items: MenuItem[], menuType: 'bercario' | 'maternal') => (
-    <div className="grid gap-6">
-      {items.map((item) => {
-        const dayDate = addDays(weekStart, item.day_of_week - 1);
-        const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
-                          item.morning_snack || item.bottle || item.pre_dinner;
-
-        return (
-          <Card 
-            key={item.day_of_week}
-            className={`transition-all ${
-              hasContent 
-                ? menuType === 'bercario' 
-                  ? 'border-pimpo-blue/30 bg-pimpo-blue/5' 
-                  : 'border-pimpo-green/30 bg-pimpo-green/5'
-                : ''
-            }`}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  {dayNames[item.day_of_week - 1]}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ({format(dayDate, 'd/MM')})
-                  </span>
-                </CardTitle>
-                {hasContent && (
-                  <Check className={`w-5 h-5 ${menuType === 'bercario' ? 'text-pimpo-blue' : 'text-pimpo-green'}`} />
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <MealField
-                icon={<Coffee className="w-4 h-4 text-amber-600" />}
-                label="Café da Manhã"
-                value={item.breakfast}
-                timeValue={item.breakfast_time}
-                field="breakfast"
-                timeField="breakfast_time"
-                placeholder="Descreva o café da manhã..."
-                menuType={menuType}
-                dayOfWeek={item.day_of_week}
-              />
-              
-              <MealField
-                icon={<Cookie className="w-4 h-4 text-orange-500" />}
-                label="Lanche da Manhã"
-                value={item.morning_snack}
-                timeValue={item.morning_snack_time}
-                field="morning_snack"
-                timeField="morning_snack_time"
-                placeholder="Descreva o lanche da manhã..."
-                menuType={menuType}
-                dayOfWeek={item.day_of_week}
-              />
-              
-              <MealField
-                icon={<Soup className="w-4 h-4 text-red-500" />}
-                label="Almoço"
-                value={item.lunch}
-                timeValue={item.lunch_time}
-                field="lunch"
-                timeField="lunch_time"
-                placeholder="Descreva o almoço..."
-                menuType={menuType}
-                dayOfWeek={item.day_of_week}
-              />
-              
-              {menuType === 'bercario' && (
-                <MealField
-                  icon={<Milk className="w-4 h-4 text-blue-400" />}
-                  label="Mamadeira"
-                  value={item.bottle}
-                  timeValue={item.bottle_time}
-                  field="bottle"
-                  timeField="bottle_time"
-                  placeholder="Fórmula/Leite..."
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                />
-              )}
-              
-              <MealField
-                icon={<Apple className="w-4 h-4 text-green-500" />}
-                label="Lanche da Tarde"
-                value={item.snack}
-                timeValue={item.snack_time}
-                field="snack"
-                timeField="snack_time"
-                placeholder="Descreva o lanche da tarde..."
-                menuType={menuType}
-                dayOfWeek={item.day_of_week}
-              />
-              
-              {menuType === 'bercario' && (
-                <MealField
-                  icon={<Cookie className="w-4 h-4 text-purple-500" />}
-                  label="Pré-Janta"
-                  value={item.pre_dinner}
-                  timeValue={item.pre_dinner_time}
-                  field="pre_dinner"
-                  timeField="pre_dinner_time"
-                  placeholder="Papa de frutas, vitamina..."
-                  menuType={menuType}
-                  dayOfWeek={item.day_of_week}
-                />
-              )}
-              
-              <MealField
-                icon={<Moon className="w-4 h-4 text-indigo-500" />}
-                label="Jantar"
-                value={item.dinner}
-                timeValue={item.dinner_time}
-                field="dinner"
-                timeField="dinner_time"
-                placeholder="Descreva o jantar..."
-                menuType={menuType}
-                dayOfWeek={item.day_of_week}
-              />
-              
-              <div className="space-y-2">
-                <Label className="text-sm">Observações</Label>
-                <Textarea
-                  value={item.notes}
-                  onChange={(e) => updateMenuItem(menuType, item.day_of_week, 'notes', e.target.value)}
-                  placeholder="Notas especiais, substituições, alertas de alergia..."
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
+  // Prepare nutrition data for PDF export
+  const getNutritionExportData = () => {
+    const currentNutrition = nutritionData[activeMenuTab] || {};
+    return currentMenuItems.map(item => ({
+      dayName: dayNames[item.day_of_week - 1],
+      date: format(addDays(weekStart, item.day_of_week - 1), 'd/MM'),
+      meals: Object.entries(currentNutrition[item.day_of_week] || {}).map(([mealName, foods]) => ({
+        mealName,
+        foods: foods as SelectedFood[],
+      })),
+    }));
+  };
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
@@ -730,7 +740,7 @@ export default function NutritionistDashboard() {
                 onClick={handleSave}
                 disabled={saving || loading}
                 size="sm"
-                className={`flex-1 sm:flex-none ${activeMenuTab === 'bercario' ? 'bg-pimpo-blue hover:bg-pimpo-blue/90' : 'bg-pimpo-green hover:bg-pimpo-green/90'}`}
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary/90"
               >
                 {saving ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -771,11 +781,19 @@ export default function NutritionistDashboard() {
             </div>
             
             {/* PDF Export buttons */}
-            <MenuPdfExport 
-              menuItems={activeMenuTab === 'bercario' ? bercarioItems : maternalItems} 
-              weekStart={weekStart} 
-              disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
-            />
+            <div className="flex flex-wrap gap-2">
+              <MenuPdfExport 
+                menuItems={currentMenuItems as any} 
+                weekStart={weekStart} 
+                disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
+              />
+              <NutritionPdfExport
+                weekStart={weekStart}
+                nutritionData={getNutritionExportData()}
+                menuType={getMenuTypeLabel(activeMenuTab)}
+                disabled={loading || Object.keys(nutritionData[activeMenuTab] || {}).length === 0}
+              />
+            </div>
           </div>
 
           {/* Week Navigation */}
@@ -800,26 +818,45 @@ export default function NutritionistDashboard() {
             </CardContent>
           </Card>
 
-          {/* Menu Type Tabs */}
+          {/* Menu Type Tabs - Now with 3 tabs */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <Tabs value={activeMenuTab} onValueChange={(v) => setActiveMenuTab(v as 'bercario' | 'maternal')}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="bercario" className="gap-2">
-                  <Baby className="w-4 h-4" />
-                  Berçário
-                </TabsTrigger>
-                <TabsTrigger value="maternal" className="gap-2">
-                  <Users className="w-4 h-4" />
-                  Maternal / Jardim
-                </TabsTrigger>
-              </TabsList>
+            <Tabs value={activeMenuTab} onValueChange={(v) => setActiveMenuTab(v as MenuType)}>
+              <div className="overflow-x-auto scrollbar-hide">
+                <TabsList className="w-max min-w-full grid grid-cols-3">
+                  <TabsTrigger value="bercario_0_6" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 0-6m</span>
+                    <span className="sm:hidden">0-6m</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="bercario_6_24" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 6m-2a</span>
+                    <span className="sm:hidden">6m-2a</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="maternal" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline">Maternal/Jardim</span>
+                    <span className="sm:hidden">Maternal</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              <TabsContent value="bercario" className="mt-4">
-                {renderMenuForm(bercarioItems, 'bercario')}
+              <div className="mt-2 mb-4">
+                <Badge variant="outline" className="text-xs">
+                  {getMenuTypeLabel(activeMenuTab)}
+                </Badge>
+              </div>
+
+              <TabsContent value="bercario_0_6" className="mt-4">
+                {renderMenuForm(bercario06Items, 'bercario_0_6')}
+              </TabsContent>
+
+              <TabsContent value="bercario_6_24" className="mt-4">
+                {renderMenuForm(bercario624Items, 'bercario_6_24')}
               </TabsContent>
 
               <TabsContent value="maternal" className="mt-4">
