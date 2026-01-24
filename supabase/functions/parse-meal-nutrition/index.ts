@@ -215,6 +215,7 @@ serve(async (req) => {
       );
     }
 
+    // Use the fastest model for quick parsing
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -222,45 +223,21 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-flash-lite', // fastest model
         messages: [
           {
             role: 'system',
-            content: `Você é um assistente nutricional brasileiro especializado em identificar alimentos em descrições de refeições.
-            
-Sua tarefa é extrair os alimentos de uma descrição de refeição e retornar em formato JSON.
-
-REGRAS:
-1. Identifique cada alimento separadamente
-2. Se a descrição incluir quantidade explícita (ex: "100g", "150ml", "200 gramas"), USE ESSA QUANTIDADE
-3. Se não houver quantidade explícita, estime a quantidade em gramas (porção típica infantil)
-4. Use nomes simples em português que possam ser encontrados na tabela TACO
-5. Se for uma preparação (ex: "arroz com feijão"), separe em ingredientes
-6. Ignore artigos, conectivos e descrições genéricas
-
-Retorne APENAS um JSON válido no formato:
-{"foods": [{"name": "nome do alimento", "quantity": 100, "unit": "g"}]}
-
-Exemplos de porções infantis típicas (use APENAS se não houver quantidade informada):
-- Arroz: 60g
-- Feijão: 50g
-- Frango: 50g
-- Carne: 50g
-- Leite: 150ml
-- Frutas: 80g
-- Legumes: 40g
-- Pão: 25g
-- Suco: 100ml
-
-IMPORTANTE: Se o usuário informar quantidade total (ex: "Arroz com feijão (120g)"), distribua proporcionalmente entre os alimentos.`
+            content: `Extraia alimentos de refeições. Retorne JSON: {"foods":[{"name":"alimento","quantity":100,"unit":"g"}]}
+Regras: separe ingredientes, use gramas, nomes simples em português.
+Porções padrão (se não informado): arroz 60g, feijão 50g, frango/carne 50g, leite 150ml, frutas 80g, legumes 40g, pão 25g.`
           },
           {
             role: 'user',
-            content: `Identifique os alimentos nesta refeição: "${mealDescription}"`
+            content: mealDescription
           }
         ],
-        temperature: 0.1,
-        max_tokens: 500
+        temperature: 0,
+        max_tokens: 300
       })
     });
 
