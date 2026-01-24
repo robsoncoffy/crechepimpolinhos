@@ -94,6 +94,7 @@ const ChildRegistration = () => {
     child_birth_date: string;
     desired_class_type: string;
     desired_shift_type: string;
+    vacancy_type?: string;
   } | null>(null);
   
   // File states
@@ -214,7 +215,7 @@ const ChildRegistration = () => {
       if (invite?.pre_enrollment_id) {
         const { data: preEnrollment } = await supabase
           .from("pre_enrollments")
-          .select("child_name, child_birth_date, desired_class_type, desired_shift_type")
+          .select("child_name, child_birth_date, desired_class_type, desired_shift_type, vacancy_type")
           .eq("id", invite.pre_enrollment_id)
           .single();
 
@@ -230,6 +231,13 @@ const ChildRegistration = () => {
           setValue("firstName", firstName);
           setValue("lastName", lastName);
           setValue("birthDate", preEnrollment.child_birth_date);
+          
+          // Auto-select enrollment type based on vacancy_type from pre-enrollment
+          if (preEnrollment.vacancy_type === "municipal") {
+            setValue("enrollmentType", "municipal");
+          } else if (preEnrollment.vacancy_type === "particular") {
+            setValue("enrollmentType", "private");
+          }
           
           toast({
             title: "Dados da pré-matrícula carregados!",
