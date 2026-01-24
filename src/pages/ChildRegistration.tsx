@@ -1208,57 +1208,79 @@ const ChildRegistration = () => {
                       Tipo de Vaga e Plano
                     </CardTitle>
                     <CardDescription>
-                      Informe a origem da vaga e o plano desejado
+                      {preEnrollmentData?.vacancy_type 
+                        ? "O tipo de vaga foi definido na pré-matrícula"
+                        : "Informe a origem da vaga e o plano desejado"
+                      }
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* Enrollment Type */}
-                    <div className="space-y-4">
-                      <Label className="text-base font-medium">Tipo de Vaga *</Label>
-                      <Controller
-                        name="enrollmentType"
-                        control={control}
-                        render={({ field }) => (
-                          <RadioGroup
-                            value={field.value}
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              if (value === "municipal") {
-                                setValue("planType", undefined);
-                              }
-                            }}
-                            className="grid gap-4"
-                          >
-                            <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                              <RadioGroupItem value="municipal" id="municipal" />
-                              <div className="flex-1">
-                                <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
-                                  Vaga da Prefeitura
-                                </Label>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  A criança possui vaga cedida pela prefeitura municipal.
-                                </p>
-                              </div>
+                    {/* Enrollment Type - Show selection only if NOT from pre-enrollment */}
+                    {preEnrollmentData?.vacancy_type ? (
+                      <div className="space-y-4">
+                        <Label className="text-base font-medium">Tipo de Vaga</Label>
+                        <div className="bg-secondary/50 rounded-lg p-4 border border-primary/30">
+                          <div className="flex items-center gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-primary" />
+                            <div>
+                              <p className="font-medium">
+                                {selectedEnrollmentType === "municipal" ? "Vaga da Prefeitura" : "Vaga Particular"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Definido automaticamente pela pré-matrícula
+                              </p>
                             </div>
-                            
-                            <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
-                              <RadioGroupItem value="private" id="private" />
-                              <div className="flex-1">
-                                <Label htmlFor="private" className="text-base font-medium cursor-pointer">
-                                  Vaga Particular
-                                </Label>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  Matrícula particular diretamente com a creche.
-                                </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <Label className="text-base font-medium">Tipo de Vaga *</Label>
+                        <Controller
+                          name="enrollmentType"
+                          control={control}
+                          render={({ field }) => (
+                            <RadioGroup
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                if (value === "municipal") {
+                                  setValue("planType", undefined);
+                                }
+                              }}
+                              className="grid gap-4"
+                            >
+                              <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                                <RadioGroupItem value="municipal" id="municipal" />
+                                <div className="flex-1">
+                                  <Label htmlFor="municipal" className="text-base font-medium cursor-pointer">
+                                    Vaga da Prefeitura
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    A criança possui vaga cedida pela prefeitura municipal.
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          </RadioGroup>
+                              
+                              <div className="flex items-start space-x-4 border rounded-lg p-4 hover:border-primary/50 transition-colors">
+                                <RadioGroupItem value="private" id="private" />
+                                <div className="flex-1">
+                                  <Label htmlFor="private" className="text-base font-medium cursor-pointer">
+                                    Vaga Particular
+                                  </Label>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Matrícula particular diretamente com a creche.
+                                  </p>
+                                </div>
+                              </div>
+                            </RadioGroup>
+                          )}
+                        />
+                        {errors.enrollmentType && (
+                          <p className="text-sm text-destructive">{errors.enrollmentType.message}</p>
                         )}
-                      />
-                      {errors.enrollmentType && (
-                        <p className="text-sm text-destructive">{errors.enrollmentType.message}</p>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Plan Selection - Only for Private */}
                     {selectedEnrollmentType === "private" && (
