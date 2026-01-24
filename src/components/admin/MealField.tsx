@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Clock } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
 import { AutoNutritionBadges } from './AutoNutritionBadges';
-import { IngredientQuantityEditor, IngredientWithNutrition } from './IngredientQuantityEditor';
+import { IngredientQuantityEditor, type IngredientWithNutrition, type NutritionTotals } from './IngredientQuantityEditor';
 
 export interface MenuItem {
   id?: string;
@@ -33,19 +33,6 @@ export interface MenuItem {
   dinner_qty: string;
   notes: string;
   menu_type: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
-}
-
-interface NutritionTotals {
-  energy: number;
-  protein: number;
-  lipid: number;
-  carbohydrate: number;
-  fiber: number;
-  calcium: number;
-  iron: number;
-  sodium: number;
-  vitamin_c: number;
-  vitamin_a: number;
 }
 
 interface MealFieldProps {
