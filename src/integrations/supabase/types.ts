@@ -2569,6 +2569,7 @@ export type Database = {
           morning_snack_qty: string | null
           morning_snack_time: string | null
           notes: string | null
+          nutrition_data: Json | null
           pre_dinner: string | null
           pre_dinner_qty: string | null
           pre_dinner_time: string | null
@@ -2599,6 +2600,7 @@ export type Database = {
           morning_snack_qty?: string | null
           morning_snack_time?: string | null
           notes?: string | null
+          nutrition_data?: Json | null
           pre_dinner?: string | null
           pre_dinner_qty?: string | null
           pre_dinner_time?: string | null
@@ -2629,6 +2631,7 @@ export type Database = {
           morning_snack_qty?: string | null
           morning_snack_time?: string | null
           notes?: string | null
+          nutrition_data?: Json | null
           pre_dinner?: string | null
           pre_dinner_qty?: string | null
           pre_dinner_time?: string | null

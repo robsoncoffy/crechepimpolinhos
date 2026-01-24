@@ -201,6 +201,13 @@ export default function NutritionistDashboard() {
         }
 
         // Create menu items for all 5 days for each type
+        // Also load saved nutrition data
+        const newNutritionState: Record<MenuType, MealNutritionState> = {
+          bercario_0_6: {},
+          bercario_6_24: {},
+          maternal: {},
+        };
+
         const createMenuItems = (
           menuType: MenuType, 
           dbMenuType: string,
@@ -215,6 +222,19 @@ export default function NutritionistDashboard() {
             );
             if (existing) {
               const existingAny = existing as any;
+              
+              // Load saved nutrition data if available
+              if (existingAny.nutrition_data) {
+                const savedNutrition = existingAny.nutrition_data;
+                const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+                mealFields.forEach(field => {
+                  if (savedNutrition[field]) {
+                    const key = `${dayOfWeek}-${field}`;
+                    newNutritionState[menuType][key] = savedNutrition[field];
+                  }
+                });
+              }
+
               return {
                 id: existing.id,
                 week_start: existing.week_start,
@@ -255,12 +275,8 @@ export default function NutritionistDashboard() {
         // Maternal uses 'maternal' in the database
         setMaternalItems(createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'));
         
-        // Reset nutrition state when week changes
-        setNutritionByMeal({
-          bercario_0_6: {},
-          bercario_6_24: {},
-          maternal: {},
-        });
+        // Set the loaded nutrition state
+        setNutritionByMeal(newNutritionState);
       } catch (err) {
         console.error('Unexpected error fetching menu:', err);
         toast.error('Erro inesperado ao carregar cardápio');
@@ -484,7 +500,18 @@ export default function NutritionistDashboard() {
           continue;
         }
 
-        const menuData = {
+        // Build nutrition_data object for this day from the nutritionByMeal state
+        const dayNutrition: Record<string, any> = {};
+        const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+        mealFields.forEach(field => {
+          const key = `${item.day_of_week}-${field}`;
+          const nutritionData = nutritionByMeal[item.menu_type]?.[key];
+          if (nutritionData) {
+            dayNutrition[field] = nutritionData;
+          }
+        });
+
+        const menuData: any = {
           week_start: weekStartStr,
           day_of_week: item.day_of_week,
           breakfast: item.breakfast || null,
@@ -502,7 +529,8 @@ export default function NutritionistDashboard() {
           dinner: item.dinner || null,
           dinner_time: item.dinner_time || null,
           notes: item.notes || null,
-          menu_type: dbMenuType
+          menu_type: dbMenuType,
+          nutrition_data: Object.keys(dayNutrition).length > 0 ? dayNutrition : null
         };
 
         if (item.id) {
