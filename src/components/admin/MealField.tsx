@@ -142,13 +142,21 @@ export const MealField = memo(function MealField({
     };
   }, [value, calculateNutrition]);
 
-  // Calculate on mount if there's existing content
+  // Calculate on mount or when value is loaded from database
+  const initialValueRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    if (value && value.trim().length >= 3) {
-      calculateNutrition(value);
+    // Only trigger if value changed from empty/null to having content
+    // This handles loading data from the database
+    if (value && value.trim().length >= 3 && initialValueRef.current !== value) {
+      if (initialValueRef.current === null || initialValueRef.current === '') {
+        calculateNutrition(value);
+      }
+      initialValueRef.current = value;
+    } else if (!value || value.trim().length < 3) {
+      initialValueRef.current = value || '';
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [value, calculateNutrition]);
 
   return (
     <div className="space-y-2">
