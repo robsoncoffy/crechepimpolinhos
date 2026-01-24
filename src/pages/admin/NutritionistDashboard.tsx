@@ -936,6 +936,7 @@ export default function NutritionistDashboard() {
       <TodayOverviewWidget 
         todayNutrition={todayNutrition}
         childrenWithAllergies={stats.childrenWithAllergies}
+        menuType={activeMenuTab}
       />
 
       {/* Stats Grid */}

@@ -16,16 +16,26 @@ interface NutritionTotals {
   vitamin_a: number;
 }
 
+type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+
+const MENU_LABELS: Record<MenuType, string> = {
+  bercario_0_6: 'Berçário 0-6m',
+  bercario_6_24: 'Berçário 6-24m',
+  maternal: 'Maternal'
+};
+
 interface TodayOverviewWidgetProps {
   todayNutrition: NutritionTotals | null;
   childrenWithAllergies: number;
   allergyConflicts?: string[];
+  menuType?: MenuType;
 }
 
 export function TodayOverviewWidget({ 
   todayNutrition, 
   childrenWithAllergies,
-  allergyConflicts = []
+  allergyConflicts = [],
+  menuType
 }: TodayOverviewWidgetProps) {
   const hasTodayData = todayNutrition && todayNutrition.energy > 0;
   
@@ -43,10 +53,17 @@ export function TodayOverviewWidget({
   return (
     <Card className="border-primary/20 bg-gradient-to-br from-background to-primary/5">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Flame className="w-5 h-5 text-primary" />
-          Visão Geral - Hoje
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Flame className="w-5 h-5 text-primary" />
+            Visão Geral - Hoje
+          </CardTitle>
+          {menuType && (
+            <Badge variant="secondary" className="text-xs font-medium">
+              {MENU_LABELS[menuType]}
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
