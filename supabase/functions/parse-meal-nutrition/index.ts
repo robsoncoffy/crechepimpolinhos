@@ -175,15 +175,16 @@ Sua tarefa é extrair os alimentos de uma descrição de refeição e retornar e
 
 REGRAS:
 1. Identifique cada alimento separadamente
-2. Estime a quantidade em gramas (porção típica infantil)
-3. Use nomes simples em português que possam ser encontrados na tabela TACO
-4. Se for uma preparação (ex: "arroz com feijão"), separe em ingredientes
-5. Ignore artigos, conectivos e descrições genéricas
+2. Se a descrição incluir quantidade explícita (ex: "100g", "150ml", "200 gramas"), USE ESSA QUANTIDADE
+3. Se não houver quantidade explícita, estime a quantidade em gramas (porção típica infantil)
+4. Use nomes simples em português que possam ser encontrados na tabela TACO
+5. Se for uma preparação (ex: "arroz com feijão"), separe em ingredientes
+6. Ignore artigos, conectivos e descrições genéricas
 
 Retorne APENAS um JSON válido no formato:
 {"foods": [{"name": "nome do alimento", "quantity": 100, "unit": "g"}]}
 
-Exemplos de porções infantis típicas:
+Exemplos de porções infantis típicas (use APENAS se não houver quantidade informada):
 - Arroz: 60g
 - Feijão: 50g
 - Frango: 50g
@@ -192,7 +193,9 @@ Exemplos de porções infantis típicas:
 - Frutas: 80g
 - Legumes: 40g
 - Pão: 25g
-- Suco: 100ml`
+- Suco: 100ml
+
+IMPORTANTE: Se o usuário informar quantidade total (ex: "Arroz com feijão (120g)"), distribua proporcionalmente entre os alimentos.`
           },
           {
             role: 'user',

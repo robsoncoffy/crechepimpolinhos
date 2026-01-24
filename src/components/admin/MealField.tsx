@@ -104,8 +104,8 @@ export const MealField = memo(function MealField({
   // Map new menu types to the API expected types
   const apiMenuType = menuType === 'maternal' ? 'maternal' : 'bercario';
 
-  // Auto-calculate nutrition when value changes (debounced)
-  const calculateNutrition = useCallback(async (mealText: string) => {
+  // Auto-calculate nutrition when value or quantity changes (debounced)
+  const calculateNutrition = useCallback(async (mealText: string, qty: string) => {
     if (mealText.trim().length < 3) {
       setNutritionTotals(null);
       setFoodCount(0);
@@ -113,7 +113,12 @@ export const MealField = memo(function MealField({
       return;
     }
 
-    const result = await parseNutrition(mealText);
+    // Include quantity in the description if provided, so AI can use it
+    const descriptionWithQty = qty && qty.trim() 
+      ? `${mealText} (${qty.trim()})`
+      : mealText;
+
+    const result = await parseNutrition(descriptionWithQty);
     setNutritionTotals(result.totals);
     setFoodCount(result.foods?.length || 0);
     onNutritionCalculated?.(result.totals);
@@ -122,14 +127,20 @@ export const MealField = memo(function MealField({
   // Track if we've done the initial calculation
   const hasCalculatedRef = useRef(false);
   const previousValueRef = useRef<string>('');
+  const previousQtyRef = useRef<string>('');
 
   // Calculate nutrition - handles both user typing (debounced) and initial load
+  // Now also triggers when quantity changes
   useEffect(() => {
-    // If value is the same, skip
-    if (previousValueRef.current === value) return;
+    // Create a combined key to track changes
+    const currentKey = `${value}|${qtyValue}`;
+    const previousKey = `${previousValueRef.current}|${previousQtyRef.current}`;
     
-    const previousValue = previousValueRef.current;
+    // If nothing changed, skip
+    if (previousKey === currentKey) return;
+    
     previousValueRef.current = value;
+    previousQtyRef.current = qtyValue;
 
     // Clear previous debounce
     if (debounceRef.current) {
@@ -142,11 +153,11 @@ export const MealField = memo(function MealField({
     if (isInitialLoad) {
       // Calculate immediately for initial load
       hasCalculatedRef.current = true;
-      calculateNutrition(value);
+      calculateNutrition(value, qtyValue);
     } else if (value && value.trim().length >= 3) {
-      // Debounce for user typing
+      // Debounce for user typing/editing
       debounceRef.current = setTimeout(() => {
-        calculateNutrition(value);
+        calculateNutrition(value, qtyValue);
       }, 800);
     } else if (!value || value.trim().length < 3) {
       // Clear nutrition if text is too short
@@ -160,7 +171,7 @@ export const MealField = memo(function MealField({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [value, calculateNutrition, onNutritionCalculated]);
+  }, [value, qtyValue, calculateNutrition, onNutritionCalculated]);
 
   return (
     <div className="space-y-2">
