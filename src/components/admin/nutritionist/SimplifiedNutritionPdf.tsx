@@ -24,6 +24,12 @@ interface IngredientWithNutrition {
   protein?: number;
   lipid?: number;
   carbohydrate?: number;
+  fiber?: number;
+  calcium?: number;
+  iron?: number;
+  sodium?: number;
+  vitamin_c?: number;
+  vitamin_a?: number;
 }
 
 interface DayNutritionData {
@@ -64,14 +70,34 @@ function generateIngredientsList(ingredients: IngredientWithNutrition[]): string
   
   return `
     <div class="ingredients-list">
-      <div class="ingredients-title">📋 Ingredientes:</div>
-      ${ingredients.map(ing => `
-        <div class="ingredient-item">
-          <span class="ingredient-name">${ing.name}</span>
-          <span class="ingredient-qty">${ing.quantity}g</span>
-          <span class="ingredient-kcal">${((ing.energy || 0) * ing.quantity / 100).toFixed(0)} kcal</span>
-        </div>
-      `).join('')}
+      <div class="ingredients-title">📋 Ingredientes por porção:</div>
+      <table class="ingredients-table">
+        <thead>
+          <tr>
+            <th>Ingrediente</th>
+            <th>Qtd</th>
+            <th>kcal</th>
+            <th>Prot</th>
+            <th>Carb</th>
+            <th>Lip</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ingredients.map(ing => {
+            const mult = ing.quantity / 100;
+            return `
+              <tr>
+                <td class="ing-name">${ing.name}</td>
+                <td class="ing-qty">${ing.quantity}${ing.unit}</td>
+                <td>${((ing.energy || 0) * mult).toFixed(0)}</td>
+                <td>${((ing.protein || 0) * mult).toFixed(1)}g</td>
+                <td>${((ing.carbohydrate || 0) * mult).toFixed(1)}g</td>
+                <td>${((ing.lipid || 0) * mult).toFixed(1)}g</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -278,44 +304,46 @@ export function SimplifiedNutritionPdf({
           }
           
           .ingredients-list {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             padding-bottom: 8px;
             border-bottom: 1px dashed #d1d5db;
           }
           
           .ingredients-title {
             font-weight: 600;
+            color: #059669;
+            font-size: 9px;
+            margin-bottom: 6px;
+          }
+          
+          .ingredients-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8px;
+          }
+          
+          .ingredients-table th {
+            background: #f3f4f6;
+            padding: 4px 6px;
+            text-align: left;
+            font-weight: 600;
             color: #4b5563;
-            font-size: 9px;
-            margin-bottom: 4px;
+            border-bottom: 1px solid #d1d5db;
           }
           
-          .ingredient-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 9px;
-            padding: 2px 0;
-            gap: 8px;
-          }
-          
-          .ingredient-name {
-            flex: 1;
+          .ingredients-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid #e5e7eb;
             color: #374151;
           }
           
-          .ingredient-qty {
-            color: #6b7280;
+          .ingredients-table .ing-name {
             font-weight: 500;
-            min-width: 40px;
-            text-align: right;
           }
           
-          .ingredient-kcal {
-            color: #059669;
+          .ingredients-table .ing-qty {
+            color: #6b7280;
             font-weight: 600;
-            min-width: 50px;
-            text-align: right;
           }
           
           .nutrients-list {
