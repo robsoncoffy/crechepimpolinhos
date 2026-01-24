@@ -2550,69 +2550,90 @@ export type Database = {
       weekly_menus: {
         Row: {
           bottle: string | null
+          bottle_qty: string | null
           bottle_time: string | null
           breakfast: string | null
+          breakfast_qty: string | null
           breakfast_time: string | null
           created_at: string | null
           day_of_week: number
           dinner: string | null
+          dinner_qty: string | null
           dinner_time: string | null
           id: string
           lunch: string | null
+          lunch_qty: string | null
           lunch_time: string | null
           menu_type: string
           morning_snack: string | null
+          morning_snack_qty: string | null
           morning_snack_time: string | null
           notes: string | null
           pre_dinner: string | null
+          pre_dinner_qty: string | null
           pre_dinner_time: string | null
           snack: string | null
+          snack_qty: string | null
           snack_time: string | null
           updated_at: string | null
           week_start: string
         }
         Insert: {
           bottle?: string | null
+          bottle_qty?: string | null
           bottle_time?: string | null
           breakfast?: string | null
+          breakfast_qty?: string | null
           breakfast_time?: string | null
           created_at?: string | null
           day_of_week: number
           dinner?: string | null
+          dinner_qty?: string | null
           dinner_time?: string | null
           id?: string
           lunch?: string | null
+          lunch_qty?: string | null
           lunch_time?: string | null
           menu_type?: string
           morning_snack?: string | null
+          morning_snack_qty?: string | null
           morning_snack_time?: string | null
           notes?: string | null
           pre_dinner?: string | null
+          pre_dinner_qty?: string | null
           pre_dinner_time?: string | null
           snack?: string | null
+          snack_qty?: string | null
           snack_time?: string | null
           updated_at?: string | null
           week_start: string
         }
         Update: {
           bottle?: string | null
+          bottle_qty?: string | null
           bottle_time?: string | null
           breakfast?: string | null
+          breakfast_qty?: string | null
           breakfast_time?: string | null
           created_at?: string | null
           day_of_week?: number
           dinner?: string | null
+          dinner_qty?: string | null
           dinner_time?: string | null
           id?: string
           lunch?: string | null
+          lunch_qty?: string | null
           lunch_time?: string | null
           menu_type?: string
           morning_snack?: string | null
+          morning_snack_qty?: string | null
           morning_snack_time?: string | null
           notes?: string | null
           pre_dinner?: string | null
+          pre_dinner_qty?: string | null
           pre_dinner_time?: string | null
           snack?: string | null
+          snack_qty?: string | null
           snack_time?: string | null
           updated_at?: string | null
           week_start?: string

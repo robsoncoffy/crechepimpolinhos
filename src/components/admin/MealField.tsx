@@ -12,18 +12,25 @@ export interface MenuItem {
   day_of_week: number;
   breakfast: string;
   breakfast_time: string;
+  breakfast_qty: string;
   morning_snack: string;
   morning_snack_time: string;
+  morning_snack_qty: string;
   lunch: string;
   lunch_time: string;
+  lunch_qty: string;
   bottle: string;
   bottle_time: string;
+  bottle_qty: string;
   snack: string;
   snack_time: string;
+  snack_qty: string;
   pre_dinner: string;
   pre_dinner_time: string;
+  pre_dinner_qty: string;
   dinner: string;
   dinner_time: string;
+  dinner_qty: string;
   notes: string;
   menu_type: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
 }
@@ -46,13 +53,16 @@ interface MealFieldProps {
   label: string;
   value: string;
   timeValue: string;
+  qtyValue: string;
   field: keyof MenuItem;
   timeField: keyof MenuItem;
+  qtyField: keyof MenuItem;
   placeholder: string;
   menuType: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
   dayOfWeek: number;
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
+  onQtyChange: (field: keyof MenuItem, value: string) => void;
   onNutritionCalculated?: (totals: NutritionTotals | null) => void;
 }
 
@@ -62,13 +72,16 @@ export const MealField = memo(function MealField({
   label,
   value,
   timeValue,
+  qtyValue,
   field,
   timeField,
+  qtyField,
   placeholder,
   menuType,
   dayOfWeek,
   onValueChange,
   onTimeChange,
+  onQtyChange,
   onNutritionCalculated,
 }: MealFieldProps) {
   const { parseNutrition, loading } = useAutoNutrition();
@@ -160,6 +173,12 @@ export const MealField = memo(function MealField({
           placeholder={placeholder}
           className="flex-1 min-w-0"
         />
+        <Input
+          value={qtyValue}
+          onChange={(e) => onQtyChange(qtyField, e.target.value)}
+          placeholder="Ex: 100g, 150ml"
+          className="w-full sm:w-28 text-sm"
+        />
         <div className="relative flex-shrink-0">
           <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -192,18 +211,25 @@ export const emptyMenuItem = (
   day_of_week: dayOfWeek,
   breakfast: '',
   breakfast_time: menuType === 'maternal' ? '08:00' : '07:30',
+  breakfast_qty: '',
   morning_snack: '',
   morning_snack_time: '09:30',
+  morning_snack_qty: '',
   lunch: '',
   lunch_time: menuType === 'maternal' ? '11:30' : '11:00',
+  lunch_qty: '',
   bottle: '',
   bottle_time: '13:00',
+  bottle_qty: '',
   snack: '',
   snack_time: menuType === 'maternal' ? '15:30' : '15:00',
+  snack_qty: '',
   pre_dinner: '',
   pre_dinner_time: '16:30',
+  pre_dinner_qty: '',
   dinner: '',
   dinner_time: menuType === 'maternal' ? '18:00' : '17:30',
+  dinner_qty: '',
   notes: '',
   menu_type: menuType
 });
