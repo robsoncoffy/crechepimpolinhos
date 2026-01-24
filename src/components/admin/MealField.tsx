@@ -124,47 +124,25 @@ export const MealField = memo(function MealField({
     onNutritionCalculated?.(result.totals);
   }, [parseNutrition, onNutritionCalculated]);
 
-  // Track if we've done the initial calculation
-  const hasCalculatedRef = useRef(false);
-  const previousValueRef = useRef<string>('');
-  const previousQtyRef = useRef<string>('');
-
-  // Calculate nutrition - handles both user typing (debounced) and initial load
-  // Now also triggers when quantity changes
+  // Debounced nutrition calculation - triggers on value or qty changes
   useEffect(() => {
-    // Create a combined key to track changes
-    const currentKey = `${value}|${qtyValue}`;
-    const previousKey = `${previousValueRef.current}|${previousQtyRef.current}`;
-    
-    // If nothing changed, skip
-    if (previousKey === currentKey) return;
-    
-    previousValueRef.current = value;
-    previousQtyRef.current = qtyValue;
-
     // Clear previous debounce
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
-    // If this is the first time we're seeing a value with content (initial load from DB)
-    const isInitialLoad = !hasCalculatedRef.current && value && value.trim().length >= 3;
-    
-    if (isInitialLoad) {
-      // Calculate immediately for initial load
-      hasCalculatedRef.current = true;
-      calculateNutrition(value, qtyValue);
-    } else if (value && value.trim().length >= 3) {
-      // Debounce for user typing/editing
-      debounceRef.current = setTimeout(() => {
-        calculateNutrition(value, qtyValue);
-      }, 800);
-    } else if (!value || value.trim().length < 3) {
-      // Clear nutrition if text is too short
+    // Only calculate if we have enough text
+    if (!value || value.trim().length < 3) {
       setNutritionTotals(null);
       setFoodCount(0);
       onNutritionCalculated?.(null);
+      return;
     }
+
+    // Always debounce - 600ms for responsive feel
+    debounceRef.current = setTimeout(() => {
+      calculateNutrition(value, qtyValue);
+    }, 600);
 
     return () => {
       if (debounceRef.current) {
@@ -185,7 +163,12 @@ export const MealField = memo(function MealField({
             mealType={mealType}
             menuType={apiMenuType}
             dayOfWeek={dayOfWeek}
-            onSelect={(suggestion) => onValueChange(field, suggestion)}
+            onSelect={(suggestion, qty) => {
+              onValueChange(field, suggestion);
+              if (qty) {
+                onQtyChange(qtyField, qty);
+              }
+            }}
           />
         )}
       </div>

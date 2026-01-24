@@ -9,17 +9,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+
+interface SuggestionItem {
+  description: string;
+  qty: string;
+}
 
 interface MealSuggestionsProps {
   mealType: "breakfast" | "morning_snack" | "lunch" | "bottle" | "snack" | "pre_dinner" | "dinner";
   menuType: "bercario" | "maternal";
   dayOfWeek: number;
-  onSelect: (suggestion: string) => void;
+  onSelect: (suggestion: string, qty?: string) => void;
 }
 
 export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: MealSuggestionsProps) {
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [open, setOpen] = useState(false);
   const [ingredient, setIngredient] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +50,16 @@ export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: Mea
         return;
       }
 
-      setSuggestions(data.suggestions || []);
+      // Handle both old format (strings) and new format (objects)
+      const rawSuggestions = data.suggestions || [];
+      const normalizedSuggestions: SuggestionItem[] = rawSuggestions.map((item: string | SuggestionItem) => {
+        if (typeof item === 'string') {
+          return { description: item, qty: '' };
+        }
+        return item;
+      });
+
+      setSuggestions(normalizedSuggestions);
     } catch (err: any) {
       console.error("Error fetching suggestions:", err);
       toast.error("Erro ao buscar sugestões");
@@ -53,8 +68,8 @@ export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: Mea
     }
   };
 
-  const handleSelect = (suggestion: string) => {
-    onSelect(suggestion);
+  const handleSelect = (suggestion: SuggestionItem) => {
+    onSelect(suggestion.description, suggestion.qty);
     setOpen(false);
     setSuggestions([]);
     setIngredient("");
@@ -132,16 +147,21 @@ export function MealSuggestions({ mealType, menuType, dayOfWeek, onSelect }: Mea
           {suggestions.length > 0 && (
             <div className="space-y-1 pt-2 border-t">
               <p className="text-xs text-muted-foreground pb-1">
-                Clique para usar:
+                Clique para usar (com porção):
               </p>
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => handleSelect(suggestion)}
-                  className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-accent transition-colors"
+                  className="w-full text-left text-sm px-3 py-2 rounded-md hover:bg-accent transition-colors flex items-center justify-between gap-2"
                 >
-                  {suggestion}
+                  <span className="flex-1 truncate">{suggestion.description}</span>
+                  {suggestion.qty && (
+                    <Badge variant="secondary" className="text-xs shrink-0">
+                      {suggestion.qty}
+                    </Badge>
+                  )}
                 </button>
               ))}
             </div>
