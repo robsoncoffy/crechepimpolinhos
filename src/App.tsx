@@ -14,7 +14,45 @@ const Classes = lazy(() => import("./pages/Classes"));
 const Structure = lazy(() => import("./pages/Structure"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Pricing = lazy(() => import("./pages/Pricing"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+// Dashboard is heavy and loaded via dynamic import. In some environments a transient
+// Vite/PWA cache mismatch can cause: "Failed to fetch dynamically imported module".
+// This wrapper retries once, then forces a single reload (guarded) to recover.
+const Dashboard = lazy(async () => {
+  const isRecoverable = (err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes("Failed to fetch dynamically imported module") ||
+      msg.includes("Importing a module script failed") ||
+      msg.includes("ChunkLoadError")
+    );
+  };
+
+  try {
+    // normal path
+    return await import("./pages/Dashboard");
+  } catch (err) {
+    if (!isRecoverable(err)) throw err;
+
+    // 1) quick retry (HMR rebuild race / temporary network hiccup)
+    const retriedKey = "dashboard_import_retried";
+    if (!sessionStorage.getItem(retriedKey)) {
+      sessionStorage.setItem(retriedKey, "1");
+      await new Promise((r) => setTimeout(r, 300));
+      return await import("./pages/Dashboard");
+    }
+
+    // 2) last resort: hard reload once
+    const reloadedKey = "dashboard_import_reloaded";
+    if (!sessionStorage.getItem(reloadedKey)) {
+      sessionStorage.setItem(reloadedKey, "1");
+      window.location.reload();
+      // Keep React.lazy pending while the browser reloads.
+      return await new Promise<never>(() => {});
+    }
+
+    throw err;
+  }
+});
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PreEnrollment = lazy(() => import("./pages/PreEnrollment"));
 const ChildRegistration = lazy(() => import("./pages/ChildRegistration"));
