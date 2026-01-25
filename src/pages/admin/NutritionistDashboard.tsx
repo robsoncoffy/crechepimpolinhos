@@ -30,6 +30,8 @@ import {
   MessageSquare,
   DollarSign,
   Sparkles,
+  Wand2,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -43,6 +45,13 @@ import { IngredientWithNutrition } from "@/components/admin/IngredientQuantityEd
 import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
 import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
 import { AllergyCheckBadge } from "@/components/admin/nutritionist/AllergyCheckBadge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 import {
   AlertDialog,
@@ -118,6 +127,8 @@ export default function NutritionistDashboard() {
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
   const [generatingDay, setGeneratingDay] = useState<number | null>(null);
+  const [generatingWeek, setGeneratingWeek] = useState(false);
+  const [generatingFullDay, setGeneratingFullDay] = useState(false);
   
   // Nutrition tracking state
   const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
@@ -819,6 +830,42 @@ export default function NutritionistDashboard() {
     }
   };
 
+  // Generate AI menu for all meals of the current day
+  const generateFullDayMenu = async () => {
+    setGeneratingFullDay(true);
+    try {
+      await generateDayMenu(activeDayTab, activeMenuTab);
+      toast.success(`Dia ${dayNames[activeDayTab - 1]} gerado com IA!`);
+    } catch (error) {
+      console.error('Error generating full day menu:', error);
+      toast.error('Erro ao gerar cardápio do dia.');
+    } finally {
+      setGeneratingFullDay(false);
+    }
+  };
+
+  // Generate AI menu for the entire week (all 5 days)
+  const generateWeekMenu = async () => {
+    setGeneratingWeek(true);
+    try {
+      // Generate each day sequentially to avoid rate limits
+      for (let day = 1; day <= 5; day++) {
+        toast.info(`Gerando ${dayNames[day - 1]}...`, { duration: 1500 });
+        await generateDayMenu(day, activeMenuTab);
+        // Small delay between requests to avoid rate limiting
+        if (day < 5) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+      toast.success('Cardápio da semana gerado com sucesso!');
+    } catch (error) {
+      console.error('Error generating week menu:', error);
+      toast.error('Erro ao gerar cardápio da semana.');
+    } finally {
+      setGeneratingWeek(false);
+    }
+  };
+
   const renderMenuForm = (items: MenuItem[], menuType: MenuType) => {
     const color = getMenuTypeColor(menuType);
     const isBercario = menuType !== 'maternal';
@@ -1219,6 +1266,51 @@ export default function NutritionistDashboard() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+
+              {/* AI Generate Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={generatingWeek || generatingFullDay || loading}
+                    className="flex-1 sm:flex-none gap-2 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 hover:border-violet-500/50"
+                  >
+                    {(generatingWeek || generatingFullDay) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-4 h-4 text-violet-600" />
+                    )}
+                    <span className="hidden sm:inline">Gerar com IA</span>
+                    <span className="sm:hidden">IA</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem 
+                    onClick={generateFullDayMenu}
+                    disabled={generatingFullDay || generatingWeek}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <div className="flex flex-col">
+                      <span>Gerar {dayNames[activeDayTab - 1]}</span>
+                      <span className="text-xs text-muted-foreground">Todas as refeições do dia</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={generateWeekMenu}
+                    disabled={generatingWeek || generatingFullDay}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <CalendarDays className="w-4 h-4 text-violet-500" />
+                    <div className="flex flex-col">
+                      <span>Gerar Semana Inteira</span>
+                      <span className="text-xs text-muted-foreground">Segunda a Sexta</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             
             {/* PDF Export buttons */}
