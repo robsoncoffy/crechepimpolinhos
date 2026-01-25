@@ -81,7 +81,7 @@ interface IngredientWithNutrition {
 }
 
 type PeriodType = 'week' | 'month' | 'year';
-type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+type MenuType = 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 
 interface AdvancedNutritionPdfExportProps {
   menuType: MenuType;
@@ -102,7 +102,8 @@ const mealLabels: Record<string, string> = {
 
 const menuTypeLabels: Record<MenuType, string> = {
   bercario_0_6: 'Berçário (0-6 meses)',
-  bercario_6_24: 'Berçário (6m - 1a 11m)',
+  bercario_6_12: 'Berçário (6m - 1 ano)',
+  bercario_12_24: 'Berçário (1a - 2 anos)',
   maternal: 'Maternal / Jardim',
 };
 
@@ -217,9 +218,11 @@ export function AdvancedNutritionPdfExport({
     // Map menu type to database type
     const dbMenuType = menuType === 'bercario_0_6' 
       ? 'bercario' 
-      : menuType === 'bercario_6_24' 
-        ? 'bercario_6_24' 
-        : 'maternal';
+      : menuType === 'bercario_6_12' 
+        ? 'bercario_6_12' 
+        : menuType === 'bercario_12_24' 
+          ? 'bercario_12_24'
+          : 'maternal';
 
     const { data, error } = await supabase
       .from('weekly_menus')

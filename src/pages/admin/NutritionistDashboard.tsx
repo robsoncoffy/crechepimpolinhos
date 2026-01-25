@@ -66,7 +66,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+type MenuType = 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 
 interface NutritionTotals {
   // Macros
@@ -122,7 +122,8 @@ export default function NutritionistDashboard() {
   const [activeMenuTab, setActiveMenuTab] = useState<MenuType>('bercario_0_6');
   const [activeDayTab, setActiveDayTab] = useState<number>(1); // 1 = Segunda, 5 = Sexta
   const [bercario06Items, setBercario06Items] = useState<MenuItem[]>([]);
-  const [bercario624Items, setBercario624Items] = useState<MenuItem[]>([]);
+  const [bercario612Items, setBercario612Items] = useState<MenuItem[]>([]);
+  const [bercario1224Items, setBercario1224Items] = useState<MenuItem[]>([]);
   const [maternalItems, setMaternalItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -134,14 +135,16 @@ export default function NutritionistDashboard() {
   // Nutrition tracking state
   const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
     bercario_0_6: {},
-    bercario_6_24: {},
+    bercario_6_12: {},
+    bercario_12_24: {},
     maternal: {},
   });
   
   // Ingredients tracking state for PDF export
   const [ingredientsByMeal, setIngredientsByMeal] = useState<Record<MenuType, MealIngredientsState>>({
     bercario_0_6: {},
-    bercario_6_24: {},
+    bercario_6_12: {},
+    bercario_12_24: {},
     maternal: {},
   });
   
@@ -215,13 +218,15 @@ export default function NutritionistDashboard() {
         // Also load saved nutrition data and ingredients
         const newNutritionState: Record<MenuType, MealNutritionState> = {
           bercario_0_6: {},
-          bercario_6_24: {},
+          bercario_6_12: {},
+          bercario_12_24: {},
           maternal: {},
         };
         
         const newIngredientsState: Record<MenuType, MealIngredientsState> = {
           bercario_0_6: {},
-          bercario_6_24: {},
+          bercario_6_12: {},
+          bercario_12_24: {},
           maternal: {},
         };
 
@@ -292,8 +297,10 @@ export default function NutritionistDashboard() {
 
         // Berçário 0-6 meses uses 'bercario' in the database
         setBercario06Items(createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'));
-        // Berçário 6-24 meses also uses 'bercario' but we'll create separate entries
-        setBercario624Items(createMenuItems('bercario_6_24', 'bercario_6_24', '07:30', '11:00', '15:00', '17:30'));
+        // Berçário 6-12 meses (6 meses a 1 ano)
+        setBercario612Items(createMenuItems('bercario_6_12', 'bercario_6_12', '07:30', '11:00', '15:00', '17:30'));
+        // Berçário 12-24 meses (1 ano a 2 anos)
+        setBercario1224Items(createMenuItems('bercario_12_24', 'bercario_12_24', '07:30', '11:00', '15:00', '17:30'));
         // Maternal uses 'maternal' in the database
         setMaternalItems(createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'));
         
@@ -301,14 +308,16 @@ export default function NutritionistDashboard() {
         // Force new object references so React detects the change
         setNutritionByMeal({
           bercario_0_6: { ...newNutritionState.bercario_0_6 },
-          bercario_6_24: { ...newNutritionState.bercario_6_24 },
+          bercario_6_12: { ...newNutritionState.bercario_6_12 },
+          bercario_12_24: { ...newNutritionState.bercario_12_24 },
           maternal: { ...newNutritionState.maternal },
         });
         
         // Set the loaded ingredients state
         setIngredientsByMeal({
           bercario_0_6: { ...newIngredientsState.bercario_0_6 },
-          bercario_6_24: { ...newIngredientsState.bercario_6_24 },
+          bercario_6_12: { ...newIngredientsState.bercario_6_12 },
+          bercario_12_24: { ...newIngredientsState.bercario_12_24 },
           maternal: { ...newIngredientsState.maternal },
         });
         
@@ -317,7 +326,8 @@ export default function NutritionistDashboard() {
         const autoCalculateMissingNutrition = async () => {
           const allMenus: Array<{ items: MenuItem[], menuType: MenuType, dbMenuType: string }> = [
             { items: createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_0_6', dbMenuType: 'bercario' },
-            { items: createMenuItems('bercario_6_24', 'bercario_6_24', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_6_24', dbMenuType: 'bercario_6_24' },
+            { items: createMenuItems('bercario_6_12', 'bercario_6_12', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_6_12', dbMenuType: 'bercario_6_12' },
+            { items: createMenuItems('bercario_12_24', 'bercario_12_24', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_12_24', dbMenuType: 'bercario_12_24' },
             { items: createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'), menuType: 'maternal', dbMenuType: 'maternal' }
           ];
           
@@ -395,9 +405,11 @@ export default function NutritionistDashboard() {
   const updateMenuItem = useCallback((menuType: MenuType, dayOfWeek: number, field: keyof MenuItem, value: string) => {
     const setItems = menuType === 'bercario_0_6' 
       ? setBercario06Items 
-      : menuType === 'bercario_6_24' 
-        ? setBercario624Items 
-        : setMaternalItems;
+      : menuType === 'bercario_6_12' 
+        ? setBercario612Items 
+        : menuType === 'bercario_12_24'
+          ? setBercario1224Items
+          : setMaternalItems;
     
     setItems(prev => 
       prev.map(item => 
@@ -464,7 +476,8 @@ export default function NutritionistDashboard() {
 
     return {
       bercario_0_6: calculateTotals('bercario_0_6'),
-      bercario_6_24: calculateTotals('bercario_6_24'),
+      bercario_6_12: calculateTotals('bercario_6_12'),
+      bercario_12_24: calculateTotals('bercario_12_24'),
       maternal: calculateTotals('maternal'),
     };
   }, [nutritionByMeal, todayDayOfWeek]);
@@ -585,7 +598,8 @@ export default function NutritionistDashboard() {
       };
 
       setBercario06Items(copyMenuItems(bercario06Items, 'bercario', 'bercario_0_6'));
-      setBercario624Items(copyMenuItems(bercario624Items, 'bercario_6_24', 'bercario_6_24'));
+      setBercario612Items(copyMenuItems(bercario612Items, 'bercario_6_12', 'bercario_6_12'));
+      setBercario1224Items(copyMenuItems(bercario1224Items, 'bercario_12_24', 'bercario_12_24'));
       setMaternalItems(copyMenuItems(maternalItems, 'maternal', 'maternal'));
       
       toast.success('Cardápio da semana anterior copiado! Não esqueça de salvar.');
@@ -599,7 +613,7 @@ export default function NutritionistDashboard() {
 
   const handleSave = async () => {
     setSaving(true);
-    const allItems = [...bercario06Items, ...bercario624Items, ...maternalItems];
+    const allItems = [...bercario06Items, ...bercario612Items, ...bercario1224Items, ...maternalItems];
     let hasErrors = false;
 
     try {
@@ -610,9 +624,11 @@ export default function NutritionistDashboard() {
         // Map UI menu type to database menu type
         const dbMenuType = item.menu_type === 'bercario_0_6' 
           ? 'bercario' 
-          : item.menu_type === 'bercario_6_24' 
-            ? 'bercario_6_24' 
-            : 'maternal';
+          : item.menu_type === 'bercario_6_12' 
+            ? 'bercario_6_12' 
+            : item.menu_type === 'bercario_12_24'
+              ? 'bercario_12_24'
+              : 'maternal';
         
         // Skip items without content but DON'T delete existing records (preserve history)
         if (!hasContent && !item.id) {
@@ -680,9 +696,11 @@ export default function NutritionistDashboard() {
           } else if (data) {
             const updateFn = item.menu_type === 'bercario_0_6' 
               ? setBercario06Items 
-              : item.menu_type === 'bercario_6_24'
-                ? setBercario624Items
-                : setMaternalItems;
+              : item.menu_type === 'bercario_6_12'
+                ? setBercario612Items
+                : item.menu_type === 'bercario_12_24'
+                  ? setBercario1224Items
+                  : setMaternalItems;
             updateFn(prev => prev.map(prevItem => 
               prevItem.day_of_week === item.day_of_week && prevItem.menu_type === item.menu_type
                 ? { ...prevItem, id: data.id }
@@ -709,8 +727,10 @@ export default function NutritionistDashboard() {
     switch (activeMenuTab) {
       case 'bercario_0_6':
         return bercario06Items;
-      case 'bercario_6_24':
-        return bercario624Items;
+      case 'bercario_6_12':
+        return bercario612Items;
+      case 'bercario_12_24':
+        return bercario1224Items;
       case 'maternal':
         return maternalItems;
       default:
@@ -724,8 +744,10 @@ export default function NutritionistDashboard() {
     switch (type) {
       case 'bercario_0_6':
         return 'Berçário (0-6 meses)';
-      case 'bercario_6_24':
-        return 'Berçário (6m - 1a 11m)';
+      case 'bercario_6_12':
+        return 'Berçário (6m - 1 ano)';
+      case 'bercario_12_24':
+        return 'Berçário (1a - 2 anos)';
       case 'maternal':
         return 'Maternal / Jardim';
     }
@@ -735,7 +757,9 @@ export default function NutritionistDashboard() {
     switch (type) {
       case 'bercario_0_6':
         return 'pimpo-blue';
-      case 'bercario_6_24':
+      case 'bercario_6_12':
+        return 'pimpo-yellow';
+      case 'bercario_12_24':
         return 'pimpo-purple';
       case 'maternal':
         return 'pimpo-green';
@@ -748,7 +772,8 @@ export default function NutritionistDashboard() {
     try {
       // Get previous menus for context
       const currentItems = menuType === 'bercario_0_6' ? bercario06Items 
-        : menuType === 'bercario_6_24' ? bercario624Items 
+        : menuType === 'bercario_6_12' ? bercario612Items 
+        : menuType === 'bercario_12_24' ? bercario1224Items
         : maternalItems;
       
       const previousMenus = currentItems
@@ -1383,7 +1408,7 @@ export default function NutritionistDashboard() {
             </CardContent>
           </Card>
 
-          {/* Menu Type Tabs - Now with 3 tabs */}
+          {/* Menu Type Tabs - Now with 4 tabs */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -1391,16 +1416,21 @@ export default function NutritionistDashboard() {
           ) : (
             <Tabs value={activeMenuTab} onValueChange={(v) => setActiveMenuTab(v as MenuType)}>
               <div className="overflow-x-auto scrollbar-hide">
-                <TabsList className="w-max min-w-full grid grid-cols-3">
+                <TabsList className="w-max min-w-full grid grid-cols-4">
                   <TabsTrigger value="bercario_0_6" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
                     <Baby className="w-4 h-4" />
                     <span className="hidden sm:inline">Berçário 0-6m</span>
                     <span className="sm:hidden">0-6m</span>
                   </TabsTrigger>
-                  <TabsTrigger value="bercario_6_24" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                  <TabsTrigger value="bercario_6_12" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
                     <Baby className="w-4 h-4" />
-                    <span className="hidden sm:inline">Berçário 6m-2a</span>
-                    <span className="sm:hidden">6m-2a</span>
+                    <span className="hidden sm:inline">Berçário 6m-1a</span>
+                    <span className="sm:hidden">6m-1a</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="bercario_12_24" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 1a-2a</span>
+                    <span className="sm:hidden">1a-2a</span>
                   </TabsTrigger>
                   <TabsTrigger value="maternal" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
                     <Users className="w-4 h-4" />
@@ -1416,7 +1446,8 @@ export default function NutritionistDashboard() {
                   {[1, 2, 3, 4, 5].map((day) => {
                     const dayDate = addDays(weekStart, day - 1);
                     const currentItems = activeMenuTab === 'bercario_0_6' ? bercario06Items 
-                      : activeMenuTab === 'bercario_6_24' ? bercario624Items 
+                      : activeMenuTab === 'bercario_6_12' ? bercario612Items 
+                      : activeMenuTab === 'bercario_12_24' ? bercario1224Items
                       : maternalItems;
                     const dayItem = currentItems.find(item => item.day_of_week === day);
                     const hasContent = dayItem && (dayItem.breakfast || dayItem.lunch || dayItem.snack || dayItem.dinner || 
@@ -1450,8 +1481,12 @@ export default function NutritionistDashboard() {
                 {renderMenuForm(bercario06Items, 'bercario_0_6')}
               </TabsContent>
 
-              <TabsContent value="bercario_6_24" className="mt-4">
-                {renderMenuForm(bercario624Items, 'bercario_6_24')}
+              <TabsContent value="bercario_6_12" className="mt-4">
+                {renderMenuForm(bercario612Items, 'bercario_6_12')}
+              </TabsContent>
+
+              <TabsContent value="bercario_12_24" className="mt-4">
+                {renderMenuForm(bercario1224Items, 'bercario_12_24')}
               </TabsContent>
 
               <TabsContent value="maternal" className="mt-4">

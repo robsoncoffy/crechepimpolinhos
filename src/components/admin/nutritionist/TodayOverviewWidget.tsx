@@ -16,29 +16,33 @@ interface NutritionTotals {
   vitamin_a: number;
 }
 
-type MenuType = 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+type MenuType = 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 
 const MENU_LABELS: Record<MenuType, string> = {
   bercario_0_6: 'Berçário 0-6m',
-  bercario_6_24: 'Berçário 6-24m',
+  bercario_6_12: 'Berçário 6m-1a',
+  bercario_12_24: 'Berçário 1a-2a',
   maternal: 'Maternal'
 };
 
 const MENU_SHORT_LABELS: Record<MenuType, string> = {
   bercario_0_6: '0-6m',
-  bercario_6_24: '6m-2a',
+  bercario_6_12: '6m-1a',
+  bercario_12_24: '1a-2a',
   maternal: 'Mat.'
 };
 
 const MENU_COLORS: Record<MenuType, string> = {
   bercario_0_6: 'hsl(var(--pimpo-pink))',
-  bercario_6_24: 'hsl(var(--pimpo-purple))',
+  bercario_6_12: 'hsl(var(--pimpo-yellow))',
+  bercario_12_24: 'hsl(var(--pimpo-purple))',
   maternal: 'hsl(var(--pimpo-blue))'
 };
 
 interface ConsolidatedNutrition {
   bercario_0_6: NutritionTotals | null;
-  bercario_6_24: NutritionTotals | null;
+  bercario_6_12: NutritionTotals | null;
+  bercario_12_24: NutritionTotals | null;
   maternal: NutritionTotals | null;
 }
 
@@ -53,7 +57,7 @@ export function TodayOverviewWidget({
   childrenWithAllergies,
   allergyConflicts = [],
 }: TodayOverviewWidgetProps) {
-  const menuTypes: MenuType[] = ['bercario_0_6', 'bercario_6_24', 'maternal'];
+  const menuTypes: MenuType[] = ['bercario_0_6', 'bercario_6_12', 'bercario_12_24', 'maternal'];
   
   // Count how many menus have data
   const menusWithData = menuTypes.filter(type => 
