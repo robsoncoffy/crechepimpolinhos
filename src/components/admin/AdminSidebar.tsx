@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, FolderOpen } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, GraduationCap, Briefcase, Cog } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,16 +14,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Menu items organized by category with role restrictions
 // roles: which roles can see this item (empty = all staff)
-
-import { GraduationCap } from "lucide-react";
-
-// Dashboard
-const dashboardItems = [{
-  icon: LayoutDashboard,
-  label: "Dashboard",
-  href: "/painel",
-  roles: []
-}];
 
 // Gestão de Alunos
 const studentItems = [{
@@ -48,7 +38,7 @@ const studentItems = [{
   roles: ["admin", "pedagogue"]
 }];
 
-// Rotina Escolar
+// Rotina Escolar (sem Feed - movido para Comunicação)
 const routineItems = [{
   icon: ClipboardList,
   label: "Agenda Digital",
@@ -69,14 +59,9 @@ const routineItems = [{
   label: "Eventos",
   href: "/painel/eventos",
   roles: ["admin", "teacher", "pedagogue"]
-}, {
-  icon: Newspaper,
-  label: "Feed da Escola",
-  href: "/painel/feed",
-  roles: ["admin", "teacher"]
 }];
 
-// Comunicação
+// Comunicação (+ Feed + Notificações)
 const communicationItems = [{
   icon: MessageSquare,
   label: "Mensagens Pais",
@@ -93,6 +78,11 @@ const communicationItems = [{
   href: "/painel/avisos",
   roles: ["admin", "teacher"]
 }, {
+  icon: Newspaper,
+  label: "Feed da Escola",
+  href: "/painel/feed",
+  roles: ["admin", "teacher"]
+}, {
   icon: Mail,
   label: "E-mails",
   href: "/painel/emails",
@@ -104,7 +94,7 @@ const communicationItems = [{
   roles: ["admin"]
 }];
 
-// Cadastros (agrupado)
+// Cadastros
 const registrationItems = [{
   icon: ClipboardPen,
   label: "Pré-Matrículas",
@@ -128,16 +118,49 @@ const registrationItems = [{
   roles: ["admin"]
 }];
 
-// Administrativo
-const adminItems = [{
+// Equipe & Financeiro (unificado)
+const teamFinanceItems = [{
   icon: Users,
   label: "Professores",
   href: "/painel/professores",
   roles: ["admin"]
 }, {
+  icon: Briefcase,
+  label: "Funcionários",
+  href: "/painel/funcionarios",
+  roles: ["admin"]
+}, {
+  icon: Clock,
+  label: "Ponto Eletrônico",
+  href: "/painel/ponto",
+  roles: ["admin"]
+}, {
+  icon: CalendarOff,
+  label: "Férias/Ausências",
+  href: "/painel/ausencias",
+  roles: ["admin"]
+}, {
+  icon: DollarSign,
+  label: "Financeiro",
+  href: "/painel/financeiro",
+  roles: ["admin"]
+}, {
   icon: FileSignature,
   label: "Contratos",
   href: "/painel/contratos",
+  roles: ["admin"]
+}, {
+  icon: FileText,
+  label: "Relatórios",
+  href: "/painel/relatorios",
+  roles: ["admin"]
+}];
+
+// Sistema (unificado)
+const systemItems = [{
+  icon: Settings,
+  label: "Configurações",
+  href: "/painel/config",
   roles: ["admin"]
 }, {
   icon: User,
@@ -154,42 +177,6 @@ const adminItems = [{
   label: "Histórico Retiradas",
   href: "/painel/historico-retiradas",
   roles: ["admin"]
-}];
-
-// Financeiro & RH
-const financeHrItems = [{
-  icon: DollarSign,
-  label: "Financeiro",
-  href: "/painel/financeiro",
-  roles: ["admin"]
-}, {
-  icon: Users,
-  label: "Funcionários",
-  href: "/painel/funcionarios",
-  roles: ["admin"]
-}, {
-  icon: Clock,
-  label: "Ponto Eletrônico",
-  href: "/painel/ponto",
-  roles: ["admin"]
-}, {
-  icon: CalendarOff,
-  label: "Férias/Ausências",
-  href: "/painel/ausencias",
-  roles: ["admin"]
-}, {
-  icon: FileText,
-  label: "Relatórios",
-  href: "/painel/relatorios",
-  roles: ["admin"]
-}];
-
-// Configurações e Sistema
-const settingsItems = [{
-  icon: Settings,
-  label: "Configurações",
-  href: "/painel/config",
-  roles: ["admin"]
 }, {
   icon: Mail,
   label: "Logs de E-mail",
@@ -201,6 +188,7 @@ const settingsItems = [{
   href: "/painel/logs-auditoria",
   roles: ["admin"]
 }];
+
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -248,21 +236,22 @@ export function AdminSidebar() {
   };
 
   // Filter each category
-  const filteredDashboard = dashboardItems.filter(item => canSeeItem(item.roles));
   const filteredStudents = studentItems.filter(item => canSeeItem(item.roles));
   const filteredRoutine = routineItems.filter(item => canSeeItem(item.roles));
   const filteredCommunication = communicationItems.filter(item => canSeeItem(item.roles));
   const filteredRegistrations = registrationItems.filter(item => canSeeItem(item.roles));
-  const filteredAdmin = adminItems.filter(item => canSeeItem(item.roles));
-  const filteredFinanceHr = financeHrItems.filter(item => canSeeItem(item.roles));
-  const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
+  const filteredTeamFinance = teamFinanceItems.filter(item => canSeeItem(item.roles));
+  const filteredSystem = systemItems.filter(item => canSeeItem(item.roles));
   const roleLabel = getRoleLabel();
 
   // Show toggle in header for users with multiple views
   const showHeaderToggle = availableViews.length > 1;
 
+  // Check if dashboard is active
+  const isDashboardActive = location.pathname === "/painel";
+
   // Helper component for rendering menu sections
-  const renderMenuSection = (items: typeof dashboardItems, label: string) => {
+  const renderMenuSection = (items: typeof studentItems, label: string) => {
     if (items.length === 0) return null;
     return <SidebarGroup>
         <SidebarGroupLabel className="text-sidebar-foreground/60">
@@ -289,6 +278,7 @@ export function AdminSidebar() {
         </SidebarGroupContent>
       </SidebarGroup>;
   };
+
   return <Sidebar collapsible="icon" className="border-r-0">
       {/* Header */}
       <SidebarHeader className="border-b border-sidebar-border">
@@ -333,15 +323,29 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
+        {/* Dashboard - Item isolado no topo */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isDashboardActive} tooltip="Dashboard">
+                  <Link to="/painel">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Categorized Navigation */}
-        {renderMenuSection(filteredDashboard, "Início")}
-        {renderMenuSection(filteredStudents, "Gestão de Alunos")}
-        {renderMenuSection(filteredRoutine, "Rotina Escolar")}
+        {renderMenuSection(filteredStudents, "Alunos")}
+        {renderMenuSection(filteredRoutine, "Rotina")}
         {renderMenuSection(filteredCommunication, "Comunicação")}
         {renderMenuSection(filteredRegistrations, "Cadastros")}
-        {renderMenuSection(filteredAdmin, "Administrativo")}
-        {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
-        {renderMenuSection(filteredSettings, "Configurações")}
+        {renderMenuSection(filteredTeamFinance, "Equipe & Financeiro")}
+        {renderMenuSection(filteredSystem, "Sistema")}
       </SidebarContent>
 
       {/* Footer */}
