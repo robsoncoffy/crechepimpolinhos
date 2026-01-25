@@ -80,7 +80,7 @@ interface IngredientWithNutrition {
   polyunsaturated?: number;
 }
 
-type PeriodType = 'week' | 'month' | 'year';
+type PeriodType = 'week' | 'month' | 'semester' | 'year';
 type MenuType = 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 
 interface AdvancedNutritionPdfExportProps {
@@ -192,6 +192,17 @@ export function AdvancedNutritionPdfExport({
         start: monthStart,
         end: monthEnd,
         label: `${months[selectedMonth]} de ${selectedYear}`,
+      };
+    } else if (periodType === 'semester') {
+      // Semester: First half (Jan-Jun) or Second half (Jul-Dec)
+      const isFirstSemester = selectedMonth < 6;
+      const semesterStart = new Date(selectedYear, isFirstSemester ? 0 : 6, 1);
+      const semesterEnd = endOfMonth(new Date(selectedYear, isFirstSemester ? 5 : 11, 1));
+      const semesterLabel = isFirstSemester ? '1º Semestre' : '2º Semestre';
+      return {
+        start: semesterStart,
+        end: semesterEnd,
+        label: `${semesterLabel} de ${selectedYear}`,
       };
     } else {
       const yearStart = startOfYear(new Date(selectedYear, 0));
@@ -506,6 +517,7 @@ export function AdvancedNutritionPdfExport({
               <SelectContent>
                 <SelectItem value="week">Semana Atual</SelectItem>
                 <SelectItem value="month">Mês</SelectItem>
+                <SelectItem value="semester">Semestre (6 meses)</SelectItem>
                 <SelectItem value="year">Ano</SelectItem>
               </SelectContent>
             </Select>
@@ -525,6 +537,24 @@ export function AdvancedNutritionPdfExport({
                   {years.map(year => (
                     <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {periodType === 'semester' && (
+            <div className="space-y-2">
+              <Label>Semestre</Label>
+              <Select 
+                value={selectedMonth < 6 ? '0' : '6'} 
+                onValueChange={(v) => setSelectedMonth(parseInt(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">1º Semestre (Jan - Jun)</SelectItem>
+                  <SelectItem value="6">2º Semestre (Jul - Dez)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
