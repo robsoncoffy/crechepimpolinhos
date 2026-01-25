@@ -61,16 +61,11 @@ const routineItems = [{
   roles: ["admin", "teacher", "pedagogue"]
 }];
 
-// Comunicação (Chat + Avisos + Feed + E-mails + Notificações)
+// Comunicação
 const communicationItems = [{
-  icon: MessageSquare,
-  label: "Mensagens Pais",
-  href: "/painel/mensagens",
-  roles: ["admin", "nutritionist"]
-}, {
   icon: MessagesSquare,
-  label: "Chat Equipe",
-  href: "/painel/chat-equipe",
+  label: "Chat",
+  href: "/painel/chat",
   roles: []
 }, {
   icon: Megaphone,
