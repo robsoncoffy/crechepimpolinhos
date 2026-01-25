@@ -277,6 +277,12 @@ export default function NutritionistDashboard() {
         
         // Set the loaded nutrition state with proper immutability
         // Force new object references so React detects the change
+        console.log('🔄 Carregando nutritionByMeal do banco:', {
+          bercario_0_6_keys: Object.keys(newNutritionState.bercario_0_6).length,
+          bercario_6_24_keys: Object.keys(newNutritionState.bercario_6_24).length,
+          maternal_keys: Object.keys(newNutritionState.maternal).length,
+          amostra: Object.keys(newNutritionState.bercario_0_6).slice(0, 3)
+        });
         setNutritionByMeal({
           bercario_0_6: { ...newNutritionState.bercario_0_6 },
           bercario_6_24: { ...newNutritionState.bercario_6_24 },
@@ -375,6 +381,12 @@ export default function NutritionistDashboard() {
 
   // Get weekly nutrition data for the active menu type
   const weeklyNutritionData = useMemo(() => {
+    console.log('📊 Recalculando weeklyNutritionData', {
+      activeMenuTab,
+      temDados: !!nutritionByMeal[activeMenuTab],
+      keys: Object.keys(nutritionByMeal[activeMenuTab] || {})
+    });
+    
     const calculateDayTotals = (dayOfWeek: number): NutritionTotals | null => {
       const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
       const dayMeals = nutritionByMeal[activeMenuTab];
