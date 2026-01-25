@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Scale, Trash2, RefreshCw, Search, Check, X } from 'lucide-react';
+import { Loader2, Scale, Trash2, RefreshCw, Search, X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Popover,
@@ -276,6 +276,7 @@ export function IngredientQuantityEditor({
   const [localIngredients, setLocalIngredients] = useState<IngredientWithNutrition[]>(ingredients);
   const [calculating, setCalculating] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [addingIngredient, setAddingIngredient] = useState(false);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastDescriptionRef = useRef<string>('');
 
@@ -393,6 +394,14 @@ export function IngredientQuantityEditor({
     onIngredientsChange(updated);
     recalculateTotals(updated);
     setEditingIndex(null);
+  };
+
+  const handleAddIngredient = (newIngredient: IngredientWithNutrition) => {
+    const updated = [...localIngredients, newIngredient];
+    setLocalIngredients(updated);
+    onIngredientsChange(updated);
+    recalculateTotals(updated);
+    setAddingIngredient(false);
   };
 
   const recalculateTotals = useCallback((items: IngredientWithNutrition[]) => {
@@ -536,10 +545,31 @@ export function IngredientQuantityEditor({
             </Button>
           </div>
         ))}
+
+        {/* Add ingredient button */}
+        <Popover open={addingIngredient} onOpenChange={setAddingIngredient}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-8 text-xs border-dashed"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              Adicionar ingrediente
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0" align="center">
+            <IngredientSearchReplace
+              currentIngredient={{ name: '', quantity: 100, unit: 'g' }}
+              onReplace={handleAddIngredient}
+              onCancel={() => setAddingIngredient(false)}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
       
       <p className="text-[10px] text-muted-foreground mt-2 text-center">
-        💡 Clique na 🔍 para buscar e substituir ingredientes identificados incorretamente
+        💡 Use 🔍 para corrigir ingredientes ou ➕ para adicionar mais
       </p>
     </div>
   );
