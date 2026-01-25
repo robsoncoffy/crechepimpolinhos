@@ -124,7 +124,7 @@ async function sendEmailViaGHL(
       body: JSON.stringify({
         type: "Email",
         contactId,
-        emailTo: [toEmail],
+        emailTo: toEmail,
         subject,
         html: htmlContent,
       }),
