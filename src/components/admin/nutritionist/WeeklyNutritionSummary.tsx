@@ -37,6 +37,11 @@ const PNAE_TARGETS = {
 };
 
 export function WeeklyNutritionSummary({ weeklyData }: WeeklyNutritionSummaryProps) {
+  console.log('📈 WeeklyNutritionSummary renderizando:', {
+    diasComDados: weeklyData.filter(d => d.totals).length,
+    energias: weeklyData.map(d => d.totals?.energy || 0)
+  });
+  
   const chartData = weeklyData.map((day, idx) => ({
     day: dayShortNames[idx],
     protein: day.totals?.protein || 0,
