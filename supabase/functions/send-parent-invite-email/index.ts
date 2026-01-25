@@ -218,7 +218,7 @@ serve(async (req: Request): Promise<Response> => {
     if (normalizedCouponCode) {
       signupUrl += `&cupom=${encodeURIComponent(normalizedCouponCode)}`;
     }
-    const logoUrl = `${appUrl}/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png`;
+    const logoUrl = `${appUrl}/logo-email.png`;
 
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
     const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
