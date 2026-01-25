@@ -1,111 +1,101 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Download, Plus, Trash2, Loader2 } from "lucide-react";
+import { FileText, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInMonths, differenceInYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
-  PRICES, 
   CLASS_NAMES, 
-  PLAN_NAMES, 
-  ENROLLMENT_FEE, 
-  formatCurrency,
-  type ClassType,
-  type PlanType 
+  type ClassType 
 } from "@/lib/pricing";
 
-interface BudgetItem {
-  id: string;
-  description: string;
-  value: number;
-}
+// Judicial prices (different from standard pricing)
+const JUDICIAL_PRICES: Record<ClassType, { integral: number; meioTurno: number }> = {
+  bercario: { integral: 1050, meioTurno: 650 },
+  maternal: { integral: 930, meioTurno: 550 },
+  jardim: { integral: 850, meioTurno: 500 },
+};
 
 interface BudgetFormData {
-  parentName: string;
   childName: string;
+  childCpf: string;
   childBirthDate: string;
   classType: ClassType | "";
-  planType: PlanType | "";
-  includeEnrollmentFee: boolean;
-  additionalItems: BudgetItem[];
-  observations: string;
-  validityDays: number;
 }
 
 const initialFormData: BudgetFormData = {
-  parentName: "",
   childName: "",
+  childCpf: "",
   childBirthDate: "",
   classType: "",
-  planType: "",
-  includeEnrollmentFee: true,
-  additionalItems: [],
-  observations: "",
-  validityDays: 30,
+};
+
+// Format CPF as user types
+const formatCpf = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+};
+
+// Calculate age description from birth date
+const getAgeDescription = (birthDate: string): string => {
+  if (!birthDate) return "";
+  const birth = new Date(birthDate + "T12:00:00");
+  const today = new Date();
+  const years = differenceInYears(today, birth);
+  const months = differenceInMonths(today, birth) % 12;
+  
+  if (years === 0) {
+    return `${months} ${months === 1 ? "mês" : "meses"}`;
+  }
+  if (months === 0) {
+    return `${years} ${years === 1 ? "ano" : "anos"}`;
+  }
+  return `${years} ${years === 1 ? "ano" : "anos"} e ${months} ${months === 1 ? "mês" : "meses"}`;
+};
+
+// Suggest class type based on age
+const getSuggestedClassType = (birthDate: string): ClassType | "" => {
+  if (!birthDate) return "";
+  const birth = new Date(birthDate + "T12:00:00");
+  const today = new Date();
+  const months = differenceInMonths(today, birth);
+  
+  if (months < 24) return "bercario";
+  if (months < 48) return "maternal";
+  return "jardim";
 };
 
 export default function AdminBudgets() {
   const [formData, setFormData] = useState<BudgetFormData>(initialFormData);
   const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (field: keyof BudgetFormData, value: any) => {
+  // Auto-suggest class type when birth date changes
+  useEffect(() => {
+    if (formData.childBirthDate) {
+      const suggested = getSuggestedClassType(formData.childBirthDate);
+      if (suggested && !formData.classType) {
+        setFormData(prev => ({ ...prev, classType: suggested }));
+      }
+    }
+  }, [formData.childBirthDate]);
+
+  const handleInputChange = (field: keyof BudgetFormData, value: string) => {
+    if (field === "childCpf") {
+      value = formatCpf(value);
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const addAdditionalItem = () => {
-    const newItem: BudgetItem = {
-      id: crypto.randomUUID(),
-      description: "",
-      value: 0,
-    };
-    setFormData(prev => ({
-      ...prev,
-      additionalItems: [...prev.additionalItems, newItem],
-    }));
-  };
-
-  const updateAdditionalItem = (id: string, field: keyof BudgetItem, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      additionalItems: prev.additionalItems.map(item =>
-        item.id === id ? { ...item, [field]: value } : item
-      ),
-    }));
-  };
-
-  const removeAdditionalItem = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      additionalItems: prev.additionalItems.filter(item => item.id !== id),
-    }));
-  };
-
-  const calculateTotal = () => {
-    let total = 0;
-    
-    if (formData.classType && formData.planType) {
-      total += PRICES[formData.classType][formData.planType];
-    }
-    
-    if (formData.includeEnrollmentFee) {
-      total += ENROLLMENT_FEE;
-    }
-    
-    formData.additionalItems.forEach(item => {
-      total += item.value || 0;
-    });
-    
-    return total;
-  };
-
   const generatePdf = () => {
-    if (!formData.parentName || !formData.childName || !formData.classType || !formData.planType) {
-      toast.error("Preencha todos os campos obrigatórios");
+    if (!formData.childName || !formData.classType) {
+      toast.error("Preencha o nome da criança e selecione a turma");
       return;
     }
 
@@ -113,25 +103,34 @@ export default function AdminBudgets() {
 
     try {
       const today = new Date();
-      const validUntil = new Date(today);
-      validUntil.setDate(validUntil.getDate() + formData.validityDays);
+      const prices = JUDICIAL_PRICES[formData.classType as ClassType];
+      const ageDescription = getAgeDescription(formData.childBirthDate);
+      const birthDateFormatted = formData.childBirthDate 
+        ? format(new Date(formData.childBirthDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })
+        : "";
 
-      const monthlyValue = formData.classType && formData.planType 
-        ? PRICES[formData.classType][formData.planType] 
-        : 0;
-      const total = calculateTotal();
+      // Get class display name with subtype for maternal
+      let classDisplay = CLASS_NAMES[formData.classType as ClassType];
+      if (formData.classType === "maternal") {
+        const birth = new Date(formData.childBirthDate + "T12:00:00");
+        const months = differenceInMonths(today, birth);
+        classDisplay = months < 36 ? "Maternal 1" : "Maternal 2";
+      }
 
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="pt-BR">
         <head>
           <meta charset="UTF-8">
-          <title>Orçamento - ${formData.childName}</title>
+          <title>Orçamento Judicial - ${formData.childName}</title>
           <style>
             @media print {
               @page {
                 size: A4;
-                margin: 15mm;
+                margin: 20mm;
+              }
+              .no-print {
+                display: none !important;
               }
             }
             
@@ -142,322 +141,249 @@ export default function AdminBudgets() {
             }
             
             body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-family: Arial, sans-serif;
               padding: 40px;
               background: white;
               color: #333;
-              line-height: 1.6;
+              line-height: 1.7;
+              font-size: 14px;
+            }
+            
+            .no-print {
+              margin-bottom: 20px;
+              text-align: center;
+              padding: 15px;
+              background: #f0f9ff;
+              border-radius: 8px;
+            }
+            
+            .no-print button {
+              padding: 12px 24px;
+              font-size: 14px;
+              cursor: pointer;
+              border: none;
+              border-radius: 6px;
+              margin: 0 5px;
+              font-weight: 500;
+            }
+            
+            .btn-print {
+              background: #3b82f6;
+              color: white;
+            }
+            
+            .btn-close {
+              background: #6b7280;
+              color: white;
             }
             
             .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
+              text-align: center;
               margin-bottom: 30px;
-              padding-bottom: 20px;
-              border-bottom: 3px solid #3b82f6;
             }
             
-            .logo-section {
-              display: flex;
-              align-items: center;
-              gap: 15px;
-            }
-            
-            .logo-section img {
+            .header img {
               height: 80px;
-            }
-            
-            .school-info h1 {
-              font-size: 24px;
-              color: #3b82f6;
-              margin-bottom: 5px;
-            }
-            
-            .school-info p {
-              font-size: 12px;
-              color: #666;
-            }
-            
-            .document-info {
-              text-align: right;
-            }
-            
-            .document-info h2 {
-              font-size: 20px;
-              color: #333;
               margin-bottom: 10px;
             }
             
-            .document-info p {
-              font-size: 12px;
-              color: #666;
+            .header h1 {
+              font-size: 18px;
+              font-weight: bold;
+              color: #333;
+              text-transform: uppercase;
+              letter-spacing: 1px;
             }
             
-            .section {
+            .content {
               margin-bottom: 25px;
             }
             
-            .section-title {
-              font-size: 14px;
-              font-weight: 600;
-              color: #3b82f6;
-              text-transform: uppercase;
-              margin-bottom: 10px;
-              padding-bottom: 5px;
-              border-bottom: 1px solid #e5e7eb;
+            .content p {
+              margin-bottom: 15px;
+              text-align: justify;
             }
             
-            .info-grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 10px;
+            .child-info {
+              margin: 20px 0;
+              padding: 15px 0;
             }
             
-            .info-item {
-              display: flex;
-              gap: 10px;
+            .child-info p {
+              margin-bottom: 8px;
+              text-align: left;
             }
             
-            .info-label {
-              font-weight: 600;
-              color: #555;
-              min-width: 120px;
+            .child-name {
+              font-weight: bold;
+              font-size: 15px;
             }
             
-            .info-value {
-              color: #333;
+            .class-name {
+              font-weight: bold;
+              font-size: 15px;
+              margin-top: 10px;
+              display: block;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 10px;
+              margin: 20px 0;
             }
             
             th, td {
-              border: 1px solid #e5e7eb;
-              padding: 12px;
+              border: 1px solid #333;
+              padding: 12px 15px;
               text-align: left;
             }
             
             th {
-              background: #3b82f6;
-              color: white;
-              font-weight: 600;
-              font-size: 12px;
+              background: #f5f5f5;
+              font-weight: bold;
               text-transform: uppercase;
+              font-size: 12px;
             }
             
             td {
               font-size: 13px;
             }
             
-            .text-right {
-              text-align: right;
-            }
-            
-            .total-row {
-              background: #f0f9ff;
-              font-weight: 600;
-            }
-            
-            .total-row td {
-              font-size: 14px;
-              color: #1e40af;
-            }
-            
-            .monthly-row {
-              background: #fefce8;
-            }
-            
-            .observations {
-              background: #f9fafb;
-              padding: 15px;
-              border-radius: 8px;
-              border-left: 4px solid #3b82f6;
-            }
-            
-            .observations p {
-              font-size: 13px;
-              color: #555;
-            }
-            
-            .validity {
-              margin-top: 20px;
-              padding: 15px;
-              background: #fef3c7;
-              border-radius: 8px;
+            .text-center {
               text-align: center;
             }
             
-            .validity p {
+            .incluso-section {
+              margin: 25px 0;
+            }
+            
+            .incluso-section h3 {
+              font-size: 14px;
+              font-weight: bold;
+              margin-bottom: 10px;
+            }
+            
+            .incluso-section ul {
+              margin-left: 20px;
+            }
+            
+            .incluso-section li {
+              margin-bottom: 6px;
+              font-size: 13px;
+            }
+            
+            .note {
+              margin: 20px 0;
+              font-size: 13px;
+              text-align: justify;
+            }
+            
+            .date-location {
+              margin: 30px 0 20px 0;
+              font-size: 14px;
+            }
+            
+            .company-info {
+              margin: 30px 0;
               font-size: 12px;
-              color: #92400e;
+              line-height: 1.5;
             }
             
             .footer {
-              margin-top: 40px;
-              text-align: center;
+              margin-top: 30px;
               padding-top: 20px;
-              border-top: 1px solid #e5e7eb;
-            }
-            
-            .footer p {
-              font-size: 11px;
-              color: #888;
-            }
-            
-            .signature-section {
-              margin-top: 60px;
-              display: flex;
-              justify-content: space-around;
-            }
-            
-            .signature-line {
-              text-align: center;
-              width: 200px;
-            }
-            
-            .signature-line .line {
-              border-top: 1px solid #333;
-              margin-bottom: 5px;
-            }
-            
-            .signature-line p {
+              border-top: 1px solid #ddd;
               font-size: 11px;
               color: #666;
             }
             
-            .no-print {
-              margin-bottom: 20px;
-              text-align: center;
-            }
-            
-            @media print {
-              .no-print {
-                display: none;
-              }
+            .footer p {
+              margin-bottom: 3px;
+              text-align: left;
             }
           </style>
         </head>
         <body>
           <div class="no-print">
-            <button onclick="window.print()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #3b82f6; color: white; border: none; border-radius: 8px; margin-right: 10px;">
+            <button class="btn-print" onclick="window.print()">
               🖨️ Imprimir / Salvar PDF
             </button>
-            <button onclick="window.close()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #6b7280; color: white; border: none; border-radius: 8px;">
+            <button class="btn-close" onclick="window.close()">
               ✕ Fechar
             </button>
           </div>
           
           <div class="header">
-            <div class="logo-section">
-              <img src="/lovable-uploads/eed7b86f-7ea7-4bb8-befc-3aefe00dce68.png" alt="Pimpolinhos" />
-              <div class="school-info">
-                <h1>Creche Pimpolinhos</h1>
-                <p>CNPJ: 00.000.000/0001-00</p>
-                <p>Rua Exemplo, 123 - Bairro - Cidade/RS</p>
-                <p>Tel: (51) 9 8996-5423</p>
-              </div>
-            </div>
-            <div class="document-info">
-              <h2>ORÇAMENTO</h2>
-              <p><strong>Data:</strong> ${format(today, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</p>
-              <p><strong>Válido até:</strong> ${format(validUntil, "dd/MM/yyyy", { locale: ptBR })}</p>
-            </div>
+            <img src="/lovable-uploads/eed7b86f-7ea7-4bb8-befc-3aefe00dce68.png" alt="Creche Pimpolinhos" />
+            <h1>Creche Infantil Pimpolinhos - Orçamento Judicial</h1>
           </div>
           
-          <div class="section">
-            <div class="section-title">Dados do Solicitante</div>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">Responsável:</span>
-                <span class="info-value">${formData.parentName}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Criança:</span>
-                <span class="info-value">${formData.childName}</span>
-              </div>
-              ${formData.childBirthDate ? `
-              <div class="info-item">
-                <span class="info-label">Data Nasc.:</span>
-                <span class="info-value">${format(new Date(formData.childBirthDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}</span>
-              </div>
-              ` : ''}
-              <div class="info-item">
-                <span class="info-label">Turma:</span>
-                <span class="info-value">${CLASS_NAMES[formData.classType as ClassType]}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Plano:</span>
-                <span class="info-value">${PLAN_NAMES[formData.planType as PlanType]}</span>
-              </div>
+          <div class="content">
+            <p>
+              Para fins de instrução processual, certificamos que a Creche Infantil Pimpolinhos, 
+              situada na Rua Coronel Camisão, nº 495, Bairro Harmonia, Canoas/RS, apresenta o 
+              presente orçamento judicial de mensalidade, referente ao aluno:
+            </p>
+            
+            <div class="child-info">
+              <p class="child-name">${formData.childName}${formData.childCpf ? ` - CPF ${formData.childCpf}` : ""}</p>
+              ${birthDateFormatted ? `<p>Data de nascimento: ${birthDateFormatted}${ageDescription ? ` (${ageDescription} na atual data)` : ""}</p>` : ""}
+              <span class="class-name">${classDisplay}</span>
             </div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Detalhamento de Valores</div>
+            
             <table>
               <thead>
                 <tr>
-                  <th>Descrição</th>
-                  <th class="text-right" style="width: 150px;">Valor</th>
+                  <th>Modalidade</th>
+                  <th>Horário</th>
+                  <th class="text-center">Valor Mensal</th>
                 </tr>
               </thead>
               <tbody>
-                <tr class="monthly-row">
-                  <td><strong>Mensalidade ${PLAN_NAMES[formData.planType as PlanType]} - ${CLASS_NAMES[formData.classType as ClassType]}</strong><br/><small style="color: #666;">Valor mensal recorrente</small></td>
-                  <td class="text-right"><strong>${formatCurrency(monthlyValue)}/mês</strong></td>
-                </tr>
-                ${formData.includeEnrollmentFee ? `
                 <tr>
-                  <td>Taxa de Matrícula<br/><small style="color: #666;">Cobrança única (primeira parcela)</small></td>
-                  <td class="text-right">${formatCurrency(ENROLLMENT_FEE)}</td>
+                  <td><strong>INTEGRAL</strong></td>
+                  <td>07h às 19h</td>
+                  <td class="text-center">R$${prices.integral.toFixed(2).replace(".", ",")}</td>
                 </tr>
-                ` : ''}
-                ${formData.additionalItems.map(item => `
                 <tr>
-                  <td>${item.description || 'Item adicional'}</td>
-                  <td class="text-right">${formatCurrency(item.value)}</td>
-                </tr>
-                `).join('')}
-                <tr class="total-row">
-                  <td><strong>TOTAL PRIMEIRA PARCELA</strong></td>
-                  <td class="text-right"><strong>${formatCurrency(total)}</strong></td>
+                  <td><strong>MEIO TURNO</strong></td>
+                  <td>07h às 12h ou 13h às 19h</td>
+                  <td class="text-center">R$${prices.meioTurno.toFixed(2).replace(".", ",")}</td>
                 </tr>
               </tbody>
             </table>
-          </div>
-          
-          ${formData.observations ? `
-          <div class="section">
-            <div class="section-title">Observações</div>
-            <div class="observations">
-              <p>${formData.observations.replace(/\n/g, '<br/>')}</p>
+            
+            <div class="incluso-section">
+              <h3>Incluso na mensalidade:</h3>
+              <ul>
+                <li>Alimentação completa no período contratado (cardápio balanceado)</li>
+                <li>Acompanhamento e supervisão de nutricionista</li>
+                <li>Equipe pedagógica qualificada</li>
+                <li>Ambiente seguro e estruturado especialmente para a educação infantil</li>
+                <li>Atividades lúdicas, motoras e de desenvolvimento social, emocional e cognitivo</li>
+              </ul>
             </div>
-          </div>
-          ` : ''}
-          
-          <div class="validity">
-            <p><strong>⚠️ Este orçamento é válido por ${formData.validityDays} dias a partir da data de emissão.</strong></p>
-            <p>Após este período, os valores podem sofrer alterações sem aviso prévio.</p>
-          </div>
-          
-          <div class="signature-section">
-            <div class="signature-line">
-              <div class="line"></div>
-              <p>Creche Pimpolinhos</p>
-            </div>
-            <div class="signature-line">
-              <div class="line"></div>
-              <p>Responsável</p>
+            
+            <p class="note">
+              Ressaltamos que os valores acima correspondem ao atendimento regular, com foco no 
+              cuidado, acolhimento e desenvolvimento integral das crianças.
+            </p>
+            
+            <p class="date-location">
+              Canoas/RS, ${format(today, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}.
+            </p>
+            
+            <div class="company-info">
+              <p><strong>60.141.634/0001-96</strong></p>
+              <p>Escola de Ensino Infantil Pimpolinhos LTDA</p>
+              <p>Rua Coronel Camisão 495</p>
+              <p>Harmonia - CANOAS</p>
             </div>
           </div>
           
           <div class="footer">
-            <p>Este documento é um orçamento estimativo e não constitui contrato.</p>
-            <p>Para efetivação da matrícula, consulte os termos e condições completos.</p>
+            <p><strong>Endereço:</strong> Rua Coronel Camisão, nº 495, Harmonia – Canoas/RS 92310-020</p>
+            <p><strong>WhatsApp:</strong> (51) 98996-5423</p>
           </div>
         </body>
         </html>
@@ -467,9 +393,9 @@ export default function AdminBudgets() {
       if (printWindow) {
         printWindow.document.write(htmlContent);
         printWindow.document.close();
-        toast.success("Orçamento gerado com sucesso!");
+        toast.success("Orçamento judicial gerado com sucesso!");
       } else {
-        toast.error("Bloqueador de pop-ups ativo. Por favor, permita pop-ups para este site.");
+        toast.error("Bloqueador de pop-ups ativo. Por favor, permita pop-ups.");
       }
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -484,10 +410,12 @@ export default function AdminBudgets() {
     toast.info("Formulário limpo");
   };
 
+  const prices = formData.classType ? JUDICIAL_PRICES[formData.classType as ClassType] : null;
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-fredoka font-bold text-foreground">Orçamentos</h1>
+        <h1 className="text-3xl font-fredoka font-bold text-foreground">Orçamentos Judiciais</h1>
         <p className="text-muted-foreground">
           Gere orçamentos em PDF para ações judiciais e solicitações de responsáveis
         </p>
@@ -495,41 +423,41 @@ export default function AdminBudgets() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Form Section */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Dados do Orçamento
+                Dados do Aluno
               </CardTitle>
               <CardDescription>
-                Preencha as informações para gerar o documento
+                Preencha as informações para gerar o orçamento judicial
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Parent & Child Info */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="parentName">Nome do Responsável *</Label>
-                  <Input
-                    id="parentName"
-                    placeholder="Nome completo"
-                    value={formData.parentName}
-                    onChange={(e) => handleInputChange("parentName", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="childName">Nome da Criança *</Label>
+                  <Label htmlFor="childName">Nome Completo da Criança *</Label>
                   <Input
                     id="childName"
-                    placeholder="Nome completo"
+                    placeholder="Ex: João Pedro Silva"
                     value={formData.childName}
                     onChange={(e) => handleInputChange("childName", e.target.value)}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="childCpf">CPF da Criança</Label>
+                  <Input
+                    id="childCpf"
+                    placeholder="000.000.000-00"
+                    value={formData.childCpf}
+                    onChange={(e) => handleInputChange("childCpf", e.target.value)}
+                    maxLength={14}
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="childBirthDate">Data de Nascimento</Label>
                   <Input
@@ -538,6 +466,11 @@ export default function AdminBudgets() {
                     value={formData.childBirthDate}
                     onChange={(e) => handleInputChange("childBirthDate", e.target.value)}
                   />
+                  {formData.childBirthDate && (
+                    <p className="text-sm text-muted-foreground">
+                      Idade atual: {getAgeDescription(formData.childBirthDate)}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Turma *</Label>
@@ -555,105 +488,6 @@ export default function AdminBudgets() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Plano *</Label>
-                  <Select
-                    value={formData.planType}
-                    onValueChange={(value) => handleInputChange("planType", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o plano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="basico">Básico</SelectItem>
-                      <SelectItem value="intermediario">Intermediário</SelectItem>
-                      <SelectItem value="plus">Plus+</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Enrollment Fee */}
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="includeEnrollmentFee"
-                  checked={formData.includeEnrollmentFee}
-                  onChange={(e) => handleInputChange("includeEnrollmentFee", e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <Label htmlFor="includeEnrollmentFee" className="cursor-pointer">
-                  Incluir Taxa de Matrícula ({formatCurrency(ENROLLMENT_FEE)})
-                </Label>
-              </div>
-
-              {/* Additional Items */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Itens Adicionais</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addAdditionalItem}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Adicionar Item
-                  </Button>
-                </div>
-                {formData.additionalItems.map((item) => (
-                  <div key={item.id} className="flex gap-2 items-start">
-                    <Input
-                      placeholder="Descrição do item"
-                      value={item.description}
-                      onChange={(e) => updateAdditionalItem(item.id, "description", e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Valor"
-                      value={item.value || ""}
-                      onChange={(e) => updateAdditionalItem(item.id, "value", parseFloat(e.target.value) || 0)}
-                      className="w-32"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeAdditionalItem(item.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Validity */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="validityDays">Validade do Orçamento (dias)</Label>
-                  <Input
-                    id="validityDays"
-                    type="number"
-                    min={1}
-                    max={90}
-                    value={formData.validityDays}
-                    onChange={(e) => handleInputChange("validityDays", parseInt(e.target.value) || 30)}
-                  />
-                </div>
-              </div>
-
-              {/* Observations */}
-              <div className="space-y-2">
-                <Label htmlFor="observations">Observações</Label>
-                <Textarea
-                  id="observations"
-                  placeholder="Informações adicionais, condições especiais, etc."
-                  value={formData.observations}
-                  onChange={(e) => handleInputChange("observations", e.target.value)}
-                  rows={4}
-                />
               </div>
             </CardContent>
           </Card>
@@ -663,41 +497,33 @@ export default function AdminBudgets() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Resumo</CardTitle>
+              <CardTitle>Valores da Turma</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {formData.classType && formData.planType && (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mensalidade:</span>
-                    <span className="font-medium">
-                      {formatCurrency(PRICES[formData.classType][formData.planType])}
+              {prices ? (
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">Integral</p>
+                      <p className="text-xs text-muted-foreground">07h às 19h</p>
+                    </div>
+                    <span className="font-bold text-primary">
+                      R${prices.integral.toFixed(2).replace(".", ",")}
                     </span>
                   </div>
-                  {formData.includeEnrollmentFee && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Taxa de Matrícula:</span>
-                      <span>{formatCurrency(ENROLLMENT_FEE)}</span>
+                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">Meio Turno</p>
+                      <p className="text-xs text-muted-foreground">07h às 12h ou 13h às 19h</p>
                     </div>
-                  )}
-                  {formData.additionalItems.map((item) => (
-                    <div key={item.id} className="flex justify-between">
-                      <span className="text-muted-foreground truncate max-w-[150px]">
-                        {item.description || "Item adicional"}:
-                      </span>
-                      <span>{formatCurrency(item.value)}</span>
-                    </div>
-                  ))}
-                  <div className="border-t pt-2 flex justify-between font-semibold">
-                    <span>Total 1ª Parcela:</span>
-                    <span className="text-primary">{formatCurrency(calculateTotal())}</span>
+                    <span className="font-bold text-primary">
+                      R${prices.meioTurno.toFixed(2).replace(".", ",")}
+                    </span>
                   </div>
                 </div>
-              )}
-
-              {(!formData.classType || !formData.planType) && (
+              ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Selecione a turma e o plano para ver o resumo
+                  Selecione a turma para ver os valores
                 </p>
               )}
             </CardContent>
@@ -706,7 +532,7 @@ export default function AdminBudgets() {
           <div className="flex flex-col gap-2">
             <Button
               onClick={generatePdf}
-              disabled={loading || !formData.parentName || !formData.childName || !formData.classType || !formData.planType}
+              disabled={loading || !formData.childName || !formData.classType}
               className="w-full"
             >
               {loading ? (
@@ -714,7 +540,7 @@ export default function AdminBudgets() {
               ) : (
                 <Download className="h-4 w-4 mr-2" />
               )}
-              Gerar PDF
+              Gerar Orçamento PDF
             </Button>
             <Button variant="outline" onClick={resetForm}>
               Limpar Formulário
@@ -724,8 +550,8 @@ export default function AdminBudgets() {
           <Card className="bg-muted/50">
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">
-                <strong>Dica:</strong> Após gerar o PDF, você pode salvá-lo usando a opção 
-                "Salvar como PDF" na janela de impressão do navegador.
+                <strong>Dica:</strong> Na janela de impressão, selecione "Salvar como PDF" 
+                para baixar o documento.
               </p>
             </CardContent>
           </Card>
