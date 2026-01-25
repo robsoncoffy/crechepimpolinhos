@@ -13,11 +13,25 @@ import {
   type ClassType 
 } from "@/lib/pricing";
 
-// Judicial prices (different from standard pricing)
-const JUDICIAL_PRICES: Record<ClassType, { integral: number; meioTurno: number }> = {
+// Judicial prices - Maternal I (24-35 months) has same price as Berçário
+// Maternal II (36-47 months) has different pricing
+const JUDICIAL_PRICES = {
   bercario: { integral: 1050, meioTurno: 650 },
-  maternal: { integral: 930, meioTurno: 550 },
+  maternal1: { integral: 1050, meioTurno: 650 }, // Same as Berçário
+  maternal2: { integral: 930, meioTurno: 550 },
   jardim: { integral: 850, meioTurno: 500 },
+};
+
+// Get the correct price tier based on class type and age
+const getPricesForChild = (classType: ClassType, birthDate: string) => {
+  if (classType === "maternal" && birthDate) {
+    const birth = new Date(birthDate + "T12:00:00");
+    const months = differenceInMonths(new Date(), birth);
+    // Maternal I: 24-35 months (same price as Berçário)
+    // Maternal II: 36-47 months
+    return months < 36 ? JUDICIAL_PRICES.maternal1 : JUDICIAL_PRICES.maternal2;
+  }
+  return JUDICIAL_PRICES[classType] || JUDICIAL_PRICES.bercario;
 };
 
 interface BudgetFormData {
@@ -103,7 +117,7 @@ export default function AdminBudgets() {
 
     try {
       const today = new Date();
-      const prices = JUDICIAL_PRICES[formData.classType as ClassType];
+      const prices = getPricesForChild(formData.classType as ClassType, formData.childBirthDate);
       const ageDescription = getAgeDescription(formData.childBirthDate);
       const birthDateFormatted = formData.childBirthDate 
         ? format(new Date(formData.childBirthDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })
@@ -111,7 +125,7 @@ export default function AdminBudgets() {
 
       // Get class display name with subtype for maternal
       let classDisplay = CLASS_NAMES[formData.classType as ClassType];
-      if (formData.classType === "maternal") {
+      if (formData.classType === "maternal" && formData.childBirthDate) {
         const birth = new Date(formData.childBirthDate + "T12:00:00");
         const months = differenceInMonths(today, birth);
         classDisplay = months < 36 ? "Maternal 1" : "Maternal 2";
@@ -405,7 +419,20 @@ export default function AdminBudgets() {
     toast.info("Formulário limpo");
   };
 
-  const prices = formData.classType ? JUDICIAL_PRICES[formData.classType as ClassType] : null;
+  const prices = formData.classType 
+    ? getPricesForChild(formData.classType as ClassType, formData.childBirthDate) 
+    : null;
+  
+  // Determine display class name for the summary
+  const getClassDisplayName = () => {
+    if (!formData.classType) return "";
+    if (formData.classType === "maternal" && formData.childBirthDate) {
+      const birth = new Date(formData.childBirthDate + "T12:00:00");
+      const months = differenceInMonths(new Date(), birth);
+      return months < 36 ? "Maternal 1" : "Maternal 2";
+    }
+    return CLASS_NAMES[formData.classType as ClassType];
+  };
 
   return (
     <div className="space-y-6">
@@ -492,7 +519,16 @@ export default function AdminBudgets() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Valores da Turma</CardTitle>
+              <CardTitle>
+                Valores {getClassDisplayName() || "da Turma"}
+              </CardTitle>
+              {formData.classType === "maternal" && formData.childBirthDate && (
+                <CardDescription>
+                  {differenceInMonths(new Date(), new Date(formData.childBirthDate + "T12:00:00")) < 36 
+                    ? "Maternal I tem o mesmo valor do Berçário" 
+                    : ""}
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {prices ? (
