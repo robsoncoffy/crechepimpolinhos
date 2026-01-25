@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,12 @@ export default function AdminEmployeeInvites() {
   const [newRole, setNewRole] = useState<string>("teacher");
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [employeeName, setEmployeeName] = useState("");
+  
+  // Resend dialog state
+  const [resendDialogOpen, setResendDialogOpen] = useState(false);
+  const [resendInvite, setResendInvite] = useState<Invite | null>(null);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendName, setResendName] = useState("");
 
   const fetchInvites = async () => {
     const { data, error } = await supabase
@@ -326,11 +333,10 @@ export default function AdminEmployeeInvites() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const email = prompt(`Digite o e-mail do ${getRoleLabel(invite.role)}:`);
-                              if (email) {
-                                const name = prompt("Nome do funcionário (opcional):");
-                                sendInviteEmail(invite.invite_code, invite.role, email, name || undefined);
-                              }
+                              setResendInvite(invite);
+                              setResendEmail("");
+                              setResendName("");
+                              setResendDialogOpen(true);
                             }}
                             disabled={sendingEmail === invite.invite_code}
                           >
@@ -361,6 +367,68 @@ export default function AdminEmployeeInvites() {
           )}
         </CardContent>
       </Card>
+      {/* Resend Email Dialog */}
+      <Dialog open={resendDialogOpen} onOpenChange={setResendDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar Convite por E-mail</DialogTitle>
+            <DialogDescription>
+              {resendInvite && (
+                <>
+                  Código: <strong>{resendInvite.invite_code}</strong> ({getRoleLabel(resendInvite.role)})
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="resend-email">E-mail do Funcionário *</Label>
+              <Input
+                id="resend-email"
+                type="email"
+                value={resendEmail}
+                onChange={(e) => setResendEmail(e.target.value)}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resend-name">Nome do Funcionário (opcional)</Label>
+              <Input
+                id="resend-name"
+                value={resendName}
+                onChange={(e) => setResendName(e.target.value)}
+                placeholder="Ex: Maria Silva"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResendDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!resendEmail.trim() || sendingEmail !== null}
+              onClick={async () => {
+                if (resendInvite && resendEmail.trim()) {
+                  await sendInviteEmail(
+                    resendInvite.invite_code,
+                    resendInvite.role,
+                    resendEmail.trim(),
+                    resendName.trim() || undefined
+                  );
+                  setResendDialogOpen(false);
+                }
+              }}
+            >
+              {sendingEmail ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              Enviar Convite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
