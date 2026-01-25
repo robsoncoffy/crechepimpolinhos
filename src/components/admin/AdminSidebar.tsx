@@ -86,11 +86,6 @@ const communicationItems = [{
 
 // Cadastros
 const registrationItems = [{
-  icon: ClipboardPen,
-  label: "Pré-Matrículas",
-  href: "/painel/pre-matriculas",
-  roles: ["admin"]
-}, {
   icon: UserCheck,
   label: "Aprovações",
   href: "/painel/aprovacoes",

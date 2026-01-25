@@ -32,7 +32,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen } from "lucide-react";
+import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
 
@@ -673,8 +674,12 @@ export default function AdminApprovals() {
       </div>
 
       {/* Tabs for different approval types */}
-      <Tabs defaultValue="children" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="pre-enrollments" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pre-enrollments" className="flex items-center gap-2">
+            <ClipboardPen className="w-4 h-4" />
+            Pré-Matrículas
+          </TabsTrigger>
           <TabsTrigger value="children" className="flex items-center gap-2">
             <Baby className="w-4 h-4" />
             Crianças ({pendingRegistrations.length})
@@ -684,6 +689,11 @@ export default function AdminApprovals() {
             Pais ({pendingParents.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* Pre-Enrollments Tab */}
+        <TabsContent value="pre-enrollments">
+          <PreEnrollmentsContent />
+        </TabsContent>
 
         {/* Children Registrations Tab */}
         <TabsContent value="children">
