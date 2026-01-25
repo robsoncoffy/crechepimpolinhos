@@ -11,6 +11,7 @@ import AdminTeachers from "@/pages/admin/AdminTeachers";
 import AdminChildren from "@/pages/admin/AdminChildren";
 import AdminAgenda from "@/pages/admin/AdminAgenda";
 import AdminMessages from "@/pages/admin/AdminMessages";
+import AdminChat from "@/pages/admin/AdminChat";
 import AdminGrowth from "@/pages/admin/AdminGrowth";
 import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminGallery from "@/pages/admin/AdminGallery";
@@ -266,7 +267,9 @@ function DashboardContent() {
           } />
           
           {/* All staff can access */}
+          <Route path="/chat" element={<AdminChat />} />
           <Route path="/chat-equipe" element={<AdminStaffChat />} />
+          <Route path="/mensagens" element={<AdminMessages />} />
         </Routes>
       </AdminLayout>
     );
