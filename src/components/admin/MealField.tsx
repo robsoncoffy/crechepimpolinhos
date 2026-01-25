@@ -32,7 +32,7 @@ export interface MenuItem {
   dinner_time: string;
   dinner_qty: string;
   notes: string;
-  menu_type: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+  menu_type: 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 }
 
 interface MealFieldProps {
@@ -45,7 +45,7 @@ interface MealFieldProps {
   timeField: keyof MenuItem;
   qtyField: keyof MenuItem;
   placeholder: string;
-  menuType: 'bercario_0_6' | 'bercario_6_24' | 'maternal';
+  menuType: 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
   dayOfWeek: number;
   onValueChange: (field: keyof MenuItem, value: string) => void;
   onTimeChange: (field: keyof MenuItem, value: string) => void;
@@ -173,7 +173,7 @@ export const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quint
 export const emptyMenuItem = (
   weekStart: string, 
   dayOfWeek: number, 
-  menuType: 'bercario_0_6' | 'bercario_6_24' | 'maternal'
+  menuType: 'bercario_0_6' | 'bercario_6_12' | 'bercario_12_24' | 'maternal'
 ): MenuItem => ({
   week_start: weekStart,
   day_of_week: dayOfWeek,

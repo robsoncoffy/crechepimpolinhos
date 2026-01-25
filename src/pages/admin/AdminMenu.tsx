@@ -54,22 +54,24 @@ interface MenuItem {
   dinner_time: string;
   dinner_qty?: string;
   notes: string;
-  menu_type: 'bercario' | 'bercario_6_24' | 'maternal';
+  menu_type: 'bercario' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 }
 
-type MenuType = 'bercario' | 'bercario_6_24' | 'maternal';
+type MenuType = 'bercario' | 'bercario_6_12' | 'bercario_12_24' | 'maternal';
 
 const dayNames = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira'];
 
 const menuTypeLabels: Record<MenuType, string> = {
   'bercario': 'Berçário 0-6 meses',
-  'bercario_6_24': 'Berçário 6-24 meses',
+  'bercario_6_12': 'Berçário 6m - 1 ano',
+  'bercario_12_24': 'Berçário 1a - 2 anos',
   'maternal': 'Maternal / Jardim'
 };
 
 const menuTypeColors: Record<MenuType, string> = {
   'bercario': 'pimpo-blue',
-  'bercario_6_24': 'pimpo-yellow',
+  'bercario_6_12': 'pimpo-yellow',
+  'bercario_12_24': 'pimpo-purple',
   'maternal': 'pimpo-green'
 };
 
@@ -80,7 +82,8 @@ export default function AdminMenu() {
   const [activeTab, setActiveTab] = useState<MenuType>('bercario');
   const [menuItems, setMenuItems] = useState<Record<MenuType, MenuItem[]>>({
     bercario: [],
-    bercario_6_24: [],
+    bercario_6_12: [],
+    bercario_12_24: [],
     maternal: []
   });
   const [loading, setLoading] = useState(true);
@@ -108,7 +111,8 @@ export default function AdminMenu() {
         // Map database menu_type to our types
         const mapDbType = (dbType: string): MenuType => {
           if (dbType === 'bercario_0_6' || dbType === 'bercario') return 'bercario';
-          if (dbType === 'bercario_6_24') return 'bercario_6_24';
+          if (dbType === 'bercario_6_12') return 'bercario_6_12';
+          if (dbType === 'bercario_12_24') return 'bercario_12_24';
           return 'maternal';
         };
 
@@ -137,7 +141,8 @@ export default function AdminMenu() {
 
         const result: Record<MenuType, MenuItem[]> = {
           bercario: createEmptyItems('bercario'),
-          bercario_6_24: createEmptyItems('bercario_6_24'),
+          bercario_6_12: createEmptyItems('bercario_6_12'),
+          bercario_12_24: createEmptyItems('bercario_12_24'),
           maternal: createEmptyItems('maternal')
         };
 
@@ -232,7 +237,7 @@ export default function AdminMenu() {
 
   const renderMenuView = (items: MenuItem[], menuType: MenuType) => {
     const color = menuTypeColors[menuType];
-    const isBercario = menuType === 'bercario' || menuType === 'bercario_6_24';
+    const isBercario = menuType === 'bercario' || menuType === 'bercario_6_12' || menuType === 'bercario_12_24';
     
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -444,7 +449,7 @@ export default function AdminMenu() {
 
       {/* Tabs for Menu Types */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MenuType)}>
-        <TabsList className="grid w-full grid-cols-3 h-12">
+        <TabsList className="grid w-full grid-cols-4 h-12">
           <TabsTrigger 
             value="bercario" 
             className="flex items-center gap-1 data-[state=active]:bg-pimpo-blue data-[state=active]:text-white text-xs sm:text-sm"
@@ -454,12 +459,20 @@ export default function AdminMenu() {
             <span className="sm:hidden">0-6m</span>
           </TabsTrigger>
           <TabsTrigger 
-            value="bercario_6_24" 
+            value="bercario_6_12" 
             className="flex items-center gap-1 data-[state=active]:bg-pimpo-yellow data-[state=active]:text-white text-xs sm:text-sm"
           >
             <Baby className="w-4 h-4" />
-            <span className="hidden sm:inline">Berçário 6-24m</span>
-            <span className="sm:hidden">6-24m</span>
+            <span className="hidden sm:inline">Berçário 6m-1a</span>
+            <span className="sm:hidden">6m-1a</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bercario_12_24" 
+            className="flex items-center gap-1 data-[state=active]:bg-pimpo-purple data-[state=active]:text-white text-xs sm:text-sm"
+          >
+            <Baby className="w-4 h-4" />
+            <span className="hidden sm:inline">Berçário 1a-2a</span>
+            <span className="sm:hidden">1a-2a</span>
           </TabsTrigger>
           <TabsTrigger 
             value="maternal" 
@@ -481,8 +494,11 @@ export default function AdminMenu() {
             <TabsContent value="bercario" className="mt-6">
               {renderMenuView(menuItems.bercario, 'bercario')}
             </TabsContent>
-            <TabsContent value="bercario_6_24" className="mt-6">
-              {renderMenuView(menuItems.bercario_6_24, 'bercario_6_24')}
+            <TabsContent value="bercario_6_12" className="mt-6">
+              {renderMenuView(menuItems.bercario_6_12, 'bercario_6_12')}
+            </TabsContent>
+            <TabsContent value="bercario_12_24" className="mt-6">
+              {renderMenuView(menuItems.bercario_12_24, 'bercario_12_24')}
             </TabsContent>
             <TabsContent value="maternal" className="mt-6">
               {renderMenuView(menuItems.maternal, 'maternal')}
