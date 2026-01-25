@@ -847,22 +847,36 @@ export default function NutritionistDashboard() {
   // Generate AI menu for the entire week (all 5 days)
   const generateWeekMenu = async () => {
     setGeneratingWeek(true);
+    let successCount = 0;
     try {
       // Generate each day sequentially to avoid rate limits
       for (let day = 1; day <= 5; day++) {
-        toast.info(`Gerando ${dayNames[day - 1]}...`, { duration: 1500 });
-        await generateDayMenu(day, activeMenuTab);
+        toast.info(`Gerando ${dayNames[day - 1]}... (${day}/5)`, { duration: 1500 });
+        try {
+          await generateDayMenu(day, activeMenuTab);
+          successCount++;
+        } catch (dayError) {
+          console.error(`Error generating day ${day}:`, dayError);
+          // Continue with next day even if one fails
+        }
         // Small delay between requests to avoid rate limiting
         if (day < 5) {
           await new Promise(resolve => setTimeout(resolve, 800));
         }
       }
-      toast.success('Cardápio da semana gerado com sucesso!');
+      if (successCount === 5) {
+        toast.success('Cardápio da semana gerado com sucesso!');
+      } else if (successCount > 0) {
+        toast.warning(`${successCount} de 5 dias gerados. Alguns dias falharam.`);
+      } else {
+        toast.error('Erro ao gerar cardápio da semana.');
+      }
     } catch (error) {
       console.error('Error generating week menu:', error);
       toast.error('Erro ao gerar cardápio da semana.');
     } finally {
       setGeneratingWeek(false);
+      setGeneratingDay(null); // Reset individual day loading state too
     }
   };
 
