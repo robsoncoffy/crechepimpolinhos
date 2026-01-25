@@ -228,7 +228,14 @@ export default function AdminPreEnrollments() {
   // Mutation to delete (reject) a pre-enrollment permanently
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // First, delete any linked parent_invites (to avoid FK constraint violation)
+      // Step 1: First, clear the converted_to_invite_id reference in pre_enrollments
+      // This breaks the circular FK before we try to delete the invite
+      await supabase
+        .from("pre_enrollments")
+        .update({ converted_to_invite_id: null })
+        .eq("id", id);
+
+      // Step 2: Delete any linked parent_invites (to avoid FK constraint violation)
       const { error: inviteDeleteError } = await supabase
         .from("parent_invites")
         .delete()
@@ -239,7 +246,7 @@ export default function AdminPreEnrollments() {
         // Continue anyway - the invite might not exist
       }
 
-      // Now delete the pre-enrollment
+      // Step 3: Now delete the pre-enrollment
       const { error } = await supabase
         .from("pre_enrollments")
         .delete()
