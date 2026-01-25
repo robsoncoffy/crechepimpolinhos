@@ -335,47 +335,69 @@ export default function NutritionistDashboard() {
     }
   }, []);
 
-  // Calculate day totals for a menu type
-  const getDayTotals = (menuType: MenuType, dayOfWeek: number): NutritionTotals | null => {
-    const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
-    const dayMeals = nutritionByMeal[menuType];
-    
-    let hasAnyData = false;
-    const totals: NutritionTotals = {
-      energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
-      calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
-      phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
-      vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
-      riboflavin: 0, pyridoxine: 0, niacin: 0,
-      cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
-    };
-    
-    mealFields.forEach(field => {
-      const mealNutrition = dayMeals[`${dayOfWeek}-${field}`];
-      if (mealNutrition) {
-        hasAnyData = true;
-        (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
-          totals[key] += (mealNutrition as any)[key] || 0;
-        });
-      }
-    });
-    
-    return hasAnyData ? totals : null;
-  };
-
   // Get consolidated nutrition for all menu types for today
-  const consolidatedNutrition = useMemo(() => ({
-    bercario_0_6: getDayTotals('bercario_0_6', todayDayOfWeek),
-    bercario_6_24: getDayTotals('bercario_6_24', todayDayOfWeek),
-    maternal: getDayTotals('maternal', todayDayOfWeek),
-  }), [nutritionByMeal, todayDayOfWeek]);
+  const consolidatedNutrition = useMemo(() => {
+    const calculateTotals = (menuType: MenuType): NutritionTotals | null => {
+      const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+      const dayMeals = nutritionByMeal[menuType];
+      let hasAnyData = false;
+      const totals: NutritionTotals = {
+        energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+        calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+        phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+        vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+        riboflavin: 0, pyridoxine: 0, niacin: 0,
+        cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
+      };
+      mealFields.forEach(field => {
+        const mealNutrition = dayMeals[`${todayDayOfWeek}-${field}`];
+        if (mealNutrition) {
+          hasAnyData = true;
+          (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+            totals[key] += (mealNutrition as any)[key] || 0;
+          });
+        }
+      });
+      return hasAnyData ? totals : null;
+    };
+
+    return {
+      bercario_0_6: calculateTotals('bercario_0_6'),
+      bercario_6_24: calculateTotals('bercario_6_24'),
+      maternal: calculateTotals('maternal'),
+    };
+  }, [nutritionByMeal, todayDayOfWeek]);
 
   // Get weekly nutrition data for the active menu type
   const weeklyNutritionData = useMemo(() => {
+    const calculateDayTotals = (dayOfWeek: number): NutritionTotals | null => {
+      const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+      const dayMeals = nutritionByMeal[activeMenuTab];
+      let hasAnyData = false;
+      const totals: NutritionTotals = {
+        energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+        calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+        phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+        vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+        riboflavin: 0, pyridoxine: 0, niacin: 0,
+        cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
+      };
+      mealFields.forEach(field => {
+        const mealNutrition = dayMeals[`${dayOfWeek}-${field}`];
+        if (mealNutrition) {
+          hasAnyData = true;
+          (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+            totals[key] += (mealNutrition as any)[key] || 0;
+          });
+        }
+      });
+      return hasAnyData ? totals : null;
+    };
+
     return [1, 2, 3, 4, 5].map(day => ({
       dayOfWeek: day,
       dayName: dayNames[day - 1],
-      totals: getDayTotals(activeMenuTab, day),
+      totals: calculateDayTotals(day),
     }));
   }, [nutritionByMeal, activeMenuTab]);
 
@@ -739,7 +761,31 @@ export default function NutritionistDashboard() {
     const dayDate = addDays(weekStart, item.day_of_week - 1);
     const hasContent = item.breakfast || item.lunch || item.snack || item.dinner || 
                       item.morning_snack || item.bottle || item.pre_dinner;
-    const dayTotals = getDayTotals(menuType, item.day_of_week);
+    
+    // Calculate day totals inline
+    const dayTotals = (() => {
+      const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+      const dayMeals = nutritionByMeal[menuType];
+      let hasAnyData = false;
+      const totals: NutritionTotals = {
+        energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+        calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+        phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+        vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+        riboflavin: 0, pyridoxine: 0, niacin: 0,
+        cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
+      };
+      mealFields.forEach(field => {
+        const mealNutrition = dayMeals[`${item.day_of_week}-${field}`];
+        if (mealNutrition) {
+          hasAnyData = true;
+          (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+            totals[key] += (mealNutrition as any)[key] || 0;
+          });
+        }
+      });
+      return hasAnyData ? totals : null;
+    })();
 
     const handleValueChange = (field: keyof MenuItem, value: string) => {
       updateMenuItem(menuType, item.day_of_week, field, value);
