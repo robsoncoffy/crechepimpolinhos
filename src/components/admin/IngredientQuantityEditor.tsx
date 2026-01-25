@@ -494,57 +494,82 @@ export function IngredientQuantityEditor({
       </div>
 
       <div className="space-y-2">
-        {localIngredients.map((ingredient, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-2 bg-background/50 p-2 rounded-md min-w-0"
-          >
-            <span className="text-xs truncate min-w-0" title={ingredient.description || ingredient.name}>
-              {ingredient.name}
-            </span>
-            <div className="flex items-center gap-1">
-              <Input
-                type="number"
-                min="0"
-                step="5"
-                value={ingredient.quantity}
-                onChange={(e) => handleQuantityChange(index, e.target.value)}
-                className="w-16 h-7 text-xs text-center"
-              />
-              <span className="text-xs text-muted-foreground w-6">g</span>
-            </div>
-            <Popover 
-              open={editingIndex === index} 
-              onOpenChange={(open) => setEditingIndex(open ? index : null)}
+        {localIngredients.map((ingredient, index) => {
+          const multiplier = ingredient.quantity / 100;
+          const ingredientEnergy = (ingredient.energy || 0) * multiplier;
+          const ingredientProtein = (ingredient.protein || 0) * multiplier;
+          const ingredientCarbs = (ingredient.carbohydrate || 0) * multiplier;
+          const ingredientLipid = (ingredient.lipid || 0) * multiplier;
+
+          return (
+            <div
+              key={index}
+              className="bg-background/50 p-2 rounded-md min-w-0"
             >
-              <PopoverTrigger asChild>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-2">
+                <span className="text-xs font-medium truncate min-w-0" title={ingredient.description || ingredient.name}>
+                  {ingredient.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="5"
+                    value={ingredient.quantity}
+                    onChange={(e) => handleQuantityChange(index, e.target.value)}
+                    className="w-16 h-7 text-xs text-center"
+                  />
+                  <span className="text-xs text-muted-foreground w-6">g</span>
+                </div>
+                <Popover 
+                  open={editingIndex === index} 
+                  onOpenChange={(open) => setEditingIndex(open ? index : null)}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                      title="Buscar alimento correto"
+                    >
+                      <Search className="w-3 h-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" align="end">
+                    <IngredientSearchReplace
+                      currentIngredient={ingredient}
+                      onReplace={(newIng) => handleReplaceIngredient(index, newIng)}
+                      onCancel={() => setEditingIndex(null)}
+                    />
+                  </PopoverContent>
+                </Popover>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
-                  title="Buscar alimento correto"
+                  className="h-6 w-6 p-0 text-destructive hover:text-destructive justify-self-end"
+                  onClick={() => handleRemoveIngredient(index)}
                 >
-                  <Search className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3" />
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0" align="end">
-                <IngredientSearchReplace
-                  currentIngredient={ingredient}
-                  onReplace={(newIng) => handleReplaceIngredient(index, newIng)}
-                  onCancel={() => setEditingIndex(null)}
-                />
-              </PopoverContent>
-            </Popover>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 text-destructive hover:text-destructive justify-self-end"
-              onClick={() => handleRemoveIngredient(index)}
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </div>
-        ))}
+              </div>
+              {/* Nutrientes individuais do ingrediente */}
+              <div className="flex flex-wrap gap-1.5 mt-1.5 pl-0 sm:pl-2">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-accent text-accent-foreground">
+                  {ingredientEnergy.toFixed(0)} kcal
+                </Badge>
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-destructive/10 text-destructive">
+                  P: {ingredientProtein.toFixed(1)}g
+                </Badge>
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-primary/10 text-primary">
+                  C: {ingredientCarbs.toFixed(1)}g
+                </Badge>
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-secondary text-secondary-foreground">
+                  L: {ingredientLipid.toFixed(1)}g
+                </Badge>
+              </div>
+            </div>
+          );
+        })}
 
         {/* Add ingredient button */}
         <Popover open={addingIngredient} onOpenChange={setAddingIngredient}>
