@@ -107,6 +107,22 @@ export default function AdminChildren() {
     { parent_id: "", relationship: "responsável" }
   ]);
 
+  // Function to suggest the correct class based on age (moved up for use in fetchData)
+  function getSuggestedClassType(birthDate: string): ClassType {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    const ageInMonths =
+      (today.getFullYear() - birth.getFullYear()) * 12 +
+      (today.getMonth() - birth.getMonth());
+    
+    // Berçário: 0-23 months (up to 2 years)
+    // Maternal: 24-47 months (2-4 years)
+    // Jardim: 48+ months (4+ years)
+    if (ageInMonths < 24) return "bercario";
+    if (ageInMonths < 48) return "maternal";
+    return "jardim";
+  }
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -121,7 +137,40 @@ export default function AdminChildren() {
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
-      if (childrenRes.data) setChildren(childrenRes.data);
+      // Auto-update children whose class doesn't match their age
+      if (childrenRes.data) {
+        const childrenToUpdate = childrenRes.data.filter((child) => {
+          const suggestedClass = getSuggestedClassType(child.birth_date);
+          return child.class_type !== suggestedClass;
+        });
+
+        if (childrenToUpdate.length > 0) {
+          // Update each child's class in parallel
+          const updatePromises = childrenToUpdate.map((child) => {
+            const suggestedClass = getSuggestedClassType(child.birth_date);
+            return supabase
+              .from("children")
+              .update({ class_type: suggestedClass })
+              .eq("id", child.id);
+          });
+
+          await Promise.all(updatePromises);
+
+          // Re-fetch children after updates
+          const { data: updatedChildren } = await supabase
+            .from("children")
+            .select("*")
+            .order("full_name");
+
+          if (updatedChildren) {
+            setChildren(updatedChildren);
+            toast.info(`${childrenToUpdate.length} criança(s) teve(ram) a turma atualizada automaticamente`);
+          }
+        } else {
+          setChildren(childrenRes.data);
+        }
+      }
+
       if (linksRes.data) setParentLinks(linksRes.data);
       
       // Filter parents: only include users who have the 'parent' role and NO staff roles
@@ -370,22 +419,6 @@ export default function AdminChildren() {
       console.error("Error deleting child:", error);
       toast.error("Erro ao remover criança");
     }
-  }
-
-  // Function to suggest the correct class based on age
-  function getSuggestedClassType(birthDate: string): ClassType {
-    const birth = new Date(birthDate);
-    const today = new Date();
-    const ageInMonths =
-      (today.getFullYear() - birth.getFullYear()) * 12 +
-      (today.getMonth() - birth.getMonth());
-    
-    // Berçário: 0-23 months (up to 2 years)
-    // Maternal: 24-47 months (2-4 years)
-    // Jardim: 48+ months (4+ years)
-    if (ageInMonths < 24) return "bercario";
-    if (ageInMonths < 48) return "maternal";
-    return "jardim";
   }
 
   // Check if child is in the wrong class for their age
