@@ -241,11 +241,16 @@ export function SimplifiedNutritionPdf({
 }: SimplifiedNutritionPdfProps) {
   
   const generatePdfContent = () => {
-    const menuTypeLabel = menuType === 'bercario_0_6' 
-      ? 'Berçário (0-6 meses)' 
-      : menuType === 'bercario_6_24' 
-        ? 'Berçário (6m - 1a 11m)' 
-        : 'Maternal / Jardim';
+    const getMenuTypeLabel = () => {
+      switch (menuType) {
+        case 'bercario_0_6': return 'Berçário (0-6 meses)';
+        case 'bercario_6_12': return 'Berçário (6 meses - 1 ano)';
+        case 'bercario_12_24': return 'Berçário (1 ano - 2 anos)';
+        case 'maternal': return 'Maternal / Jardim';
+        default: return 'Cardápio';
+      }
+    };
+    const menuTypeLabel = getMenuTypeLabel();
         
     const title = `Relatório Nutricional Completo - ${menuTypeLabel}`;
     const weekRange = `${format(weekStart, "d 'de' MMMM", { locale: ptBR })} a ${format(addDays(weekStart, 4), "d 'de' MMMM 'de' yyyy", { locale: ptBR })}`;
