@@ -211,8 +211,14 @@ export default function NutritionistDashboard() {
         }
 
         // Create menu items for all 5 days for each type
-        // Also load saved nutrition data
+        // Also load saved nutrition data and ingredients
         const newNutritionState: Record<MenuType, MealNutritionState> = {
+          bercario_0_6: {},
+          bercario_6_24: {},
+          maternal: {},
+        };
+        
+        const newIngredientsState: Record<MenuType, MealIngredientsState> = {
           bercario_0_6: {},
           bercario_6_24: {},
           maternal: {},
@@ -233,14 +239,19 @@ export default function NutritionistDashboard() {
             if (existing) {
               const existingAny = existing as any;
               
-              // Load saved nutrition data if available
+              // Load saved nutrition data and ingredients if available
               if (existingAny.nutrition_data) {
                 const savedNutrition = existingAny.nutrition_data;
                 const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
                 mealFields.forEach(field => {
+                  const key = `${dayOfWeek}-${field}`;
+                  // Load nutrition totals
                   if (savedNutrition[field]) {
-                    const key = `${dayOfWeek}-${field}`;
                     newNutritionState[menuType][key] = savedNutrition[field];
+                  }
+                  // Load ingredients if saved (stored as field_ingredients)
+                  if (savedNutrition[`${field}_ingredients`]) {
+                    newIngredientsState[menuType][key] = savedNutrition[`${field}_ingredients`];
                   }
                 });
               }
@@ -291,6 +302,13 @@ export default function NutritionistDashboard() {
           bercario_0_6: { ...newNutritionState.bercario_0_6 },
           bercario_6_24: { ...newNutritionState.bercario_6_24 },
           maternal: { ...newNutritionState.maternal },
+        });
+        
+        // Set the loaded ingredients state
+        setIngredientsByMeal({
+          bercario_0_6: { ...newIngredientsState.bercario_0_6 },
+          bercario_6_24: { ...newIngredientsState.bercario_6_24 },
+          maternal: { ...newIngredientsState.maternal },
         });
         
         // Auto-calculate nutrition for meals that have text but no saved nutrition_data
@@ -610,14 +628,19 @@ export default function NutritionistDashboard() {
           continue;
         }
 
-        // Build nutrition_data object for this day from the nutritionByMeal state
+        // Build nutrition_data object for this day from the nutritionByMeal and ingredientsByMeal state
         const dayNutrition: Record<string, any> = {};
         const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
         mealFields.forEach(field => {
           const key = `${item.day_of_week}-${field}`;
           const nutritionData = nutritionByMeal[item.menu_type]?.[key];
+          const ingredientsData = ingredientsByMeal[item.menu_type]?.[key];
           if (nutritionData) {
             dayNutrition[field] = nutritionData;
+          }
+          // Also save ingredients for later PDF export
+          if (ingredientsData && ingredientsData.length > 0) {
+            dayNutrition[`${field}_ingredients`] = ingredientsData;
           }
         });
 
