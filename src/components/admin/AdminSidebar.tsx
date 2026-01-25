@@ -61,8 +61,8 @@ const routineItems = [{
   roles: ["admin", "teacher", "pedagogue"]
 }];
 
-// Chat (Mensagens)
-const chatItems = [{
+// Comunicação (Chat + Avisos + Feed + E-mails + Notificações)
+const communicationItems = [{
   icon: MessageSquare,
   label: "Mensagens Pais",
   href: "/painel/mensagens",
@@ -72,10 +72,7 @@ const chatItems = [{
   label: "Chat Equipe",
   href: "/painel/chat-equipe",
   roles: []
-}];
-
-// Comunicação (Avisos, Feed, E-mails, Notificações)
-const communicationItems = [{
+}, {
   icon: Megaphone,
   label: "Avisos",
   href: "/painel/avisos",
@@ -241,7 +238,6 @@ export function AdminSidebar() {
   // Filter each category
   const filteredStudents = studentItems.filter(item => canSeeItem(item.roles));
   const filteredRoutine = routineItems.filter(item => canSeeItem(item.roles));
-  const filteredChat = chatItems.filter(item => canSeeItem(item.roles));
   const filteredCommunication = communicationItems.filter(item => canSeeItem(item.roles));
   const filteredRegistrations = registrationItems.filter(item => canSeeItem(item.roles));
   const filteredTeamFinance = teamFinanceItems.filter(item => canSeeItem(item.roles));
@@ -346,7 +342,6 @@ export function AdminSidebar() {
         {/* Categorized Navigation */}
         {renderMenuSection(filteredStudents, "Alunos")}
         {renderMenuSection(filteredRoutine, "Rotina")}
-        {renderMenuSection(filteredChat, "Chat")}
         {renderMenuSection(filteredCommunication, "Comunicação")}
         {renderMenuSection(filteredRegistrations, "Cadastros")}
         {renderMenuSection(filteredTeamFinance, "Equipe & Financeiro")}
