@@ -18,13 +18,31 @@ import type { Database } from "@/integrations/supabase/types";
 type PreEnrollment = Database["public"]["Tables"]["pre_enrollments"]["Row"];
 
 const classLabels: Record<string, string> = {
+  bercario: "Berçário",
   bercario1: "Berçário 1",
   bercario2: "Berçário 2",
+  maternal: "Maternal",
   maternal1: "Maternal 1",
   maternal2: "Maternal 2",
+  jardim: "Jardim",
   jardim1: "Jardim 1",
   jardim2: "Jardim 2",
 };
+
+// Helper function to calculate correct class based on birth date
+function calculateClassFromBirthDate(birthDate: string): { classType: string; label: string } {
+  const birth = new Date(birthDate);
+  const today = new Date();
+  const ageInMonths = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
+  
+  if (ageInMonths < 24) {
+    return { classType: "bercario", label: "Berçário" };
+  } else if (ageInMonths < 48) {
+    return { classType: "maternal", label: "Maternal" };
+  } else {
+    return { classType: "jardim", label: "Jardim" };
+  }
+}
 
 const shiftLabels: Record<string, string> = {
   manha: "Manhã",
@@ -543,43 +561,60 @@ export function PreEnrollmentsContent() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedPreEnrollment && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Responsável:</span>
-                  <p className="text-muted-foreground">{selectedPreEnrollment.parent_name}</p>
+          {selectedPreEnrollment && (() => {
+            const calculatedClass = calculateClassFromBirthDate(selectedPreEnrollment.child_birth_date);
+            const storedClass = selectedPreEnrollment.desired_class_type;
+            const hasClassMismatch = storedClass !== calculatedClass.classType;
+            
+            return (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Responsável:</span>
+                    <p className="text-muted-foreground">{selectedPreEnrollment.parent_name}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Criança:</span>
+                    <p className="text-muted-foreground">{selectedPreEnrollment.child_name}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Email:</span>
+                    <p className="text-muted-foreground">{selectedPreEnrollment.email}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Telefone:</span>
+                    <p className="text-muted-foreground">{selectedPreEnrollment.phone}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Nascimento:</span>
+                    <p className="text-muted-foreground">{format(new Date(selectedPreEnrollment.child_birth_date), "dd/MM/yyyy", { locale: ptBR })}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Turma (por idade):</span>
+                    <p className="text-primary font-semibold">{calculatedClass.label}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Turno Desejado:</span>
+                    <p className="text-muted-foreground">{shiftLabels[selectedPreEnrollment.desired_shift_type] || selectedPreEnrollment.desired_shift_type}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-medium">Criança:</span>
-                  <p className="text-muted-foreground">{selectedPreEnrollment.child_name}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Email:</span>
-                  <p className="text-muted-foreground">{selectedPreEnrollment.email}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Telefone:</span>
-                  <p className="text-muted-foreground">{selectedPreEnrollment.phone}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Turma Desejada:</span>
-                  <p className="text-muted-foreground">{classLabels[selectedPreEnrollment.desired_class_type] || selectedPreEnrollment.desired_class_type}</p>
-                </div>
-                <div>
-                  <span className="font-medium">Turno Desejado:</span>
-                  <p className="text-muted-foreground">{shiftLabels[selectedPreEnrollment.desired_shift_type] || selectedPreEnrollment.desired_shift_type}</p>
-                </div>
-              </div>
 
-              {selectedPreEnrollment.ghl_contact_id && (
-                <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md text-sm text-primary">
-                  <MessageSquare className="h-4 w-4" />
-                  <span>Contato sincronizado com GoHighLevel</span>
-                </div>
-              )}
-            </div>
-          )}
+                {hasClassMismatch && (
+                  <div className="flex items-center gap-2 p-2 bg-pimpo-yellow/10 rounded-md text-sm border border-pimpo-yellow/30">
+                    <AlertCircle className="h-4 w-4 text-pimpo-yellow" />
+                    <span>Turma foi recalculada. Estava como "{classLabels[storedClass] || storedClass}", agora será "{calculatedClass.label}".</span>
+                  </div>
+                )}
+
+                {selectedPreEnrollment.ghl_contact_id && (
+                  <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md text-sm text-primary">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Contato sincronizado com GoHighLevel</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConvertDialogOpen(false)}>

@@ -55,6 +55,20 @@ export default function PreEnrollment() {
   const onSubmit = async (data: PreEnrollmentFormData) => {
     setIsSubmitting(true);
     try {
+      // Calculate class type based on birth date
+      const birthDate = new Date(data.child_birth_date);
+      const today = new Date();
+      const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+      
+      let classType: "bercario" | "maternal" | "jardim";
+      if (ageInMonths < 24) {
+        classType = "bercario";
+      } else if (ageInMonths < 48) {
+        classType = "maternal";
+      } else {
+        classType = "jardim";
+      }
+
       const { error } = await supabase.from("pre_enrollments").insert({
         parent_name: data.parent_name,
         cpf: data.cpf,
@@ -62,7 +76,7 @@ export default function PreEnrollment() {
         phone: data.phone,
         child_name: data.child_name,
         child_birth_date: data.child_birth_date,
-        desired_class_type: "bercario",
+        desired_class_type: classType,
         desired_shift_type: "integral",
         vacancy_type: data.vacancy_type,
       });
