@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, ChevronDown, UserPlus } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useDashboardView } from "@/hooks/useDashboardView";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Menu items organized by category with role restrictions
 // roles: which roles can see this item (empty = all staff)
@@ -104,14 +106,32 @@ const communicationItems = [{
   roles: ["admin"]
 }];
 
-// Administrativo
-const adminItems = [{
+// Cadastros (collapsible submenu)
+const enrollmentItems = [{
+  icon: ClipboardPen,
+  label: "Pré-Matrículas",
+  href: "/painel/pre-matriculas",
+  roles: ["admin"]
+}, {
   icon: UserCheck,
   label: "Aprovações",
   href: "/painel/aprovacoes",
   badge: true,
   roles: ["admin"]
 }, {
+  icon: Users,
+  label: "Convites de Pais",
+  href: "/painel/convites-pais",
+  roles: ["admin"]
+}, {
+  icon: Ticket,
+  label: "Convites Funcionários",
+  href: "/painel/convites",
+  roles: ["admin"]
+}];
+
+// Administrativo
+const adminItems = [{
   icon: Users,
   label: "Professores",
   href: "/painel/professores",
@@ -122,24 +142,9 @@ const adminItems = [{
   href: "/painel/contratos",
   roles: ["admin"]
 }, {
-  icon: ClipboardPen,
-  label: "Pré-Matrículas",
-  href: "/painel/pre-matriculas",
-  roles: ["admin"]
-}, {
   icon: User,
   label: "Perfis de Usuários",
   href: "/painel/perfis",
-  roles: ["admin"]
-}, {
-  icon: Users,
-  label: "Convites de Pais",
-  href: "/painel/convites-pais",
-  roles: ["admin"]
-}, {
-  icon: Ticket,
-  label: "Convites Funcionário",
-  href: "/painel/convites",
   roles: ["admin"]
 }, {
   icon: Inbox,
@@ -201,6 +206,7 @@ const settingsItems = [{
 export function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [enrollmentOpen, setEnrollmentOpen] = useState(true);
   const {
     signOut,
     profile,
@@ -249,6 +255,7 @@ export function AdminSidebar() {
   const filteredStudents = studentItems.filter(item => canSeeItem(item.roles));
   const filteredRoutine = routineItems.filter(item => canSeeItem(item.roles));
   const filteredCommunication = communicationItems.filter(item => canSeeItem(item.roles));
+  const filteredEnrollment = enrollmentItems.filter(item => canSeeItem(item.roles));
   const filteredAdmin = adminItems.filter(item => canSeeItem(item.roles));
   const filteredFinanceHr = financeHrItems.filter(item => canSeeItem(item.roles));
   const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
@@ -334,6 +341,49 @@ export function AdminSidebar() {
         {renderMenuSection(filteredStudents, "Gestão de Alunos")}
         {renderMenuSection(filteredRoutine, "Rotina Escolar")}
         {renderMenuSection(filteredCommunication, "Comunicação")}
+        
+        {/* Cadastros - Collapsible submenu */}
+        {filteredEnrollment.length > 0 && (
+          <SidebarGroup>
+            <Collapsible open={enrollmentOpen} onOpenChange={setEnrollmentOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="text-sidebar-foreground/60 cursor-pointer hover:text-sidebar-foreground flex items-center justify-between w-full pr-2">
+                  <span className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Cadastros
+                  </span>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", enrollmentOpen && "rotate-180")} />
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {filteredEnrollment.map(item => {
+                      const isActive = location.pathname === item.href || (location.pathname + location.search) === item.href;
+                      
+                      return (
+                        <SidebarMenuItem key={item.href}>
+                          <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+                            <Link to={item.href} className="pl-6">
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                              {"badge" in item && item.badge && !isCollapsed && (
+                                <Badge variant="secondary" className="ml-auto bg-sidebar-foreground/20 text-sidebar-foreground text-xs px-1.5">
+                                  Novo
+                                </Badge>
+                              )}
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
+        
         {renderMenuSection(filteredAdmin, "Administrativo")}
         {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
         {renderMenuSection(filteredSettings, "Configurações")}
