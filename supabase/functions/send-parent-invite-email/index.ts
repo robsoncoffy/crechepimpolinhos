@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "https://esm.sh/resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,8 +16,106 @@ interface InviteEmailRequest {
   couponDiscountValue?: number;
 }
 
+// Send email via GHL
+async function sendEmailViaGHL(
+  email: string,
+  name: string,
+  subject: string,
+  html: string,
+  apiKey: string,
+  locationId: string
+): Promise<{ success: boolean; error?: string }> {
+  // First, find or create contact
+  const searchResponse = await fetch(
+    `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&email=${encodeURIComponent(email)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-07-28",
+      },
+    }
+  );
+
+  let contactId: string;
+
+  if (searchResponse.ok) {
+    const searchResult = await searchResponse.json();
+    if (searchResult.contact?.id) {
+      contactId = searchResult.contact.id;
+      console.log("Found existing GHL contact:", contactId);
+    } else {
+      // Create new contact
+      const nameParts = name.trim().split(" ");
+      const firstName = nameParts[0] || "Usuário";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      const createResponse = await fetch(
+        "https://services.leadconnectorhq.com/contacts/",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            Version: "2021-07-28",
+          },
+          body: JSON.stringify({
+            locationId,
+            firstName,
+            lastName,
+            email,
+            source: "Sistema Pimpolinhos",
+            tags: ["convite-pais", "transacional"],
+          }),
+        }
+      );
+
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        console.error("Failed to create GHL contact:", errorText);
+        return { success: false, error: `Failed to create contact: ${createResponse.status}` };
+      }
+
+      const createResult = await createResponse.json();
+      contactId = createResult.contact.id;
+      console.log("Created new GHL contact:", contactId);
+    }
+  } else {
+    return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
+  }
+
+  // Send email via GHL Conversations API
+  const emailResponse = await fetch(
+    "https://services.leadconnectorhq.com/conversations/messages",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Version: "2021-04-15",
+      },
+      body: JSON.stringify({
+        type: "Email",
+        contactId,
+        emailTo: [email],
+        subject,
+        html,
+      }),
+    }
+  );
+
+  if (!emailResponse.ok) {
+    const errorText = await emailResponse.text();
+    console.error("GHL email send failed:", errorText);
+    return { success: false, error: `Failed to send email: ${emailResponse.status}` };
+  }
+
+  console.log("Email sent via GHL successfully");
+  return { success: true };
+}
+
 serve(async (req: Request): Promise<Response> => {
-  console.log("send-parent-invite-email function called");
+  console.log("send-parent-invite-email function called (GHL)");
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,6 +129,13 @@ serve(async (req: Request): Promise<Response> => {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const GHL_API_KEY = Deno.env.get("GHL_API_KEY");
+    const GHL_LOCATION_ID = Deno.env.get("GHL_LOCATION_ID");
+
+    if (!GHL_API_KEY || !GHL_LOCATION_ID) {
+      throw new Error("GHL credentials not configured");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -111,12 +213,6 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log("Resolved coupon for email:", {
-      couponCode: normalizedCouponCode,
-      couponDiscountType: resolvedCouponDiscountType,
-      couponDiscountValue: resolvedCouponDiscountValue,
-    });
-
     const appUrl = "https://www.crechepimpolinhos.com.br";
     let signupUrl = `${appUrl}/auth?mode=signup&invite=${inviteCode}`;
     if (normalizedCouponCode) {
@@ -127,8 +223,7 @@ serve(async (req: Request): Promise<Response> => {
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
     const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
 
-    // Format discount text
-    let discountText = "";
+    // Format discount HTML
     let discountHtml = "";
     if (
       normalizedCouponCode &&
@@ -136,353 +231,146 @@ serve(async (req: Request): Promise<Response> => {
       resolvedCouponDiscountValue > 0
     ) {
       if (resolvedCouponDiscountType === "percentage") {
-        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${resolvedCouponDiscountValue}% de desconto nas mensalidades! Seu cupom "${normalizedCouponCode}" será aplicado automaticamente.`;
         discountHtml = `
-          <tr>
-            <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
-              <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
-              <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                Bônus Especial para Você!
-              </p>
-              <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
-                ${resolvedCouponDiscountValue}% OFF
-              </p>
-              <p style="margin: 0; color: #15803d; font-size: 14px;">
-                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
-              </p>
-              <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
-                ✨ Aplicado automaticamente no cadastro!
-              </p>
-            </td>
-          </tr>
-          <tr><td style="height: 24px;"></td></tr>`;
+          <div style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
+            <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
+            <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+              Bônus Especial para Você!
+            </p>
+            <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
+              ${resolvedCouponDiscountValue}% OFF
+            </p>
+            <p style="margin: 0; color: #15803d; font-size: 14px;">
+              nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
+            </p>
+          </div>`;
       } else {
         const formattedValue = resolvedCouponDiscountValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-        discountText = `🎁 BÔNUS ESPECIAL: Você ganhou ${formattedValue} de desconto nas mensalidades! Seu cupom "${normalizedCouponCode}" será aplicado automaticamente.`;
         discountHtml = `
-          <tr>
-            <td style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
-              <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
-              <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                Bônus Especial para Você!
-              </p>
-              <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
-                ${formattedValue} OFF
-              </p>
-              <p style="margin: 0; color: #15803d; font-size: 14px;">
-                nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
-              </p>
-              <p style="margin: 8px 0 0; color: #16a34a; font-size: 12px;">
-                ✨ Aplicado automaticamente no cadastro!
-              </p>
-            </td>
-          </tr>
-          <tr><td style="height: 24px;"></td></tr>`;
+          <div style="padding: 20px; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 16px; text-align: center; border: 2px solid #22c55e; margin-bottom: 24px;">
+            <span style="font-size: 32px; display: block; margin-bottom: 8px;">🎁</span>
+            <p style="margin: 0 0 4px; color: #15803d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+              Bônus Especial para Você!
+            </p>
+            <p style="margin: 0 0 8px; color: #166534; font-size: 28px; font-weight: 900;">
+              ${formattedValue} OFF
+            </p>
+            <p style="margin: 0; color: #15803d; font-size: 14px;">
+              nas mensalidades com o cupom <strong style="background: #fff; padding: 2px 8px; border-radius: 4px;">${normalizedCouponCode}</strong>
+            </p>
+          </div>`;
       }
     }
 
-    const plainText = `
-${greeting}
-
-🎉 Você foi convidado(a) para fazer parte da família Creche Pimpolinhos${childName ? ` como responsável de ${childName}` : ""}!
-
-Seu código de convite é: ${inviteCode}
-${discountText ? `\n${discountText}\n` : ""}
-Ao se cadastrar, você terá acesso a:
-- 📱 Agenda diária do seu filho
-- 📸 Fotos e momentos especiais
-- 🍽️ Cardápio semanal nutritivo
-- 💬 Comunicação direta com as professoras
-- 📊 Acompanhamento do desenvolvimento
-
-Crie sua conta acessando: ${signupUrl}
-
-Este convite expira em 30 dias. Se você não solicitou este convite, pode ignorar este e-mail.
-
-Com carinho,
-Equipe Creche Pimpolinhos 💚
-
-© ${new Date().getFullYear()} Creche Pimpolinhos - Todos os direitos reservados
-    `.trim();
-
-    console.log("Sending invite email to:", email);
-
-    const emailResponse = await resend.emails.send({
-      from: "Creche Pimpolinhos <noreply@crechepimpolinhos.com.br>",
-      to: [email],
-      subject: `🎈 ${parentName || "Você"} foi convidado(a) para a Creche Pimpolinhos!`,
-      text: plainText,
-      html: `
+    const subject = `🎈 ${parentName || "Você"} foi convidado(a) para a Creche Pimpolinhos!`;
+    const html = `
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Convite Especial - Creche Pimpolinhos</title>
-  <!--[if mso]>
-  <noscript>
-    <xml>
-      <o:OfficeDocumentSettings>
-        <o:PixelsPerInch>96</o:PixelsPerInch>
-      </o:OfficeDocumentSettings>
-    </xml>
-  </noscript>
-  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #fef7ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
-  <!-- Preheader -->
-  <div style="display: none; max-height: 0; overflow: hidden; color: transparent;">
-    🎉 Seu convite para acompanhar a jornada do seu filho na Creche Pimpolinhos está aqui!
+<body style="margin: 0; padding: 0; background-color: #fef7ed; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+    <div style="background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12);">
+      
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); padding: 40px; text-align: center;">
+        <div style="background: #ffffff; border-radius: 20px; padding: 16px 24px; display: inline-block; margin-bottom: 16px;">
+          <img src="${logoUrl}" alt="Creche Pimpolinhos" width="120" style="display: block; height: auto;">
+        </div>
+        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800;">Bem-vindo(a) à Família!</h1>
+      </div>
+      
+      <!-- Content -->
+      <div style="padding: 40px;">
+        <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 24px;">${greeting} 👋</h2>
+        
+        <p style="margin: 0 0 24px; color: #475569; font-size: 16px; line-height: 1.7;">
+          Você foi convidado(a) para fazer parte da <strong style="color: #2563eb;">Creche Pimpolinhos</strong>${childText}. Estamos muito felizes em tê-lo(a) conosco!
+        </p>
+        
+        <!-- Invite Code -->
+        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 16px; padding: 28px; text-align: center; border: 3px dashed #f59e0b; margin-bottom: 24px;">
+          <p style="margin: 0 0 8px; color: #92400e; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">
+            ✨ Seu Código Mágico ✨
+          </p>
+          <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 36px; font-weight: 900; color: #1e293b; letter-spacing: 4px;">
+            ${inviteCode}
+          </p>
+        </div>
+        
+        ${discountHtml}
+        
+        <!-- Benefits -->
+        <p style="margin: 0 0 16px; color: #1e293b; font-size: 18px; font-weight: 700;">🌟 O que você terá acesso:</p>
+        <ul style="margin: 0 0 32px; padding-left: 20px; color: #475569; font-size: 15px; line-height: 2;">
+          <li>📱 Agenda diária completa do seu filho</li>
+          <li>📸 Fotos e momentos especiais em tempo real</li>
+          <li>🍽️ Cardápio semanal nutritivo e balanceado</li>
+          <li>💬 Chat direto com as professoras</li>
+        </ul>
+        
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: #ffffff; padding: 18px 48px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 18px; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);">
+            🎈 Criar Minha Conta
+          </a>
+        </div>
+        
+        <p style="margin: 0; color: #94a3b8; font-size: 13px; text-align: center;">
+          Este convite expira em 30 dias.
+        </p>
+      </div>
+      
+      <!-- Footer -->
+      <div style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="margin: 0; color: #64748b; font-size: 14px;">Creche Pimpolinhos 💜</p>
+        <p style="margin: 8px 0 0; color: #94a3b8; font-size: 12px;">© ${new Date().getFullYear()} Todos os direitos reservados</p>
+      </div>
+    </div>
   </div>
+</body>
+</html>
+    `;
 
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(180deg, #fef7ed 0%, #fef3c7 50%, #dcfce7 100%);">
-    <tr>
-      <td style="padding: 40px 20px;">
-        
-        <!-- Main Container -->
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; max-width: 600px;">
-          
-          <!-- Decorative Top Banner -->
-          <tr>
-            <td style="text-align: center; padding-bottom: 20px;">
-              <span style="font-size: 40px;">🎈✨🌈✨🎈</span>
-            </td>
-          </tr>
-          
-          <!-- Main Card -->
-          <tr>
-            <td>
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12);">
-                
-                <!-- Colorful Header -->
-                <tr>
-                  <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); padding: 40px 40px 50px; text-align: center; position: relative;">
-                    <!-- Logo -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td align="center">
-                          <div style="background: #ffffff; border-radius: 20px; padding: 16px 24px; display: inline-block; box-shadow: 0 8px 24px rgba(0,0,0,0.15);">
-                            <img src="${logoUrl}" alt="Creche Pimpolinhos" width="120" style="display: block; height: auto; border: 0;">
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
+    console.log("Sending invite email to:", email);
 
-                    <h1 style="margin: 24px 0 0; color: #ffffff; font-size: 28px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      Bem-vindo(a) à Família!
-                    </h1>
-                    <p style="margin: 8px 0 0; color: rgba(255,255,255,0.9); font-size: 16px;">
-                      Uma jornada de aprendizado e amor começa aqui
-                    </p>
-                  </td>
-                </tr>
-                
-                <!-- Curved Separator -->
-                <tr>
-                  <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); height: 30px;">
-                    <div style="background: #ffffff; height: 30px; border-radius: 30px 30px 0 0;"></div>
-                  </td>
-                </tr>
-                
-                <!-- Main Content -->
-                <tr>
-                  <td style="padding: 10px 40px 40px;">
-                    
-                    <!-- Greeting -->
-                    <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 24px; font-weight: 700;">
-                      ${greeting} 👋
-                    </h2>
-                    
-                    <p style="margin: 0 0 24px; color: #475569; font-size: 16px; line-height: 1.7;">
-                      Você foi convidado(a) para fazer parte da <strong style="color: #2563eb;">Creche Pimpolinhos</strong>${childText}. Estamos muito felizes em tê-lo(a) conosco!
-                    </p>
-                    
-                    <!-- Invite Code Box -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 32px;">
-                      <tr>
-                        <td style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 16px; padding: 28px; text-align: center; border: 3px dashed #f59e0b;">
-                          <p style="margin: 0 0 8px; color: #92400e; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">
-                            ✨ Seu Código Mágico ✨
-                          </p>
-                          <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 36px; font-weight: 900; color: #1e293b; letter-spacing: 4px; text-shadow: 2px 2px 0 #fde68a;">
-                            ${inviteCode}
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                    
-                    <!-- Discount Coupon Box -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 24px;">
-                      ${discountHtml}
-                    </table>
-                    
-                    <!-- Benefits Section -->
-                    <p style="margin: 0 0 16px; color: #1e293b; font-size: 18px; font-weight: 700;">
-                      🌟 O que você terá acesso:
-                    </p>
-                    
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0 0 32px;">
-                      <tr>
-                        <td style="padding: 14px 16px; background: #f0f9ff; border-radius: 12px; margin-bottom: 8px;">
-                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                            <tr>
-                              <td width="40" style="vertical-align: top;">
-                                <span style="font-size: 24px;">📱</span>
-                              </td>
-                              <td style="color: #0369a1; font-size: 15px; font-weight: 600;">
-                                Agenda diária completa do seu filho
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr><td style="height: 8px;"></td></tr>
-                      <tr>
-                        <td style="padding: 14px 16px; background: #fdf4ff; border-radius: 12px;">
-                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                            <tr>
-                              <td width="40" style="vertical-align: top;">
-                                <span style="font-size: 24px;">📸</span>
-                              </td>
-                              <td style="color: #a21caf; font-size: 15px; font-weight: 600;">
-                                Fotos e momentos especiais em tempo real
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr><td style="height: 8px;"></td></tr>
-                      <tr>
-                        <td style="padding: 14px 16px; background: #f0fdf4; border-radius: 12px;">
-                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                            <tr>
-                              <td width="40" style="vertical-align: top;">
-                                <span style="font-size: 24px;">🍽️</span>
-                              </td>
-                              <td style="color: #15803d; font-size: 15px; font-weight: 600;">
-                                Cardápio semanal nutritivo e balanceado
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr><td style="height: 8px;"></td></tr>
-                      <tr>
-                        <td style="padding: 14px 16px; background: #fef2f2; border-radius: 12px;">
-                          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                            <tr>
-                              <td width="40" style="vertical-align: top;">
-                                <span style="font-size: 24px;">💬</span>
-                              </td>
-                              <td style="color: #dc2626; font-size: 15px; font-weight: 600;">
-                                Chat direto com as professoras
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
-                    
-                    <!-- CTA Button -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td align="center">
-                          <a href="${signupUrl}" style="display: inline-block; background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: #ffffff; padding: 18px 48px; text-decoration: none; border-radius: 50px; font-weight: 800; font-size: 18px; box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4); text-transform: uppercase; letter-spacing: 1px;">
-                            🚀 Criar Minha Conta
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                    
-                    <!-- Alternative Link -->
-                    <p style="margin: 24px 0 0; color: #94a3b8; font-size: 12px; text-align: center; line-height: 1.6;">
-                      Se o botão não funcionar, copie e cole este link:<br>
-                      <a href="${signupUrl}" style="color: #2563eb; word-break: break-all;">${signupUrl}</a>
-                    </p>
-                    
-                  </td>
-                </tr>
-                
-                <!-- Footer -->
-                <tr>
-                  <td style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding: 24px 40px; border-top: 2px solid #e2e8f0;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td align="center">
-                          <p style="margin: 0 0 8px; color: #64748b; font-size: 13px;">
-                            ⏰ Este convite expira em <strong>30 dias</strong>
-                          </p>
-                          <p style="margin: 0 0 12px; color: #94a3b8; font-size: 12px;">
-                            Se você não solicitou este convite, pode ignorar este e-mail.
-                          </p>
-                          <p style="margin: 0; font-size: 20px;">
-                            💚💛❤️💙
-                          </p>
-                          <p style="margin: 8px 0 0; color: #94a3b8; font-size: 11px;">
-                            © ${new Date().getFullYear()} Creche Pimpolinhos • Onde cada criança brilha!
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Bottom Decorations -->
-          <tr>
-            <td style="text-align: center; padding-top: 24px;">
-              <span style="font-size: 32px;">🧸🎨🌻🦋🌈</span>
-            </td>
-          </tr>
-          
-        </table>
-        
-      </td>
-    </tr>
-  </table>
- </body>
- </html>
-       `,
-    });
+    const result = await sendEmailViaGHL(
+      email,
+      parentName || "Usuário",
+      subject,
+      html,
+      GHL_API_KEY,
+      GHL_LOCATION_ID
+    );
 
-    console.log("Invite email sent:", emailResponse);
-
-    if (emailResponse.error) {
-      console.error("Resend error:", emailResponse.error);
-
-      if (emailResponse.error.message?.includes("verify a domain")) {
-        return new Response(
-          JSON.stringify({
-            error:
-              "Domínio de e-mail não verificado. Para enviar e-mails reais, é necessário verificar um domínio no provedor. Por enquanto, use o botão 'Copiar Link' para compartilhar o convite manualmente.",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: emailResponse.error.message || "Erro ao enviar e-mail" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!result.success) {
+      throw new Error(result.error || "Failed to send email via GHL");
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        emailId: emailResponse.data?.id ?? null,
-        message: "E-mail de convite enviado com sucesso",
+      JSON.stringify({ 
+        success: true, 
+        message: "E-mail de convite enviado com sucesso via GHL"
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (error: any) {
     console.error("Error in send-parent-invite-email:", error);
-    return new Response(JSON.stringify({ error: error.message || "Erro interno do servidor" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    
+    // Handle domain not verified error
+    if (error.message?.includes("domain")) {
+      return new Response(
+        JSON.stringify({ error: "Erro de configuração do GHL. Verifique as credenciais." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    return new Response(
+      JSON.stringify({ error: error.message || "Erro interno do servidor" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
