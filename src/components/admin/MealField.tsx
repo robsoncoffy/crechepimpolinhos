@@ -1,10 +1,10 @@
-import { memo, useState, useEffect, useRef, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Clock } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
-import { AutoNutritionBadges } from './AutoNutritionBadges';
 import { IngredientQuantityEditor, type IngredientWithNutrition, type NutritionTotals } from './IngredientQuantityEditor';
+import { IngredientNutritionTable } from './nutritionist/IngredientNutritionTable';
 
 export interface MenuItem {
   id?: string;
@@ -158,11 +158,11 @@ export const MealField = memo(function MealField({
         loading={loading}
       />
       
-      {/* Auto-calculated nutrition badges - totals */}
-      <AutoNutritionBadges 
+      {/* Complete nutrition table with per-ingredient breakdown */}
+      <IngredientNutritionTable 
+        ingredients={ingredients}
         totals={nutritionTotals} 
         loading={loading} 
-        foodCount={ingredients.length} 
       />
     </div>
   );
