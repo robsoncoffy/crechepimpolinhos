@@ -215,10 +215,6 @@ export default function EmployeeRegistration() {
     setLoading(true);
 
     try {
-      // IMPORTANT: Sign out any existing session before creating a new user
-      // This prevents the "user already registered" error when an admin is logged in
-      await supabase.auth.signOut();
-
       // 1. Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
