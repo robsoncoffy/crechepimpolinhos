@@ -6,10 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
-// Public REST endpoint used by our nutrition automation.
+// Primary: TACO API (taco.deno.dev)
 const TACO_API_BASE = "https://taco.deno.dev/api/v1";
 
-// Extra foods not in TACO database - values per 100g from USDA/TBCA references
+// Secondary: IBGE/POF API (fallback for foods not in TACO)
+const IBGE_API_BASE = "http://132.226.248.2/api";
+
+// Extra foods not in TACO/IBGE databases - values per 100g from USDA references
 const EXTRA_FOODS = [
   {
     id: 90001,
@@ -365,7 +368,6 @@ function searchExtraFoods(query: string) {
   
   return EXTRA_FOODS.filter(food => {
     const desc = normalizeText(food.description);
-    // Check if any query word matches
     return queryWords.some(qWord => desc.includes(qWord));
   });
 }
@@ -373,6 +375,77 @@ function searchExtraFoods(query: string) {
 // Get extra food by ID
 function getExtraFoodById(id: number) {
   return EXTRA_FOODS.find(f => f.id === id);
+}
+
+// Convert IBGE food format to our standard format
+interface IbgeFood {
+  code?: string;
+  description?: string;
+  category?: { description?: string };
+  attributes?: {
+    energy?: { qty: number; unit: string };
+    protein?: { qty: number; unit: string };
+    lipid?: { qty: number; unit: string };
+    carbohydrate?: { qty: number; unit: string };
+    fiber?: { qty: number; unit: string };
+    calcium?: { qty: number; unit: string };
+    iron?: { qty: number; unit: string };
+    sodium?: { qty: number; unit: string };
+    potassium?: { qty: number; unit: string };
+    magnesium?: { qty: number; unit: string };
+    phosphorus?: { qty: number; unit: string };
+    zinc?: { qty: number; unit: string };
+    copper?: { qty: number; unit: string };
+    vitamin_c?: { qty: number; unit: string };
+    retinol?: { qty: number; unit: string };
+    thiamine?: { qty: number; unit: string };
+    riboflavin?: { qty: number; unit: string };
+    pyridoxine?: { qty: number; unit: string };
+    niacin?: { qty: number; unit: string };
+    cholesterol?: { qty: number; unit: string };
+    saturated?: { qty: number; unit: string };
+    monounsaturated?: { qty: number; unit: string };
+    polyunsaturated?: { qty: number; unit: string };
+  };
+}
+
+function normalizeIbgeFood(food: IbgeFood) {
+  // IBGE uses different field names, normalize to our format
+  const code = food.code || '';
+  return {
+    id: parseInt(code) || Math.random() * 100000 + 80000,
+    description: food.description || '',
+    category: food.category?.description || 'IBGE',
+    base_qty: 100,
+    base_unit: 'g',
+    source: 'IBGE',
+    attributes: food.attributes || {},
+  };
+}
+
+// Search IBGE API
+async function searchIbge(query: string): Promise<unknown[]> {
+  try {
+    // IBGE API uses pagination, fetch first page with search
+    const response = await fetch(`${IBGE_API_BASE}/foods?search=${encodeURIComponent(query)}&paginate=20`, {
+      headers: { "Accept": "application/json" },
+      signal: AbortSignal.timeout(5000), // 5s timeout
+    });
+    
+    if (!response.ok) {
+      console.warn(`IBGE API returned ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    // IBGE API returns paginated data
+    const foods = data.data || data || [];
+    return Array.isArray(foods) ? foods.map(normalizeIbgeFood) : [];
+  } catch (e) {
+    console.warn("IBGE API error:", e);
+    return [];
+  }
 }
 
 serve(async (req) => {
@@ -391,28 +464,48 @@ serve(async (req) => {
     if (action === "search" && query) {
       console.log(`Searching for: ${query}`);
       
-      // Search in extra foods first
+      // 1. Search in extra foods first (highest priority)
       const extraResults = searchExtraFoods(query);
+      console.log(`Found ${extraResults.length} in EXTRA_FOODS`);
       
-      // Also search TACO API
-      const tacoUrl = `${TACO_API_BASE}/foods?q=${encodeURIComponent(query)}`;
+      // 2. Search TACO API
       let tacoResults: unknown[] = [];
-      
       try {
+        const tacoUrl = `${TACO_API_BASE}/foods?q=${encodeURIComponent(query)}`;
         const response = await fetch(tacoUrl, {
           headers: { "Accept": "application/json" },
+          signal: AbortSignal.timeout(5000),
         });
         if (response.ok) {
           tacoResults = await response.json() || [];
         }
       } catch (e) {
-        console.warn("TACO API error, using only extra foods:", e);
+        console.warn("TACO API error:", e);
+      }
+      console.log(`Found ${tacoResults.length} in TACO`);
+      
+      // 3. Search IBGE API as fallback (for foods not in TACO)
+      let ibgeResults: unknown[] = [];
+      try {
+        ibgeResults = await searchIbge(query);
+      } catch (e) {
+        console.warn("IBGE search failed:", e);
+      }
+      console.log(`Found ${ibgeResults.length} in IBGE`);
+      
+      // Combine results: Extra > TACO > IBGE (avoiding duplicates by description)
+      const seenDescriptions = new Set<string>();
+      const combined: unknown[] = [];
+      
+      for (const food of [...extraResults, ...tacoResults, ...ibgeResults]) {
+        const desc = normalizeText((food as { description?: string }).description || '');
+        if (!seenDescriptions.has(desc)) {
+          seenDescriptions.add(desc);
+          combined.push(food);
+        }
       }
       
-      // Combine results: extra foods first, then TACO
-      const combined = [...extraResults, ...tacoResults];
-      
-      console.log(`Found ${extraResults.length} extra + ${tacoResults.length} TACO = ${combined.length} total`);
+      console.log(`Total combined: ${combined.length} foods`);
       
       return new Response(JSON.stringify(combined), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -431,39 +524,59 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        return new Response(
-          JSON.stringify({ error: "Food not found" }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      }
+      
+      // Check if it's an IBGE code (usually 7 digits starting with high numbers)
+      if (id >= 1000000) {
+        try {
+          const response = await fetch(`${IBGE_API_BASE}/food/${foodId}`, {
+            headers: { "Accept": "application/json" },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            return new Response(JSON.stringify(normalizeIbgeFood(data)), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } catch (e) {
+          console.warn("IBGE get error:", e);
+        }
       }
       
       // Otherwise fetch from TACO API
-      const tacoUrl = `${TACO_API_BASE}/foods/${foodId}`;
-      const response = await fetch(tacoUrl, {
-        headers: { "Accept": "application/json" },
-      });
-      
-      if (!response.ok) {
-        return new Response(
-          JSON.stringify({ error: `TACO API returned ${response.status}` }),
-          { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      try {
+        const tacoUrl = `${TACO_API_BASE}/foods/${foodId}`;
+        const response = await fetch(tacoUrl, {
+          headers: { "Accept": "application/json" },
+          signal: AbortSignal.timeout(5000),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return new Response(JSON.stringify(data), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (e) {
+        console.warn("TACO get error:", e);
       }
       
-      const data = await response.json();
-      return new Response(JSON.stringify(data), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Food not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
     
     // Handle all foods
     if (action === "all") {
-      const tacoUrl = `${TACO_API_BASE}/foods`;
       let tacoFoods: unknown[] = [];
       
       try {
+        const tacoUrl = `${TACO_API_BASE}/foods`;
         const response = await fetch(tacoUrl, {
           headers: { "Accept": "application/json" },
+          signal: AbortSignal.timeout(10000),
         });
         if (response.ok) {
           tacoFoods = await response.json() || [];
