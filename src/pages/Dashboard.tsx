@@ -45,6 +45,7 @@ import AdminMealTracking from "@/pages/admin/AdminMealTracking";
 import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
 import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
 import AdminShoppingList from "@/pages/admin/AdminShoppingList";
+import AdminBudgets from "@/pages/admin/AdminBudgets";
 import { Loader2 } from "lucide-react";
 
 // Component to select the right dashboard based on view preference
@@ -120,6 +121,11 @@ function DashboardContent() {
           <Route path="/financeiro" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminPayments />
+            </ProtectedRoute>
+          } />
+          <Route path="/orcamentos" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminBudgets />
             </ProtectedRoute>
           } />
           <Route path="/contratos" element={
