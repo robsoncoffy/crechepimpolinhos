@@ -507,10 +507,32 @@ export default function AdminContracts() {
     
     setDeletingChild(true);
     try {
-      // First remove parent-child links
+      // Clear linked references in billing tables first
+      await supabase
+        .from("asaas_payments")
+        .update({ linked_child_id: null })
+        .eq("linked_child_id", childToDelete.id);
+
+      await supabase
+        .from("asaas_subscriptions")
+        .update({ linked_child_id: null })
+        .eq("linked_child_id", childToDelete.id);
+
+      // Remove parent-child links
       await supabase
         .from("parent_children")
         .delete()
+        .eq("child_id", childToDelete.id);
+
+      // Clear references in other related tables
+      await supabase
+        .from("invoices")
+        .delete()
+        .eq("child_id", childToDelete.id);
+
+      await supabase
+        .from("enrollment_contracts")
+        .update({ child_id: null })
         .eq("child_id", childToDelete.id);
 
       // Then delete the child
