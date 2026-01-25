@@ -119,7 +119,7 @@ export default function AdminPreEnrollments() {
       const { error: updateError } = await supabase
         .from("pre_enrollments")
         .update({
-          status: "converted",
+          status: "enrolled",
           converted_to_invite_id: invite.id,
         })
         .eq("id", preEnrollment.id);
