@@ -303,8 +303,11 @@ export function IngredientQuantityEditor({
 
       <div className="space-y-2">
         {localIngredients.map((ingredient, index) => (
-          <div key={index} className="flex items-center gap-2 bg-background/50 p-2 rounded-md">
-            <span className="flex-1 text-xs truncate" title={ingredient.description || ingredient.name}>
+          <div
+            key={index}
+            className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-2 bg-background/50 p-2 rounded-md min-w-0"
+          >
+            <span className="text-xs truncate min-w-0" title={ingredient.description || ingredient.name}>
               {ingredient.name}
             </span>
             <div className="flex items-center gap-1">
@@ -321,7 +324,7 @@ export function IngredientQuantityEditor({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+              className="h-6 w-6 p-0 text-destructive hover:text-destructive justify-self-end"
               onClick={() => handleRemoveIngredient(index)}
             >
               <Trash2 className="w-3 h-3" />
