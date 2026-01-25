@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscountCoupon } from "@/hooks/useDiscountCoupon";
-import { PRICES, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
+import { getPrice, getClassDisplayName, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 import { 
   Baby, 
   MapPin, 
@@ -158,17 +158,26 @@ const ChildRegistration = () => {
     return "jardim"; // 4+ anos
   }, [watchedBirthDate]);
   
-  // Get the class name for display
-  const estimatedClassName = estimatedClassType === "bercario" 
-    ? "Berçário" 
-    : estimatedClassType === "maternal" 
-      ? "Maternal" 
-      : "Jardim de Infância";
+  // Get the class name for display (with Maternal I/II distinction)
+  const estimatedClassName = useMemo(() => {
+    if (estimatedClassType === "bercario") return "Berçário";
+    if (estimatedClassType === "jardim") return "Jardim de Infância";
+    if (estimatedClassType === "maternal" && watchedBirthDate) {
+      return getClassDisplayName(estimatedClassType, watchedBirthDate);
+    }
+    return "Maternal";
+  }, [estimatedClassType, watchedBirthDate]);
 
-  // Get price for a plan with optional discount
+  // Get price for a plan with optional discount (considering Maternal I pricing)
   const getPlanPrice = (planType: PlanType) => {
-    const basePrice = PRICES[estimatedClassType][planType];
+    // Use getPrice which handles Maternal I (uses Berçário prices)
+    const basePrice = getPrice(estimatedClassType, planType, watchedBirthDate);
     return calculateDiscount(basePrice);
+  };
+  
+  // Get base price for display (before discount)
+  const getBasePriceForPlan = (planType: PlanType) => {
+    return getPrice(estimatedClassType, planType, watchedBirthDate);
   };
 
   // Auto-apply coupon from URL parameter
@@ -1396,7 +1405,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("basico");
                                 const hasDiscount = price.discountAmount > 0;
-                                const basePrice = PRICES[estimatedClassType].basico;
+                                const basePrice = getBasePriceForPlan("basico");
                                 return (
                                   <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'basico' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <RadioGroupItem value="basico" id="basico" />
@@ -1434,7 +1443,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("intermediario");
                                 const hasDiscount = price.discountAmount > 0;
-                                const basePrice = PRICES[estimatedClassType].intermediario;
+                                const basePrice = getBasePriceForPlan("intermediario");
                                 return (
                                   <div className={`relative flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'intermediario' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <div className="absolute -top-3 right-4 bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full font-medium">
@@ -1475,7 +1484,7 @@ const ChildRegistration = () => {
                               {(() => {
                                 const price = getPlanPrice("plus");
                                 const hasDiscount = price.discountAmount > 0;
-                                const basePrice = PRICES[estimatedClassType].plus;
+                                const basePrice = getBasePriceForPlan("plus");
                                 return (
                                   <div className={`flex items-start space-x-4 border-2 rounded-lg p-4 transition-colors ${field.value === 'plus' ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}`}>
                                     <RadioGroupItem value="plus" id="plus" />

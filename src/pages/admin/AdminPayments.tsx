@@ -60,7 +60,7 @@ import FinancialMovementsTab from "@/components/admin/FinancialMovementsTab";
 import FinancialForecastTab from "@/components/admin/FinancialForecastTab";
 import WeeklyCashFlowTab from "@/components/admin/WeeklyCashFlowTab";
 import FixedExpensesTab from "@/components/admin/FixedExpensesTab";
-import { PRICES, CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
+import { CLASS_NAMES, PLAN_NAMES, getPrice, formatCurrency, type ClassType, type PlanType } from "@/lib/pricing";
 
 interface Child {
   id: string;
@@ -68,6 +68,7 @@ interface Child {
   class_type: string;
   shift_type: string;
   plan_type: string | null;
+  birth_date: string;
 }
 
 interface Parent {
@@ -192,7 +193,7 @@ export default function AdminPayments() {
         parent_id,
         child_id,
         profiles!parent_children_parent_id_fkey (id, full_name, phone),
-        children!parent_children_child_id_fkey (id, full_name, class_type, shift_type, plan_type)
+        children!parent_children_child_id_fkey (id, full_name, class_type, shift_type, plan_type, birth_date)
       `) as any;
 
     if (pcData) {
@@ -440,10 +441,12 @@ export default function AdminPayments() {
     
     const classType = selected.children.class_type as ClassType;
     const planType = selected.children.plan_type as PlanType | null;
+    const birthDate = selected.children.birth_date;
     
     if (!classType || !planType) return null;
     
-    const price = getPrice(classType, planType);
+    // Use getPrice with birth date for Maternal I pricing (same as Berçário)
+    const price = getPrice(classType, planType, birthDate);
     return {
       price,
       classType,

@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Loader2, FileText, Send, Pencil, Eye, ChevronDown, ChevronRight } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
-import { PRICES, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
+import { getPrice, formatCurrency, ClassType, PlanType, getClassDisplayName } from "@/lib/pricing";
 
 export interface ContractData {
   parentName: string;
@@ -305,9 +305,9 @@ export function ContractPreviewDialog({
                 {(() => {
                   const classKey = editedData.classType as ClassType;
                   const planKey = editedData.planType as PlanType;
-                  const monthlyValue = (classKey && planKey && PRICES[classKey]?.[planKey]) 
-                    ? formatCurrency(PRICES[classKey][planKey]) 
-                    : null;
+                  // Use getPrice which handles Maternal I pricing (same as Berçário)
+                  const priceValue = classKey && planKey ? getPrice(classKey, planKey, editedData.birthDate) : 0;
+                  const monthlyValue = priceValue > 0 ? formatCurrency(priceValue) : null;
                   
                   return (
                     <div className="bg-card p-4 rounded-lg border mb-4">

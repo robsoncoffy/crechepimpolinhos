@@ -56,7 +56,9 @@ export const PLANS: PlanInfo[] = [
   },
 ];
 
-// Pricing matrix: prices[classType][planType]
+// Base pricing matrix: prices[classType][planType]
+// Note: Maternal I (24-35 months) uses Berçário prices
+// Maternal II (36-47 months) uses Maternal prices
 export const PRICES: Record<ClassType, Record<PlanType, number>> = {
   bercario: {
     basico: 799.90,
@@ -87,8 +89,78 @@ export const PLAN_NAMES: Record<PlanType, string> = {
   plus: 'Plus+',
 };
 
-export function getPrice(classType: ClassType, planType: PlanType): number {
+/**
+ * Calculate age in months from a birth date
+ */
+export function getAgeInMonths(birthDate: string | Date): number {
+  const birth = typeof birthDate === 'string' 
+    ? new Date(`${birthDate}T12:00:00`) 
+    : birthDate;
+  const now = new Date();
+  
+  if (isNaN(birth.getTime())) return 0;
+  
+  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if (now.getDate() < birth.getDate()) months -= 1;
+  
+  return months;
+}
+
+/**
+ * Determine if child is Maternal I (24-35 months) or Maternal II (36-47 months)
+ * Maternal I has the same pricing as Berçário
+ */
+export function isMaternalI(birthDate: string | Date): boolean {
+  const months = getAgeInMonths(birthDate);
+  return months >= 24 && months < 36; // 2 anos a 2 anos e 11 meses
+}
+
+/**
+ * Get the maternal tier label based on age
+ */
+export function getMaternalTier(birthDate: string | Date): 'I' | 'II' {
+  return isMaternalI(birthDate) ? 'I' : 'II';
+}
+
+/**
+ * Get the display name for a class type, with Maternal I/II distinction
+ */
+export function getClassDisplayName(classType: ClassType, birthDate?: string | Date): string {
+  if (classType === 'maternal' && birthDate) {
+    const tier = getMaternalTier(birthDate);
+    return `Maternal ${tier}`;
+  }
+  return CLASS_NAMES[classType];
+}
+
+/**
+ * Get price for a plan, considering Maternal I uses Berçário prices
+ */
+export function getPrice(classType: ClassType, planType: PlanType, birthDate?: string | Date): number {
+  // If maternal and we have birth date, check if it's Maternal I (uses Berçário prices)
+  if (classType === 'maternal' && birthDate && isMaternalI(birthDate)) {
+    return PRICES.bercario[planType] ?? 0;
+  }
   return PRICES[classType]?.[planType] ?? 0;
+}
+
+/**
+ * Get the price tier for a child based on class type and birth date
+ * Returns the effective pricing class (maternal1 uses bercario prices)
+ */
+export function getEffectivePricingClass(classType: ClassType, birthDate?: string | Date): ClassType {
+  if (classType === 'maternal' && birthDate && isMaternalI(birthDate)) {
+    return 'bercario'; // Maternal I uses Berçário prices
+  }
+  return classType;
+}
+
+/**
+ * Get all prices for a class type, considering Maternal I pricing
+ */
+export function getPricesForClass(classType: ClassType, birthDate?: string | Date): Record<PlanType, number> {
+  const effectiveClass = getEffectivePricingClass(classType, birthDate);
+  return PRICES[effectiveClass];
 }
 
 export function formatCurrency(value: number): string {

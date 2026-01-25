@@ -10,6 +10,7 @@ const ZAPSIGN_API_URL = "https://api.zapsign.com.br/api/v1";
 const ASAAS_API_URL = "https://api.asaas.com/v3";
 
 // Pricing matrix: prices[classType][planType]
+// Note: Maternal I (24-35 months) uses Berçário prices
 const PRICES: Record<string, Record<string, number>> = {
   bercario: {
     basico: 799.90,
@@ -28,8 +29,29 @@ const PRICES: Record<string, Record<string, number>> = {
   },
 };
 
-function getContractValue(classType: string | null, planType: string | null): number {
+// Calculate age in months from birth date
+function getAgeInMonths(birthDate: string | null): number {
+  if (!birthDate) return 0;
+  const birth = new Date(birthDate + "T12:00:00");
+  const now = new Date();
+  if (isNaN(birth.getTime())) return 0;
+  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if (now.getDate() < birth.getDate()) months -= 1;
+  return months;
+}
+
+// Check if child is Maternal I (24-35 months) - uses Berçário prices
+function isMaternalI(birthDate: string | null): boolean {
+  const months = getAgeInMonths(birthDate);
+  return months >= 24 && months < 36;
+}
+
+function getContractValue(classType: string | null, planType: string | null, birthDate: string | null = null): number {
   if (!classType || !planType) return 0;
+  // Maternal I uses Berçário prices
+  if (classType === 'maternal' && birthDate && isMaternalI(birthDate)) {
+    return PRICES.bercario?.[planType] ?? 0;
+  }
   return PRICES[classType]?.[planType] ?? 0;
 }
 
@@ -212,8 +234,21 @@ serve(async (req) => {
               console.log("Created new customer:", customerId);
             }
 
-            // Calculate subscription value from contract
-            const subscriptionValue = getContractValue(contract.class_type, contract.plan_type);
+            // Get child birth date to calculate correct pricing (Maternal I uses Berçário prices)
+            let childBirthDate: string | null = null;
+            if (contract.child_id) {
+              const { data: childData } = await supabase
+                .from('children')
+                .select('birth_date')
+                .eq('id', contract.child_id)
+                .single();
+              if (childData) {
+                childBirthDate = childData.birth_date;
+              }
+            }
+
+            // Calculate subscription value from contract (with birth date for Maternal I pricing)
+            const subscriptionValue = getContractValue(contract.class_type, contract.plan_type, childBirthDate);
             
             if (subscriptionValue > 0 && customerId) {
               // Calculate end date (December of current year)
