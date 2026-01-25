@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, Megaphone, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, FolderOpen } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -104,32 +104,17 @@ const communicationItems = [{
   roles: ["admin"]
 }];
 
-// Administrativo
-const adminItems = [{
-  icon: UserCheck,
-  label: "Aprovações",
-  href: "/painel/aprovacoes",
-  badge: true,
-  roles: ["admin"]
-}, {
-  icon: Users,
-  label: "Professores",
-  href: "/painel/professores",
-  roles: ["admin"]
-}, {
-  icon: FileSignature,
-  label: "Contratos",
-  href: "/painel/contratos",
-  roles: ["admin"]
-}, {
+// Cadastros (agrupado)
+const registrationItems = [{
   icon: ClipboardPen,
   label: "Pré-Matrículas",
   href: "/painel/pre-matriculas",
   roles: ["admin"]
 }, {
-  icon: User,
-  label: "Perfis de Usuários",
-  href: "/painel/perfis",
+  icon: UserCheck,
+  label: "Aprovações",
+  href: "/painel/aprovacoes",
+  badge: true,
   roles: ["admin"]
 }, {
   icon: Users,
@@ -140,6 +125,24 @@ const adminItems = [{
   icon: Ticket,
   label: "Convites Funcionário",
   href: "/painel/convites",
+  roles: ["admin"]
+}];
+
+// Administrativo
+const adminItems = [{
+  icon: Users,
+  label: "Professores",
+  href: "/painel/professores",
+  roles: ["admin"]
+}, {
+  icon: FileSignature,
+  label: "Contratos",
+  href: "/painel/contratos",
+  roles: ["admin"]
+}, {
+  icon: User,
+  label: "Perfis de Usuários",
+  href: "/painel/perfis",
   roles: ["admin"]
 }, {
   icon: Inbox,
@@ -249,6 +252,7 @@ export function AdminSidebar() {
   const filteredStudents = studentItems.filter(item => canSeeItem(item.roles));
   const filteredRoutine = routineItems.filter(item => canSeeItem(item.roles));
   const filteredCommunication = communicationItems.filter(item => canSeeItem(item.roles));
+  const filteredRegistrations = registrationItems.filter(item => canSeeItem(item.roles));
   const filteredAdmin = adminItems.filter(item => canSeeItem(item.roles));
   const filteredFinanceHr = financeHrItems.filter(item => canSeeItem(item.roles));
   const filteredSettings = settingsItems.filter(item => canSeeItem(item.roles));
@@ -334,6 +338,7 @@ export function AdminSidebar() {
         {renderMenuSection(filteredStudents, "Gestão de Alunos")}
         {renderMenuSection(filteredRoutine, "Rotina Escolar")}
         {renderMenuSection(filteredCommunication, "Comunicação")}
+        {renderMenuSection(filteredRegistrations, "Cadastros")}
         {renderMenuSection(filteredAdmin, "Administrativo")}
         {renderMenuSection(filteredFinanceHr, "Financeiro & RH")}
         {renderMenuSection(filteredSettings, "Configurações")}
