@@ -90,16 +90,18 @@ serve(async (req) => {
       );
     }
 
-    if (menuType === 'bercario_6_24') {
-      systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação infantil para bebês de 6 meses a 2 anos.
+    if (menuType === 'bercario_6_12') {
+      // For 6 months to 1 year
+      systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação infantil para bebês de 6 meses a 1 ano.
 
 REGRAS OBRIGATÓRIAS:
-1. Sugira papinhas de frutas, legumes e carnes bem cozidas
-2. Varie as texturas: amassados, raspados, em pedaços macios
-3. Use ingredientes brasileiros: ${randomSeasonal}, banana, maçã, pera, mamão
-4. Inclua proteínas: frango desfiado, carne moída, peixe sem espinha, ovo cozido
-5. EVITE: mel, açúcar, sal em excesso, alimentos duros
-6. Cada descrição deve ter NO MÁXIMO 40 caracteres
+1. Sugira papinhas de frutas e legumes bem amassados
+2. Introduza proteínas em pequenas quantidades: frango desfiado fino, carne moída bem cozida
+3. Texturas: purês, papinhas bem amassadas
+4. Use ingredientes brasileiros: ${randomSeasonal}, banana amassada, maçã raspada, pera cozida
+5. Mamadeira ainda é importante nessa faixa
+6. EVITE: mel, açúcar, sal, alimentos duros ou com risco de engasgo
+7. Cada descrição deve ter NO MÁXIMO 40 caracteres
 
 ${previousMenusContext}
 
@@ -107,7 +109,7 @@ Gere um cardápio DIFERENTE e CRIATIVO para ${dayName}. Código de variação: $
 
       jsonFormat = `{
   "breakfast": "descrição curta (max 40 chars)",
-  "breakfast_qty": "quantidade por criança (ex: 100g, 150ml)",
+  "breakfast_qty": "quantidade por criança (ex: 80g, 120ml)",
   "breakfast_time": "07:30",
   "morning_snack": "descrição curta",
   "morning_snack_qty": "quantidade",
@@ -116,6 +118,46 @@ Gere um cardápio DIFERENTE e CRIATIVO para ${dayName}. Código de variação: $
   "lunch_qty": "quantidade",
   "lunch_time": "11:00",
   "bottle": "tipo de leite/fórmula",
+  "bottle_qty": "quantidade em ml",
+  "bottle_time": "13:00",
+  "snack": "descrição curta",
+  "snack_qty": "quantidade",
+  "snack_time": "15:00",
+  "pre_dinner": "descrição curta",
+  "pre_dinner_qty": "quantidade",
+  "pre_dinner_time": "16:30",
+  "dinner": "descrição curta",
+  "dinner_qty": "quantidade",
+  "dinner_time": "17:30"
+}`;
+    } else if (menuType === 'bercario_12_24') {
+      // For 1 year to 2 years
+      systemPrompt = `Você é uma nutricionista brasileira especializada em alimentação infantil para crianças de 1 a 2 anos.
+
+REGRAS OBRIGATÓRIAS:
+1. Criança já mastiga bem - ofereça texturas mais firmes
+2. Varie as preparações: arroz, feijão amassado, carnes em pedaços pequenos
+3. Use ingredientes brasileiros: ${randomSeasonal}, arroz, feijão, carne, frango, legumes variados
+4. Inclua: frutas em pedaços, legumes cozidos, proteínas variadas
+5. Mamadeira complementar, mas foco em comida sólida
+6. EVITE: ultraprocessados, frituras, excesso de sal
+7. Cada descrição deve ter NO MÁXIMO 50 caracteres
+
+${previousMenusContext}
+
+Gere um cardápio DIFERENTE e CRIATIVO para ${dayName}. Código de variação: ${randomSeed}`;
+
+      jsonFormat = `{
+  "breakfast": "descrição curta (max 50 chars)",
+  "breakfast_qty": "quantidade por criança (ex: 120g, 150ml)",
+  "breakfast_time": "07:30",
+  "morning_snack": "descrição curta",
+  "morning_snack_qty": "quantidade",
+  "morning_snack_time": "09:30",
+  "lunch": "descrição curta",
+  "lunch_qty": "quantidade",
+  "lunch_time": "11:00",
+  "bottle": "tipo de leite ou complemento",
   "bottle_qty": "quantidade em ml",
   "bottle_time": "13:00",
   "snack": "descrição curta",
