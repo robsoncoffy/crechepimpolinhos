@@ -368,7 +368,7 @@ export default function NutritionistDashboard() {
     bercario_0_6: getDayTotals('bercario_0_6', todayDayOfWeek),
     bercario_6_24: getDayTotals('bercario_6_24', todayDayOfWeek),
     maternal: getDayTotals('maternal', todayDayOfWeek),
-  }), [getDayTotals, todayDayOfWeek]);
+  }), [nutritionByMeal, todayDayOfWeek, getDayTotals]);
 
   // Get weekly nutrition data for the active menu type
   // This calculates fresh every render using the latest nutritionByMeal state
@@ -378,7 +378,7 @@ export default function NutritionistDashboard() {
       dayName: dayNames[day - 1],
       totals: getDayTotals(activeMenuTab, day),
     }));
-  }, [activeMenuTab, getDayTotals]);
+  }, [nutritionByMeal, activeMenuTab, getDayTotals]);
 
   // Prepare data for PDF export - include per-meal nutrition data and ingredients
   const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
