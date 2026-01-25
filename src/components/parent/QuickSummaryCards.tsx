@@ -43,12 +43,12 @@ export function QuickSummaryCards({ child, unreadCount, onChatClick }: QuickSumm
     }
   };
 
-  const getShiftLabel = (shift: string | null) => {
+  const getShiftLabel = (shift: string | null): string | null => {
     switch (shift) {
       case 'morning': return 'Manhã';
       case 'afternoon': return 'Tarde';
       case 'full_time': return 'Integral';
-      default: return '';
+      default: return null;
     }
   };
 
@@ -61,8 +61,10 @@ export function QuickSummaryCards({ child, unreadCount, onChatClick }: QuickSumm
     }
   };
 
+  const shiftLabel = getShiftLabel(child.shift);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       {/* Card da Criança */}
       <Card className="bg-gradient-to-br from-pimpo-blue/5 to-pimpo-blue/10 border-pimpo-blue/20 shadow-lg hover:shadow-xl transition-all duration-300">
         <CardContent className="p-5">
@@ -93,9 +95,9 @@ export function QuickSummaryCards({ child, unreadCount, onChatClick }: QuickSumm
                 <Badge variant="outline" className={`text-xs font-medium ${getClassColor(child.class_type)}`}>
                   {getClassLabel(child.class_type)}
                 </Badge>
-                {child.shift && (
+                {shiftLabel && (
                   <Badge variant="outline" className="text-xs bg-pimpo-yellow/10 text-pimpo-yellow border-pimpo-yellow/20">
-                    {getShiftLabel(child.shift)}
+                    {shiftLabel}
                   </Badge>
                 )}
               </div>
@@ -137,22 +139,6 @@ export function QuickSummaryCards({ child, unreadCount, onChatClick }: QuickSumm
         </CardContent>
       </Card>
 
-      {/* Card de Dica/Info */}
-      <Card className="bg-gradient-to-br from-pimpo-yellow/5 to-pimpo-yellow/10 border-pimpo-yellow/20 shadow-lg hover:shadow-xl transition-all duration-300">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pimpo-yellow to-pimpo-yellow/70 flex items-center justify-center shadow-md flex-shrink-0">
-              <span className="text-lg">💡</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-foreground text-sm">Dica do Dia</h3>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Acompanhe a agenda diária do seu filho e receba notificações em tempo real sobre as atividades na escola!
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
