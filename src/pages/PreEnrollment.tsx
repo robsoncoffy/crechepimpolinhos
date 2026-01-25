@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail } from "lucide-react";
+import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail, Clock, Sun } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -24,6 +24,7 @@ const preEnrollmentSchema = z.object({
   child_name: z.string().trim().min(2, "Nome da criança deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
   child_birth_date: z.string().min(1, "Data de nascimento é obrigatória"),
   vacancy_type: z.enum(["municipal", "particular"], { required_error: "Selecione o tipo de vaga" }),
+  shift_type: z.enum(["integral", "manha", "tarde"], { required_error: "Selecione o turno desejado" }),
   acceptTerms: z.boolean().refine(val => val === true, { message: "Você deve aceitar os termos para continuar" }),
 });
 
@@ -32,6 +33,12 @@ type PreEnrollmentFormData = z.infer<typeof preEnrollmentSchema>;
 const vacancyTypeOptions = [
   { value: "particular", label: "Vaga Particular", description: "Matrícula privada com mensalidade", icon: Building2 },
   { value: "municipal", label: "Vaga da Prefeitura", description: "Vaga conveniada com a prefeitura", icon: Landmark },
+];
+
+const shiftTypeOptions = [
+  { value: "integral", label: "Integral", description: "Período completo (8h)", icon: Clock },
+  { value: "manha", label: "Meio Período - Manhã", description: "Das 7h às 11h30", icon: Sun },
+  { value: "tarde", label: "Meio Período - Tarde", description: "Das 13h às 17h30", icon: Sun },
 ];
 
 export default function PreEnrollment() {
@@ -48,6 +55,7 @@ export default function PreEnrollment() {
       child_name: "",
       child_birth_date: "",
       vacancy_type: undefined,
+      shift_type: undefined,
       acceptTerms: false,
     },
   });
@@ -77,7 +85,7 @@ export default function PreEnrollment() {
         child_name: data.child_name,
         child_birth_date: data.child_birth_date,
         desired_class_type: classType,
-        desired_shift_type: "integral",
+        desired_shift_type: data.shift_type === "integral" ? "integral" : (data.shift_type === "manha" ? "manha" : "tarde"),
         vacancy_type: data.vacancy_type,
       });
 
@@ -315,6 +323,47 @@ export default function PreEnrollment() {
                                         <div className="flex-1">
                                           <p className="font-semibold">{option.label}</p>
                                           <p className="text-sm text-muted-foreground">
+                                            {option.description}
+                                          </p>
+                                        </div>
+                                      </label>
+                                    </div>
+                                  ))}
+                                </RadioGroup>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {/* Shift Type Selection */}
+                        <FormField
+                          control={form.control}
+                          name="shift_type"
+                          render={({ field }) => (
+                            <FormItem className="space-y-3">
+                              <FormLabel>Turno Desejado *</FormLabel>
+                              <FormControl>
+                                <RadioGroup
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                  className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                                >
+                                  {shiftTypeOptions.map((option) => (
+                                    <div key={option.value}>
+                                      <RadioGroupItem
+                                        value={option.value}
+                                        id={`shift-${option.value}`}
+                                        className="peer sr-only"
+                                      />
+                                      <label
+                                        htmlFor={`shift-${option.value}`}
+                                        className="flex flex-col items-center gap-2 rounded-lg border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors text-center"
+                                      >
+                                        <option.icon className="h-6 w-6 text-primary" />
+                                        <div>
+                                          <p className="font-semibold text-sm">{option.label}</p>
+                                          <p className="text-xs text-muted-foreground">
                                             {option.description}
                                           </p>
                                         </div>
