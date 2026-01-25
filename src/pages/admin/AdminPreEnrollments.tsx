@@ -192,6 +192,39 @@ export default function AdminPreEnrollments() {
     },
   });
 
+  // Mutation to resend invite email
+  const resendEmailMutation = useMutation({
+    mutationFn: async (preEnrollment: PreEnrollment) => {
+      // First get the invite code from parent_invites
+      const { data: invite, error: inviteError } = await supabase
+        .from("parent_invites")
+        .select("invite_code")
+        .eq("pre_enrollment_id", preEnrollment.id)
+        .maybeSingle();
+
+      if (inviteError) throw inviteError;
+      if (!invite) throw new Error("Convite não encontrado");
+
+      const { error: emailError } = await supabase.functions.invoke("send-parent-invite-email", {
+        body: {
+          email: preEnrollment.email,
+          inviteCode: invite.invite_code,
+          childName: preEnrollment.child_name,
+          parentName: preEnrollment.parent_name,
+        },
+      });
+
+      if (emailError) throw emailError;
+    },
+    onSuccess: () => {
+      toast.success("E-mail reenviado com sucesso!");
+    },
+    onError: (error) => {
+      console.error("Error resending email:", error);
+      toast.error("Erro ao reenviar e-mail");
+    },
+  });
+
   // Mutation to delete (reject) a pre-enrollment permanently
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -483,10 +516,29 @@ export default function AdminPreEnrollments() {
                               </>
                             )}
                             {(pe.status === "converted" || pe.status === "enrolled") && (
-                              <span className="flex items-center text-sm text-primary">
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                Aceito
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center text-sm text-primary">
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Aceito
+                                </span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => resendEmailMutation.mutate(pe)}
+                                      disabled={resendEmailMutation.isPending}
+                                    >
+                                      {resendEmailMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Mail className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Reenviar e-mail de convite</TooltipContent>
+                                </Tooltip>
+                              </div>
                             )}
                             {pe.status === "cancelled" && (
                               <span className="flex items-center text-sm text-destructive">
