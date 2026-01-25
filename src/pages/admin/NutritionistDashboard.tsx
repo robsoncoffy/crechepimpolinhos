@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -364,18 +364,21 @@ export default function NutritionistDashboard() {
   }, [nutritionByMeal]);
 
   // Get consolidated nutrition for all menu types for today
-  const consolidatedNutrition = {
+  const consolidatedNutrition = useMemo(() => ({
     bercario_0_6: getDayTotals('bercario_0_6', todayDayOfWeek),
     bercario_6_24: getDayTotals('bercario_6_24', todayDayOfWeek),
     maternal: getDayTotals('maternal', todayDayOfWeek),
-  };
+  }), [getDayTotals, todayDayOfWeek]);
 
   // Get weekly nutrition data for the active menu type
-  const weeklyNutritionData = [1, 2, 3, 4, 5].map(day => ({
-    dayOfWeek: day,
-    dayName: dayNames[day - 1],
-    totals: getDayTotals(activeMenuTab, day),
-  }));
+  // This calculates fresh every render using the latest nutritionByMeal state
+  const weeklyNutritionData = useMemo(() => {
+    return [1, 2, 3, 4, 5].map(day => ({
+      dayOfWeek: day,
+      dayName: dayNames[day - 1],
+      totals: getDayTotals(activeMenuTab, day),
+    }));
+  }, [activeMenuTab, getDayTotals]);
 
   // Prepare data for PDF export - include per-meal nutrition data and ingredients
   const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
