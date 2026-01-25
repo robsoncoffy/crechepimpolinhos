@@ -127,7 +127,7 @@ export default function AdminBudgets() {
             @media print {
               @page {
                 size: A4;
-                margin: 20mm;
+                margin: 12mm 15mm;
               }
               .no-print {
                 display: none !important;
@@ -142,24 +142,24 @@ export default function AdminBudgets() {
             
             body {
               font-family: Arial, sans-serif;
-              padding: 40px;
+              padding: 25px 30px;
               background: white;
               color: #333;
-              line-height: 1.7;
-              font-size: 14px;
+              line-height: 1.5;
+              font-size: 12px;
             }
             
             .no-print {
-              margin-bottom: 20px;
+              margin-bottom: 15px;
               text-align: center;
-              padding: 15px;
+              padding: 10px;
               background: #f0f9ff;
               border-radius: 8px;
             }
             
             .no-print button {
-              padding: 12px 24px;
-              font-size: 14px;
+              padding: 10px 20px;
+              font-size: 13px;
               cursor: pointer;
               border: none;
               border-radius: 6px;
@@ -179,62 +179,57 @@ export default function AdminBudgets() {
             
             .header {
               text-align: center;
-              margin-bottom: 30px;
+              margin-bottom: 15px;
             }
             
             .header img {
-              height: 80px;
-              margin-bottom: 10px;
+              height: 60px;
+              margin-bottom: 6px;
             }
             
             .header h1 {
-              font-size: 18px;
+              font-size: 14px;
               font-weight: bold;
               color: #333;
               text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            
-            .content {
-              margin-bottom: 25px;
+              letter-spacing: 0.5px;
             }
             
             .content p {
-              margin-bottom: 15px;
+              margin-bottom: 10px;
               text-align: justify;
             }
             
             .child-info {
-              margin: 20px 0;
-              padding: 15px 0;
+              margin: 12px 0;
             }
             
             .child-info p {
-              margin-bottom: 8px;
+              margin-bottom: 4px;
               text-align: left;
             }
             
             .child-name {
               font-weight: bold;
-              font-size: 15px;
+              font-size: 13px;
             }
             
             .class-name {
               font-weight: bold;
-              font-size: 15px;
-              margin-top: 10px;
+              font-size: 13px;
+              margin-top: 6px;
               display: block;
             }
             
             table {
               width: 100%;
               border-collapse: collapse;
-              margin: 20px 0;
+              margin: 12px 0;
             }
             
             th, td {
               border: 1px solid #333;
-              padding: 12px 15px;
+              padding: 8px 10px;
               text-align: left;
             }
             
@@ -242,11 +237,11 @@ export default function AdminBudgets() {
               background: #f5f5f5;
               font-weight: bold;
               text-transform: uppercase;
-              font-size: 12px;
+              font-size: 10px;
             }
             
             td {
-              font-size: 13px;
+              font-size: 11px;
             }
             
             .text-center {
@@ -254,51 +249,51 @@ export default function AdminBudgets() {
             }
             
             .incluso-section {
-              margin: 25px 0;
+              margin: 12px 0;
             }
             
             .incluso-section h3 {
-              font-size: 14px;
+              font-size: 12px;
               font-weight: bold;
-              margin-bottom: 10px;
+              margin-bottom: 6px;
             }
             
             .incluso-section ul {
-              margin-left: 20px;
+              margin-left: 18px;
             }
             
             .incluso-section li {
-              margin-bottom: 6px;
-              font-size: 13px;
+              margin-bottom: 2px;
+              font-size: 11px;
             }
             
             .note {
-              margin: 20px 0;
-              font-size: 13px;
+              margin: 12px 0;
+              font-size: 11px;
               text-align: justify;
             }
             
             .date-location {
-              margin: 30px 0 20px 0;
-              font-size: 14px;
+              margin: 15px 0 10px 0;
+              font-size: 12px;
             }
             
             .company-info {
-              margin: 30px 0;
-              font-size: 12px;
-              line-height: 1.5;
+              margin: 15px 0;
+              font-size: 11px;
+              line-height: 1.4;
             }
             
             .footer {
-              margin-top: 30px;
-              padding-top: 20px;
+              margin-top: 15px;
+              padding-top: 10px;
               border-top: 1px solid #ddd;
-              font-size: 11px;
+              font-size: 10px;
               color: #666;
             }
             
             .footer p {
-              margin-bottom: 3px;
+              margin-bottom: 2px;
               text-align: left;
             }
           </style>
