@@ -124,25 +124,59 @@ function parseNumber(value: number | string | null | undefined): number {
 }
 
 function searchFood(foods: TacoFoodRaw[], query: string): TacoFoodRaw | null {
-  const normalizedQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const normalizedQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   
-  // Try exact match first
-  let match = foods.find(f => 
-    f.description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(normalizedQuery)
-  );
+  // Helper to normalize food descriptions
+  const normalize = (str: string) => str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   
-  if (!match) {
-    // Try partial matches with individual words
-    const words = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
-    for (const word of words) {
-      match = foods.find(f => 
-        f.description.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(word)
-      );
-      if (match) break;
+  // 1. Try exact match (description starts with or equals query)
+  let match = foods.find(f => {
+    const desc = normalize(f.description);
+    return desc === normalizedQuery || desc.startsWith(normalizedQuery + ',') || desc.startsWith(normalizedQuery + ' ');
+  });
+  
+  if (match) return match;
+  
+  // 2. Try matching as a whole word (not substring)
+  const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length > 2);
+  const mainWord = queryWords[0] || normalizedQuery;
+  
+  // Score-based matching for better accuracy
+  let bestMatch: TacoFoodRaw | null = null;
+  let bestScore = 0;
+  
+  for (const food of foods) {
+    const desc = normalize(food.description);
+    const descWords = desc.split(/[\s,]+/);
+    
+    let score = 0;
+    
+    // Check if description starts with the main query word
+    if (descWords[0]?.startsWith(mainWord)) {
+      score += 10;
+    }
+    
+    // Check for exact word matches
+    for (const qWord of queryWords) {
+      if (descWords.some(dw => dw === qWord)) {
+        score += 5;
+      } else if (descWords.some(dw => dw.startsWith(qWord))) {
+        score += 3;
+      }
+    }
+    
+    // Penalize if main word is found but not at start
+    if (score === 0 && desc.includes(mainWord)) {
+      score = 1;
+    }
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = food;
     }
   }
   
-  return match || null;
+  return bestMatch;
 }
 
 function normalizeFood(raw: TacoFoodRaw, quantity: number): NormalizedFood {
