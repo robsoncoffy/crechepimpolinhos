@@ -38,7 +38,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   pending: { label: "Pendente", variant: "secondary" },
   contacted: { label: "Contactado", variant: "outline" },
   converted: { label: "Convertido", variant: "default" },
-  enrolled: { label: "Matriculado", variant: "default" },
+  enrolled: { label: "Aceito", variant: "default" },
   cancelled: { label: "Cancelado", variant: "destructive" },
 };
 
