@@ -21,6 +21,8 @@ interface Invite {
   created_at: string;
   expires_at: string;
   used_at: string | null;
+  employee_email: string | null;
+  employee_name: string | null;
 }
 
 // Always use the production URL for invite links
@@ -77,6 +79,8 @@ export default function AdminEmployeeInvites() {
       invite_code: code,
       role: newRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       created_by: user.id,
+      employee_email: employeeEmail.trim() || null,
+      employee_name: employeeName.trim() || null,
     }]).select().single();
 
     if (error) {
@@ -310,6 +314,9 @@ export default function AdminEmployeeInvites() {
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Criado em {format(new Date(invite.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {invite.employee_email && (
+                          <> · <Mail className="w-3 h-3 inline" /> {invite.employee_name || invite.employee_email}</>
+                        )}
                         {!invite.is_used && !isExpired && (
                           <> · Expira em {format(new Date(invite.expires_at), "dd/MM/yyyy", { locale: ptBR })}</>
                         )}
@@ -332,11 +339,22 @@ export default function AdminEmployeeInvites() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setResendInvite(invite);
-                              setResendEmail("");
-                              setResendName("");
-                              setResendDialogOpen(true);
+                            onClick={async () => {
+                              // If invite has stored email, send directly without dialog
+                              if (invite.employee_email) {
+                                await sendInviteEmail(
+                                  invite.invite_code,
+                                  invite.role,
+                                  invite.employee_email,
+                                  invite.employee_name || undefined
+                                );
+                              } else {
+                                // No email stored, show dialog
+                                setResendInvite(invite);
+                                setResendEmail("");
+                                setResendName("");
+                                setResendDialogOpen(true);
+                              }
                             }}
                             disabled={sendingEmail === invite.invite_code}
                           >
@@ -345,7 +363,7 @@ export default function AdminEmployeeInvites() {
                             ) : (
                               <Mail className="w-4 h-4 mr-1" />
                             )}
-                            Enviar
+                            {invite.employee_email ? "Reenviar" : "Enviar"}
                           </Button>
                         </>
                       )}
