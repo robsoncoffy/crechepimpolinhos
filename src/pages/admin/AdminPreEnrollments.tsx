@@ -228,6 +228,18 @@ export default function AdminPreEnrollments() {
   // Mutation to delete (reject) a pre-enrollment permanently
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // First, delete any linked parent_invites (to avoid FK constraint violation)
+      const { error: inviteDeleteError } = await supabase
+        .from("parent_invites")
+        .delete()
+        .eq("pre_enrollment_id", id);
+
+      if (inviteDeleteError) {
+        console.error("Error deleting linked invite:", inviteDeleteError);
+        // Continue anyway - the invite might not exist
+      }
+
+      // Now delete the pre-enrollment
       const { error } = await supabase
         .from("pre_enrollments")
         .delete()
@@ -239,7 +251,8 @@ export default function AdminPreEnrollments() {
       queryClient.invalidateQueries({ queryKey: ["pre-enrollments"] });
       toast.success("Pré-matrícula rejeitada e excluída!");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error deleting pre-enrollment:", error);
       toast.error("Erro ao excluir pré-matrícula");
     },
   });
