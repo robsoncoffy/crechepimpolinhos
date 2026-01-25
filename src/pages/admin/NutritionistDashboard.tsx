@@ -336,7 +336,7 @@ export default function NutritionistDashboard() {
   }, []);
 
   // Calculate day totals for a menu type
-  const getDayTotals = useCallback((menuType: MenuType, dayOfWeek: number): NutritionTotals | null => {
+  const getDayTotals = (menuType: MenuType, dayOfWeek: number): NutritionTotals | null => {
     const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
     const dayMeals = nutritionByMeal[menuType];
     
@@ -361,24 +361,25 @@ export default function NutritionistDashboard() {
     });
     
     return hasAnyData ? totals : null;
-  }, [nutritionByMeal]);
+  };
 
   // Get consolidated nutrition for all menu types for today
   const consolidatedNutrition = useMemo(() => ({
     bercario_0_6: getDayTotals('bercario_0_6', todayDayOfWeek),
     bercario_6_24: getDayTotals('bercario_6_24', todayDayOfWeek),
     maternal: getDayTotals('maternal', todayDayOfWeek),
-  }), [nutritionByMeal, todayDayOfWeek, getDayTotals]);
+  }), [nutritionByMeal, todayDayOfWeek]);
 
   // Get weekly nutrition data for the active menu type
   // This calculates fresh every render using the latest nutritionByMeal state
   const weeklyNutritionData = useMemo(() => {
+    console.log('🔄 Recalculando weeklyNutritionData', { activeMenuTab, nutritionKeys: Object.keys(nutritionByMeal[activeMenuTab]) });
     return [1, 2, 3, 4, 5].map(day => ({
       dayOfWeek: day,
       dayName: dayNames[day - 1],
       totals: getDayTotals(activeMenuTab, day),
     }));
-  }, [nutritionByMeal, activeMenuTab, getDayTotals]);
+  }, [nutritionByMeal, activeMenuTab]);
 
   // Prepare data for PDF export - include per-meal nutrition data and ingredients
   const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
