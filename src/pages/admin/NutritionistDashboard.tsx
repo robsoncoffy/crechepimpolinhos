@@ -275,8 +275,13 @@ export default function NutritionistDashboard() {
         // Maternal uses 'maternal' in the database
         setMaternalItems(createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'));
         
-        // Set the loaded nutrition state
-        setNutritionByMeal(newNutritionState);
+        // Set the loaded nutrition state with proper immutability
+        // Force new object references so React detects the change
+        setNutritionByMeal({
+          bercario_0_6: { ...newNutritionState.bercario_0_6 },
+          bercario_6_24: { ...newNutritionState.bercario_6_24 },
+          maternal: { ...newNutritionState.maternal },
+        });
       } catch (err) {
         console.error('Unexpected error fetching menu:', err);
         toast.error('Erro inesperado ao carregar cardápio');
