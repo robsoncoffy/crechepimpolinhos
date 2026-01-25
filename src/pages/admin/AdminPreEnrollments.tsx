@@ -538,6 +538,23 @@ export default function AdminPreEnrollments() {
                                   </TooltipTrigger>
                                   <TooltipContent>Reenviar e-mail de convite</TooltipContent>
                                 </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => deleteMutation.mutate(pe.id)}
+                                      disabled={deleteMutation.isPending}
+                                    >
+                                      {deleteMutation.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <XCircle className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Cancelar pré-matrícula</TooltipContent>
+                                </Tooltip>
                               </div>
                             )}
                             {pe.status === "cancelled" && (
