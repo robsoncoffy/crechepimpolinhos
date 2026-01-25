@@ -278,25 +278,26 @@ export function IngredientQuantityEditor({
   }
 
   return (
-    <div className="mt-2 p-3 bg-accent/30 rounded-lg border border-border">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Scale className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">
+    <div className="mt-2 p-3 bg-accent/30 rounded-lg border border-border min-w-0 overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Scale className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-xs font-semibold text-foreground whitespace-nowrap">
             Quantidades por ingrediente
           </span>
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-[10px] flex-shrink-0">
             {localIngredients.length} itens
           </Badge>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-xs"
+          className="h-6 px-2 text-xs flex-shrink-0"
           onClick={handleRefresh}
         >
           <RefreshCw className="w-3 h-3 mr-1" />
-          Reidentificar
+          <span className="hidden sm:inline">Reidentificar</span>
+          <span className="sm:hidden">↻</span>
         </Button>
       </div>
 
