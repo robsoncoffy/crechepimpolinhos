@@ -2,8 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Scale, Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Loader2, Scale, Trash2, RefreshCw, Search, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export interface ParsedIngredient {
   name: string;
@@ -86,12 +92,178 @@ const EMPTY_TOTALS: NutritionTotals = {
   cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
 };
 
+interface TacoSearchResult {
+  id: number;
+  description: string;
+  category: string;
+  attributes: {
+    energy?: { qty: number };
+    protein?: { qty: number };
+    lipid?: { qty: number };
+    carbohydrate?: { qty: number };
+    fiber?: { qty: number };
+    calcium?: { qty: number };
+    iron?: { qty: number };
+    sodium?: { qty: number };
+    potassium?: { qty: number };
+    magnesium?: { qty: number };
+    phosphorus?: { qty: number };
+    zinc?: { qty: number };
+    copper?: { qty: number };
+    manganese?: { qty: number };
+    vitamin_c?: { qty: number };
+    vitamin_a?: { qty: number };
+    retinol?: { qty: number };
+    thiamine?: { qty: number };
+    riboflavin?: { qty: number };
+    pyridoxine?: { qty: number };
+    niacin?: { qty: number };
+    cholesterol?: { qty: number };
+    saturated?: { qty: number };
+    monounsaturated?: { qty: number };
+    polyunsaturated?: { qty: number };
+  };
+}
+
 interface IngredientQuantityEditorProps {
   mealDescription: string;
   ingredients: IngredientWithNutrition[];
   onIngredientsChange: (ingredients: IngredientWithNutrition[]) => void;
   onTotalsCalculated: (totals: NutritionTotals | null, ingredients?: IngredientWithNutrition[]) => void;
   loading?: boolean;
+}
+
+// Component for searching and replacing an ingredient
+function IngredientSearchReplace({
+  currentIngredient,
+  onReplace,
+  onCancel,
+}: {
+  currentIngredient: IngredientWithNutrition;
+  onReplace: (newIngredient: IngredientWithNutrition) => void;
+  onCancel: () => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<TacoSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearch = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('taco-search', {
+        body: { query }
+      });
+
+      if (error) throw error;
+      setResults(data?.foods || []);
+    } catch (err) {
+      console.error('Error searching TACO:', err);
+      setResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery, handleSearch]);
+
+  const handleSelect = (food: TacoSearchResult) => {
+    const newIngredient: IngredientWithNutrition = {
+      name: food.description,
+      quantity: currentIngredient.quantity,
+      unit: 'g',
+      id: food.id,
+      description: food.description,
+      energy: food.attributes?.energy?.qty || 0,
+      protein: food.attributes?.protein?.qty || 0,
+      lipid: food.attributes?.lipid?.qty || 0,
+      carbohydrate: food.attributes?.carbohydrate?.qty || 0,
+      fiber: food.attributes?.fiber?.qty || 0,
+      calcium: food.attributes?.calcium?.qty || 0,
+      iron: food.attributes?.iron?.qty || 0,
+      sodium: food.attributes?.sodium?.qty || 0,
+      potassium: food.attributes?.potassium?.qty || 0,
+      magnesium: food.attributes?.magnesium?.qty || 0,
+      phosphorus: food.attributes?.phosphorus?.qty || 0,
+      zinc: food.attributes?.zinc?.qty || 0,
+      copper: food.attributes?.copper?.qty || 0,
+      manganese: food.attributes?.manganese?.qty || 0,
+      vitamin_c: food.attributes?.vitamin_c?.qty || 0,
+      vitamin_a: food.attributes?.vitamin_a?.qty || 0,
+      retinol: food.attributes?.retinol?.qty || 0,
+      thiamine: food.attributes?.thiamine?.qty || 0,
+      riboflavin: food.attributes?.riboflavin?.qty || 0,
+      pyridoxine: food.attributes?.pyridoxine?.qty || 0,
+      niacin: food.attributes?.niacin?.qty || 0,
+      cholesterol: food.attributes?.cholesterol?.qty || 0,
+      saturated: food.attributes?.saturated?.qty || 0,
+      monounsaturated: food.attributes?.monounsaturated?.qty || 0,
+      polyunsaturated: food.attributes?.polyunsaturated?.qty || 0,
+    };
+    onReplace(newIngredient);
+  };
+
+  return (
+    <div className="w-72 p-2">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar alimento..."
+            className="h-8 pl-7 text-xs"
+            autoFocus
+          />
+        </div>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onCancel}>
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {searching && (
+        <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Buscando...
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <ScrollArea className="max-h-48">
+          <div className="space-y-1">
+            {results.map((food) => (
+              <button
+                key={food.id}
+                onClick={() => handleSelect(food)}
+                className="w-full text-left p-2 rounded hover:bg-accent/50 transition-colors"
+              >
+                <p className="text-xs font-medium truncate">{food.description}</p>
+                <p className="text-[10px] text-muted-foreground">{food.category}</p>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      {searchQuery.length >= 2 && !searching && results.length === 0 && (
+        <p className="text-xs text-muted-foreground py-2">Nenhum alimento encontrado</p>
+      )}
+    </div>
+  );
 }
 
 export function IngredientQuantityEditor({
@@ -103,6 +275,7 @@ export function IngredientQuantityEditor({
 }: IngredientQuantityEditorProps) {
   const [localIngredients, setLocalIngredients] = useState<IngredientWithNutrition[]>(ingredients);
   const [calculating, setCalculating] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const lastDescriptionRef = useRef<string>('');
 
@@ -212,6 +385,16 @@ export function IngredientQuantityEditor({
     recalculateTotals(updated);
   };
 
+  const handleReplaceIngredient = (index: number, newIngredient: IngredientWithNutrition) => {
+    const updated = localIngredients.map((ing, i) => 
+      i === index ? newIngredient : ing
+    );
+    setLocalIngredients(updated);
+    onIngredientsChange(updated);
+    recalculateTotals(updated);
+    setEditingIndex(null);
+  };
+
   const recalculateTotals = useCallback((items: IngredientWithNutrition[]) => {
     if (items.length === 0) {
       onTotalsCalculated(null, []);
@@ -305,7 +488,7 @@ export function IngredientQuantityEditor({
         {localIngredients.map((ingredient, index) => (
           <div
             key={index}
-            className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-2 bg-background/50 p-2 rounded-md min-w-0"
+            className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-2 bg-background/50 p-2 rounded-md min-w-0"
           >
             <span className="text-xs truncate min-w-0" title={ingredient.description || ingredient.name}>
               {ingredient.name}
@@ -321,6 +504,28 @@ export function IngredientQuantityEditor({
               />
               <span className="text-xs text-muted-foreground w-6">g</span>
             </div>
+            <Popover 
+              open={editingIndex === index} 
+              onOpenChange={(open) => setEditingIndex(open ? index : null)}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                  title="Buscar alimento correto"
+                >
+                  <Search className="w-3 h-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0" align="end">
+                <IngredientSearchReplace
+                  currentIngredient={ingredient}
+                  onReplace={(newIng) => handleReplaceIngredient(index, newIng)}
+                  onCancel={() => setEditingIndex(null)}
+                />
+              </PopoverContent>
+            </Popover>
             <Button
               variant="ghost"
               size="sm"
@@ -334,7 +539,7 @@ export function IngredientQuantityEditor({
       </div>
       
       <p className="text-[10px] text-muted-foreground mt-2 text-center">
-        💡 Ajuste a gramagem de cada ingrediente para cálculo nutricional preciso
+        💡 Clique na 🔍 para buscar e substituir ingredientes identificados incorretamente
       </p>
     </div>
   );
