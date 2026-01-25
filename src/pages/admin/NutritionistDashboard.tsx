@@ -277,17 +277,78 @@ export default function NutritionistDashboard() {
         
         // Set the loaded nutrition state with proper immutability
         // Force new object references so React detects the change
-        console.log('🔄 Carregando nutritionByMeal do banco:', {
-          bercario_0_6_keys: Object.keys(newNutritionState.bercario_0_6).length,
-          bercario_6_24_keys: Object.keys(newNutritionState.bercario_6_24).length,
-          maternal_keys: Object.keys(newNutritionState.maternal).length,
-          amostra: Object.keys(newNutritionState.bercario_0_6).slice(0, 3)
-        });
         setNutritionByMeal({
           bercario_0_6: { ...newNutritionState.bercario_0_6 },
           bercario_6_24: { ...newNutritionState.bercario_6_24 },
           maternal: { ...newNutritionState.maternal },
         });
+        
+        // Auto-calculate nutrition for meals that have text but no saved nutrition_data
+        // This ensures the charts load immediately without requiring user interaction
+        const autoCalculateMissingNutrition = async () => {
+          const allMenus: Array<{ items: MenuItem[], menuType: MenuType, dbMenuType: string }> = [
+            { items: createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_0_6', dbMenuType: 'bercario' },
+            { items: createMenuItems('bercario_6_24', 'bercario_6_24', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_6_24', dbMenuType: 'bercario_6_24' },
+            { items: createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'), menuType: 'maternal', dbMenuType: 'maternal' }
+          ];
+          
+          for (const { items, menuType } of allMenus) {
+            for (const item of items) {
+              const mealFields: Array<{ field: string, value: string, qty: string }> = [
+                { field: 'breakfast', value: item.breakfast, qty: item.breakfast_qty },
+                { field: 'morning_snack', value: item.morning_snack, qty: item.morning_snack_qty },
+                { field: 'lunch', value: item.lunch, qty: item.lunch_qty },
+                { field: 'bottle', value: item.bottle, qty: item.bottle_qty },
+                { field: 'snack', value: item.snack, qty: item.snack_qty },
+                { field: 'pre_dinner', value: item.pre_dinner, qty: item.pre_dinner_qty },
+                { field: 'dinner', value: item.dinner, qty: item.dinner_qty },
+              ];
+              
+              for (const { field, value, qty } of mealFields) {
+                const key = `${item.day_of_week}-${field}`;
+                // Only calculate if there's text AND no saved nutrition data
+                if (value && value.trim() && !newNutritionState[menuType][key]) {
+                  try {
+                    const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-meal-nutrition', {
+                      body: {
+                        mealDescription: value,
+                        quantityHint: qty,
+                        mealType: field,
+                        menuType: menuType
+                      }
+                    });
+                    
+                    if (!parseError && parseData?.success && parseData.nutrition) {
+                      // Update the nutrition state with calculated values
+                      setNutritionByMeal(prev => ({
+                        ...prev,
+                        [menuType]: {
+                          ...prev[menuType],
+                          [key]: parseData.nutrition,
+                        }
+                      }));
+                      
+                      if (parseData.ingredients) {
+                        setIngredientsByMeal(prev => ({
+                          ...prev,
+                          [menuType]: {
+                            ...prev[menuType],
+                            [key]: parseData.ingredients,
+                          }
+                        }));
+                      }
+                    }
+                  } catch (err) {
+                    console.error(`Error auto-calculating nutrition for ${menuType} day ${item.day_of_week} ${field}:`, err);
+                  }
+                }
+              }
+            }
+          }
+        };
+        
+        // Run auto-calculation in background
+        autoCalculateMissingNutrition();
       } catch (err) {
         console.error('Unexpected error fetching menu:', err);
         toast.error('Erro inesperado ao carregar cardápio');
@@ -381,12 +442,6 @@ export default function NutritionistDashboard() {
 
   // Get weekly nutrition data for the active menu type
   const weeklyNutritionData = useMemo(() => {
-    console.log('📊 Recalculando weeklyNutritionData', {
-      activeMenuTab,
-      temDados: !!nutritionByMeal[activeMenuTab],
-      keys: Object.keys(nutritionByMeal[activeMenuTab] || {})
-    });
-    
     const calculateDayTotals = (dayOfWeek: number): NutritionTotals | null => {
       const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
       const dayMeals = nutritionByMeal[activeMenuTab];
