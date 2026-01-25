@@ -44,6 +44,7 @@ import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin
 import { IngredientWithNutrition } from "@/components/admin/IngredientQuantityEditor";
 import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
 import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
+import { AdvancedNutritionPdfExport } from "@/components/admin/nutritionist/AdvancedNutritionPdfExport";
 import { AllergyCheckBadge } from "@/components/admin/nutritionist/AllergyCheckBadge";
 import {
   DropdownMenu,
@@ -613,18 +614,8 @@ export default function NutritionistDashboard() {
             ? 'bercario_6_24' 
             : 'maternal';
         
-        if (!hasContent) {
-          if (item.id) {
-            const { error } = await supabase
-              .from('weekly_menus')
-              .delete()
-              .eq('id', item.id);
-            
-            if (error) {
-              console.error('Error deleting menu item:', error);
-              hasErrors = true;
-            }
-          }
+        // Skip items without content but DON'T delete existing records (preserve history)
+        if (!hasContent && !item.id) {
           continue;
         }
 
@@ -1362,6 +1353,10 @@ export default function NutritionistDashboard() {
                 nutritionData={pdfNutritionData}
                 menuType={activeMenuTab}
                 disabled={loading}
+              />
+              <AdvancedNutritionPdfExport
+                menuType={activeMenuTab}
+                currentWeekStart={weekStart}
               />
             </div>
           </div>
