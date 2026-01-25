@@ -41,7 +41,6 @@ import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
 import { IngredientWithNutrition } from "@/components/admin/IngredientQuantityEditor";
 import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
-import { WeeklyNutritionSummary } from "@/components/admin/nutritionist/WeeklyNutritionSummary";
 import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
 import { AllergyCheckBadge } from "@/components/admin/nutritionist/AllergyCheckBadge";
 
@@ -226,17 +225,11 @@ export default function NutritionistDashboard() {
               // Load saved nutrition data if available
               if (existingAny.nutrition_data) {
                 const savedNutrition = existingAny.nutrition_data;
-               console.log(`🔍 Carregando nutrition_data para ${menuType} day ${dayOfWeek}:`, {
-                 keys: Object.keys(savedNutrition),
-                 breakfast_exists: !!savedNutrition.breakfast,
-                 lunch_exists: !!savedNutrition.lunch
-               });
                 const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
                 mealFields.forEach(field => {
                   if (savedNutrition[field]) {
                     const key = `${dayOfWeek}-${field}`;
                     newNutritionState[menuType][key] = savedNutrition[field];
-                   console.log(`✅ Salvando ${menuType}[${key}] com energy:`, savedNutrition[field].energy);
                   }
                 });
               }
@@ -283,12 +276,6 @@ export default function NutritionistDashboard() {
         
         // Set the loaded nutrition state with proper immutability
         // Force new object references so React detects the change
-        console.log('📦 Total de keys carregadas:', {
-          bercario_0_6: Object.keys(newNutritionState.bercario_0_6).length,
-          bercario_6_24: Object.keys(newNutritionState.bercario_6_24).length,
-          maternal: Object.keys(newNutritionState.maternal).length,
-          maternal_keys: Object.keys(newNutritionState.maternal),
-        });
         setNutritionByMeal({
           bercario_0_6: { ...newNutritionState.bercario_0_6 },
           bercario_6_24: { ...newNutritionState.bercario_6_24 },
@@ -454,20 +441,10 @@ export default function NutritionistDashboard() {
 
   // Get weekly nutrition data for the active menu type
   const weeklyNutritionData = useMemo(() => {
-    console.log('📊 Calculando weeklyNutritionData para', activeMenuTab, {
-      total_keys: Object.keys(nutritionByMeal[activeMenuTab]).length,
-      sample_keys: Object.keys(nutritionByMeal[activeMenuTab]).slice(0, 5),
-    });
-    
     const calculateDayTotals = (dayOfWeek: number): NutritionTotals | null => {
       const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
       const dayMeals = nutritionByMeal[activeMenuTab];
       let hasAnyData = false;
-      console.log(`  📅 Calculando dia ${dayOfWeek}:`, {
-        dayMeals_keys: Object.keys(dayMeals),
-        expected_breakfast: `${dayOfWeek}-breakfast`,
-        has_breakfast: !!dayMeals[`${dayOfWeek}-breakfast`],
-      });
       const totals: NutritionTotals = {
         energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
         calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
@@ -1281,9 +1258,6 @@ export default function NutritionistDashboard() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Weekly Nutrition Summary */}
-          <WeeklyNutritionSummary weeklyData={weeklyNutritionData} />
 
           {/* Menu Type Tabs - Now with 3 tabs */}
           {loading ? (
