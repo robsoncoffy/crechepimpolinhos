@@ -537,10 +537,6 @@ export default function AdminPreEnrollments() {
                             )}
                             {(pe.status === "converted" || pe.status === "enrolled") && (
                               <div className="flex items-center gap-2">
-                                <span className="flex items-center text-sm text-primary">
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Aceito
-                                </span>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
