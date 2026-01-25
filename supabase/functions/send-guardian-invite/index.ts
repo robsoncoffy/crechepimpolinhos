@@ -224,7 +224,10 @@ serve(async (req: Request): Promise<Response> => {
 <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 30px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">🎈 Creche Pimpolinhos</h1>
+      <div style="background: #ffffff; border-radius: 12px; padding: 12px 20px; display: inline-block; margin-bottom: 12px;">
+        <img src="https://www.crechepimpolinhos.com.br/logo-email.png" alt="Creche Pimpolinhos" width="100" style="display: block; height: auto;">
+      </div>
+      <h1 style="color: white; margin: 0; font-size: 20px;">Convite para Responsável</h1>
     </div>
     <div style="padding: 30px;">
       <h2 style="color: #1e293b; margin-top: 0;">Olá, ${invitedName}! 👋</h2>
