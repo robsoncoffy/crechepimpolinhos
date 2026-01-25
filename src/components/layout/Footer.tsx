@@ -105,6 +105,17 @@ export function Footer() {
       <div className="border-t border-primary-foreground/20 py-4">
         <div className="container text-center text-sm text-primary-foreground/80">
           <p>© {new Date().getFullYear()} Creche Infantil Pimpolinhos. Todos os direitos reservados.</p>
+          <p className="mt-2 text-xs text-primary-foreground/50">
+            Desenvolvido por{" "}
+            <a 
+              href="https://www.era4.com.br" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-primary-foreground/70 transition-colors"
+            >
+              era4.com.br
+            </a>
+          </p>
         </div>
       </div>
     </footer>;
