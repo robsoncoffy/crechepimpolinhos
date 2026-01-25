@@ -72,59 +72,59 @@ export function AutoNutritionBadges({ totals, loading, foodCount = 0, showExtend
   if (!totals) return null;
 
   return (
-    <div className="mt-2 p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+    <div className="mt-2 p-3 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20 min-w-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-primary/20">
-        <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-xs font-semibold text-primary">Informação Nutricional (TACO)</span>
+      <div className="flex flex-wrap items-center gap-2 mb-2 pb-2 border-b border-primary/20">
+        <Sparkles className="w-4 h-4 text-primary flex-shrink-0" />
+        <span className="text-xs font-semibold text-primary whitespace-nowrap">Informação Nutricional (TACO)</span>
         {foodCount > 0 && (
-          <Badge variant="secondary" className="text-[10px] ml-auto">
+          <Badge variant="secondary" className="text-[10px] ml-auto flex-shrink-0">
             {foodCount} alimento(s)
           </Badge>
         )}
       </div>
       
       {/* Base nutrients (sempre visíveis) */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Energia:</span>
-          <span className="font-medium">{format(totals.energy, 0)} kcal</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Energia:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.energy, 0)} kcal</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Proteínas:</span>
-          <span className="font-medium">{format(totals.protein, 1)} g</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Proteínas:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.protein, 1)} g</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Carboidratos:</span>
-          <span className="font-medium">{format(totals.carbohydrate, 1)} g</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Carboidratos:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.carbohydrate, 1)} g</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Lipídios:</span>
-          <span className="font-medium">{format(totals.lipid, 1)} g</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Lipídios:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.lipid, 1)} g</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Fibras:</span>
-          <span className="font-medium">{format(totals.fiber, 1)} g</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Fibras:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.fiber, 1)} g</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Cálcio:</span>
-          <span className="font-medium">{format(totals.calcium, 1)} mg</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Cálcio:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.calcium, 1)} mg</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Ferro:</span>
-          <span className="font-medium">{format(totals.iron, 2)} mg</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Ferro:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.iron, 2)} mg</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Sódio:</span>
-          <span className="font-medium">{format(totals.sodium, 1)} mg</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Sódio:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.sodium, 1)} mg</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Vitamina C:</span>
-          <span className="font-medium">{format(totals.vitamin_c, 1)} mg</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Vitamina C:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.vitamin_c, 1)} mg</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Vitamina A:</span>
-          <span className="font-medium">{format(totals.vitamin_a, 1)} µg</span>
+        <div className="flex justify-between gap-2 min-w-0">
+          <span className="text-muted-foreground truncate">Vitamina A:</span>
+          <span className="font-medium whitespace-nowrap">{format(totals.vitamin_a, 1)} µg</span>
         </div>
       </div>
 
@@ -155,11 +155,11 @@ export function AutoNutritionBadges({ totals, loading, foodCount = 0, showExtend
                   <div className="mb-2 text-[10px] font-semibold tracking-wide text-muted-foreground">
                     {groupName}
                   </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     {grouped[groupName].map((d) => (
-                      <div key={String(d.key)} className="flex justify-between">
-                        <span className="text-muted-foreground">{d.label}:</span>
-                        <span className="font-medium">
+                      <div key={String(d.key)} className="flex justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground truncate">{d.label}:</span>
+                        <span className="font-medium whitespace-nowrap">
                           {format((totals as any)?.[d.key], d.decimals)} {d.unit}
                         </span>
                       </div>
