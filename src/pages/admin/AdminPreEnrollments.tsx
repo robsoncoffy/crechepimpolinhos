@@ -38,7 +38,8 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   pending: { label: "Pendente", variant: "secondary" },
   contacted: { label: "Contactado", variant: "outline" },
   converted: { label: "Convertido", variant: "default" },
-  rejected: { label: "Rejeitado", variant: "destructive" },
+  enrolled: { label: "Matriculado", variant: "default" },
+  cancelled: { label: "Cancelado", variant: "destructive" },
 };
 
 const vacancyTypeLabels: Record<string, { label: string; icon: typeof Building2 }> = {
@@ -481,16 +482,16 @@ export default function AdminPreEnrollments() {
                                 </Button>
                               </>
                             )}
-                            {pe.status === "converted" && (
+                            {(pe.status === "converted" || pe.status === "enrolled") && (
                               <span className="flex items-center text-sm text-primary">
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
                                 Aceito
                               </span>
                             )}
-                            {pe.status === "rejected" && (
+                            {pe.status === "cancelled" && (
                               <span className="flex items-center text-sm text-destructive">
                                 <XCircle className="h-4 w-4 mr-1" />
-                                Rejeitado
+                                Cancelado
                               </span>
                             )}
                           </div>
