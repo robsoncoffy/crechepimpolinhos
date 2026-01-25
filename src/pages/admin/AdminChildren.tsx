@@ -407,6 +407,35 @@ export default function AdminChildren() {
     if (!selectedChild) return;
 
     try {
+      // Clear linked references in billing tables first
+      await supabase
+        .from("asaas_payments")
+        .update({ linked_child_id: null })
+        .eq("linked_child_id", selectedChild.id);
+
+      await supabase
+        .from("asaas_subscriptions")
+        .update({ linked_child_id: null })
+        .eq("linked_child_id", selectedChild.id);
+
+      // Remove parent-child links
+      await supabase
+        .from("parent_children")
+        .delete()
+        .eq("child_id", selectedChild.id);
+
+      // Clear references in other related tables
+      await supabase
+        .from("invoices")
+        .delete()
+        .eq("child_id", selectedChild.id);
+
+      await supabase
+        .from("enrollment_contracts")
+        .update({ child_id: null })
+        .eq("child_id", selectedChild.id);
+
+      // Then delete the child
       const { error } = await supabase.from("children").delete().eq("id", selectedChild.id);
 
       if (error) throw error;
