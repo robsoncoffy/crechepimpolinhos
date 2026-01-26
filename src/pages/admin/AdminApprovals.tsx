@@ -13,6 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -112,6 +122,10 @@ export default function AdminApprovals() {
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState<EditableRegistration | null>(null);
   const [dialogTab, setDialogTab] = useState<string>("info");
+  
+  // Rejection confirmation dialog state
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<{type: "parent" | "employee"; data: PendingParent | PendingEmployee} | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -320,26 +334,42 @@ export default function AdminApprovals() {
     }
   }
 
-  async function handleReject(parent: PendingParent) {
-    if (!confirm("Tem certeza que deseja rejeitar este cadastro? O usuário será completamente removido do sistema e poderá se cadastrar novamente.")) return;
+  function openRejectDialog(target: PendingParent | PendingEmployee, type: "parent" | "employee") {
+    setRejectTarget({ type, data: target });
+    setRejectDialogOpen(true);
+  }
+
+  async function confirmReject() {
+    if (!rejectTarget) return;
 
     setActionLoading(true);
+    setRejectDialogOpen(false);
+    
     try {
+      const userId = rejectTarget.type === "parent" 
+        ? (rejectTarget.data as PendingParent).user_id 
+        : (rejectTarget.data as PendingEmployee).user_id;
+
       // Call edge function to delete the user completely
       const { data, error } = await supabase.functions.invoke("delete-user", {
-        body: { userId: parent.user_id },
+        body: { userId },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Cadastro rejeitado e usuário removido do sistema");
+      const successMessage = rejectTarget.type === "parent" 
+        ? "Cadastro rejeitado e usuário removido do sistema"
+        : "Funcionário rejeitado e removido do sistema";
+      
+      toast.success(successMessage);
       fetchData();
     } catch (error) {
-      console.error("Error rejecting parent:", error);
-      toast.error("Erro ao rejeitar cadastro: " + (error as Error).message);
+      console.error("Error rejecting:", error);
+      toast.error("Erro ao rejeitar: " + (error as Error).message);
     } finally {
       setActionLoading(false);
+      setRejectTarget(null);
     }
   }
 
@@ -377,28 +407,6 @@ export default function AdminApprovals() {
     }
   }
 
-  async function handleRejectEmployee(employee: PendingEmployee) {
-    if (!confirm(`Tem certeza que deseja rejeitar o cadastro de ${employee.full_name}? O funcionário será completamente removido do sistema.`)) return;
-
-    setActionLoading(true);
-    try {
-      // Call edge function to delete the user completely
-      const { data, error } = await supabase.functions.invoke("delete-user", {
-        body: { userId: employee.user_id },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast.success("Funcionário rejeitado e removido do sistema");
-      fetchData();
-    } catch (error) {
-      console.error("Error rejecting employee:", error);
-      toast.error("Erro ao rejeitar funcionário: " + (error as Error).message);
-    } finally {
-      setActionLoading(false);
-    }
-  }
 
   function openApproveDialog(parent: PendingParent) {
     setSelectedParent(parent);
@@ -953,7 +961,7 @@ export default function AdminApprovals() {
                               size="sm"
                               variant="outline"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => handleReject(parent)}
+                              onClick={() => openRejectDialog(parent, "parent")}
                             >
                               <UserX className="w-4 h-4 mr-1" />
                               Rejeitar
@@ -1028,7 +1036,7 @@ export default function AdminApprovals() {
                               size="sm"
                               variant="outline"
                               className="text-destructive hover:text-destructive"
-                              onClick={() => handleRejectEmployee(employee)}
+                              onClick={() => openRejectDialog(employee, "employee")}
                               disabled={actionLoading}
                             >
                               <UserX className="w-4 h-4 mr-1" />
@@ -1609,6 +1617,31 @@ export default function AdminApprovals() {
           onConfirmSend={sendContractAfterPreview}
         />
       )}
+
+      {/* Rejection Confirmation AlertDialog */}
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Rejeição</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rejectTarget?.type === "parent" 
+                ? `Tem certeza que deseja rejeitar o cadastro de ${rejectTarget?.data.full_name}? O usuário será completamente removido do sistema e poderá se cadastrar novamente.`
+                : `Tem certeza que deseja rejeitar o cadastro de ${rejectTarget?.data.full_name}? O funcionário será completamente removido do sistema.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmReject} 
+              disabled={actionLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {actionLoading ? "Removendo..." : "Confirmar Rejeição"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
