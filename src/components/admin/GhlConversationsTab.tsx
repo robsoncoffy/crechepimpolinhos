@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { 
   MessageCircle, 
   RefreshCw, 
@@ -17,7 +18,8 @@ import {
   Send,
   ArrowLeft,
   Smartphone,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,6 +57,7 @@ type LeadChannel = "WhatsApp" | "SMS";
 
 export function GhlConversationsTab() {
   const { toast } = useToast();
+  const { playNotificationSound } = useNotificationSound();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -64,7 +67,10 @@ export function GhlConversationsTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [lastMessagesUpdate, setLastMessagesUpdate] = useState<Date | null>(null);
+  const [lastConversationsUpdate, setLastConversationsUpdate] = useState<Date | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previousInboundCountRef = useRef<number>(0);
   const isMobile = useIsMobile();
 
   const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
@@ -102,7 +108,7 @@ export function GhlConversationsTab() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       const { data, error } = await supabase.functions.invoke("ghl-conversations", {
         body: { action: "list" },
@@ -115,16 +121,19 @@ export function GhlConversationsTab() {
         (conv: any) => conv.type?.toLowerCase() !== "email"
       );
       setConversations(chatConvs);
+      setLastConversationsUpdate(new Date());
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  const fetchMessages = async (conversationId: string) => {
-    setLoadingMessages(true);
+  const fetchMessages = useCallback(async (conversationId: string, isPolling = false) => {
+    if (!isPolling) {
+      setLoadingMessages(true);
+    }
     try {
       const { data, error } = await supabase.functions.invoke("ghl-conversations", {
         body: { action: "messages", conversationId },
@@ -132,22 +141,48 @@ export function GhlConversationsTab() {
 
       if (error) throw error;
       
-      setMessages(data?.messages || []);
+      const newMessages: Message[] = data?.messages || [];
+      
+      // Detect new inbound messages for notification
+      const newInboundCount = newMessages.filter(m => m.direction === "inbound").length;
+      if (isPolling && newInboundCount > previousInboundCountRef.current) {
+        playNotificationSound();
+      }
+      previousInboundCountRef.current = newInboundCount;
+      
+      setMessages(newMessages);
       setContactInfo(data?.contact || null);
+      setLastMessagesUpdate(new Date());
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
-      setLoadingMessages(false);
+      if (!isPolling) {
+        setLoadingMessages(false);
+      }
     }
-  };
+  }, [playNotificationSound]);
 
   useEffect(() => {
     fetchConversations();
     
-    // Refresh every 60 seconds
-    const interval = setInterval(fetchConversations, 60000);
+    // Refresh conversations every 30 seconds
+    const interval = setInterval(fetchConversations, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchConversations]);
+
+  // Auto-refresh messages when a conversation is selected (every 10 seconds)
+  useEffect(() => {
+    if (!selectedConversation) {
+      previousInboundCountRef.current = 0;
+      return;
+    }
+
+    const interval = setInterval(() => {
+      fetchMessages(selectedConversation.id, true);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [selectedConversation?.id, fetchMessages]);
 
   const handleSelectConversation = (conv: Conversation) => {
     // Clear previous conversation state to avoid inferring the wrong channel
@@ -485,15 +520,23 @@ export function GhlConversationsTab() {
                     </div>
                   </div>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                >
-                  <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-                  Atualizar
-                </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                    Atualizar
+                  </Button>
+                  {lastMessagesUpdate && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-pimpo-green" />
+                      Atualizado {formatDistanceToNow(lastMessagesUpdate, { addSuffix: true, locale: ptBR })}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardHeader>
             
