@@ -8,7 +8,7 @@ export default function AdminGhlEmails() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Central de E-mails</h1>
           <p className="text-muted-foreground">
-            Gerencie e-mails recebidos de leads e contatos via GoHighLevel
+            Gerencie e-mails recebidos de leads e contatos
           </p>
         </div>
         

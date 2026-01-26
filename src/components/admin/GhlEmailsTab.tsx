@@ -310,7 +310,7 @@ export function GhlEmailsTab() {
               <div className="p-8 text-center text-muted-foreground">
                 <Inbox className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>Nenhum e-mail encontrado</p>
-                <p className="text-sm mt-1">E-mails recebidos via GHL aparecerão aqui</p>
+                <p className="text-sm mt-1">E-mails recebidos aparecerão aqui</p>
               </div>
             ) : (
               <div className="divide-y">

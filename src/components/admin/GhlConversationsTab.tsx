@@ -222,14 +222,13 @@ export function GhlConversationsTab() {
               {selectedConversation.type}
             </p>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <a 
-              href="https://app.gohighlevel.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           </Button>
         </div>
 
@@ -429,15 +428,14 @@ export function GhlConversationsTab() {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <a 
-                    href="https://app.gohighlevel.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir no GHL
-                  </a>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                  Atualizar
                 </Button>
               </div>
             </CardHeader>
