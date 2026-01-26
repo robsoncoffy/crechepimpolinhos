@@ -46,7 +46,6 @@ import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
 import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
 import AdminShoppingList from "@/pages/admin/AdminShoppingList";
 import AdminBudgets from "@/pages/admin/AdminBudgets";
-import AdminGhlConversations from "@/pages/admin/AdminGhlConversations";
 import { Loader2 } from "lucide-react";
 
 // Component to select the right dashboard based on view preference
@@ -152,11 +151,6 @@ function DashboardContent() {
           <Route path="/emails" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminEmails />
-            </ProtectedRoute>
-          } />
-          <Route path="/ghl-conversas" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminGhlConversations />
             </ProtectedRoute>
           } />
           <Route path="/config" element={

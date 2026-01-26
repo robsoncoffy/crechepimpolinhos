@@ -3,12 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { GhlConversationsTab } from "@/components/admin/GhlConversationsTab";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, MessageSquare, Users, MessagesSquare } from "lucide-react";
+import { Search, MessageSquare, Users, MessagesSquare, Smartphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -207,17 +208,26 @@ export default function AdminChat() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className={cn(
+          "grid w-full max-w-lg",
+          canSeeParentMessages ? "grid-cols-3" : "grid-cols-2"
+        )}>
           {canSeeParentMessages && (
             <TabsTrigger value="pais" className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
-              Mensagens Pais
+              <span className="hidden sm:inline">Mensagens</span> Pais
             </TabsTrigger>
           )}
           <TabsTrigger value="equipe" className="flex items-center gap-2">
             <MessagesSquare className="w-4 h-4" />
-            Chat Equipe
+            <span className="hidden sm:inline">Chat</span> Equipe
           </TabsTrigger>
+          {canSeeParentMessages && (
+            <TabsTrigger value="leads" className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4" />
+              <span className="hidden sm:inline">Chat de</span> Leads
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {canSeeParentMessages && (
@@ -369,6 +379,12 @@ export default function AdminChat() {
         <TabsContent value="equipe" className="mt-4">
           <StaffChatWindow />
         </TabsContent>
+
+        {canSeeParentMessages && (
+          <TabsContent value="leads" className="mt-4">
+            <GhlConversationsTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
