@@ -33,7 +33,7 @@ import CookDashboard from "@/pages/admin/CookDashboard";
 import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
-import AdminEmails from "@/pages/admin/AdminEmails";
+import AdminGhlEmails from "@/pages/admin/AdminGhlEmails";
 import AdminConfig from "@/pages/admin/AdminConfig";
 import AdminFeed from "@/pages/admin/AdminFeed";
 import AdminEmployees from "@/pages/admin/AdminEmployees";
@@ -150,7 +150,7 @@ function DashboardContent() {
           } />
           <Route path="/emails" element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminEmails />
+              <AdminGhlEmails />
             </ProtectedRoute>
           } />
           <Route path="/config" element={
