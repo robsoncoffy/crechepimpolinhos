@@ -167,7 +167,26 @@ export function GhlConversationsTab() {
     
     // Refresh conversations every 30 seconds
     const interval = setInterval(fetchConversations, 30000);
-    return () => clearInterval(interval);
+    
+    // Also refresh when window/tab regains focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchConversations();
+      }
+    };
+    
+    const handleFocus = () => {
+      fetchConversations();
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, [fetchConversations]);
 
   // Auto-refresh messages when a conversation is selected (every 10 seconds)
