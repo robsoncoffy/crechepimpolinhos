@@ -108,7 +108,7 @@ export default function AdminApprovals() {
 
   async function fetchData() {
     try {
-      const [profilesRes, childrenRes, registrationsRes] = await Promise.all([
+      const [profilesRes, childrenRes, registrationsRes, parentRolesRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("status", "pending"),
         supabase.from("children").select("*").order("full_name"),
         supabase
@@ -116,13 +116,21 @@ export default function AdminApprovals() {
           .select("*")
           .eq("status", "pending")
           .order("created_at", { ascending: false }),
+        // Get all users with parent role to filter properly
+        supabase.from("user_roles").select("user_id").eq("role", "parent"),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
       if (childrenRes.error) throw childrenRes.error;
       if (registrationsRes.error) throw registrationsRes.error;
 
-      setPendingParents(profilesRes.data || []);
+      // Filter pending profiles to only include parents (exclude employees)
+      const parentUserIds = new Set((parentRolesRes.data || []).map(r => r.user_id));
+      const filteredParents = (profilesRes.data || []).filter(
+        profile => parentUserIds.has(profile.user_id)
+      );
+      
+      setPendingParents(filteredParents);
       setChildren(childrenRes.data || []);
 
       const regs = registrationsRes.data || [];
