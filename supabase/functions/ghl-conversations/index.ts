@@ -239,18 +239,23 @@ serve(async (req) => {
 
     // Get opportunities for a pipeline
     if (action === "opportunities") {
-      const searchParams = new URLSearchParams({
-        locationId: GHL_LOCATION_ID,
-        limit: "100",
-      });
+      // GHL API v2 requires POST with body for search
+      const searchBody: Record<string, any> = {
+        location_id: GHL_LOCATION_ID,
+        limit: 100,
+      };
       
       if (pipelineId) {
-        searchParams.set("pipelineId", pipelineId);
+        searchBody.pipeline_id = pipelineId;
       }
 
       const response = await fetch(
-        `${baseUrl}/opportunities/search?${searchParams.toString()}`,
-        { method: "GET", headers }
+        `${baseUrl}/opportunities/search`,
+        { 
+          method: "POST", 
+          headers,
+          body: JSON.stringify(searchBody),
+        }
       );
 
       if (!response.ok) {
