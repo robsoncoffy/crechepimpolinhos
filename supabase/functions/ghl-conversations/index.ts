@@ -93,9 +93,13 @@ serve(async (req) => {
       }
 
       const data = await response.json();
+      console.log("GHL messages response:", JSON.stringify(data));
+      
+      // GHL API returns messages directly as array or in data.messages
+      const rawMessages = Array.isArray(data) ? data : (Array.isArray(data.messages) ? data.messages : []);
       
       // Format messages for frontend
-      const messages = (data.messages || []).map((msg: any) => ({
+      const messages = rawMessages.map((msg: any) => ({
         id: msg.id,
         body: msg.body || "",
         dateAdded: msg.dateAdded,
