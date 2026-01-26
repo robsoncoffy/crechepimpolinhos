@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.ghl-sync-contact]
 verify_jwt = false
+
+[functions.ghl-conversations]
+verify_jwt = false
