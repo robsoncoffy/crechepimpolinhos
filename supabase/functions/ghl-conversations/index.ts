@@ -178,10 +178,12 @@ serve(async (req) => {
       };
       const normalizedType = validTypes[messageType.toLowerCase()] || "SMS";
 
-      // GHL API expects 'body' field for message content, not 'message'
+      // GHL API validation for SMS/WhatsApp commonly expects `message` (and/or attachments).
+      // To be compatible across API variants, we send BOTH `message` and `body`.
       const payload = {
         type: normalizedType,
-        body: messageContent, // FIXED: Changed from 'message' to 'body'
+        message: messageContent,
+        body: messageContent,
         conversationId: conversationId,
         contactId: contactId,
       };
