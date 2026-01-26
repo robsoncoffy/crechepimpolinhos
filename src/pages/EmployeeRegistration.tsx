@@ -863,22 +863,24 @@ export default function EmployeeRegistration() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="jobTitle">Cargo</Label>
-                    <Select value={formData.jobTitle} onValueChange={(v) => updateField("jobTitle", v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="professor">Professor(a)</SelectItem>
-                        <SelectItem value="auxiliar">Auxiliar de Classe</SelectItem>
-                        <SelectItem value="coordenador">Coordenador(a)</SelectItem>
-                        <SelectItem value="diretor">Diretor(a)</SelectItem>
-                        <SelectItem value="secretaria">Secretária</SelectItem>
-                        <SelectItem value="servicos_gerais">Serviços Gerais</SelectItem>
-                        <SelectItem value="cozinheiro">Cozinheiro(a)</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="jobTitle">Cargo (definido pelo convite)</Label>
+                    <Input
+                      id="jobTitle"
+                      value={
+                        inviteRole === "teacher" ? "Professor(a)" :
+                        inviteRole === "auxiliar" ? "Auxiliar de Sala" :
+                        inviteRole === "cook" ? "Cozinheiro(a)" :
+                        inviteRole === "nutritionist" ? "Nutricionista" :
+                        inviteRole === "pedagogue" ? "Pedagoga" :
+                        inviteRole === "admin" ? "Administrador(a)" :
+                        "Funcionário"
+                      }
+                      disabled
+                      className="bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Esta função foi definida pelo administrador no convite
+                    </p>
                   </div>
                   <div>
                     <Label htmlFor="workShift">Turno de Trabalho</Label>
