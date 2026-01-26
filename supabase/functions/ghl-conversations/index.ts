@@ -23,12 +23,16 @@ serve(async (req) => {
     let action = "list";
     let conversationId = "";
     let limit = "20";
+    let messageContent = "";
+    let messageType = "SMS";
 
     if (req.method === "POST") {
       const body = await req.json();
       action = body.action || "list";
       conversationId = body.conversationId || "";
       limit = body.limit || "20";
+      messageContent = body.message || "";
+      messageType = body.type || "SMS";
     }
 
     const baseUrl = "https://services.leadconnectorhq.com";
@@ -93,41 +97,22 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log("=== GHL MESSAGES RESPONSE ===");
-      console.log("Type of data:", typeof data);
-      console.log("Is array:", Array.isArray(data));
-      console.log("Keys:", data ? Object.keys(data) : "null");
-      console.log("Full response:", JSON.stringify(data, null, 2));
       
-      // GHL API can return messages in different formats
+      // GHL API returns: { messages: { lastMessageId, nextPage, messages: [...] }, traceId }
       let rawMessages: any[] = [];
       
-      try {
-        if (Array.isArray(data)) {
-          console.log("Format: Direct array");
-          rawMessages = data;
-        } else if (data && typeof data === 'object') {
-          if (Array.isArray(data.messages)) {
-            console.log("Format: data.messages array");
-            rawMessages = data.messages;
-          } else if (Array.isArray(data.data)) {
-            console.log("Format: data.data array");
-            rawMessages = data.data;
-          } else if (data.conversations && Array.isArray(data.conversations)) {
-            console.log("Format: data.conversations array");
-            rawMessages = data.conversations;
-          } else {
-            console.error("Unknown format - no array found in response");
-            console.error("Available keys:", Object.keys(data));
-          }
-        } else {
-          console.error("Invalid response type:", typeof data);
-        }
-        
-        console.log("Extracted messages count:", rawMessages.length);
-      } catch (parseError) {
-        console.error("Error parsing messages:", parseError);
+      if (data?.messages?.messages && Array.isArray(data.messages.messages)) {
+        // Primary format: nested messages object
+        rawMessages = data.messages.messages;
+      } else if (Array.isArray(data?.messages)) {
+        // Fallback: direct messages array
+        rawMessages = data.messages;
+      } else if (Array.isArray(data)) {
+        // Fallback: direct array response
+        rawMessages = data;
       }
+      
+      console.log("Extracted messages count:", rawMessages.length);
       
       // Format messages for frontend
       const messages = (rawMessages || []).map((msg: any) => ({
@@ -162,6 +147,39 @@ serve(async (req) => {
           contact: contactInfo,
           total: data.total || messages.length 
         }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Send a message in a conversation
+    if (action === "send" && conversationId) {
+      if (!messageContent) {
+        throw new Error("Message content is required");
+      }
+
+      const response = await fetch(
+        `${baseUrl}/conversations/messages`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            type: messageType,
+            message: messageContent,
+            conversationId: conversationId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Send Error:", response.status, errorText);
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      return new Response(
+        JSON.stringify({ success: true, messageId: result.id || result.messageId }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   MessageCircle, 
   RefreshCw, 
@@ -14,7 +16,8 @@ import {
   User,
   Send,
   ArrowLeft,
-  Smartphone
+  Smartphone,
+  Loader2
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +52,7 @@ interface ContactInfo {
 }
 
 export function GhlConversationsTab() {
+  const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -56,7 +60,14 @@ export function GhlConversationsTab() {
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const fetchConversations = async () => {
     try {
@@ -117,6 +128,51 @@ export function GhlConversationsTab() {
     setSelectedConversation(null);
     setMessages([]);
     setContactInfo(null);
+    setNewMessage("");
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || sending) return;
+
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: {
+          action: "send",
+          conversationId: selectedConversation.id,
+          message: newMessage.trim(),
+          type: selectedConversation.type || "SMS",
+        },
+      });
+
+      if (error) throw error;
+
+      setNewMessage("");
+      // Refresh messages after sending
+      await fetchMessages(selectedConversation.id);
+      setTimeout(scrollToBottom, 100);
+      
+      toast({
+        title: "Mensagem enviada",
+        description: "Sua resposta foi enviada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Erro ao enviar",
+        description: "Não foi possível enviar a mensagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   const getChannelIcon = (type: string) => {
@@ -221,16 +277,27 @@ export function GhlConversationsTab() {
           </ScrollArea>
           
           <div className="p-4 border-t bg-muted/30">
-            <Button className="w-full" variant="outline" asChild>
-              <a 
-                href="https://app.gohighlevel.com"
-                target="_blank"
-                rel="noopener noreferrer"
+            <div className="flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Digite sua mensagem..."
+                onKeyDown={handleKeyDown}
+                disabled={sending}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={sending || !newMessage.trim()}
+                size="icon"
               >
-                <Send className="h-4 w-4 mr-2" />
-                Responder no GoHighLevel
-              </a>
-            </Button>
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </Card>
       </div>
@@ -423,16 +490,27 @@ export function GhlConversationsTab() {
             </ScrollArea>
             
             <div className="p-4 border-t bg-muted/30">
-              <Button className="w-full" variant="outline" asChild>
-                <a 
-                  href="https://app.gohighlevel.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  onKeyDown={handleKeyDown}
+                  disabled={sending}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={sending || !newMessage.trim()}
+                  size="icon"
                 >
-                  <Send className="h-4 w-4 mr-2" />
-                  Responder no GoHighLevel
-                </a>
-              </Button>
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </>
         ) : (
