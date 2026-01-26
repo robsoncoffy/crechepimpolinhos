@@ -51,5 +51,8 @@ verify_jwt = false
 [functions.ghl-conversations]
 verify_jwt = false
 
+[functions.check-email-health]
+verify_jwt = false
+
 [functions.retry-failed-emails]
 verify_jwt = false
