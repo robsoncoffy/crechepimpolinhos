@@ -58,12 +58,7 @@ const routineItems = [{
   icon: CalendarDays,
   label: "Calendário",
   href: "/painel/calendario",
-  roles: ["admin"]
-}, {
-  icon: CalendarDays,
-  label: "Eventos",
-  href: "/painel/eventos",
-  roles: ["teacher", "pedagogue"]
+  roles: ["admin", "teacher", "pedagogue"]
 }];
 
 // Comunicação
