@@ -239,14 +239,14 @@ serve(async (req) => {
 
     // Get opportunities for a pipeline
     if (action === "opportunities") {
-      // GHL API v2 requires POST with body for search
+      // GHL API v2 requires POST with body for search (camelCase keys)
       const searchBody: Record<string, any> = {
-        location_id: GHL_LOCATION_ID,
+        locationId: GHL_LOCATION_ID,
         limit: 100,
       };
       
       if (pipelineId) {
-        searchBody.pipeline_id = pipelineId;
+        searchBody.pipelineId = pipelineId;
       }
 
       const response = await fetch(
