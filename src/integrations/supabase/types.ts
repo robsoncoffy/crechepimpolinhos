@@ -732,10 +732,14 @@ export type Database = {
           is_read: boolean | null
           is_starred: boolean | null
           labels: string[] | null
+          last_retry_at: string | null
+          max_retries: number | null
           metadata: Json | null
+          next_retry_at: string | null
           provider: string | null
           received_at: string | null
           request_id: string | null
+          retry_count: number | null
           sent_at: string | null
           snippet: string | null
           status: string | null
@@ -760,10 +764,14 @@ export type Database = {
           is_read?: boolean | null
           is_starred?: boolean | null
           labels?: string[] | null
+          last_retry_at?: string | null
+          max_retries?: number | null
           metadata?: Json | null
+          next_retry_at?: string | null
           provider?: string | null
           received_at?: string | null
           request_id?: string | null
+          retry_count?: number | null
           sent_at?: string | null
           snippet?: string | null
           status?: string | null
@@ -788,10 +796,14 @@ export type Database = {
           is_read?: boolean | null
           is_starred?: boolean | null
           labels?: string[] | null
+          last_retry_at?: string | null
+          max_retries?: number | null
           metadata?: Json | null
+          next_retry_at?: string | null
           provider?: string | null
           received_at?: string | null
           request_id?: string | null
+          retry_count?: number | null
           sent_at?: string | null
           snippet?: string | null
           status?: string | null
