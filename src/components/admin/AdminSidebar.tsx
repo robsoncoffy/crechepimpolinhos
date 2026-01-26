@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, GraduationCap, Briefcase, Cog, Calculator, Smartphone } from "lucide-react";
+import { Users, User, Baby, UserCheck, LayoutDashboard, LogOut, MessageSquare, ClipboardList, Settings, TrendingUp, Home, UtensilsCrossed, CalendarDays, Ticket, ClipboardCheck, FileSignature, MessagesSquare, ClipboardPen, FileText, CalendarOff, DollarSign, Clock, Mail, Newspaper, Bell, Inbox, CarFront, Shield, ShoppingCart, GraduationCap, Briefcase, Cog, Calculator } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,11 +67,6 @@ const communicationItems = [{
   label: "Chat",
   href: "/painel/chat",
   roles: []
-}, {
-  icon: Smartphone,
-  label: "WhatsApp (GHL)",
-  href: "/painel/ghl-conversas",
-  roles: ["admin"]
 }, {
   icon: Newspaper,
   label: "Feed & Avisos",
