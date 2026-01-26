@@ -226,7 +226,24 @@ export default function EmployeeRegistration() {
         },
       });
 
-      if (authError) throw authError;
+      // Check for user already exists error
+      if (authError) {
+        if (authError.message?.toLowerCase().includes("already registered") || 
+            authError.message?.toLowerCase().includes("already exists")) {
+          toast.error("Este e-mail já está cadastrado. Por favor, use outro e-mail ou faça login.");
+          setLoading(false);
+          return;
+        }
+        throw authError;
+      }
+      
+      // Also check if user was returned but identity already existed (Supabase v2 behavior)
+      if (authData.user?.identities?.length === 0) {
+        toast.error("Este e-mail já está cadastrado. Por favor, use outro e-mail ou faça login.");
+        setLoading(false);
+        return;
+      }
+      
       if (!authData.user) throw new Error("Erro ao criar usuário");
 
       // 2. Create profile
@@ -237,7 +254,10 @@ export default function EmployeeRegistration() {
         status: "approved",
       });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("Profile error:", profileError);
+        // Don't throw - profile might already exist from trigger
+      }
 
       // 3. Assign role - use the exact role from the invite
       const { error: roleError } = await supabase.from("user_roles").insert({
@@ -245,7 +265,10 @@ export default function EmployeeRegistration() {
         role: inviteRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       });
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error("Role error:", roleError);
+        throw new Error("Erro ao atribuir cargo. Por favor, contate o administrador.");
+      }
 
       // 4. Create employee profile
       const { error: employeeError } = await supabase.from("employee_profiles").insert({
@@ -287,16 +310,19 @@ export default function EmployeeRegistration() {
         pix_key: formData.pixKey || null,
         education_level: formData.educationLevel || null,
         specialization: formData.specialization || null,
-        job_title: formData.jobTitle || null,
+        job_title: inviteRole, // Use invite role as job title
         work_shift: formData.workShift || null,
         has_disability: formData.hasDisability,
         disability_description: formData.hasDisability ? formData.disabilityDescription : null,
       });
 
-      if (employeeError) throw employeeError;
+      if (employeeError) {
+        console.error("Employee profile error:", employeeError);
+        throw new Error("Erro ao criar perfil profissional. Por favor, tente novamente.");
+      }
 
       // 5. Mark invite as used
-      await supabase
+      const { error: inviteUpdateError } = await supabase
         .from("employee_invites")
         .update({
           is_used: true,
@@ -304,6 +330,10 @@ export default function EmployeeRegistration() {
           used_at: new Date().toISOString(),
         })
         .eq("invite_code", formData.inviteCode.trim().toUpperCase());
+
+      if (inviteUpdateError) {
+        console.error("Invite update error:", inviteUpdateError);
+      }
 
       toast.success("Cadastro realizado com sucesso! Redirecionando...");
       
