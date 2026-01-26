@@ -63,6 +63,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const LGPD = lazy(() => import("./pages/LGPD"));
 const TermsOfUse = lazy(() => import("./pages/TermsOfUse"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AdminVisits = lazy(() => import("./pages/admin/AdminVisits"));
 
 const queryClient = new QueryClient();
 
