@@ -26,6 +26,9 @@ serve(async (req) => {
     let limit = "20";
     let messageContent = "";
     let messageType = "SMS";
+    let pipelineId = "";
+    let opportunityId = "";
+    let stageId = "";
 
     if (req.method === "POST") {
       const body = await req.json();
@@ -35,6 +38,9 @@ serve(async (req) => {
       limit = body.limit || "20";
       messageContent = body.message || "";
       messageType = body.type || "SMS";
+      pipelineId = body.pipelineId || "";
+      opportunityId = body.opportunityId || "";
+      stageId = body.stageId || "";
     }
 
     const baseUrl = "https://services.leadconnectorhq.com";
@@ -196,6 +202,114 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ success: true, messageId: result.id || result.messageId }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get pipelines
+    if (action === "pipelines") {
+      const response = await fetch(
+        `${baseUrl}/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`,
+        { method: "GET", headers }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Pipelines Error:", response.status, errorText);
+        throw new Error(`GHL API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const pipelines = (data.pipelines || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        stages: (p.stages || []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          position: s.position || 0,
+        })),
+      }));
+
+      return new Response(
+        JSON.stringify({ pipelines }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get opportunities for a pipeline
+    if (action === "opportunities") {
+      const searchParams = new URLSearchParams({
+        locationId: GHL_LOCATION_ID,
+        limit: "100",
+      });
+      
+      if (pipelineId) {
+        searchParams.set("pipelineId", pipelineId);
+      }
+
+      const response = await fetch(
+        `${baseUrl}/opportunities/search?${searchParams.toString()}`,
+        { method: "GET", headers }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Opportunities Error:", response.status, errorText);
+        throw new Error(`GHL API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const opportunities = (data.opportunities || []).map((o: any) => ({
+        id: o.id,
+        name: o.name,
+        status: o.status,
+        monetaryValue: o.monetaryValue || 0,
+        pipelineStageId: o.pipelineStageId,
+        assignedTo: o.assignedTo,
+        contact: o.contact ? {
+          id: o.contact.id,
+          name: o.contact.name || o.contact.firstName || "Contato",
+          email: o.contact.email,
+          phone: o.contact.phone,
+        } : null,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+      }));
+
+      return new Response(
+        JSON.stringify({ opportunities, total: data.meta?.total || opportunities.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Move opportunity to a different stage
+    if (action === "moveOpportunity") {
+      if (!opportunityId || !stageId) {
+        throw new Error("opportunityId and stageId are required");
+      }
+
+      const response = await fetch(
+        `${baseUrl}/opportunities/${opportunityId}`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            pipelineStageId: stageId,
+            pipelineId: pipelineId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Move Opportunity Error:", response.status, errorText);
+        throw new Error(`Failed to move opportunity: ${response.status}`);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

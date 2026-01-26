@@ -34,6 +34,7 @@ import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
 import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
 import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
 import AdminGhlEmails from "@/pages/admin/AdminGhlEmails";
+import AdminPipeline from "@/pages/admin/AdminPipeline";
 import AdminConfig from "@/pages/admin/AdminConfig";
 import AdminFeed from "@/pages/admin/AdminFeed";
 import AdminEmployees from "@/pages/admin/AdminEmployees";
@@ -151,6 +152,11 @@ function DashboardContent() {
           <Route path="/emails" element={
             <ProtectedRoute allowedRoles={["admin"]}>
               <AdminGhlEmails />
+            </ProtectedRoute>
+          } />
+          <Route path="/pipeline" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminPipeline />
             </ProtectedRoute>
           } />
           <Route path="/config" element={
