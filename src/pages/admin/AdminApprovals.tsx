@@ -32,7 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
@@ -78,8 +78,19 @@ interface EditableRegistration {
   planType: string | null;
 }
 
+interface PendingEmployee {
+  id: string;
+  user_id: string;
+  full_name: string;
+  phone: string | null;
+  created_at: string;
+  role: string;
+  job_title: string | null;
+}
+
 export default function AdminApprovals() {
   const [pendingParents, setPendingParents] = useState<PendingParent[]>([]);
+  const [pendingEmployees, setPendingEmployees] = useState<PendingEmployee[]>([]);
   const [pendingRegistrations, setPendingRegistrations] = useState<PendingChildRegistration[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +119,7 @@ export default function AdminApprovals() {
 
   async function fetchData() {
     try {
-      const [profilesRes, childrenRes, registrationsRes, parentRolesRes] = await Promise.all([
+      const [profilesRes, childrenRes, registrationsRes, parentRolesRes, staffRolesRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("status", "pending"),
         supabase.from("children").select("*").order("full_name"),
         supabase
@@ -118,19 +129,54 @@ export default function AdminApprovals() {
           .order("created_at", { ascending: false }),
         // Get all users with parent role to filter properly
         supabase.from("user_roles").select("user_id").eq("role", "parent"),
+        // Get all staff roles (excluding parent)
+        supabase.from("user_roles").select("user_id, role").in("role", ["admin", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"]),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
       if (childrenRes.error) throw childrenRes.error;
       if (registrationsRes.error) throw registrationsRes.error;
 
-      // Filter pending profiles to only include parents (exclude employees)
       const parentUserIds = new Set((parentRolesRes.data || []).map(r => r.user_id));
+      const staffUserIds = new Map((staffRolesRes.data || []).map(r => [r.user_id, r.role]));
+      
+      // Filter pending profiles to only include parents (exclude employees)
       const filteredParents = (profilesRes.data || []).filter(
         profile => parentUserIds.has(profile.user_id)
       );
       
+      // Filter pending profiles to only include staff (exclude parents)
+      const filteredEmployees = (profilesRes.data || []).filter(
+        profile => staffUserIds.has(profile.user_id) && !parentUserIds.has(profile.user_id)
+      );
+
+      // Fetch employee profiles for job titles
+      const employeeUserIds = filteredEmployees.map(e => e.user_id);
+      let employeeProfilesMap = new Map<string, string | null>();
+      
+      if (employeeUserIds.length > 0) {
+        const { data: empProfiles } = await supabase
+          .from("employee_profiles")
+          .select("user_id, job_title")
+          .in("user_id", employeeUserIds);
+        
+        if (empProfiles) {
+          employeeProfilesMap = new Map(empProfiles.map(ep => [ep.user_id, ep.job_title]));
+        }
+      }
+
+      const pendingEmps: PendingEmployee[] = filteredEmployees.map(profile => ({
+        id: profile.id,
+        user_id: profile.user_id,
+        full_name: profile.full_name,
+        phone: profile.phone,
+        created_at: profile.created_at,
+        role: staffUserIds.get(profile.user_id) || "staff",
+        job_title: employeeProfilesMap.get(profile.user_id) || null,
+      }));
+      
       setPendingParents(filteredParents);
+      setPendingEmployees(pendingEmps);
       setChildren(childrenRes.data || []);
 
       const regs = registrationsRes.data || [];
@@ -292,6 +338,63 @@ export default function AdminApprovals() {
     } catch (error) {
       console.error("Error rejecting parent:", error);
       toast.error("Erro ao rejeitar cadastro: " + (error as Error).message);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Translate role to Portuguese
+  function getRoleLabel(role: string): string {
+    const roleLabels: Record<string, string> = {
+      admin: "Administrador",
+      teacher: "Professor(a)",
+      cook: "Cozinheiro(a)",
+      nutritionist: "Nutricionista",
+      pedagogue: "Pedagogo(a)",
+      auxiliar: "Auxiliar",
+    };
+    return roleLabels[role] || role;
+  }
+
+  async function handleApproveEmployee(employee: PendingEmployee) {
+    setActionLoading(true);
+    try {
+      // Update profile status to approved
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ status: "approved" })
+        .eq("id", employee.id);
+
+      if (profileError) throw profileError;
+
+      toast.success(`Funcionário ${employee.full_name} aprovado com sucesso!`);
+      fetchData();
+    } catch (error) {
+      console.error("Error approving employee:", error);
+      toast.error("Erro ao aprovar funcionário");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleRejectEmployee(employee: PendingEmployee) {
+    if (!confirm(`Tem certeza que deseja rejeitar o cadastro de ${employee.full_name}? O funcionário será completamente removido do sistema.`)) return;
+
+    setActionLoading(true);
+    try {
+      // Call edge function to delete the user completely
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId: employee.user_id },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("Funcionário rejeitado e removido do sistema");
+      fetchData();
+    } catch (error) {
+      console.error("Error rejecting employee:", error);
+      toast.error("Erro ao rejeitar funcionário: " + (error as Error).message);
     } finally {
       setActionLoading(false);
     }
@@ -640,12 +743,12 @@ export default function AdminApprovals() {
           Aprovações
         </h1>
         <p className="text-muted-foreground mt-1">
-          Gerencie os cadastros pendentes de pais e crianças
+          Gerencie os cadastros pendentes de pais, funcionários e crianças
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
             <div className="p-3 rounded-full bg-pimpo-yellow/10">
@@ -670,6 +773,17 @@ export default function AdminApprovals() {
         </Card>
         <Card>
           <CardContent className="flex items-center gap-4 pt-6">
+            <div className="p-3 rounded-full bg-pimpo-blue/10">
+              <Briefcase className="w-6 h-6 text-pimpo-blue" />
+            </div>
+            <div>
+              <p className="text-2xl font-fredoka font-bold">{pendingEmployees.length}</p>
+              <p className="text-sm text-muted-foreground">Funcionários pendentes</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 pt-6">
             <div className="p-3 rounded-full bg-pimpo-green/10">
               <UserCheck className="w-6 h-6 text-pimpo-green" />
             </div>
@@ -683,7 +797,7 @@ export default function AdminApprovals() {
 
       {/* Tabs for different approval types */}
       <Tabs defaultValue="pre-enrollments" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pre-enrollments" className="flex items-center gap-2">
             <ClipboardPen className="w-4 h-4" />
             Pré-Matrículas
@@ -695,6 +809,10 @@ export default function AdminApprovals() {
           <TabsTrigger value="parents" className="flex items-center gap-2">
             <UserCheck className="w-4 h-4" />
             Pais ({pendingParents.length})
+          </TabsTrigger>
+          <TabsTrigger value="employees" className="flex items-center gap-2">
+            <Briefcase className="w-4 h-4" />
+            Funcionários ({pendingEmployees.length})
           </TabsTrigger>
         </TabsList>
 
@@ -841,6 +959,86 @@ export default function AdminApprovals() {
                               Rejeitar
                             </Button>
                             <Button size="sm" onClick={() => openApproveDialog(parent)}>
+                              <UserCheck className="w-4 h-4 mr-1" />
+                              Aprovar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Employees Tab */}
+        <TabsContent value="employees">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cadastros de Funcionários Pendentes</CardTitle>
+              <CardDescription>
+                Aprove ou rejeite os cadastros de novos funcionários
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {pendingEmployees.length === 0 ? (
+                <div className="text-center py-12">
+                  <Briefcase className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg">Nenhum cadastro de funcionário pendente</h3>
+                  <p className="text-muted-foreground">
+                    Todos os cadastros de funcionários foram processados
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Data do Cadastro</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingEmployees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">{employee.full_name}</TableCell>
+                        <TableCell>{employee.phone || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {getRoleLabel(employee.role)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(employee.created_at).toLocaleDateString("pt-BR")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="bg-pimpo-yellow/10 text-pimpo-yellow border-pimpo-yellow/30">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pendente
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleRejectEmployee(employee)}
+                              disabled={actionLoading}
+                            >
+                              <UserX className="w-4 h-4 mr-1" />
+                              Rejeitar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleApproveEmployee(employee)}
+                              disabled={actionLoading}
+                            >
                               <UserCheck className="w-4 h-4 mr-1" />
                               Aprovar
                             </Button>

@@ -246,12 +246,12 @@ export default function EmployeeRegistration() {
       
       if (!authData.user) throw new Error("Erro ao criar usuário");
 
-      // 2. Create profile
+      // 2. Create profile with pending status (requires admin approval)
       const { error: profileError } = await supabase.from("profiles").insert({
         user_id: authData.user.id,
         full_name: formData.fullName,
         phone: formData.phone,
-        status: "approved",
+        status: "pending",
       });
 
       if (profileError) {
@@ -335,12 +335,13 @@ export default function EmployeeRegistration() {
         console.error("Invite update error:", inviteUpdateError);
       }
 
-      toast.success("Cadastro realizado com sucesso! Redirecionando...");
+      toast.success("Cadastro realizado com sucesso! Aguarde a aprovação do administrador.");
       
-      // Wait a moment for the session to be established, then redirect
+      // Sign out and redirect to auth page since they need approval
+      await supabase.auth.signOut();
       setTimeout(() => {
-        window.location.href = "/painel";
-      }, 1500);
+        window.location.href = "/auth?pending=true";
+      }, 2000);
     } catch (error: unknown) {
       console.error("Registration error:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao realizar cadastro";
