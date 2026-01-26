@@ -26,15 +26,65 @@ const shiftLabels: Record<string, string> = {
   integral: "Integral",
 };
 
-// Send email via GHL
+interface EmailLogEntry {
+  requestId: string;
+  timestamp: string;
+  function: string;
+  step: string;
+  level: "info" | "warn" | "error";
+  duration: number;
+  to?: string;
+  subject?: string;
+  templateType?: string;
+  ghlContactId?: string;
+  ghlMessageId?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
+}
+
+function createLogger(functionName: string) {
+  const requestId = crypto.randomUUID();
+  const startTime = Date.now();
+
+  const log = (level: "info" | "warn" | "error", step: string, data?: Partial<EmailLogEntry>) => {
+    const entry: EmailLogEntry = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      function: functionName,
+      step,
+      level,
+      duration: Date.now() - startTime,
+      ...data,
+    };
+    if (level === "error") {
+      console.error(JSON.stringify(entry));
+    } else {
+      console.log(JSON.stringify(entry));
+    }
+  };
+
+  return {
+    requestId,
+    startTime,
+    info: (step: string, data?: Partial<EmailLogEntry>) => log("info", step, data),
+    warn: (step: string, data?: Partial<EmailLogEntry>) => log("warn", step, data),
+    error: (step: string, error: Error | string, data?: Partial<EmailLogEntry>) => 
+      log("error", step, { error: typeof error === "string" ? error : error.message, ...data }),
+  };
+}
+
+// Send email via GHL with detailed logging
 async function sendEmailViaGHL(
   email: string,
   name: string,
   subject: string,
   html: string,
   apiKey: string,
-  locationId: string
-): Promise<{ success: boolean; error?: string }> {
+  locationId: string,
+  logger: ReturnType<typeof createLogger>
+): Promise<{ success: boolean; contactId?: string; messageId?: string; error?: string }> {
+  const searchStart = Date.now();
+  
   const searchResponse = await fetch(
     `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&email=${encodeURIComponent(email)}`,
     {
@@ -47,12 +97,15 @@ async function sendEmailViaGHL(
   );
 
   let contactId: string;
+  let wasCreated = false;
 
   if (searchResponse.ok) {
     const searchResult = await searchResponse.json();
     if (searchResult.contact?.id) {
       contactId = searchResult.contact.id;
+      logger.info("ghl_contact_found", { ghlContactId: contactId });
     } else {
+      const createStart = Date.now();
       const nameParts = name.trim().split(" ");
       const firstName = nameParts[0] || "Responsável";
       const lastName = nameParts.slice(1).join(" ") || "";
@@ -78,16 +131,30 @@ async function sendEmailViaGHL(
       );
 
       if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        logger.error("ghl_contact_create_failed", errorText, {
+          metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
+        });
         return { success: false, error: `Failed to create contact: ${createResponse.status}` };
       }
 
       const createResult = await createResponse.json();
       contactId = createResult.contact.id;
+      wasCreated = true;
+      logger.info("ghl_contact_created", { 
+        ghlContactId: contactId,
+        metadata: { createDuration: Date.now() - createStart }
+      });
     }
   } else {
+    const errorText = await searchResponse.text();
+    logger.error("ghl_contact_search_failed", errorText, {
+      metadata: { status: searchResponse.status, searchDuration: Date.now() - searchStart }
+    });
     return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
   }
 
+  const sendStart = Date.now();
   const emailResponse = await fetch(
     "https://services.leadconnectorhq.com/conversations/messages",
     {
@@ -108,22 +175,42 @@ async function sendEmailViaGHL(
   );
 
   if (!emailResponse.ok) {
-    return { success: false, error: `Failed to send email: ${emailResponse.status}` };
+    const errorText = await emailResponse.text();
+    logger.error("ghl_email_send_failed", errorText, {
+      ghlContactId: contactId,
+      metadata: { status: emailResponse.status, sendDuration: Date.now() - sendStart }
+    });
+    return { success: false, contactId, error: `Failed to send email: ${emailResponse.status}` };
   }
 
-  return { success: true };
+  const sendResult = await emailResponse.json();
+  const messageId = sendResult.messageId || sendResult.id;
+  
+  logger.info("ghl_email_sent", {
+    ghlContactId: contactId,
+    ghlMessageId: messageId,
+    metadata: { sendDuration: Date.now() - sendStart, wasContactCreated: wasCreated }
+  });
+
+  return { success: true, contactId, messageId };
 }
 
 serve(async (req: Request): Promise<Response> => {
-  console.log("send-welcome-email function called (GHL)");
+  const logger = createLogger("send-welcome-email");
+  logger.info("request_received");
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      logger.error("auth_failed", "No authorization header");
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -134,10 +221,11 @@ serve(async (req: Request): Promise<Response> => {
     const GHL_LOCATION_ID = Deno.env.get("GHL_LOCATION_ID");
 
     if (!GHL_API_KEY || !GHL_LOCATION_ID) {
+      logger.error("config_error", "GHL credentials not configured");
       throw new Error("GHL credentials not configured");
     }
+    logger.info("credentials_validated");
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: authHeader } }
@@ -145,6 +233,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      logger.error("auth_failed", userError?.message || "User not authenticated");
       return new Response(
         JSON.stringify({ error: "Usuário não autenticado" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -159,16 +248,24 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (!adminRole) {
+      logger.error("auth_failed", "User is not admin", { metadata: { userId: user.id } });
       return new Response(
         JSON.stringify({ error: "Sem permissão de administrador" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    logger.info("admin_verified", { metadata: { adminId: user.id } });
 
     const body: WelcomeEmailRequest = await req.json();
     const { parentId, parentName, childName, classType, shiftType } = body;
 
+    logger.info("request_parsed", { 
+      templateType: "welcome",
+      metadata: { parentId, childName, classType, shiftType }
+    });
+
     if (!parentId || !parentName || !childName || !classType || !shiftType) {
+      logger.error("validation_failed", "Missing required fields");
       return new Response(
         JSON.stringify({ error: "Dados incompletos" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -176,12 +273,10 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Get parent email
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    
     const { data: userData, error: userDataError } = await adminClient.auth.admin.getUserById(parentId);
     
     if (userDataError || !userData?.user?.email) {
+      logger.error("user_lookup_failed", userDataError?.message || "User not found");
       return new Response(
         JSON.stringify({ error: "Não foi possível obter o email do responsável" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -189,6 +284,8 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const parentEmail = userData.user.email;
+    logger.info("parent_email_resolved", { to: parentEmail });
+
     const classLabel = classLabels[classType] || classType;
     const shiftLabel = shiftLabels[shiftType] || shiftType;
     const appUrl = "https://www.crechepimpolinhos.com.br";
@@ -259,7 +356,7 @@ serve(async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    console.log("Sending welcome email to:", parentEmail);
+    logger.info("email_prepared", { subject, to: parentEmail });
 
     const result = await sendEmailViaGHL(
       parentEmail,
@@ -267,23 +364,74 @@ serve(async (req: Request): Promise<Response> => {
       subject,
       html,
       GHL_API_KEY,
-      GHL_LOCATION_ID
+      GHL_LOCATION_ID,
+      logger
     );
 
+    // Persist to email_logs
+    const { error: logError } = await adminClient.from("email_logs").insert({
+      request_id: logger.requestId,
+      provider: "ghl",
+      template_type: "welcome",
+      to_address: parentEmail,
+      subject: subject,
+      ghl_contact_id: result.contactId || null,
+      ghl_message_id: result.messageId || null,
+      status: result.success ? "sent" : "error",
+      error_message: result.error || null,
+      direction: "outbound",
+      sent_at: result.success ? new Date().toISOString() : null,
+      metadata: { 
+        parentId,
+        parentName,
+        childName,
+        classType,
+        shiftType,
+        duration: Date.now() - logger.startTime
+      }
+    });
+
+    if (logError) {
+      logger.warn("db_log_failed", { error: logError.message });
+    } else {
+      logger.info("db_log_saved");
+    }
+
     if (!result.success) {
+      logger.error("email_failed", result.error || "Unknown error");
       throw new Error(result.error || "Failed to send email via GHL");
     }
+
+    logger.info("request_completed", { 
+      metadata: { totalDuration: Date.now() - logger.startTime }
+    });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "E-mail de boas-vindas enviado com sucesso via GHL" 
+        message: "E-mail de boas-vindas enviado com sucesso via GHL",
+        requestId: logger.requestId
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: any) {
-    console.error("Error in send-welcome-email:", error);
+    logger.error("request_failed", error);
+    
+    try {
+      await adminClient.from("email_logs").insert({
+        request_id: logger.requestId,
+        provider: "ghl",
+        template_type: "welcome",
+        status: "error",
+        error_message: error.message,
+        direction: "outbound",
+        metadata: { duration: Date.now() - logger.startTime }
+      });
+    } catch (logErr) {
+      logger.warn("db_error_log_failed", { error: logErr instanceof Error ? logErr.message : String(logErr) });
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message || "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

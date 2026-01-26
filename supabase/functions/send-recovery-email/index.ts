@@ -10,14 +10,64 @@ interface RecoveryEmailRequest {
   email: string;
 }
 
-// Send email via GHL
+interface EmailLogEntry {
+  requestId: string;
+  timestamp: string;
+  function: string;
+  step: string;
+  level: "info" | "warn" | "error";
+  duration: number;
+  to?: string;
+  subject?: string;
+  templateType?: string;
+  ghlContactId?: string;
+  ghlMessageId?: string;
+  error?: string;
+  metadata?: Record<string, unknown>;
+}
+
+function createLogger(functionName: string) {
+  const requestId = crypto.randomUUID();
+  const startTime = Date.now();
+
+  const log = (level: "info" | "warn" | "error", step: string, data?: Partial<EmailLogEntry>) => {
+    const entry: EmailLogEntry = {
+      requestId,
+      timestamp: new Date().toISOString(),
+      function: functionName,
+      step,
+      level,
+      duration: Date.now() - startTime,
+      ...data,
+    };
+    if (level === "error") {
+      console.error(JSON.stringify(entry));
+    } else {
+      console.log(JSON.stringify(entry));
+    }
+  };
+
+  return {
+    requestId,
+    startTime,
+    info: (step: string, data?: Partial<EmailLogEntry>) => log("info", step, data),
+    warn: (step: string, data?: Partial<EmailLogEntry>) => log("warn", step, data),
+    error: (step: string, error: Error | string, data?: Partial<EmailLogEntry>) => 
+      log("error", step, { error: typeof error === "string" ? error : error.message, ...data }),
+  };
+}
+
+// Send email via GHL with detailed logging
 async function sendEmailViaGHL(
   email: string,
   subject: string,
   html: string,
   apiKey: string,
-  locationId: string
-): Promise<{ success: boolean; error?: string }> {
+  locationId: string,
+  logger: ReturnType<typeof createLogger>
+): Promise<{ success: boolean; contactId?: string; messageId?: string; error?: string }> {
+  const searchStart = Date.now();
+  
   const searchResponse = await fetch(
     `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&email=${encodeURIComponent(email)}`,
     {
@@ -30,13 +80,15 @@ async function sendEmailViaGHL(
   );
 
   let contactId: string;
+  let wasCreated = false;
 
   if (searchResponse.ok) {
     const searchResult = await searchResponse.json();
     if (searchResult.contact?.id) {
       contactId = searchResult.contact.id;
+      logger.info("ghl_contact_found", { ghlContactId: contactId });
     } else {
-      // Create new contact for recovery
+      const createStart = Date.now();
       const createResponse = await fetch(
         "https://services.leadconnectorhq.com/contacts/",
         {
@@ -58,16 +110,30 @@ async function sendEmailViaGHL(
       );
 
       if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        logger.error("ghl_contact_create_failed", errorText, {
+          metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
+        });
         return { success: false, error: `Failed to create contact: ${createResponse.status}` };
       }
 
       const createResult = await createResponse.json();
       contactId = createResult.contact.id;
+      wasCreated = true;
+      logger.info("ghl_contact_created", { 
+        ghlContactId: contactId,
+        metadata: { createDuration: Date.now() - createStart }
+      });
     }
   } else {
+    const errorText = await searchResponse.text();
+    logger.error("ghl_contact_search_failed", errorText, {
+      metadata: { status: searchResponse.status, searchDuration: Date.now() - searchStart }
+    });
     return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
   }
 
+  const sendStart = Date.now();
   const emailResponse = await fetch(
     "https://services.leadconnectorhq.com/conversations/messages",
     {
@@ -88,42 +154,63 @@ async function sendEmailViaGHL(
   );
 
   if (!emailResponse.ok) {
-    return { success: false, error: `Failed to send email: ${emailResponse.status}` };
+    const errorText = await emailResponse.text();
+    logger.error("ghl_email_send_failed", errorText, {
+      ghlContactId: contactId,
+      metadata: { status: emailResponse.status, sendDuration: Date.now() - sendStart }
+    });
+    return { success: false, contactId, error: `Failed to send email: ${emailResponse.status}` };
   }
 
-  return { success: true };
+  const sendResult = await emailResponse.json();
+  const messageId = sendResult.messageId || sendResult.id;
+  
+  logger.info("ghl_email_sent", {
+    ghlContactId: contactId,
+    ghlMessageId: messageId,
+    metadata: { sendDuration: Date.now() - sendStart, wasContactCreated: wasCreated }
+  });
+
+  return { success: true, contactId, messageId };
 }
 
 serve(async (req: Request): Promise<Response> => {
-  console.log("send-recovery-email function called (GHL)");
+  const logger = createLogger("send-recovery-email");
+  logger.info("request_received");
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
   try {
     const GHL_API_KEY = Deno.env.get("GHL_API_KEY");
     const GHL_LOCATION_ID = Deno.env.get("GHL_LOCATION_ID");
 
     if (!GHL_API_KEY || !GHL_LOCATION_ID) {
+      logger.error("config_error", "GHL credentials not configured");
       throw new Error("GHL credentials not configured");
     }
+    logger.info("credentials_validated");
 
     const body: RecoveryEmailRequest = await req.json();
     const { email } = body;
-    console.log("Recovery request for email:", email);
+    
+    logger.info("request_parsed", { 
+      to: email, 
+      templateType: "recovery"
+    });
 
     if (!email) {
+      logger.error("validation_failed", "Email is required");
       return new Response(
         JSON.stringify({ error: "Email é obrigatório" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Create Supabase admin client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Generate password reset link
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
@@ -135,7 +222,8 @@ serve(async (req: Request): Promise<Response> => {
     });
 
     if (linkError) {
-      console.error("Error generating recovery link:", linkError);
+      logger.warn("recovery_link_generation_failed", { error: linkError.message });
+      // Still return success to not reveal if email exists
       return new Response(
         JSON.stringify({ success: true, message: "Se o email existir, você receberá um link de recuperação." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -143,7 +231,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     if (!linkData?.properties?.action_link) {
-      console.error("No action link generated");
+      logger.warn("no_action_link_generated");
       return new Response(
         JSON.stringify({ success: true, message: "Se o email existir, você receberá um link de recuperação." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -151,7 +239,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const recoveryLink = linkData.properties.action_link;
-    console.log("Recovery link generated successfully");
+    logger.info("recovery_link_generated");
 
     const subject = "🔐 Recuperação de Senha - Creche Pimpolinhos";
     const html = `
@@ -208,31 +296,76 @@ serve(async (req: Request): Promise<Response> => {
 </html>
     `;
 
+    logger.info("email_prepared", { subject, to: email });
+
     const result = await sendEmailViaGHL(
       email,
       subject,
       html,
       GHL_API_KEY,
-      GHL_LOCATION_ID
+      GHL_LOCATION_ID,
+      logger
     );
 
+    // Persist to email_logs
+    const { error: logError } = await adminClient.from("email_logs").insert({
+      request_id: logger.requestId,
+      provider: "ghl",
+      template_type: "recovery",
+      to_address: email,
+      subject: subject,
+      ghl_contact_id: result.contactId || null,
+      ghl_message_id: result.messageId || null,
+      status: result.success ? "sent" : "error",
+      error_message: result.error || null,
+      direction: "outbound",
+      sent_at: result.success ? new Date().toISOString() : null,
+      metadata: { 
+        duration: Date.now() - logger.startTime
+      }
+    });
+
+    if (logError) {
+      logger.warn("db_log_failed", { error: logError.message });
+    } else {
+      logger.info("db_log_saved");
+    }
+
     if (!result.success) {
-      console.error("Failed to send via GHL:", result.error);
+      logger.warn("email_send_failed", { error: result.error });
       // Still return success to not reveal if email exists
     }
 
-    console.log("Recovery email process completed");
+    logger.info("request_completed", { 
+      metadata: { totalDuration: Date.now() - logger.startTime }
+    });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email de recuperação enviado com sucesso" 
+        message: "Email de recuperação enviado com sucesso",
+        requestId: logger.requestId
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: any) {
-    console.error("Error in send-recovery-email:", error);
+    logger.error("request_failed", error);
+    
+    try {
+      await adminClient.from("email_logs").insert({
+        request_id: logger.requestId,
+        provider: "ghl",
+        template_type: "recovery",
+        status: "error",
+        error_message: error.message,
+        direction: "outbound",
+        metadata: { duration: Date.now() - logger.startTime }
+      });
+    } catch (logErr) {
+      logger.warn("db_error_log_failed", { error: logErr instanceof Error ? logErr.message : String(logErr) });
+    }
+    
     return new Response(
       JSON.stringify({ error: error.message || "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

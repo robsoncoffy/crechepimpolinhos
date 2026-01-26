@@ -723,16 +723,24 @@ export type Database = {
           cc: string | null
           created_at: string
           direction: string
+          error_message: string | null
           from_address: string | null
+          ghl_contact_id: string | null
+          ghl_message_id: string | null
           gmail_id: string | null
           id: string
           is_read: boolean | null
           is_starred: boolean | null
           labels: string[] | null
+          metadata: Json | null
+          provider: string | null
           received_at: string | null
+          request_id: string | null
           sent_at: string | null
           snippet: string | null
+          status: string | null
           subject: string | null
+          template_type: string | null
           thread_id: string | null
           to_address: string | null
           updated_at: string
@@ -743,16 +751,24 @@ export type Database = {
           cc?: string | null
           created_at?: string
           direction: string
+          error_message?: string | null
           from_address?: string | null
+          ghl_contact_id?: string | null
+          ghl_message_id?: string | null
           gmail_id?: string | null
           id?: string
           is_read?: boolean | null
           is_starred?: boolean | null
           labels?: string[] | null
+          metadata?: Json | null
+          provider?: string | null
           received_at?: string | null
+          request_id?: string | null
           sent_at?: string | null
           snippet?: string | null
+          status?: string | null
           subject?: string | null
+          template_type?: string | null
           thread_id?: string | null
           to_address?: string | null
           updated_at?: string
@@ -763,16 +779,24 @@ export type Database = {
           cc?: string | null
           created_at?: string
           direction?: string
+          error_message?: string | null
           from_address?: string | null
+          ghl_contact_id?: string | null
+          ghl_message_id?: string | null
           gmail_id?: string | null
           id?: string
           is_read?: boolean | null
           is_starred?: boolean | null
           labels?: string[] | null
+          metadata?: Json | null
+          provider?: string | null
           received_at?: string | null
+          request_id?: string | null
           sent_at?: string | null
           snippet?: string | null
+          status?: string | null
           subject?: string | null
+          template_type?: string | null
           thread_id?: string | null
           to_address?: string | null
           updated_at?: string
