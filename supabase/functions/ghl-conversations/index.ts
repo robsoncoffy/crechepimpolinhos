@@ -93,13 +93,44 @@ serve(async (req) => {
       }
 
       const data = await response.json();
-      console.log("GHL messages response:", JSON.stringify(data));
+      console.log("=== GHL MESSAGES RESPONSE ===");
+      console.log("Type of data:", typeof data);
+      console.log("Is array:", Array.isArray(data));
+      console.log("Keys:", data ? Object.keys(data) : "null");
+      console.log("Full response:", JSON.stringify(data, null, 2));
       
-      // GHL API returns messages directly as array or in data.messages
-      const rawMessages = Array.isArray(data) ? data : (Array.isArray(data.messages) ? data.messages : []);
+      // GHL API can return messages in different formats
+      let rawMessages: any[] = [];
+      
+      try {
+        if (Array.isArray(data)) {
+          console.log("Format: Direct array");
+          rawMessages = data;
+        } else if (data && typeof data === 'object') {
+          if (Array.isArray(data.messages)) {
+            console.log("Format: data.messages array");
+            rawMessages = data.messages;
+          } else if (Array.isArray(data.data)) {
+            console.log("Format: data.data array");
+            rawMessages = data.data;
+          } else if (data.conversations && Array.isArray(data.conversations)) {
+            console.log("Format: data.conversations array");
+            rawMessages = data.conversations;
+          } else {
+            console.error("Unknown format - no array found in response");
+            console.error("Available keys:", Object.keys(data));
+          }
+        } else {
+          console.error("Invalid response type:", typeof data);
+        }
+        
+        console.log("Extracted messages count:", rawMessages.length);
+      } catch (parseError) {
+        console.error("Error parsing messages:", parseError);
+      }
       
       // Format messages for frontend
-      const messages = rawMessages.map((msg: any) => ({
+      const messages = (rawMessages || []).map((msg: any) => ({
         id: msg.id,
         body: msg.body || "",
         dateAdded: msg.dateAdded,
