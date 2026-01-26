@@ -152,6 +152,15 @@ export function GhlConversationsTab() {
       });
 
       if (error) throw error;
+      
+      // Check if the response contains an error from the edge function
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data?.success) {
+        throw new Error("Falha ao enviar mensagem");
+      }
 
       setNewMessage("");
       // Refresh messages after sending
