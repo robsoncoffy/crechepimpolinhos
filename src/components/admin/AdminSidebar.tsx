@@ -56,9 +56,14 @@ const routineItems = [{
   roles: ["admin", "cook", "nutritionist"]
 }, {
   icon: CalendarDays,
+  label: "Calendário",
+  href: "/painel/calendario",
+  roles: ["admin"]
+}, {
+  icon: CalendarDays,
   label: "Eventos",
   href: "/painel/eventos",
-  roles: ["admin", "teacher", "pedagogue"]
+  roles: ["teacher", "pedagogue"]
 }];
 
 // Comunicação
@@ -81,11 +86,6 @@ const communicationItems = [{
   icon: Kanban,
   label: "Pipeline",
   href: "/painel/pipeline",
-  roles: ["admin"]
-}, {
-  icon: CalendarCheck,
-  label: "Visitas Agendadas",
-  href: "/painel/visitas",
   roles: ["admin"]
 }, {
   icon: Bell,

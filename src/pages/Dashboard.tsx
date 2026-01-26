@@ -16,6 +16,8 @@ import AdminGrowth from "@/pages/admin/AdminGrowth";
 import AdminMenu from "@/pages/admin/AdminMenu";
 import AdminGallery from "@/pages/admin/AdminGallery";
 import AdminEvents from "@/pages/admin/AdminEvents";
+import AdminCalendar from "@/pages/admin/AdminCalendar";
+import AdminVisits from "@/pages/admin/AdminVisits";
 import AdminEmployeeInvites from "@/pages/admin/AdminEmployeeInvites";
 import AdminAttendance from "@/pages/admin/AdminAttendance";
 import AdminParentInvites from "@/pages/admin/AdminParentInvites";
@@ -218,6 +220,16 @@ function DashboardContent() {
           <Route path="/eventos" element={
             <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
               <AdminEvents />
+            </ProtectedRoute>
+          } />
+          <Route path="/calendario" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminCalendar />
+            </ProtectedRoute>
+          } />
+          <Route path="/visitas" element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminVisits />
             </ProtectedRoute>
           } />
           <Route path="/avaliacoes" element={
