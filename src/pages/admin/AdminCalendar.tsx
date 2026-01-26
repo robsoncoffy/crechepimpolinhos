@@ -6,15 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, parseISO, isSameDay, addMonths, subMonths } from "date-fns";
-import { Loader2, Sun, Users, PartyPopper } from "lucide-react";
+import { ptBR } from "date-fns/locale";
+import { Loader2, Sun, Users, PartyPopper, CalendarDays, List } from "lucide-react";
 import { toast } from "sonner";
 import { UnifiedCalendarGrid } from "@/components/admin/calendar/UnifiedCalendarGrid";
 import { DayDetailsSidebar } from "@/components/admin/calendar/DayDetailsSidebar";
 import { CalendarHeader } from "@/components/admin/calendar/CalendarHeader";
 import { ScheduleVisitDialog } from "@/components/admin/visits/ScheduleVisitDialog";
 import { VisitDetailsSheet } from "@/components/admin/visits/VisitDetailsSheet";
+import { useAuth } from "@/hooks/useAuth";
+import EventsListTab from "@/components/admin/calendar/EventsListTab";
 
 interface SchoolEvent {
   id: string;
@@ -243,47 +247,78 @@ export default function AdminCalendar() {
     );
   }
 
+  const { roles } = useAuth();
+  const isAdmin = roles.includes("admin");
+
   return (
     <div className="space-y-6">
-      <CalendarHeader
-        currentMonth={currentMonth}
-        onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
-        onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
-        onToday={() => {
-          setCurrentMonth(new Date());
-          setSelectedDate(new Date());
-        }}
-        onNewEvent={handleNewEvent}
-        onNewVisit={() => setVisitDialogOpen(true)}
-        eventsCount={events.length}
-        visitsCount={visits.length}
-      />
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Calendar Grid */}
-        <div className="lg:col-span-2">
-          <UnifiedCalendarGrid
-            currentMonth={currentMonth}
-            events={events}
-            visits={visits}
-            onDayClick={handleDayClick}
-            selectedDate={selectedDate}
-          />
-        </div>
-
-        {/* Day Details Sidebar */}
-        <div className="lg:col-span-1 min-h-[400px]">
-          <DayDetailsSidebar
-            selectedDate={selectedDate}
-            events={selectedDayEvents}
-            visits={selectedDayVisits}
-            onClose={() => setSelectedDate(null)}
-            onEditEvent={handleEditEvent}
-            onDeleteEvent={handleDeleteEvent}
-            onViewVisit={handleViewVisit}
-          />
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <CalendarDays className="w-7 h-7 text-pimpo-blue" />
+          Calendário Escolar
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Eventos, feriados e visitas agendadas
+        </p>
       </div>
+
+      <Tabs defaultValue="calendar" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="calendar" className="gap-2">
+            <CalendarDays className="w-4 h-4" />
+            Calendário
+          </TabsTrigger>
+          <TabsTrigger value="events" className="gap-2">
+            <List className="w-4 h-4" />
+            Gerenciar Eventos
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="calendar" className="space-y-6">
+          <CalendarHeader
+            currentMonth={currentMonth}
+            onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            onToday={() => {
+              setCurrentMonth(new Date());
+              setSelectedDate(new Date());
+            }}
+            onNewEvent={handleNewEvent}
+            onNewVisit={() => setVisitDialogOpen(true)}
+            eventsCount={events.length}
+            visitsCount={visits.length}
+            showVisitButton={isAdmin}
+          />
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <UnifiedCalendarGrid
+                currentMonth={currentMonth}
+                events={events}
+                visits={visits}
+                onDayClick={handleDayClick}
+                selectedDate={selectedDate}
+              />
+            </div>
+
+            <div className="lg:col-span-1 min-h-[400px]">
+              <DayDetailsSidebar
+                selectedDate={selectedDate}
+                events={selectedDayEvents}
+                visits={selectedDayVisits}
+                onClose={() => setSelectedDate(null)}
+                onEditEvent={handleEditEvent}
+                onDeleteEvent={handleDeleteEvent}
+                onViewVisit={handleViewVisit}
+              />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="events">
+          <EventsListTab />
+        </TabsContent>
+      </Tabs>
 
       {/* Event Dialog */}
       <Dialog open={eventDialogOpen} onOpenChange={(open) => { setEventDialogOpen(open); if (!open) resetEventForm(); }}>
@@ -388,11 +423,13 @@ export default function AdminCalendar() {
       </Dialog>
 
       {/* Visit Schedule Dialog */}
-      <ScheduleVisitDialog
-        open={visitDialogOpen}
-        onOpenChange={setVisitDialogOpen}
-        onSuccess={fetchData}
-      />
+      {isAdmin && (
+        <ScheduleVisitDialog
+          open={visitDialogOpen}
+          onOpenChange={setVisitDialogOpen}
+          onSuccess={fetchData}
+        />
+      )}
 
       {/* Visit Details Sheet */}
       {selectedVisit && (
