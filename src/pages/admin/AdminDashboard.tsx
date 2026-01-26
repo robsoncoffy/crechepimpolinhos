@@ -11,6 +11,7 @@ import { TimeClockStatusCard } from "@/components/admin/TimeClockStatusCard";
 import { UpcomingExpensesAlert } from "@/components/admin/UpcomingExpensesAlert";
 import { StaffAbsencesWidget } from "@/components/admin/StaffAbsencesWidget";
 import { TodayAttendanceWidget } from "@/components/admin/TodayAttendanceWidget";
+import { EmailHealthWidget } from "@/components/admin/EmailHealthWidget";
 import {
   Users,
   Baby,
@@ -157,6 +158,7 @@ export default function AdminDashboard() {
         <div className="space-y-4">
           <UpcomingExpensesAlert />
           <TimeClockStatusCard />
+          <EmailHealthWidget />
           <PendingContractsWidget />
         </div>
         <div>
