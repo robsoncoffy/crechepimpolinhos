@@ -51,6 +51,8 @@ interface ContactInfo {
   phone?: string;
 }
 
+type LeadChannel = "WhatsApp" | "SMS";
+
 export function GhlConversationsTab() {
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -64,6 +66,37 @@ export function GhlConversationsTab() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+
+  const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
+    // Prefer the most recent known message type
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const t: unknown = (msgs[i] as any)?.type;
+
+      // Some GHL accounts return numeric codes (e.g. 19/2)
+      if (typeof t === "number") {
+        if (t === 19) return "WhatsApp";
+        if (t === 2) return "SMS";
+      }
+
+      if (typeof t === "string") {
+        const normalized = t.toLowerCase();
+        if (normalized.includes("whatsapp")) return "WhatsApp";
+        if (normalized === "sms") return "SMS";
+      }
+    }
+
+    // Fallback to the conversation type if it is already explicit
+    if (convType) {
+      const normalized = convType.toLowerCase();
+      if (normalized.includes("whatsapp")) return "WhatsApp";
+      if (normalized === "sms") return "SMS";
+    }
+
+    // Last resort: SMS
+    return "SMS";
+  };
+
+  const activeLeadChannel: LeadChannel = inferLeadChannel(messages, selectedConversation?.type);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -117,6 +150,10 @@ export function GhlConversationsTab() {
   }, []);
 
   const handleSelectConversation = (conv: Conversation) => {
+    // Clear previous conversation state to avoid inferring the wrong channel
+    // while the new conversation messages are still loading.
+    setMessages([]);
+    setContactInfo(null);
     setSelectedConversation(conv);
     fetchMessages(conv.id);
   };
@@ -147,7 +184,9 @@ export function GhlConversationsTab() {
           conversationId: selectedConversation.id,
           contactId: selectedConversation.contactId,
           message: newMessage.trim(),
-          type: selectedConversation.type || "SMS",
+          // IMPORTANT: Many conversations come as TYPE_PHONE; infer the real channel (WhatsApp vs SMS)
+          // from the last messages to prevent sending SMS when the lead is on WhatsApp.
+          type: activeLeadChannel,
         },
       });
 
@@ -173,9 +212,13 @@ export function GhlConversationsTab() {
       });
     } catch (error) {
       console.error("Error sending message:", error);
+
+      const details = error instanceof Error ? error.message : "";
       toast({
         title: "Erro ao enviar",
-        description: "Não foi possível enviar a mensagem. Tente novamente.",
+        description: details
+          ? details
+          : "Não foi possível enviar a mensagem. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -232,8 +275,8 @@ export function GhlConversationsTab() {
           <div className="flex-1">
             <h2 className="font-semibold">{contactInfo?.name || selectedConversation.contactName}</h2>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              {getChannelIcon(selectedConversation.type)}
-              {selectedConversation.type}
+              {getChannelIcon(activeLeadChannel)}
+              {activeLeadChannel}
             </p>
           </div>
           <Button 
@@ -297,12 +340,12 @@ export function GhlConversationsTab() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="Digite sua mensagem..."
                 onKeyDown={handleKeyDown}
-                disabled={sending}
+                disabled={sending || loadingMessages}
                 className="flex-1"
               />
               <Button 
                 onClick={handleSendMessage} 
-                disabled={sending || !newMessage.trim()}
+                disabled={sending || loadingMessages || !newMessage.trim()}
                 size="icon"
               >
                 {sending ? (
@@ -431,8 +474,8 @@ export function GhlConversationsTab() {
                       {contactInfo?.name || selectedConversation.contactName}
                     </CardTitle>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {getChannelIcon(selectedConversation.type)}
-                      <span>{selectedConversation.type}</span>
+                      {getChannelIcon(activeLeadChannel)}
+                      <span>{activeLeadChannel}</span>
                       {contactInfo?.phone && (
                         <>
                           <span>•</span>
@@ -509,12 +552,12 @@ export function GhlConversationsTab() {
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Digite sua mensagem..."
                   onKeyDown={handleKeyDown}
-                  disabled={sending}
+                  disabled={sending || loadingMessages}
                   className="flex-1"
                 />
                 <Button 
                   onClick={handleSendMessage} 
-                  disabled={sending || !newMessage.trim()}
+                  disabled={sending || loadingMessages || !newMessage.trim()}
                   size="icon"
                 >
                   {sending ? (
