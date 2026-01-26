@@ -2168,6 +2168,65 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_visits: {
+        Row: {
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          ghl_appointment_id: string | null
+          ghl_calendar_id: string | null
+          ghl_contact_id: string | null
+          id: string
+          notes: string | null
+          pre_enrollment_id: string | null
+          scheduled_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          ghl_appointment_id?: string | null
+          ghl_calendar_id?: string | null
+          ghl_contact_id?: string | null
+          id?: string
+          notes?: string | null
+          pre_enrollment_id?: string | null
+          scheduled_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          ghl_appointment_id?: string | null
+          ghl_calendar_id?: string | null
+          ghl_contact_id?: string | null
+          id?: string
+          notes?: string | null
+          pre_enrollment_id?: string | null
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_visits_pre_enrollment_id_fkey"
+            columns: ["pre_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "pre_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_events: {
         Row: {
           all_classes: boolean | null
