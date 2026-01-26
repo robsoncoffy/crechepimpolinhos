@@ -76,7 +76,12 @@ export function GhlConversationsTab() {
       });
 
       if (error) throw error;
-      setConversations(data?.conversations || []);
+      
+      // Filter to show only SMS/WhatsApp conversations (not emails)
+      const chatConvs = (data?.conversations || []).filter(
+        (conv: any) => conv.type?.toLowerCase() !== "email"
+      );
+      setConversations(chatConvs);
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
