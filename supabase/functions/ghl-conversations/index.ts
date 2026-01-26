@@ -178,27 +178,56 @@ serve(async (req) => {
       };
       const normalizedType = validTypes[messageType.toLowerCase()] || "SMS";
 
+      // GHL API expects 'body' field for message content, not 'message'
+      const payload = {
+        type: normalizedType,
+        body: messageContent, // FIXED: Changed from 'message' to 'body'
+        conversationId: conversationId,
+        contactId: contactId,
+      };
+
+      console.log("Sending message to GHL:", {
+        endpoint: `${baseUrl}/conversations/messages`,
+        type: normalizedType,
+        conversationId,
+        contactId,
+        messageLength: messageContent.length,
+      });
+
       const response = await fetch(
         `${baseUrl}/conversations/messages`,
         {
           method: "POST",
           headers,
-          body: JSON.stringify({
-            type: normalizedType,
-            message: messageContent,
-            conversationId: conversationId,
-            contactId: contactId,
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
+      const responseText = await response.text();
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("GHL Send Error:", response.status, errorText);
-        throw new Error(`Failed to send message: ${response.status}`);
+        console.error("GHL Send Error:", response.status, responseText);
+        
+        // Try to parse error for better feedback
+        let errorDetail = responseText;
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorDetail = errorJson.message || errorJson.error || responseText;
+        } catch {
+          // Keep original text
+        }
+        
+        throw new Error(`Falha ao enviar mensagem: ${errorDetail}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { id: null };
+      }
+      
+      console.log("GHL Send Success:", { messageId: result.id || result.messageId });
       
       return new Response(
         JSON.stringify({ success: true, messageId: result.id || result.messageId }),
