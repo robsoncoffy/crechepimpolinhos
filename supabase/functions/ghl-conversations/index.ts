@@ -159,13 +159,26 @@ serve(async (req) => {
         throw new Error("Message content is required");
       }
 
+      // Normalize type to valid GHL API enum values
+      const validTypes: Record<string, string> = {
+        whatsapp: "WhatsApp",
+        sms: "SMS",
+        email: "Email",
+        gmb: "GMB",
+        fb: "FB",
+        ig: "IG",
+        live_chat: "LiveChat",
+        livechat: "LiveChat",
+      };
+      const normalizedType = validTypes[messageType.toLowerCase()] || "SMS";
+
       const response = await fetch(
         `${baseUrl}/conversations/messages`,
         {
           method: "POST",
           headers,
           body: JSON.stringify({
-            type: messageType,
+            type: normalizedType,
             message: messageContent,
             conversationId: conversationId,
             contactId: contactId,
