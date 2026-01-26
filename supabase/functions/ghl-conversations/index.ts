@@ -22,6 +22,7 @@ serve(async (req) => {
     // Parse request body for action and params
     let action = "list";
     let conversationId = "";
+    let contactId = "";
     let limit = "20";
     let messageContent = "";
     let messageType = "SMS";
@@ -30,6 +31,7 @@ serve(async (req) => {
       const body = await req.json();
       action = body.action || "list";
       conversationId = body.conversationId || "";
+      contactId = body.contactId || "";
       limit = body.limit || "20";
       messageContent = body.message || "";
       messageType = body.type || "SMS";
@@ -152,7 +154,7 @@ serve(async (req) => {
     }
 
     // Send a message in a conversation
-    if (action === "send" && conversationId) {
+    if (action === "send" && conversationId && contactId) {
       if (!messageContent) {
         throw new Error("Message content is required");
       }
@@ -166,6 +168,7 @@ serve(async (req) => {
             type: messageType,
             message: messageContent,
             conversationId: conversationId,
+            contactId: contactId,
           }),
         }
       );

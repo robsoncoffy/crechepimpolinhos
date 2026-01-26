@@ -140,6 +140,7 @@ export function GhlConversationsTab() {
         body: {
           action: "send",
           conversationId: selectedConversation.id,
+          contactId: selectedConversation.contactId,
           message: newMessage.trim(),
           type: selectedConversation.type || "SMS",
         },
