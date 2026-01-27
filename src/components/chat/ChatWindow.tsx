@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ChatMessage } from "./ChatMessage";
@@ -6,7 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { QuickReplySuggestions } from "./QuickReplySuggestions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, MessageSquare } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Message {
   id: string;
@@ -15,7 +15,6 @@ interface Message {
   child_id: string;
   created_at: string;
   is_read: boolean;
-  sender_name?: string;
 }
 
 interface ChatWindowProps {
@@ -23,59 +22,67 @@ interface ChatWindowProps {
   childName: string;
 }
 
-export function ChatWindow({ childId, childName }: ChatWindowProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
+// Cache for sender profiles across all chat windows
+const profileCache = new Map<string, string>();
 
-  // Fetch messages
-  useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true);
-      
+export const ChatWindow = memo(function ChatWindow({ childId, childName }: ChatWindowProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+
+  // Fetch messages with React Query for caching
+  const {
+    data: messages = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["chat-messages", childId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("messages")
         .select("*")
         .eq("child_id", childId)
         .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching messages:", error);
-        toast({
-          title: "Erro ao carregar mensagens",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        setMessages(data || []);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 30, // 30 seconds
+  });
+
+  // Batch fetch sender names for uncached senders
+  const senderIds = useMemo(() => 
+    [...new Set(messages.map((m) => m.sender_id))],
+    [messages]
+  );
+
+  const { data: senderProfiles = {} } = useQuery({
+    queryKey: ["chat-sender-profiles", senderIds.join(",")],
+    queryFn: async () => {
+      const uncachedIds = senderIds.filter(id => !profileCache.has(id));
+      
+      if (uncachedIds.length > 0) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", uncachedIds);
         
-        // Fetch sender names
-        const senderIds = [...new Set(data?.map((m) => m.sender_id) || [])];
-        if (senderIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("user_id, full_name")
-            .in("user_id", senderIds);
-          
-          if (profiles) {
-            const names: Record<string, string> = {};
-            profiles.forEach((p) => {
-              names[p.user_id] = p.full_name;
-            });
-            setSenderNames(names);
-          }
-        }
+        data?.forEach((p) => {
+          profileCache.set(p.user_id, p.full_name);
+        });
       }
       
-      setLoading(false);
-    };
-
-    fetchMessages();
-  }, [childId, toast]);
+      // Return all names from cache
+      const result: Record<string, string> = {};
+      senderIds.forEach(id => {
+        result[id] = profileCache.get(id) || "Usuário";
+      });
+      return result;
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes - profiles rarely change
+    enabled: senderIds.length > 0,
+  });
 
   // Subscribe to realtime updates
   useEffect(() => {
@@ -84,46 +91,14 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "messages",
           filter: `child_id=eq.${childId}`,
         },
-        async (payload) => {
-          const newMessage = payload.new as Message;
-          
-          // Fetch sender name if not cached
-          if (!senderNames[newMessage.sender_id]) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("user_id", newMessage.sender_id)
-              .single();
-            
-            if (profile) {
-              setSenderNames((prev) => ({
-                ...prev,
-                [newMessage.sender_id]: profile.full_name,
-              }));
-            }
-          }
-          
-          setMessages((prev) => [...prev, newMessage]);
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `child_id=eq.${childId}`,
-        },
-        (payload) => {
-          const updatedMessage = payload.new as Message;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === updatedMessage.id ? updatedMessage : m))
-          );
+        () => {
+          // Refetch on any change
+          refetch();
         }
       )
       .subscribe();
@@ -131,29 +106,26 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [childId, senderNames]);
+  }, [childId, refetch]);
 
-  // Mark messages as read
+  // Mark messages as read (debounced)
   useEffect(() => {
-    const markAsRead = async () => {
-      if (!user) return;
-      
-      const unreadMessages = messages.filter(
-        (m) => !m.is_read && m.sender_id !== user.id
-      );
-      
-      if (unreadMessages.length > 0) {
-        await supabase
-          .from("messages")
-          .update({ is_read: true })
-          .in(
-            "id",
-            unreadMessages.map((m) => m.id)
-          );
-      }
-    };
+    if (!user || messages.length === 0) return;
+    
+    const unreadIds = messages
+      .filter((m) => !m.is_read && m.sender_id !== user.id)
+      .map((m) => m.id);
+    
+    if (unreadIds.length === 0) return;
 
-    markAsRead();
+    const timer = setTimeout(async () => {
+      await supabase
+        .from("messages")
+        .update({ is_read: true })
+        .in("id", unreadIds);
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [messages, user]);
 
   // Scroll to bottom on new messages
@@ -161,32 +133,23 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages.length]);
 
-  const handleSend = async (content: string) => {
+  const handleSend = useCallback(async (content: string) => {
     if (!user) return;
     
     setSending(true);
     
-    const { error } = await supabase.from("messages").insert({
+    await supabase.from("messages").insert({
       content,
       sender_id: user.id,
       child_id: childId,
     });
-
-    if (error) {
-      console.error("Error sending message:", error);
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
     
     setSending(false);
-  };
+  }, [user, childId]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -220,7 +183,7 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
                 content={message.content}
                 timestamp={message.created_at}
                 isOwn={message.sender_id === user?.id}
-                senderName={senderNames[message.sender_id]}
+                senderName={senderProfiles[message.sender_id]}
                 isRead={message.is_read}
               />
             ))}
@@ -229,12 +192,12 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
       </ScrollArea>
 
       {/* AI Quick Reply Suggestions */}
-      {user && (
+      {user && messages.length > 0 && (
         <QuickReplySuggestions
           messages={messages}
           currentUserId={user.id}
           childName={childName.split(" ")[0]}
-          onSelect={(suggestion) => handleSend(suggestion)}
+          onSelect={handleSend}
         />
       )}
 
@@ -242,4 +205,4 @@ export function ChatWindow({ childId, childName }: ChatWindowProps) {
       <ChatInput onSend={handleSend} disabled={sending} />
     </div>
   );
-}
+});
