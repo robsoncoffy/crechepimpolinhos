@@ -77,7 +77,7 @@ export default function PreEnrollment() {
         classType = "jardim";
       }
 
-      const { error } = await supabase.from("pre_enrollments").insert({
+      const { data: record, error } = await supabase.from("pre_enrollments").insert({
         parent_name: data.parent_name,
         cpf: data.cpf,
         email: data.email,
@@ -87,9 +87,16 @@ export default function PreEnrollment() {
         desired_class_type: classType,
         desired_shift_type: data.shift_type === "integral" ? "integral" : (data.shift_type === "manha" ? "manha" : "tarde"),
         vacancy_type: data.vacancy_type,
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      // Sync to GHL in background (fire-and-forget) - triggers workflow via tag
+      if (record?.id) {
+        supabase.functions.invoke('ghl-sync-contact', {
+          body: { preEnrollmentId: record.id }
+        }).catch(err => console.error('GHL sync error:', err));
+      }
 
       setIsSuccess(true);
       toast.success("Pré-matrícula enviada com sucesso!");

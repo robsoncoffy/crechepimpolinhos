@@ -156,7 +156,7 @@ serve(async (req) => {
       email: preEnrollment.email,
       phone: preEnrollment.phone,
       source: "Site Pimpolinhos",
-      tags: ["pré-matrícula", "site", "novo-lead"],
+      tags: ["pré-matrícula", "site", "novo-lead", "pre-matricula-completa"],
       customFields: [
         { key: "child_name", field_value: preEnrollment.child_name },
         { key: "child_birth_date", field_value: preEnrollment.child_birth_date },
