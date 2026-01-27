@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,19 +6,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  RefreshCw, 
+import {
+  RefreshCw,
   User,
   Phone,
-  Mail,
-  Calendar,
   DollarSign,
-  ArrowRight,
-  Loader2,
   Kanban,
-  MoveRight
+  Plus,
+  CheckCircle2,
+  XCircle,
+  MessageSquare,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import {
@@ -29,13 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  OpportunityDetailsDrawer,
+  CreateOpportunityDialog,
+  PipelineFilters,
+} from "./pipeline";
 
 interface Pipeline {
   id: string;
@@ -74,9 +70,17 @@ export function GhlPipelineTab() {
   const [loading, setLoading] = useState(true);
   const [loadingOpportunities, setLoadingOpportunities] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [movingOpportunity, setMovingOpportunity] = useState<Opportunity | null>(null);
-  const [targetStageId, setTargetStageId] = useState<string>("");
-  const [isMoving, setIsMoving] = useState(false);
+
+  // Details drawer state
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Create dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchPipelines = async () => {
     try {
@@ -85,10 +89,10 @@ export function GhlPipelineTab() {
       });
 
       if (error) throw error;
-      
+
       const pipelinesList = data?.pipelines || [];
       setPipelines(pipelinesList);
-      
+
       // Select first pipeline by default
       if (pipelinesList.length > 0 && !selectedPipeline) {
         setSelectedPipeline(pipelinesList[0]);
@@ -140,45 +144,42 @@ export function GhlPipelineTab() {
     }
   };
 
-  const handleMoveOpportunity = async () => {
-    if (!movingOpportunity || !targetStageId) return;
-
-    setIsMoving(true);
-    try {
-      const { error } = await supabase.functions.invoke("ghl-conversations", {
-        body: {
-          action: "moveOpportunity",
-          opportunityId: movingOpportunity.id,
-          stageId: targetStageId,
-          pipelineId: selectedPipeline?.id,
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Oportunidade movida",
-        description: "A oportunidade foi movida para a nova etapa.",
-      });
-
-      // Refresh opportunities
-      if (selectedPipeline) {
-        await fetchOpportunities(selectedPipeline.id);
-      }
-      
-      setMovingOpportunity(null);
-      setTargetStageId("");
-    } catch (error) {
-      console.error("Error moving opportunity:", error);
-      toast({
-        title: "Erro ao mover",
-        description: "Não foi possível mover a oportunidade.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsMoving(false);
-    }
+  const handleOpportunityClick = (opp: Opportunity) => {
+    setSelectedOpportunity(opp);
+    setDetailsOpen(true);
   };
+
+  const handleQuickWhatsApp = (e: React.MouseEvent, phone: string) => {
+    e.stopPropagation();
+    const cleanPhone = phone.replace(/\D/g, "");
+    const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+    window.open(`https://wa.me/${formattedPhone}`, "_blank");
+  };
+
+  // Filter opportunities
+  const filteredOpportunities = useMemo(() => {
+    return opportunities.filter((opp) => {
+      // Status filter
+      if (statusFilter !== "all" && opp.status !== statusFilter) {
+        return false;
+      }
+
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = opp.name?.toLowerCase().includes(query);
+        const matchesContact = opp.contact?.name?.toLowerCase().includes(query);
+        const matchesEmail = opp.contact?.email?.toLowerCase().includes(query);
+        const matchesPhone = opp.contact?.phone?.includes(query);
+
+        if (!matchesName && !matchesContact && !matchesEmail && !matchesPhone) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [opportunities, searchQuery, statusFilter]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -197,7 +198,7 @@ export function GhlPipelineTab() {
   };
 
   const getStageOpportunities = (stageId: string) => {
-    return opportunities.filter(opp => opp.pipelineStageId === stageId);
+    return filteredOpportunities.filter((opp) => opp.pipelineStageId === stageId);
   };
 
   const getStageColor = (index: number) => {
@@ -209,6 +210,30 @@ export function GhlPipelineTab() {
       "bg-green-500/20 border-green-500/30",
     ];
     return colors[index % colors.length];
+  };
+
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      open: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
+      won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+      abandoned: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+    };
+
+    const labels: Record<string, string> = {
+      open: "Aberto",
+      won: "Ganho",
+      lost: "Perdido",
+      abandoned: "Abandonado",
+    };
+
+    if (status === "open") return null; // Don't show badge for open
+
+    return (
+      <Badge className={cn("text-[10px] px-1.5 py-0", styles[status] || styles.open)}>
+        {labels[status] || status}
+      </Badge>
+    );
   };
 
   if (loading) {
@@ -238,39 +263,65 @@ export function GhlPipelineTab() {
 
   return (
     <div className="space-y-4">
-      {/* Pipeline Selector */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Kanban className="h-5 w-5 text-primary" />
-          <Select
-            value={selectedPipeline?.id || ""}
-            onValueChange={(value) => {
-              const pipeline = pipelines.find(p => p.id === value);
-              setSelectedPipeline(pipeline || null);
-            }}
-          >
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Selecione um pipeline" />
-            </SelectTrigger>
-            <SelectContent>
-              {pipelines.map((pipeline) => (
-                <SelectItem key={pipeline.id} value={pipeline.id}>
-                  {pipeline.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Header Controls */}
+      <div className="flex flex-col gap-4">
+        {/* Pipeline Selector Row */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Kanban className="h-5 w-5 text-primary" />
+            <Select
+              value={selectedPipeline?.id || ""}
+              onValueChange={(value) => {
+                const pipeline = pipelines.find((p) => p.id === value);
+                setSelectedPipeline(pipeline || null);
+              }}
+            >
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Selecione um pipeline" />
+              </SelectTrigger>
+              <SelectContent>
+                {pipelines.map((pipeline) => (
+                  <SelectItem key={pipeline.id} value={pipeline.id}>
+                    {pipeline.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setCreateDialogOpen(true)}
+              disabled={!selectedPipeline}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Oportunidade
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+              Atualizar
+            </Button>
+          </div>
         </div>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-          Atualizar
-        </Button>
+
+        {/* Filters Row */}
+        {selectedPipeline && (
+          <PipelineFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            totalOpportunities={opportunities.length}
+            filteredCount={filteredOpportunities.length}
+          />
+        )}
       </div>
 
       {/* Kanban Board */}
@@ -281,7 +332,7 @@ export function GhlPipelineTab() {
               .sort((a, b) => a.position - b.position)
               .map((stage, index) => {
                 const stageOpps = getStageOpportunities(stage.id);
-                
+
                 return (
                   <Card
                     key={stage.id}
@@ -300,9 +351,9 @@ export function GhlPipelineTab() {
                         </Badge>
                       </div>
                     </CardHeader>
-                    
+
                     <CardContent className="flex-1 p-2">
-                      <ScrollArea className="h-[calc(100vh-22rem)]">
+                      <ScrollArea className="h-[calc(100vh-26rem)]">
                         <div className="space-y-2 pr-2">
                           {loadingOpportunities ? (
                             Array.from({ length: 3 }).map((_, i) => (
@@ -316,20 +367,17 @@ export function GhlPipelineTab() {
                             stageOpps.map((opp) => (
                               <Card
                                 key={opp.id}
-                                className="p-3 cursor-pointer hover:shadow-md transition-shadow"
-                                onClick={() => {
-                                  setMovingOpportunity(opp);
-                                  setTargetStageId(opp.pipelineStageId);
-                                }}
+                                className="p-3 cursor-pointer hover:shadow-md transition-shadow group"
+                                onClick={() => handleOpportunityClick(opp)}
                               >
                                 <div className="space-y-2">
                                   <div className="flex items-start justify-between gap-2">
                                     <span className="font-medium text-sm line-clamp-2">
                                       {opp.name}
                                     </span>
-                                    <MoveRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    {getStatusBadge(opp.status)}
                                   </div>
-                                  
+
                                   {opp.contact && (
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -337,21 +385,32 @@ export function GhlPipelineTab() {
                                         <span className="truncate">{opp.contact.name}</span>
                                       </div>
                                       {opp.contact.phone && (
-                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                          <Phone className="h-3 w-3" />
-                                          <span>{opp.contact.phone}</span>
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Phone className="h-3 w-3" />
+                                            <span>{opp.contact.phone}</span>
+                                          </div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            onClick={(e) => handleQuickWhatsApp(e, opp.contact!.phone!)}
+                                          >
+                                            <MessageSquare className="h-3.5 w-3.5 text-green-600" />
+                                          </Button>
                                         </div>
                                       )}
                                     </div>
                                   )}
-                                  
+
                                   <div className="flex items-center justify-between text-xs">
-                                  {opp.monetaryValue > 0 && (
-                                      <span className="font-medium text-primary">
+                                    {opp.monetaryValue > 0 && (
+                                      <span className="font-medium text-primary flex items-center gap-1">
+                                        <DollarSign className="h-3 w-3" />
                                         {formatCurrency(opp.monetaryValue)}
                                       </span>
                                     )}
-                                    <span className="text-muted-foreground">
+                                    <span className="text-muted-foreground ml-auto">
                                       {formatDate(opp.updatedAt)}
                                     </span>
                                   </div>
@@ -369,55 +428,32 @@ export function GhlPipelineTab() {
         </div>
       )}
 
-      {/* Move Opportunity Dialog */}
-      <Dialog open={!!movingOpportunity} onOpenChange={(open) => !open && setMovingOpportunity(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mover Oportunidade</DialogTitle>
-            <DialogDescription>
-              Selecione a etapa para onde deseja mover "{movingOpportunity?.name}"
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <Select value={targetStageId} onValueChange={setTargetStageId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a etapa" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedPipeline?.stages
-                  .sort((a, b) => a.position - b.position)
-                  .map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id}>
-                      {stage.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setMovingOpportunity(null)}
-              disabled={isMoving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleMoveOpportunity}
-              disabled={isMoving || !targetStageId || targetStageId === movingOpportunity?.pipelineStageId}
-            >
-              {isMoving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <ArrowRight className="h-4 w-4 mr-2" />
-              )}
-              Mover
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Details Drawer */}
+      <OpportunityDetailsDrawer
+        opportunity={selectedOpportunity}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        stages={selectedPipeline?.stages || []}
+        pipelineId={selectedPipeline?.id || ""}
+        onUpdated={() => {
+          if (selectedPipeline) {
+            fetchOpportunities(selectedPipeline.id);
+          }
+        }}
+      />
+
+      {/* Create Dialog */}
+      <CreateOpportunityDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        pipelineId={selectedPipeline?.id || ""}
+        stages={selectedPipeline?.stages || []}
+        onCreated={() => {
+          if (selectedPipeline) {
+            fetchOpportunities(selectedPipeline.id);
+          }
+        }}
+      />
     </div>
   );
 }
