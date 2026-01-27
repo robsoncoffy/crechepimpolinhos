@@ -279,6 +279,61 @@ serve(async (req) => {
 
     console.log("Successfully synced contact:", ghlContactId);
 
+    // Send WhatsApp welcome message directly (bypassing GHL workflows)
+    const classTypeLabelsWhatsApp: Record<string, string> = {
+      bercario: "Berçário",
+      bercario1: "Berçário 1",
+      bercario2: "Berçário 2",
+      maternal_1: "Maternal 1",
+      maternal_2: "Maternal 2",
+      jardim_1: "Jardim 1",
+      jardim_2: "Jardim 2",
+    };
+
+    const childFirstName = preEnrollment.child_name.split(" ")[0];
+    const turmaDesejada = classTypeLabelsWhatsApp[preEnrollment.desired_class_type] || preEnrollment.desired_class_type;
+    
+    const whatsappMessage = `🎈 *Olá, ${firstName}!*
+
+Recebemos a pré-matrícula de *${childFirstName}* para a turma de *${turmaDesejada}* na Creche Pimpolinhos!
+
+✅ Nossa equipe vai analisar sua solicitação e em breve você receberá uma resposta.
+
+📞 Se tiver dúvidas, é só responder esta mensagem!
+
+💜 Creche Pimpolinhos`;
+
+    // Send WhatsApp message via GHL Conversations API
+    try {
+      const whatsappResponse = await fetch(
+        "https://services.leadconnectorhq.com/conversations/messages",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GHL_API_KEY}`,
+            "Content-Type": "application/json",
+            Version: "2021-04-15",
+          },
+          body: JSON.stringify({
+            type: "WhatsApp",
+            contactId: ghlContactId,
+            message: whatsappMessage,
+            body: whatsappMessage,
+          }),
+        }
+      );
+
+      if (whatsappResponse.ok) {
+        const whatsappResult = await whatsappResponse.json();
+        console.log("WhatsApp message sent successfully:", whatsappResult.messageId || whatsappResult.id);
+      } else {
+        const errorText = await whatsappResponse.text();
+        console.warn("WhatsApp message failed (will retry via workflow):", errorText);
+      }
+    } catch (whatsappError) {
+      console.warn("WhatsApp send error:", whatsappError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
