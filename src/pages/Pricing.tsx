@@ -48,7 +48,6 @@ const classCards = [
     icon: BookOpen,
     color: 'bg-pimpo-green',
     plans: 'Apenas Meio Turno',
-    note: 'Sala única por norma',
   },
   {
     id: 'jardim_2' as const,
@@ -57,7 +56,6 @@ const classCards = [
     icon: BookOpen,
     color: 'bg-pimpo-green',
     plans: 'Apenas Meio Turno',
-    note: 'Sala única por norma',
   },
 ];
 
@@ -176,9 +174,6 @@ export default function Pricing() {
                 </CardHeader>
                 <CardContent className="pt-0 space-y-2">
                   <p className="text-xs text-muted-foreground">{cls.plans}</p>
-                  {cls.note && (
-                    <p className="text-xs text-pimpo-yellow italic">{cls.note}</p>
-                  )}
                   <Button variant="ghost" size="sm" className="gap-2" asChild>
                     <a href={GHL_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
                       Consultar
