@@ -27,7 +27,8 @@ import {
   DollarSign,
   ChevronDown,
   Gift,
-  FileText
+  FileText,
+  MessageCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -64,6 +65,7 @@ export default function AdminParentInvites() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
   const [wantsCoupon, setWantsCoupon] = useState(false);
   const [couponMode, setCouponMode] = useState<"existing" | "new">("existing");
   const [formData, setFormData] = useState({
@@ -318,6 +320,42 @@ export default function AdminParentInvites() {
       toast.error("Erro ao enviar email de convite");
     } finally {
       setSendingEmail(null);
+    }
+  };
+
+  const resendWhatsApp = async (invite: ParentInvite) => {
+    if (!invite.phone) {
+      toast.error("Este convite não possui telefone cadastrado");
+      return;
+    }
+
+    setSendingWhatsApp(invite.invite_code);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await supabase.functions.invoke("resend-invite-whatsapp", {
+        body: {
+          inviteType: "parent",
+          inviteCode: invite.invite_code,
+          phone: invite.phone,
+          parentName: invite.parent_name || undefined,
+          couponCode: invite.coupon_code || undefined,
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao reenviar WhatsApp");
+      }
+
+      toast.success(`WhatsApp reenviado para ${invite.phone}!`);
+    } catch (error: any) {
+      console.error("Error resending WhatsApp:", error);
+      toast.error(error.message || "Erro ao reenviar WhatsApp");
+    } finally {
+      setSendingWhatsApp(null);
     }
   };
 
@@ -753,7 +791,23 @@ export default function AdminParentInvites() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4">
+                    <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4 flex-wrap">
+                      {status === "active" && invite.phone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => resendWhatsApp(invite)}
+                          disabled={sendingWhatsApp === invite.invite_code}
+                          className="text-pimpo-green hover:text-pimpo-green"
+                        >
+                          {sendingWhatsApp === invite.invite_code ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                          )}
+                          WhatsApp
+                        </Button>
+                      )}
                       {status === "active" && invite.email && (
                         <Button
                           variant="outline"
@@ -766,7 +820,7 @@ export default function AdminParentInvites() {
                           ) : (
                             <Send className="w-4 h-4 mr-1" />
                           )}
-                          Enviar Email
+                          Email
                         </Button>
                       )}
                       {status === "active" && (
