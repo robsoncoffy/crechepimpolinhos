@@ -12,7 +12,9 @@ export interface PlanInfo {
   name: string;
   description: string;
   features: string[];
+  note?: string;
   highlight?: boolean;
+  startingPrice?: number;
 }
 
 export const PLANS: PlanInfo[] = [
@@ -27,6 +29,7 @@ export const PLANS: PlanInfo[] = [
       'Agenda digital',
       'Chat com professores',
     ],
+    startingPrice: 649.90,
   },
   {
     id: 'intermediario',
@@ -36,10 +39,12 @@ export const PLANS: PlanInfo[] = [
       'Funcionamento das 7h às 19h',
       'Até 9 horas diárias',
       'Todas as refeições incluídas',
-      'Atividades extras (Ballet, Capoeira, Música)',
+      'Atividades extras disponíveis (Ballet, Capoeira, Música)*',
       'Agenda digital completa',
       'Chat com professores',
     ],
+    note: '*Atividades extras cobradas separadamente',
+    startingPrice: 799.90,
     highlight: true,
   },
   {
@@ -53,6 +58,7 @@ export const PLANS: PlanInfo[] = [
       'Prioridade em eventos especiais',
       'Acompanhamento pedagógico exclusivo',
     ],
+    startingPrice: 1099.90,
   },
 ];
 

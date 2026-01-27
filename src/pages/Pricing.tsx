@@ -14,7 +14,7 @@ import {
   Sparkles,
   ArrowRight
 } from "lucide-react";
-import { PLANS, GHL_WHATSAPP_LINK } from "@/lib/pricing";
+import { PLANS, GHL_WHATSAPP_LINK, formatCurrency } from "@/lib/pricing";
 
 const classCards = [
   {
@@ -92,8 +92,8 @@ export default function Pricing() {
                   {/* Price */}
                   <div className="text-center py-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Valor mensal</p>
-                    <p className="font-fredoka text-3xl font-bold text-primary">
-                      Consultar
+                    <p className="font-fredoka text-2xl font-bold text-primary">
+                      A partir de {plan.startingPrice ? formatCurrency(plan.startingPrice) : 'Consultar'}
                     </p>
                   </div>
 
@@ -106,6 +106,11 @@ export default function Pricing() {
                       </li>
                     ))}
                   </ul>
+
+                  {/* Note */}
+                  {plan.note && (
+                    <p className="text-xs text-muted-foreground italic">{plan.note}</p>
+                  )}
 
                   {/* CTA */}
                   <Button 
