@@ -68,6 +68,12 @@ interface GhlContact {
   dateAdded?: string;
 }
 
+interface OpportunityInfo {
+  stageName: string;
+  status: "open" | "won" | "lost" | "abandoned";
+  pipelineName: string;
+}
+
 type LeadChannel = "WhatsApp" | "SMS";
 
 export function GhlConversationsTab() {
@@ -98,6 +104,9 @@ export function GhlConversationsTab() {
   const [selectedContact, setSelectedContact] = useState<GhlContact | null>(null);
   const [startingConversation, setStartingConversation] = useState(false);
   const [newConversationMessage, setNewConversationMessage] = useState("");
+  
+  // Opportunities map for lead status badges
+  const [opportunitiesMap, setOpportunitiesMap] = useState<Record<string, OpportunityInfo>>({});
 
   const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
     // Prefer the most recent known message type
@@ -160,6 +169,12 @@ export function GhlConversationsTab() {
         (conv: any) => conv.type?.toLowerCase() !== "email"
       );
       setConversations(chatConvs);
+      
+      // Store opportunities map for lead status badges
+      if (data?.opportunitiesMap) {
+        setOpportunitiesMap(data.opportunitiesMap);
+      }
+      
       setLastConversationsUpdate(new Date());
       setLoadError(null);
     } catch (error) {
@@ -461,6 +476,29 @@ export function GhlConversationsTab() {
     }
   };
 
+  // Get badge styling based on opportunity status
+  const getOpportunityBadgeStyles = (status: string) => {
+    switch (status) {
+      case "won":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "lost":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "abandoned":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
+      case "open":
+      default:
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    }
+  };
+
+  // Get display label for status
+  const getStatusLabel = (info: OpportunityInfo) => {
+    if (info.status === "won") return "Ganho";
+    if (info.status === "lost") return "Perdido";
+    if (info.status === "abandoned") return "Abandonado";
+    return info.stageName;
+  };
+
   // Mobile: Show either list or conversation
   if (isMobile && selectedConversation) {
     return (
@@ -651,9 +689,21 @@ export function GhlConversationsTab() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-medium truncate">
-                              {conv.contactName}
-                            </span>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium truncate">
+                                {conv.contactName}
+                              </span>
+                              {opportunitiesMap[conv.contactId] && (
+                                <span 
+                                  className={cn(
+                                    "text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0",
+                                    getOpportunityBadgeStyles(opportunitiesMap[conv.contactId].status)
+                                  )}
+                                >
+                                  {getStatusLabel(opportunitiesMap[conv.contactId])}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs text-muted-foreground flex-shrink-0">
                               {formatMessageDate(conv.lastMessageDate)}
                             </span>

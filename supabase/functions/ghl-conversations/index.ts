@@ -81,22 +81,79 @@ serve(async (req) => {
         sortBy: "last_message_date",
       });
 
-      const response = await fetchWithTimeout(
-        `${baseUrl}/conversations/search?${searchParams.toString()}`,
-        { method: "GET", headers },
-        10000 // 10s timeout for list
-      );
+      // Fetch conversations, opportunities and pipelines in parallel
+      const [conversationsResponse, opportunitiesResponse, pipelinesResponse] = await Promise.all([
+        fetchWithTimeout(
+          `${baseUrl}/conversations/search?${searchParams.toString()}`,
+          { method: "GET", headers },
+          10000
+        ),
+        fetchWithTimeout(
+          `${baseUrl}/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=100`,
+          { method: "GET", headers },
+          10000
+        ).catch(() => null), // Don't fail if opportunities fetch fails
+        fetchWithTimeout(
+          `${baseUrl}/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`,
+          { method: "GET", headers },
+          10000
+        ).catch(() => null), // Don't fail if pipelines fetch fails
+      ]);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("GHL API Error:", response.status, errorText);
-        throw new Error(`GHL API error: ${response.status}`);
+      if (!conversationsResponse.ok) {
+        const errorText = await conversationsResponse.text();
+        console.error("GHL API Error:", conversationsResponse.status, errorText);
+        throw new Error(`GHL API error: ${conversationsResponse.status}`);
       }
 
-      const data = await response.json();
+      const conversationsData = await conversationsResponse.json();
+      
+      // Build stage name map from pipelines
+      const stageMap: Record<string, { name: string; pipelineName: string }> = {};
+      if (pipelinesResponse?.ok) {
+        try {
+          const pipelinesData = await pipelinesResponse.json();
+          for (const pipeline of pipelinesData.pipelines || []) {
+            for (const stage of pipeline.stages || []) {
+              stageMap[stage.id] = {
+                name: stage.name,
+                pipelineName: pipeline.name,
+              };
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing pipelines:", e);
+        }
+      }
+
+      // Build opportunities map by contactId
+      const opportunitiesMap: Record<string, {
+        stageName: string;
+        status: string;
+        pipelineName: string;
+      }> = {};
+      
+      if (opportunitiesResponse?.ok) {
+        try {
+          const opportunitiesData = await opportunitiesResponse.json();
+          for (const opp of opportunitiesData.opportunities || []) {
+            const contactId = opp.contact?.id;
+            if (contactId) {
+              const stageInfo = stageMap[opp.pipelineStageId];
+              opportunitiesMap[contactId] = {
+                stageName: stageInfo?.name || "Novo Lead",
+                status: opp.status || "open",
+                pipelineName: stageInfo?.pipelineName || "",
+              };
+            }
+          }
+        } catch (e) {
+          console.error("Error parsing opportunities:", e);
+        }
+      }
       
       // Format conversations for frontend
-      const conversations = (data.conversations || []).map((conv: any) => ({
+      const conversations = (conversationsData.conversations || []).map((conv: any) => ({
         id: conv.id,
         contactId: conv.contactId,
         contactName: conv.fullName || conv.contactName || conv.email || conv.phone || "Contato",
@@ -109,7 +166,11 @@ serve(async (req) => {
       }));
 
       return new Response(
-        JSON.stringify({ conversations, total: data.total || conversations.length }),
+        JSON.stringify({ 
+          conversations, 
+          total: conversationsData.total || conversations.length,
+          opportunitiesMap 
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
