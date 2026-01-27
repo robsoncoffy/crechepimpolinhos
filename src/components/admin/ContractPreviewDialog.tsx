@@ -70,7 +70,11 @@ const COMPANY_DATA = {
 const classTypeLabels: Record<string, string> = {
   bercario: "Berçário",
   maternal: "Maternal",
+  maternal_1: "Maternal I",
+  maternal_2: "Maternal II",
   jardim: "Jardim",
+  jardim_1: "Jardim I",
+  jardim_2: "Jardim II",
 };
 
 const shiftTypeLabels: Record<string, string> = {
@@ -306,7 +310,7 @@ export function ContractPreviewDialog({
                   const classKey = editedData.classType as ClassType;
                   const planKey = editedData.planType as PlanType;
                   // Use getPrice which handles Maternal I pricing (same as Berçário)
-                  const priceValue = classKey && planKey ? getPrice(classKey, planKey, editedData.birthDate) : 0;
+                  const priceValue = classKey && planKey ? getPrice(classKey, planKey) : 0;
                   const monthlyValue = priceValue > 0 ? formatCurrency(priceValue) : null;
                   
                   return (

@@ -115,12 +115,16 @@ export default function AdminChildren() {
       (today.getFullYear() - birth.getFullYear()) * 12 +
       (today.getMonth() - birth.getMonth());
     
-    // Berçário: 0-23 months (up to 2 years)
-    // Maternal: 24-47 months (2-4 years)
-    // Jardim: 48+ months (4+ years)
+    // Berçário: 0-2 anos (0-23 meses)
+    // Maternal I: 2-3 anos (24-35 meses)
+    // Maternal II: 3-4 anos (36-47 meses)
+    // Jardim I: 4-5 anos (48-59 meses)
+    // Jardim II: 5-6 anos (60+ meses)
     if (ageInMonths < 24) return "bercario";
-    if (ageInMonths < 48) return "maternal";
-    return "jardim";
+    if (ageInMonths < 36) return "maternal_1";
+    if (ageInMonths < 48) return "maternal_2";
+    if (ageInMonths < 60) return "jardim_1";
+    return "jardim_2";
   }
 
   useEffect(() => {

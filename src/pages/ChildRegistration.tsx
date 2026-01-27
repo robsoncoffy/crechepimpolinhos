@@ -138,46 +138,44 @@ const ChildRegistration = () => {
   const watchedBirthDate = watch("birthDate");
 
   // Estimate class type based on birth date
-  // 0-1 ano e 11 meses (0-23 meses) = Berçário
-  // 2-3 anos e 11 meses (24-47 meses) = Maternal
-  // 4-6 anos (48-72 meses) = Jardim de Infância
+  // Berçário: 0-2 anos (0-23 meses)
+  // Maternal I: 2-3 anos (24-35 meses)
+  // Maternal II: 3-4 anos (36-47 meses)
+  // Jardim I: 4-5 anos (48-59 meses)
+  // Jardim II: 5-6 anos (60+ meses)
   const estimatedClassType: ClassType = useMemo(() => {
-    if (!watchedBirthDate) return "maternal"; // default
+    if (!watchedBirthDate) return "maternal_1"; // default
 
     // Force a stable date-only parsing to avoid timezone edge cases
     const birth = new Date(`${watchedBirthDate}T00:00:00`);
     const now = new Date();
-    if (Number.isNaN(birth.getTime())) return "maternal";
+    if (Number.isNaN(birth.getTime())) return "maternal_1";
 
     let ageMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
     // If we haven't reached the birth day within the month yet, subtract one month
     if (now.getDate() < birth.getDate()) ageMonths -= 1;
 
-    if (ageMonths < 24) return "bercario"; // 0-1 ano e 11 meses
-    if (ageMonths < 48) return "maternal"; // 2-3 anos e 11 meses
-    return "jardim"; // 4+ anos
+    if (ageMonths < 24) return "bercario";
+    if (ageMonths < 36) return "maternal_1";
+    if (ageMonths < 48) return "maternal_2";
+    if (ageMonths < 60) return "jardim_1";
+    return "jardim_2";
   }, [watchedBirthDate]);
   
   // Get the class name for display (with Maternal I/II distinction)
   const estimatedClassName = useMemo(() => {
-    if (estimatedClassType === "bercario") return "Berçário";
-    if (estimatedClassType === "jardim") return "Jardim de Infância";
-    if (estimatedClassType === "maternal" && watchedBirthDate) {
-      return getClassDisplayName(estimatedClassType, watchedBirthDate);
-    }
-    return "Maternal";
-  }, [estimatedClassType, watchedBirthDate]);
+    return getClassDisplayName(estimatedClassType);
+  }, [estimatedClassType]);
 
-  // Get price for a plan with optional discount (considering Maternal I pricing)
+  // Get price for a plan with optional discount
   const getPlanPrice = (planType: PlanType) => {
-    // Use getPrice which handles Maternal I (uses Berçário prices)
-    const basePrice = getPrice(estimatedClassType, planType, watchedBirthDate);
+    const basePrice = getPrice(estimatedClassType, planType);
     return calculateDiscount(basePrice);
   };
   
   // Get base price for display (before discount)
   const getBasePriceForPlan = (planType: PlanType) => {
-    return getPrice(estimatedClassType, planType, watchedBirthDate);
+    return getPrice(estimatedClassType, planType);
   };
 
   // Auto-apply coupon from URL parameter

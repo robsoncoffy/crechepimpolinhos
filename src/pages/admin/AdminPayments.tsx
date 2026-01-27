@@ -445,8 +445,8 @@ export default function AdminPayments() {
     
     if (!classType || !planType) return null;
     
-    // Use getPrice with birth date for Maternal I pricing (same as Berçário)
-    const price = getPrice(classType, planType, birthDate);
+    // Get price based on class type and plan
+    const price = getPrice(classType, planType);
     return {
       price,
       classType,

@@ -31,7 +31,11 @@ type MonthlyTracking = Database["public"]["Tables"]["monthly_tracking"]["Row"];
 const classTypeLabels: Record<ClassType, string> = {
   bercario: "Berçário",
   maternal: "Maternal",
+  maternal_1: "Maternal I",
+  maternal_2: "Maternal II",
   jardim: "Jardim",
+  jardim_1: "Jardim I",
+  jardim_2: "Jardim II",
 };
 
 const monthNames = [
