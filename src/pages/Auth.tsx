@@ -790,7 +790,7 @@ export default function Auth() {
                 )}
               </Button>
 
-              {/* Google Login - Only show on login mode */}
+              {/* Google Login - Temporarily hidden pending Google brand verification (up to 6 weeks)
               {!isSignUp && (
                 <>
                   <div className="relative my-4">
@@ -849,6 +849,7 @@ export default function Auth() {
                   </Button>
                 </>
               )}
+              */}
               </form>
             )}
 
