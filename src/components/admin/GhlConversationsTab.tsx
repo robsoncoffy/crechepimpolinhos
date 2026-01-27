@@ -69,8 +69,10 @@ export function GhlConversationsTab() {
   const [sending, setSending] = useState(false);
   const [lastMessagesUpdate, setLastMessagesUpdate] = useState<Date | null>(null);
   const [lastConversationsUpdate, setLastConversationsUpdate] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const previousInboundCountRef = useRef<number>(0);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
 
   const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
@@ -108,13 +110,26 @@ export function GhlConversationsTab() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (showLoadingState = true) => {
+    if (showLoadingState && !refreshing) {
+      // Don't show loading skeleton on background refresh
+    }
+    
+    setLoadError(null);
+    
     try {
       const { data, error } = await supabase.functions.invoke("ghl-conversations", {
         body: { action: "list" },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle timeout/slow API gracefully
+        if (error.message?.includes("tempo limite") || error.message?.includes("timeout")) {
+          setLoadError("A API está lenta. Clique para tentar novamente.");
+          return;
+        }
+        throw error;
+      }
       
       // Filter to show only SMS/WhatsApp conversations (not emails)
       const chatConvs = (data?.conversations || []).filter(
@@ -122,13 +137,17 @@ export function GhlConversationsTab() {
       );
       setConversations(chatConvs);
       setLastConversationsUpdate(new Date());
+      setLoadError(null);
     } catch (error) {
       console.error("Error fetching conversations:", error);
+      if (conversations.length === 0) {
+        setLoadError("Não foi possível carregar conversas. Clique para tentar novamente.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshing, conversations.length]);
 
   const fetchMessages = useCallback(async (conversationId: string, isPolling = false) => {
     if (!isPolling) {
@@ -455,6 +474,18 @@ export function GhlConversationsTab() {
                   </div>
                 ))}
               </div>
+            ) : loadError ? (
+              <button 
+                onClick={() => {
+                  setLoading(true);
+                  fetchConversations();
+                }}
+                className="w-full p-8 text-center"
+              >
+                <RefreshCw className="h-12 w-12 mx-auto mb-3 text-destructive opacity-50" />
+                <p className="text-sm text-muted-foreground">{loadError}</p>
+                <p className="text-xs text-primary mt-2">Clique para tentar novamente</p>
+              </button>
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />

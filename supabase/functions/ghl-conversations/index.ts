@@ -5,6 +5,26 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// In-memory cache for conversations (5 minute TTL)
+const conversationsCache: { data: any; timestamp: number } | null = null;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Timeout wrapper for fetch
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -29,6 +49,7 @@ serve(async (req) => {
     let pipelineId = "";
     let opportunityId = "";
     let stageId = "";
+    let skipCache = false;
 
     if (req.method === "POST") {
       const body = await req.json();
@@ -41,6 +62,7 @@ serve(async (req) => {
       pipelineId = body.pipelineId || "";
       opportunityId = body.opportunityId || "";
       stageId = body.stageId || "";
+      skipCache = body.skipCache || false;
     }
 
     const baseUrl = "https://services.leadconnectorhq.com";
@@ -59,9 +81,10 @@ serve(async (req) => {
         sortBy: "last_message_date",
       });
 
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseUrl}/conversations/search?${searchParams.toString()}`,
-        { method: "GET", headers }
+        { method: "GET", headers },
+        10000 // 10s timeout for list
       );
 
       if (!response.ok) {
@@ -93,18 +116,27 @@ serve(async (req) => {
 
     // Get messages for a specific conversation
     if (action === "messages" && conversationId) {
-      const response = await fetch(
-        `${baseUrl}/conversations/${conversationId}/messages?limit=${limit}`,
-        { method: "GET", headers }
-      );
+      // Fetch messages and conversation details in PARALLEL
+      const [messagesResponse, convResponse] = await Promise.all([
+        fetchWithTimeout(
+          `${baseUrl}/conversations/${conversationId}/messages?limit=${limit}`,
+          { method: "GET", headers },
+          8000
+        ),
+        fetchWithTimeout(
+          `${baseUrl}/conversations/${conversationId}`,
+          { method: "GET", headers },
+          8000
+        ),
+      ]);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("GHL API Error:", response.status, errorText);
-        throw new Error(`GHL API error: ${response.status}`);
+      if (!messagesResponse.ok) {
+        const errorText = await messagesResponse.text();
+        console.error("GHL API Error:", messagesResponse.status, errorText);
+        throw new Error(`GHL API error: ${messagesResponse.status}`);
       }
 
-      const data = await response.json();
+      const data = await messagesResponse.json();
       
       // GHL API returns: { messages: { lastMessageId, nextPage, messages: [...] }, traceId }
       let rawMessages: any[] = [];
@@ -120,8 +152,6 @@ serve(async (req) => {
         rawMessages = data;
       }
       
-      console.log("Extracted messages count:", rawMessages.length);
-      
       // Format messages for frontend
       const messages = (rawMessages || []).map((msg: any) => ({
         id: msg.id,
@@ -133,12 +163,7 @@ serve(async (req) => {
         contentType: msg.contentType,
       }));
 
-      // Get conversation details for contact info
-      const convResponse = await fetch(
-        `${baseUrl}/conversations/${conversationId}`,
-        { method: "GET", headers }
-      );
-      
+      // Get contact info from parallel request
       let contactInfo = null;
       if (convResponse.ok) {
         const convData = await convResponse.json();
@@ -196,13 +221,14 @@ serve(async (req) => {
         messageLength: messageContent.length,
       });
 
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseUrl}/conversations/messages`,
         {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
-        }
+        },
+        15000 // 15s timeout for sending
       );
 
       const responseText = await response.text();
@@ -239,9 +265,10 @@ serve(async (req) => {
 
     // Get pipelines
     if (action === "pipelines") {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseUrl}/opportunities/pipelines?locationId=${GHL_LOCATION_ID}`,
-        { method: "GET", headers }
+        { method: "GET", headers },
+        10000
       );
 
       if (!response.ok) {
@@ -280,13 +307,14 @@ serve(async (req) => {
         searchBody.pipelineId = pipelineId;
       }
 
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseUrl}/opportunities/search`,
         { 
           method: "POST", 
           headers,
           body: JSON.stringify(searchBody),
-        }
+        },
+        10000
       );
 
       if (!response.ok) {
@@ -326,7 +354,7 @@ serve(async (req) => {
         throw new Error("opportunityId and stageId are required");
       }
 
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${baseUrl}/opportunities/${opportunityId}`,
         {
           method: "PUT",
@@ -335,7 +363,8 @@ serve(async (req) => {
             pipelineStageId: stageId,
             pipelineId: pipelineId,
           }),
-        }
+        },
+        10000
       );
 
       if (!response.ok) {
@@ -354,6 +383,15 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in ghl-conversations:", error);
+    
+    // Handle timeout errors specifically
+    if (error instanceof Error && error.name === "AbortError") {
+      return new Response(
+        JSON.stringify({ error: "Tempo limite excedido. A API do GHL está lenta. Tente novamente." }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
