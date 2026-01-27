@@ -37,7 +37,7 @@ interface ParentInvite {
   invite_code: string;
   email: string | null;
   phone: string | null;
-  child_name: string | null;
+  parent_name: string | null;
   notes: string | null;
   used_by: string | null;
   used_at: string | null;
@@ -69,7 +69,7 @@ export default function AdminParentInvites() {
   const [formData, setFormData] = useState({
     email: "",
     phone: "",
-    childName: "",
+    parentName: "",
     notes: "",
     sendEmail: true,
     couponCode: "",
@@ -153,7 +153,7 @@ export default function AdminParentInvites() {
         // Create the new coupon
         const { error: couponError } = await supabase.from("discount_coupons").insert({
           code: newCouponData.code.toUpperCase().trim(),
-          description: newCouponData.description || `Cupom para convite de ${formData.childName || "novo responsável"}`,
+          description: newCouponData.description || `Cupom para convite de ${formData.parentName || "novo responsável"}`,
           discount_type: newCouponData.discount_type,
           discount_value: parseFloat(newCouponData.discount_value),
           is_active: true,
@@ -187,7 +187,7 @@ export default function AdminParentInvites() {
       invite_code: code,
       email: formData.email || null,
       phone: formData.phone || null,
-      child_name: formData.childName || null,
+      parent_name: formData.parentName || null,
       notes: formData.notes || null,
       expires_at: expiresAt.toISOString(),
       created_by: user.id,
@@ -240,7 +240,7 @@ export default function AdminParentInvites() {
         formData.email,
         formData.phone || undefined,
         code,
-        formData.childName || undefined,
+        formData.parentName || undefined,
         couponCodeToUse || undefined,
         discountType,
         discountValue
@@ -248,7 +248,7 @@ export default function AdminParentInvites() {
     }
 
     // Reset form
-    setFormData({ email: "", phone: "", childName: "", notes: "", sendEmail: true, couponCode: "" });
+    setFormData({ email: "", phone: "", parentName: "", notes: "", sendEmail: true, couponCode: "" });
     setNewCouponData({ code: "", discount_type: "percentage", discount_value: "", description: "" });
     setWantsCoupon(false);
     setCouponMode("existing");
@@ -260,7 +260,7 @@ export default function AdminParentInvites() {
     email: string,
     phone: string | undefined,
     inviteCode: string,
-    childName?: string,
+    parentName?: string,
     couponCode?: string,
     couponDiscountType?: "percentage" | "fixed",
     couponDiscountValue?: number
@@ -298,7 +298,7 @@ export default function AdminParentInvites() {
           email,
           phone: phone || undefined,
           inviteCode,
-          childName,
+          parentName,
           couponCode: normalizedCouponCode,
           couponDiscountType: resolvedType,
           couponDiscountValue: resolvedValue,
@@ -398,14 +398,14 @@ export default function AdminParentInvites() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="childName">Nome da Criança (opcional)</Label>
+              <Label htmlFor="parentName">Nome do Responsável (opcional)</Label>
               <div className="relative">
-                <Baby className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="childName"
-                  placeholder="Nome do filho"
-                  value={formData.childName}
-                  onChange={(e) => setFormData({ ...formData, childName: e.target.value })}
+                  id="parentName"
+                  placeholder="Nome do responsável"
+                  value={formData.parentName}
+                  onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
                   className="pl-10"
                 />
               </div>
@@ -713,12 +713,12 @@ export default function AdminParentInvites() {
                         )}
                       </div>
 
-                      {(invite.child_name || invite.email || invite.phone) && (
+                      {(invite.parent_name || invite.email || invite.phone) && (
                         <div className="flex flex-wrap gap-3 text-sm">
-                          {invite.child_name && (
+                          {invite.parent_name && (
                             <span className="flex items-center gap-1 text-muted-foreground">
-                              <Baby className="w-3 h-3" />
-                              {invite.child_name}
+                              <Users className="w-3 h-3" />
+                              {invite.parent_name}
                             </span>
                           )}
                           {invite.email && (
@@ -758,7 +758,7 @@ export default function AdminParentInvites() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => sendInviteEmail(invite.email!, invite.phone || undefined, invite.invite_code, invite.child_name || undefined, invite.coupon_code || undefined)}
+                          onClick={() => sendInviteEmail(invite.email!, invite.phone || undefined, invite.invite_code, invite.parent_name || undefined, invite.coupon_code || undefined)}
                           disabled={sendingEmail === invite.invite_code}
                         >
                           {sendingEmail === invite.invite_code ? (

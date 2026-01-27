@@ -354,7 +354,7 @@ serve(async (req: Request): Promise<Response> => {
     logger.info("request_parsed", { 
       to: email, 
       templateType: "parent_invite",
-      metadata: { inviteCode, childName: childName || null, hasCoupon: !!couponCode, hasPhone: !!phone, hasGhlContactId: !!ghlContactId }
+      metadata: { inviteCode, parentName: parentName || null, hasCoupon: !!couponCode, hasPhone: !!phone, hasGhlContactId: !!ghlContactId }
     });
 
     if (!email || !inviteCode) {
@@ -400,7 +400,7 @@ serve(async (req: Request): Promise<Response> => {
     const logoUrl = `${appUrl}/logo-email.png`;
 
     const greeting = parentName ? `Olá, ${parentName}!` : "Olá!";
-    const childText = childName ? ` como responsável de <strong>${childName}</strong>` : "";
+    const contactName = parentName || email.split("@")[0]; // Use parentName for GHL contact
 
     // Format discount HTML
     let discountHtml = "";
@@ -466,7 +466,7 @@ serve(async (req: Request): Promise<Response> => {
         <h2 style="margin: 0 0 16px; color: #1e293b; font-size: 24px;">${greeting} 👋</h2>
         
         <p style="margin: 0 0 24px; color: #475569; font-size: 16px; line-height: 1.7;">
-          Você foi convidado(a) para fazer parte da <strong style="color: #2563eb;">Creche Pimpolinhos</strong>${childText}. Estamos muito felizes em tê-lo(a) conosco!
+          Você foi convidado(a) para fazer parte da <strong style="color: #2563eb;">Creche Pimpolinhos</strong>. Estamos muito felizes em tê-lo(a) conosco!
         </p>
         
         <!-- Invite Code -->
