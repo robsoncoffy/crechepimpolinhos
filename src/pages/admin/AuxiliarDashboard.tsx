@@ -1,55 +1,70 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, memo, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Baby, ChevronRight, ClipboardList, Calendar, DollarSign, LayoutDashboard } from "lucide-react";
-import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { DashboardHeader, StatCard, StatGrid } from "@/components/admin/dashboards";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+// Lazy load heavy components
+const MyReportsTab = lazy(() => import("@/components/employee/MyReportsTab").then(m => ({ default: m.MyReportsTab })));
+
+const TabLoadingFallback = memo(() => (
+  <div className="flex items-center justify-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+  </div>
+));
 
 export default function AuxiliarDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("inicio");
-  const [stats, setStats] = useState({
-    totalChildren: 0,
-    todayRecords: 0,
+
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["auxiliar-stats"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const [childrenRes, recordsRes] = await Promise.all([
+        supabase.from("children").select("id", { count: "exact", head: true }),
+        supabase.from("daily_records").select("id", { count: "exact", head: true }).eq("record_date", today),
+      ]);
+
+      return {
+        totalChildren: childrenRes.count || 0,
+        todayRecords: recordsRes.count || 0,
+      };
+    },
+    staleTime: 1000 * 60 * 2,
   });
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [childrenRes, recordsRes] = await Promise.all([
-          supabase.from("children").select("id", { count: "exact", head: true }),
-          supabase.from("daily_records").select("id", { count: "exact", head: true }).eq("record_date", new Date().toISOString().split("T")[0]),
-        ]);
+  const formattedDate = useMemo(() => 
+    new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }),
+    []
+  );
 
-        setStats({
-          totalChildren: childrenRes.count || 0,
-          todayRecords: recordsRes.count || 0,
-        });
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchStats();
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
-      {/* Page Header */}
-      <div>
-        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground">
-          Olá, {profile?.full_name?.split(" ")[0]}! 👋
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Painel de Auxiliar de Sala
-        </p>
-      </div>
+      <DashboardHeader
+        greeting={`Olá, ${profile?.full_name?.split(" ")[0]}! 👋`}
+        subtitle="Painel de Auxiliar de Sala"
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="overflow-x-auto scrollbar-hide">
@@ -66,45 +81,23 @@ export default function AuxiliarDashboard() {
         </div>
 
         <TabsContent value="inicio" className="mt-4 space-y-6">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                  Total de Crianças
-                </CardTitle>
-                <div className="p-1.5 sm:p-2 rounded-lg bg-primary/10">
-                  <Baby className="w-4 h-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                <div className="text-2xl sm:text-3xl font-fredoka font-bold">
-                  {loading ? "-" : stats.totalChildren}
-                </div>
-              </CardContent>
-            </Card>
+          <StatGrid columns={2}>
+            <StatCard 
+              icon={Baby} 
+              iconColor="text-primary" 
+              value={stats?.totalChildren || 0} 
+              label="Total de Crianças" 
+            />
+            <StatCard 
+              icon={ClipboardList} 
+              iconColor="text-pimpo-green" 
+              bgColor="bg-pimpo-green/10" 
+              borderColor="border-pimpo-green/30"
+              value={`${stats?.todayRecords || 0}/${stats?.totalChildren || 0}`} 
+              label="Agendas Hoje" 
+            />
+          </StatGrid>
 
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                  Agendas Hoje
-                </CardTitle>
-                <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-green/10">
-                  <ClipboardList className="w-4 h-4 text-pimpo-green" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-                <div className="text-2xl sm:text-3xl font-fredoka font-bold">
-                  {loading ? "-" : `${stats.todayRecords}/${stats.totalChildren}`}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
-                  Preenchidas hoje
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -136,7 +129,6 @@ export default function AuxiliarDashboard() {
             </CardContent>
           </Card>
 
-          {/* Today's Summary */}
           <Card>
             <CardHeader>
               <CardTitle>Resumo do Dia</CardTitle>
@@ -145,13 +137,7 @@ export default function AuxiliarDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <span className="text-sm text-muted-foreground">Data</span>
-                  <span className="font-semibold">
-                    {new Date().toLocaleDateString("pt-BR", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                    })}
-                  </span>
+                  <span className="font-semibold">{formattedDate}</span>
                 </div>
                 <Link to="/painel/agenda">
                   <Button className="w-full">
@@ -165,7 +151,9 @@ export default function AuxiliarDashboard() {
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-4">
-          <MyReportsTab />
+          <Suspense fallback={<TabLoadingFallback />}>
+            <MyReportsTab />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
