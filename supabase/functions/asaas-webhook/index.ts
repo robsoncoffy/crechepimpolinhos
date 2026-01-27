@@ -189,6 +189,114 @@ serve(async (req) => {
               notificationType,
               "/painel-pais?tab=financas"
             );
+
+            // Send WhatsApp notification for payment confirmation
+            if (newStatus === "paid") {
+              const GHL_API_KEY = Deno.env.get("GHL_API_KEY");
+              const GHL_LOCATION_ID = Deno.env.get("GHL_LOCATION_ID");
+
+              if (GHL_API_KEY && GHL_LOCATION_ID) {
+                try {
+                  // Get parent profile for name and phone
+                  const { data: parentProfile } = await supabase
+                    .from("profiles")
+                    .select("full_name, phone")
+                    .eq("user_id", asaasPayment.linked_parent_id)
+                    .maybeSingle();
+
+                  const parentPhone = parentProfile?.phone;
+                  const parentName = parentProfile?.full_name || "Responsável";
+
+                  if (parentPhone) {
+                    // Normalize phone
+                    let normalizedPhone = parentPhone.replace(/\D/g, "");
+                    if (normalizedPhone.startsWith("0")) {
+                      normalizedPhone = normalizedPhone.substring(1);
+                    }
+                    if (!normalizedPhone.startsWith("55")) {
+                      normalizedPhone = "55" + normalizedPhone;
+                    }
+                    normalizedPhone = "+" + normalizedPhone;
+
+                    // Search GHL contact
+                    const searchResponse = await fetch(
+                      `https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(normalizedPhone)}&limit=1`,
+                      {
+                        method: "GET",
+                        headers: {
+                          Authorization: `Bearer ${GHL_API_KEY}`,
+                          Version: "2021-07-28",
+                        },
+                      }
+                    );
+
+                    if (searchResponse.ok) {
+                      const searchResult = await searchResponse.json();
+                      const ghlContactId = searchResult.contacts?.[0]?.id;
+
+                      if (ghlContactId) {
+                        // Update tags - Move to "Pagamento Confirmado" / "Matriculado"
+                        await fetch(
+                          `https://services.leadconnectorhq.com/contacts/${ghlContactId}`,
+                          {
+                            method: "PUT",
+                            headers: {
+                              Authorization: `Bearer ${GHL_API_KEY}`,
+                              "Content-Type": "application/json",
+                              Version: "2021-07-28",
+                            },
+                            body: JSON.stringify({
+                              tags: ["pagamento_confirmado", "matriculado", "cliente_ativo"],
+                            }),
+                          }
+                        );
+                        console.log("GHL contact updated with payment_confirmed tags");
+
+                        // Send WhatsApp confirmation
+                        const whatsappMessage = `✅ *Olá, ${parentName}!*
+
+Seu pagamento de *${formattedValue}* foi *confirmado com sucesso*! 🎉
+
+🎈 A matrícula está *oficialmente concluída*!
+
+📱 Você já pode acessar todas as funcionalidades do painel:
+• 📅 Agenda diária
+• 💬 Chat com a escola
+• 📷 Galeria de fotos
+• 🍽️ Cardápio semanal
+
+👉 Acesse: https://www.crechepimpolinhos.com.br/painel-pais
+
+Obrigado pela confiança!
+
+💜 Creche Pimpolinhos`;
+
+                        await fetch(
+                          "https://services.leadconnectorhq.com/conversations/messages",
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${GHL_API_KEY}`,
+                              "Content-Type": "application/json",
+                              Version: "2021-04-15",
+                            },
+                            body: JSON.stringify({
+                              type: "WhatsApp",
+                              contactId: ghlContactId,
+                              message: whatsappMessage,
+                              body: whatsappMessage,
+                            }),
+                          }
+                        );
+                        console.log("WhatsApp payment confirmation sent");
+                      }
+                    }
+                  }
+                } catch (whatsappError) {
+                  console.warn("Failed to send WhatsApp for payment:", whatsappError);
+                }
+              }
+            }
           }
         }
 

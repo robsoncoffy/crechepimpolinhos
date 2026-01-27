@@ -526,6 +526,8 @@ serve(async (req: Request): Promise<Response> => {
 
     // Send WhatsApp notification if phone is available
     let whatsappSent = false;
+    let ghlContactId: string | undefined;
+    
     if (parentPhone) {
       let whatsappMessage: string;
       if (approvalType === "parent") {
@@ -542,10 +544,68 @@ serve(async (req: Request): Promise<Response> => {
         logger
       );
       whatsappSent = whatsappResult.success;
+      ghlContactId = whatsappResult.contactId;
+      
       if (whatsappResult.success) {
         logger.info("whatsapp_sent", { metadata: { phone: parentPhone } });
       } else {
         logger.warn("whatsapp_failed", { error: whatsappResult.error });
+      }
+    }
+
+    // Update GHL pipeline stage based on approval type
+    if (ghlContactId || parentPhone) {
+      try {
+        // If we don't have a contactId yet, search for it
+        if (!ghlContactId && parentPhone) {
+          let normalizedPhone = parentPhone.replace(/\D/g, "");
+          if (normalizedPhone.startsWith("0")) {
+            normalizedPhone = normalizedPhone.substring(1);
+          }
+          if (!normalizedPhone.startsWith("55")) {
+            normalizedPhone = "55" + normalizedPhone;
+          }
+          normalizedPhone = "+" + normalizedPhone;
+
+          const searchResponse = await fetch(
+            `https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(normalizedPhone)}&limit=1`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${GHL_API_KEY}`,
+                Version: "2021-07-28",
+              },
+            }
+          );
+
+          if (searchResponse.ok) {
+            const searchResult = await searchResponse.json();
+            ghlContactId = searchResult.contacts?.[0]?.id;
+          }
+        }
+
+        if (ghlContactId) {
+          // Update tags based on approval type
+          const tags = approvalType === "parent" 
+            ? ["cadastro_aprovado", "aguardando_matricula_filho"]
+            : ["matricula_aprovada", "aguardando_contrato"];
+
+          await fetch(
+            `https://services.leadconnectorhq.com/contacts/${ghlContactId}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${GHL_API_KEY}`,
+                "Content-Type": "application/json",
+                Version: "2021-07-28",
+              },
+              body: JSON.stringify({ tags }),
+            }
+          );
+          logger.info("ghl_pipeline_updated", { metadata: { tags, contactId: ghlContactId } });
+        }
+      } catch (pipelineError) {
+        logger.warn("ghl_pipeline_update_failed", { error: pipelineError instanceof Error ? pipelineError.message : String(pipelineError) });
       }
     }
 
