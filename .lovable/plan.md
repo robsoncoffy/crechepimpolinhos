@@ -1,228 +1,100 @@
 
-# Plano: Integração Completa Control iD iDClass Bio
 
-## Resumo
+## Plano: Sistema de Confirmação e Retry para WhatsApp
 
-Integrar o relógio de ponto Control iD iDClass Bio com o sistema de ponto eletrônico existente, utilizando:
-- **Monitor (Push)**: O relógio envia batidas em tempo real via webhook
-- **Polling (Backup)**: Job periódico busca registros do relógio para garantir sincronização
-- **CPF**: Como identificador único para vincular funcionários
+### Resumo do Problema
+Mensagens de WhatsApp enviadas via GoHighLevel (GHL) às vezes falham silenciosamente. Atualmente, o sistema não tem como confirmar se a mensagem chegou ao destinatário nem reenviar automaticamente em caso de falha.
 
-## Arquitetura da Integração
+### Solução Proposta
+Implementar um sistema completo de rastreamento, confirmação e retry automático para mensagens WhatsApp, similar ao que já existe para emails.
 
 ```text
-┌─────────────────┐         Push (Realtime)         ┌──────────────────────┐
-│                 │ ─────────────────────────────▶  │                      │
-│  iDClass Bio    │                                 │  controlid-webhook   │
-│  (Relógio)      │ ◀────────────────────────────── │  (Edge Function)     │
-│                 │         Polling (5 min)         │                      │
-└─────────────────┘                                 └──────────────────────┘
-                                                              │
-                                                              ▼
-                                                    ┌──────────────────────┐
-                                                    │  employee_time_clock │
-                                                    │  (Tabela)            │
-                                                    └──────────────────────┘
+┌─────────────────┐    ┌───────────────┐    ┌──────────────────┐
+│ Enviar Convite  │───▶│  Salva na DB  │───▶│  Envia via GHL   │
+└─────────────────┘    │ status=sent   │    └────────┬─────────┘
+                       └───────────────┘             │
+                                                     ▼
+┌─────────────────┐    ┌───────────────┐    ┌──────────────────┐
+│ Retry Automático│◀───│ status=error  │◀───│  Webhook GHL     │
+│ (cron 5min)     │    │               │    │  (callback)      │
+└────────┬────────┘    └───────────────┘    └──────────────────┘
+         │                                           │
+         ▼                                           ▼
+┌─────────────────┐                         ┌──────────────────┐
+│  Reenvia até    │                         │ status=delivered │
+│  3 tentativas   │                         │ (confirmado!)    │
+└─────────────────┘                         └──────────────────┘
 ```
 
----
+### Componentes a Implementar
 
-## Etapa 1: Atualizar Webhook Existente
+**1. Nova Tabela: `whatsapp_message_logs`**
+- Rastrear todas as mensagens WhatsApp enviadas
+- Campos: `id`, `contact_id`, `phone`, `message_preview`, `ghl_message_id`, `status` (pending, sent, delivered, failed), `retry_count`, `next_retry_at`, `template_type`, `metadata`
 
-O webhook atual precisa ser adaptado para receber o formato do **Monitor** do Control iD.
+**2. Webhook GHL: `ghl-message-webhook`**
+- Receber callbacks do GHL sobre status de mensagens
+- Atualizar o status na tabela `whatsapp_message_logs`
+- Tipos de status: `sent`, `delivered`, `read`, `failed`
 
-**Arquivo:** `supabase/functions/controlid-webhook/index.ts`
+**3. Atualização das Edge Functions de Envio**
+- `send-parent-invite-email`: Salvar mensagem na nova tabela antes de enviar
+- `send-approval-email`: Idem
+- `ghl-sync-contact`: Idem para mensagens de pré-matrícula
 
-**Mudanças:**
-- Aceitar formato `/api/notifications/dao` com `object_changes`
-- Mapear `user_id` do relógio para funcionário via CPF
-- Suportar tanto formato atual quanto formato Monitor
+**4. Função de Retry: `retry-failed-whatsapp`**
+- Cron job que roda a cada 5 minutos
+- Busca mensagens com `status=failed` ou `status=sent` há mais de 10 minutos sem confirmação
+- Reenvia até 3 vezes com backoff exponencial (5min, 15min, 45min)
 
-**Formato recebido do Monitor:**
-```json
-{
-  "object_changes": [{
-    "object": "access_logs",
-    "type": "inserted",
-    "values": {
-      "id": "519",
-      "time": "1532977090",
-      "user_id": "123",
-      "device_id": "478435"
-    }
-  }],
-  "device_id": 478435
-}
-```
+**5. Atualização da Interface Admin**
+- Widget no Dashboard mostrando mensagens pendentes/falhadas
+- Botão de "Reenviar" manual nos convites
 
----
+### Limitações Conhecidas
 
-## Etapa 2: Criar Edge Function de Polling
+O GHL não garante 100% de confirmação de entrega. A API retorna status como:
+- `sent` = Enviado para o GHL (não significa que chegou ao WhatsApp)
+- `delivered` = Confirmado pelo WhatsApp (nem sempre disponível)
+- `read` = Lido pelo destinatário (nem sempre disponível)
 
-Nova função que conecta ao relógio periodicamente para buscar registros não sincronizados.
+Por isso, o sistema considerará "sucesso" quando:
+1. Receber webhook com `status=delivered` ou `status=read`, OU
+2. Passar 24h sem erro explícito
 
-**Arquivo:** `supabase/functions/controlid-sync/index.ts`
+### Detalhes Técnicos
 
-**Funcionalidades:**
-- Fazer login no relógio (sessão)
-- Buscar `access_logs` desde último sync
-- Comparar com registros existentes
-- Inserir apenas registros novos
-- Registrar timestamp do último sync
-
-**Fluxo:**
-1. `POST /login.fcgi` → obter sessão
-2. `POST /load_objects.fcgi` → buscar access_logs
-3. Filtrar registros já existentes
-4. Inserir novos no `employee_time_clock`
-5. Atualizar `last_sync_at` na config
-
----
-
-## Etapa 3: Criar Tabela de Mapeamento
-
-Tabela para vincular IDs do relógio aos funcionários via CPF.
-
-**Tabela:** `controlid_user_mappings`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | uuid | PK |
-| employee_id | uuid | FK para employee_profiles |
-| controlid_user_id | integer | ID do usuário no relógio |
-| cpf | text | CPF para mapeamento |
-| device_id | text | ID do dispositivo |
-| synced_at | timestamp | Última sincronização |
-
----
-
-## Etapa 4: Atualizar Tabela de Configuração
-
-Adicionar campos necessários na `time_clock_config`:
-
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| device_ip | text | IP do relógio na rede |
-| device_login | text | Usuário (default: admin) |
-| device_password | text | Senha (criptografada) |
-| last_sync_at | timestamp | Último polling bem-sucedido |
-| sync_interval_minutes | integer | Intervalo do polling (default: 5) |
-
----
-
-## Etapa 5: Criar Tela de Configuração Admin
-
-Interface para gerenciar a integração.
-
-**Arquivo:** `src/pages/admin/AdminTimeClockConfig.tsx`
-
-**Funcionalidades:**
-- Configurar IP/credenciais do relógio
-- Testar conexão com o equipamento
-- Ver status do último sync
-- Sincronizar funcionários (enviar para o relógio)
-- Buscar registros manualmente
-- Ver logs de sincronização
-
-**Seções:**
-1. **Conexão**: IP, usuário, senha, testar
-2. **Funcionários**: Lista de mapeados, sincronizar novos
-3. **Logs**: Últimas sincronizações, erros
-4. **Manual**: Botão para forçar sync
-
----
-
-## Etapa 6: Criar Job de Polling (Cron)
-
-Agendar execução periódica do sync.
-
-**SQL (pg_cron):**
+**Nova Tabela SQL:**
 ```sql
-SELECT cron.schedule(
-  'controlid-sync-every-5-min',
-  '*/5 * * * *',
-  $$
-  SELECT net.http_post(
-    url:='https://xxx.supabase.co/functions/v1/controlid-sync',
-    headers:='{"Authorization": "Bearer ANON_KEY"}'::jsonb,
-    body:='{}'::jsonb
-  );
-  $$
+CREATE TABLE whatsapp_message_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ghl_contact_id TEXT,
+  ghl_message_id TEXT,
+  phone TEXT NOT NULL,
+  message_preview TEXT,
+  template_type TEXT,
+  status TEXT DEFAULT 'pending',
+  retry_count INTEGER DEFAULT 0,
+  max_retries INTEGER DEFAULT 3,
+  next_retry_at TIMESTAMPTZ,
+  last_retry_at TIMESTAMPTZ,
+  error_message TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 ```
 
----
+**Configuração do Webhook no GHL:**
+Será necessário configurar manualmente no dashboard do GHL:
+- URL: `https://ksguxhmqctmepbddbhdz.supabase.co/functions/v1/ghl-message-webhook`
+- Evento: `OutboundMessage`
 
-## Etapa 7: Criar Edge Function para Sincronizar Funcionários
+**Cron Job para Retry:**
+Será configurado via `pg_cron` para rodar a cada 5 minutos.
 
-Enviar funcionários cadastrados para o relógio.
+### Próximos Passos Após Implementação
+1. Configurar webhook no painel do GHL
+2. Testar envio de convite e verificar logs
+3. Simular falha e verificar retry automático
 
-**Arquivo:** `supabase/functions/controlid-sync-employees/index.ts`
-
-**Funcionalidades:**
-- Buscar funcionários ativos com CPF
-- Enviar para o relógio via `add_users.fcgi`
-- Salvar mapeamento de IDs
-- Retornar status de cada funcionário
-
----
-
-## Estrutura de Arquivos
-
-```text
-supabase/functions/
-├── controlid-webhook/index.ts      # Atualizar (receber Monitor)
-├── controlid-sync/index.ts         # Novo (polling backup)
-├── controlid-sync-employees/index.ts # Novo (enviar funcionários)
-└── controlid-test-connection/index.ts # Novo (testar conexão)
-
-src/pages/admin/
-└── AdminTimeClockConfig.tsx        # Nova tela de configuração
-
-supabase/migrations/
-└── xxx_controlid_integration.sql   # Tabelas e colunas novas
-```
-
----
-
-## Configuração no Relógio
-
-Após implementação, configurar no painel do iDClass:
-
-1. **Acessar**: `http://[IP-DO-RELOGIO]/`
-2. **Login**: admin / admin
-3. **Configurar Monitor**:
-   - Hostname: `ksguxhmqctmepbddbhdz.supabase.co`
-   - Port: `443`
-   - Path: `functions/v1/controlid-webhook`
-
----
-
-## Detalhes Técnicos
-
-### Tratamento de Duplicatas
-- Usar constraint único em `(device_id, controlid_log_id)` para evitar duplicatas
-- Polling verifica se registro já existe antes de inserir
-
-### Segurança
-- Credenciais do relógio armazenadas criptografadas
-- Webhook valida `device_id` configurado
-- SSL para comunicação com relógio (HTTPS)
-
-### Logs e Monitoramento
-- Tabela `controlid_sync_logs` para histórico
-- Alerta se sync falhar por mais de 30 minutos
-- Dashboard mostra status em tempo real
-
----
-
-## Sequência de Implementação
-
-1. Criar migração com tabelas novas
-2. Atualizar webhook existente
-3. Criar função de teste de conexão
-4. Criar função de sync de funcionários
-5. Criar função de polling
-6. Criar tela de configuração
-7. Agendar cron job
-8. Testar integração completa
