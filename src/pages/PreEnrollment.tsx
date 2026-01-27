@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,9 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail, Clock, Sun } from "lucide-react";
+import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail, Clock, Sun, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { getAgeInMonths, getSuggestedClassType, getClassDisplayName, isHalfDayOnly, type ClassType } from "@/lib/pricing";
 
 const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
 
@@ -36,8 +38,8 @@ const vacancyTypeOptions = [
 ];
 
 const shiftTypeOptions = [
-  { value: "integral", label: "Integral", description: "Período completo (8h)", icon: Clock },
-  { value: "manha", label: "Meio Período - Manhã", description: "Das 7h às 11h30", icon: Sun },
+  { value: "integral", label: "Integral", description: "9 horas diárias", icon: Clock },
+  { value: "manha", label: "Meio Período - Manhã", description: "Das 7h às 12h", icon: Sun },
   { value: "tarde", label: "Meio Período - Tarde", description: "Das 13h às 17h30", icon: Sun },
 ];
 
@@ -59,6 +61,27 @@ export default function PreEnrollment() {
       acceptTerms: false,
     },
   });
+
+  const childBirthDate = form.watch("child_birth_date");
+  const selectedShift = form.watch("shift_type");
+
+  // Calculate class type and check if integral is allowed
+  const { suggestedClass, isJardim } = useMemo(() => {
+    if (!childBirthDate) return { suggestedClass: null, isJardim: false };
+    const classType = getSuggestedClassType(childBirthDate);
+    return {
+      suggestedClass: classType,
+      isJardim: isHalfDayOnly(classType),
+    };
+  }, [childBirthDate]);
+
+  // Reset shift if Jardim is detected and integral was selected
+  useEffect(() => {
+    if (isJardim && selectedShift === "integral") {
+      form.setValue("shift_type", undefined as any);
+      toast.info("Turmas de Jardim possuem apenas meio período disponível.");
+    }
+  }, [isJardim, selectedShift, form]);
 
   const onSubmit = async (data: PreEnrollmentFormData) => {
     setIsSubmitting(true);
@@ -311,6 +334,24 @@ export default function PreEnrollment() {
                           />
                         </div>
 
+                        {/* Auto-detected class display */}
+                        {suggestedClass && (
+                          <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                            <Baby className="h-5 w-5 text-primary" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">Turma sugerida pela idade:</p>
+                              <p className="text-lg font-semibold text-primary">
+                                {getClassDisplayName(suggestedClass)}
+                              </p>
+                            </div>
+                            {isJardim && (
+                              <Badge variant="outline" className="bg-pimpo-yellow/20 text-pimpo-yellow-dark border-pimpo-yellow">
+                                Apenas Meio Período
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
                         {/* Vacancy Type Selection */}
                         <FormField
                           control={form.control}
@@ -359,33 +400,52 @@ export default function PreEnrollment() {
                           render={({ field }) => (
                             <FormItem className="space-y-3">
                               <FormLabel>Turno Desejado *</FormLabel>
+                              {isJardim && (
+                                <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 p-2 rounded-md border border-warning/20">
+                                  <AlertCircle className="h-4 w-4" />
+                                  <span>Turmas de Jardim possuem apenas meio período disponível.</span>
+                                </div>
+                              )}
                               <FormControl>
                                 <RadioGroup
                                   onValueChange={field.onChange}
-                                  defaultValue={field.value}
+                                  value={field.value}
                                   className="grid grid-cols-1 md:grid-cols-3 gap-4"
                                 >
-                                  {shiftTypeOptions.map((option) => (
-                                    <div key={option.value}>
-                                      <RadioGroupItem
-                                        value={option.value}
-                                        id={`shift-${option.value}`}
-                                        className="peer sr-only"
-                                      />
-                                      <label
-                                        htmlFor={`shift-${option.value}`}
-                                        className="flex flex-col items-center gap-2 rounded-lg border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer transition-colors text-center"
-                                      >
-                                        <option.icon className="h-6 w-6 text-primary" />
-                                        <div>
-                                          <p className="font-semibold text-sm">{option.label}</p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {option.description}
-                                          </p>
-                                        </div>
-                                      </label>
-                                    </div>
-                                  ))}
+                                  {shiftTypeOptions.map((option) => {
+                                    const isDisabled = isJardim && option.value === "integral";
+                                    return (
+                                      <div key={option.value}>
+                                        <RadioGroupItem
+                                          value={option.value}
+                                          id={`shift-${option.value}`}
+                                          className="peer sr-only"
+                                          disabled={isDisabled}
+                                        />
+                                        <label
+                                          htmlFor={`shift-${option.value}`}
+                                          className={`flex flex-col items-center gap-2 rounded-lg border-2 border-muted bg-card p-4 transition-colors text-center ${
+                                            isDisabled 
+                                              ? "opacity-50 cursor-not-allowed bg-muted" 
+                                              : "hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary cursor-pointer"
+                                          }`}
+                                        >
+                                          <option.icon className={`h-6 w-6 ${isDisabled ? "text-muted-foreground" : "text-primary"}`} />
+                                          <div>
+                                            <p className="font-semibold text-sm">{option.label}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {option.description}
+                                            </p>
+                                          </div>
+                                          {isDisabled && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              Indisponível
+                                            </Badge>
+                                          )}
+                                        </label>
+                                      </div>
+                                    );
+                                  })}
                                 </RadioGroup>
                               </FormControl>
                               <FormMessage />
