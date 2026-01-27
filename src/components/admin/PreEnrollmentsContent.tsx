@@ -29,18 +29,27 @@ const classLabels: Record<string, string> = {
   jardim2: "Jardim 2",
 };
 
-// Helper function to calculate correct class based on birth date
+// Helper function to calculate correct class based on birth date (5-class structure)
 function calculateClassFromBirthDate(birthDate: string): { classType: string; label: string } {
   const birth = new Date(birthDate);
   const today = new Date();
   const ageInMonths = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
   
+  // Berçário: 0-2 anos (0-23 meses)
+  // Maternal I: 2-3 anos (24-35 meses)
+  // Maternal II: 3-4 anos (36-47 meses)
+  // Jardim I: 4-5 anos (48-59 meses)
+  // Jardim II: 5-6 anos (60+ meses)
   if (ageInMonths < 24) {
     return { classType: "bercario", label: "Berçário" };
+  } else if (ageInMonths < 36) {
+    return { classType: "maternal_1", label: "Maternal I" };
   } else if (ageInMonths < 48) {
-    return { classType: "maternal", label: "Maternal" };
+    return { classType: "maternal_2", label: "Maternal II" };
+  } else if (ageInMonths < 60) {
+    return { classType: "jardim_1", label: "Jardim I" };
   } else {
-    return { classType: "jardim", label: "Jardim" };
+    return { classType: "jardim_2", label: "Jardim II" };
   }
 }
 

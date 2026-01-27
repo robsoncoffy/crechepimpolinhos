@@ -111,7 +111,7 @@ export default function AdminApprovals() {
   const [registrationDialogOpen, setRegistrationDialogOpen] = useState(false);
   const [selectedRegistration, setSelectedRegistration] = useState<PendingChildRegistration | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [selectedClassType, setSelectedClassType] = useState<"bercario" | "maternal" | "jardim">("bercario");
+  const [selectedClassType, setSelectedClassType] = useState<"bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2">("bercario");
   const [selectedShiftType, setSelectedShiftType] = useState<"manha" | "tarde" | "integral">("integral");
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [contractData, setContractData] = useState<any>(null);
@@ -469,16 +469,25 @@ export default function AdminApprovals() {
       planType: registration.plan_type,
     });
     
-    // Auto-suggest class based on birth date
+    // Auto-suggest class based on birth date (5-class structure)
+    // Berçário: 0-2 anos (0-23 meses)
+    // Maternal I: 2-3 anos (24-35 meses)
+    // Maternal II: 3-4 anos (36-47 meses)
+    // Jardim I: 4-5 anos (48-59 meses)
+    // Jardim II: 5-6 anos (60+ meses)
     const birthDate = new Date(registration.birth_date);
     const today = new Date();
     const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
-    if (ageInMonths < 12) {
+    if (ageInMonths < 24) {
       setSelectedClassType("bercario");
     } else if (ageInMonths < 36) {
-      setSelectedClassType("maternal");
+      setSelectedClassType("maternal_1");
+    } else if (ageInMonths < 48) {
+      setSelectedClassType("maternal_2");
+    } else if (ageInMonths < 60) {
+      setSelectedClassType("jardim_1");
     } else {
-      setSelectedClassType("jardim");
+      setSelectedClassType("jardim_2");
     }
     setSelectedShiftType("integral");
     setRegistrationDialogOpen(true);
@@ -1559,14 +1568,16 @@ export default function AdminApprovals() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Turma *</Label>
-                    <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "jardim")}>
+                    <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2")}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bercario">Berçário (0-1 ano)</SelectItem>
-                        <SelectItem value="maternal">Maternal (1-3 anos)</SelectItem>
-                        <SelectItem value="jardim">Jardim (4-6 anos)</SelectItem>
+                        <SelectItem value="bercario">Berçário (0-2 anos)</SelectItem>
+                        <SelectItem value="maternal_1">Maternal I (2-3 anos)</SelectItem>
+                        <SelectItem value="maternal_2">Maternal II (3-4 anos)</SelectItem>
+                        <SelectItem value="jardim_1">Jardim I (4-5 anos)</SelectItem>
+                        <SelectItem value="jardim_2">Jardim II (5-6 anos)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

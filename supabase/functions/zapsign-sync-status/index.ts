@@ -10,22 +10,39 @@ const ZAPSIGN_API_URL = "https://api.zapsign.com.br/api/v1";
 const ASAAS_API_URL = "https://api.asaas.com/v3";
 
 // Pricing matrix: prices[classType][planType]
-// Note: Maternal I (24-35 months) uses Berçário prices
-const PRICES: Record<string, Record<string, number>> = {
+// Updated 5-class structure:
+// - Berçário e Maternal I: mesmos valores
+// - Maternal II: valores intermediários
+// - Jardim I e II: apenas meio turno (basico)
+const PRICES: Record<string, Partial<Record<string, number>>> = {
   bercario: {
     basico: 799.90,
     intermediario: 1299.90,
     plus: 1699.90,
   },
   maternal: {
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
+  },
+  maternal_1: {
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
+  },
+  maternal_2: {
     basico: 749.90,
     intermediario: 1099.90,
-    plus: 1499.90,
+    plus: 1699.90,
   },
   jardim: {
     basico: 649.90,
-    intermediario: 949.90,
-    plus: 1299.90,
+  },
+  jardim_1: {
+    basico: 649.90,
+  },
+  jardim_2: {
+    basico: 649.90,
   },
 };
 
@@ -40,18 +57,18 @@ function getAgeInMonths(birthDate: string | null): number {
   return months;
 }
 
-// Check if child is Maternal I (24-35 months) - uses Berçário prices
-function isMaternalI(birthDate: string | null): boolean {
-  const months = getAgeInMonths(birthDate);
-  return months >= 24 && months < 36;
-}
-
 function getContractValue(classType: string | null, planType: string | null, birthDate: string | null = null): number {
   if (!classType || !planType) return 0;
-  // Maternal I uses Berçário prices
-  if (classType === 'maternal' && birthDate && isMaternalI(birthDate)) {
-    return PRICES.bercario?.[planType] ?? 0;
+  
+  // Handle legacy "maternal" type by checking age to determine correct pricing
+  if (classType === 'maternal' && birthDate) {
+    const months = getAgeInMonths(birthDate);
+    // Maternal I (24-35 months) uses Berçário/Maternal I prices
+    // Maternal II (36-47 months) uses Maternal II prices
+    const effectiveClass = months < 36 ? 'maternal_1' : 'maternal_2';
+    return PRICES[effectiveClass]?.[planType] ?? 0;
   }
+  
   return PRICES[classType]?.[planType] ?? 0;
 }
 
