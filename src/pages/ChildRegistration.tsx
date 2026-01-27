@@ -246,6 +246,16 @@ const ChildRegistration = () => {
             setValue("enrollmentType", "private");
           }
           
+          // Auto-select plan type based on desired_shift_type from pre-enrollment
+          // manha/tarde -> basico (meio turno), integral -> intermediario
+          if (preEnrollment.desired_shift_type) {
+            if (preEnrollment.desired_shift_type === "integral") {
+              setValue("planType", "intermediario");
+            } else if (preEnrollment.desired_shift_type === "manha" || preEnrollment.desired_shift_type === "tarde") {
+              setValue("planType", "basico");
+            }
+          }
+          
           toast({
             title: "Dados da pré-matrícula carregados!",
             description: "Alguns campos foram preenchidos automaticamente com os dados informados na pré-matrícula.",
