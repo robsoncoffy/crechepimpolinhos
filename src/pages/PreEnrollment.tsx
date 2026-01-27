@@ -40,7 +40,7 @@ const vacancyTypeOptions = [
 const shiftTypeOptions = [
   { value: "integral", label: "Integral", description: "9 horas diárias", icon: Clock },
   { value: "manha", label: "Meio Período - Manhã", description: "Das 7h às 12h", icon: Sun },
-  { value: "tarde", label: "Meio Período - Tarde", description: "Das 13h às 17h30", icon: Sun },
+  { value: "tarde", label: "Meio Período - Tarde", description: "Das 13h às 18h", icon: Sun },
 ];
 
 export default function PreEnrollment() {

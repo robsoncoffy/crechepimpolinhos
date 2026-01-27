@@ -358,12 +358,12 @@ export default function AdminBudgets() {
               <tbody>
                 <tr>
                   <td><strong>INTEGRAL</strong></td>
-                  <td>07h às 19h</td>
+                  <td>9 horas diárias</td>
                   <td class="text-center">R$${prices.integral.toFixed(2).replace(".", ",")}</td>
                 </tr>
                 <tr>
                   <td><strong>MEIO TURNO</strong></td>
-                  <td>07h às 12h ou 13h às 19h</td>
+                  <td>07h às 12h ou 13h às 18h</td>
                   <td class="text-center">R$${prices.meioTurno.toFixed(2).replace(".", ",")}</td>
                 </tr>
               </tbody>
@@ -543,7 +543,7 @@ export default function AdminBudgets() {
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <div>
                       <p className="font-medium">Integral</p>
-                      <p className="text-xs text-muted-foreground">07h às 19h</p>
+                      <p className="text-xs text-muted-foreground">9 horas diárias</p>
                     </div>
                     <span className="font-bold text-primary">
                       R${prices.integral.toFixed(2).replace(".", ",")}
@@ -552,7 +552,7 @@ export default function AdminBudgets() {
                   <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                     <div>
                       <p className="font-medium">Meio Turno</p>
-                      <p className="text-xs text-muted-foreground">07h às 12h ou 13h às 19h</p>
+                      <p className="text-xs text-muted-foreground">07h às 12h ou 13h às 18h</p>
                     </div>
                     <span className="font-bold text-primary">
                       R${prices.meioTurno.toFixed(2).replace(".", ",")}

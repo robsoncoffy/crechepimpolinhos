@@ -35,10 +35,10 @@ export const PLANS: PlanInfo[] = [
   {
     id: 'intermediario',
     name: 'Integral',
-    description: 'Período integral - até 9 horas',
+    description: 'Período integral - 9 horas diárias',
     features: [
-      'Funcionamento das 7h às 19h',
-      'Até 9 horas diárias',
+      '9 horas diárias de permanência',
+      'Flexibilidade de horário',
       'Todas as refeições incluídas',
       'Atividades extras disponíveis (Ballet, Capoeira, Música)*',
       'Agenda digital completa',

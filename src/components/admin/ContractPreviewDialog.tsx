@@ -84,9 +84,9 @@ const shiftTypeLabels: Record<string, string> = {
 };
 
 const shiftHours: Record<string, string> = {
-  manha: "07h00min às 12h30min",
+  manha: "07h00min às 12h00min",
   tarde: "13h00min às 18h00min",
-  integral: "07h00min às 19h00min",
+  integral: "07h00min às 16h00min (9 horas)",
 };
 
 const planTypeLabels: Record<string, string> = {
@@ -103,7 +103,7 @@ const DEFAULT_CLAUSES = {
   
   clauseMonthlyFee: `O valor das mensalidades será conforme tabela de preços vigente, com vencimento sempre no mesmo dia da assinatura deste contrato, a cada mês subsequente. O atraso no pagamento acarretará multa de 2% e juros de 1% ao mês.`,
   
-  clauseHours: `A CONTRATADA funciona de segunda a sexta-feira, das 07h00min às 19h00min. O horário de entrada e saída deve ser respeitado conforme o turno contratado. Há tolerância de 15 minutos para entrada e saída.`,
+  clauseHours: `A CONTRATADA funciona de segunda a sexta-feira, das 07h00min às 19h00min. O horário de permanência deve respeitar o turno contratado (Integral: 9 horas; Meio Turno Manhã: 7h às 12h; Meio Turno Tarde: 13h às 18h). Há tolerância de 15 minutos para entrada e saída.`,
   
   clauseFood: `A alimentação será fornecida conforme cardápio elaborado por nutricionista, adequado à faixa etária da criança. Alergias e restrições alimentares devem ser informadas por escrito.`,
   

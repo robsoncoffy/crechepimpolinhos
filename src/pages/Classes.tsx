@@ -155,9 +155,9 @@ const shifts = [
   },
   {
     title: "Período Integral",
-    hours: "Até 9 horas",
+    hours: "9 horas",
     icon: Clock,
-    description: "Funcionamos das 7h às 19h. Escolha o melhor horário para sua família.",
+    description: "9 horas diárias com flexibilidade de horário para sua família.",
     includes: ["Todas as refeições", "Soneca", "Atividades completas", "Atividades extras*"],
     featured: true,
     note: "*Atividades extras cobradas separadamente",
