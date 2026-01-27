@@ -536,6 +536,7 @@ serve(async (req: Request): Promise<Response> => {
     // Send WhatsApp notification if phone is available
     let whatsappSent = false;
     let ghlContactId: string | undefined;
+    let ghlWhatsappMessageId: string | undefined;
     
     if (parentPhone) {
       let whatsappMessage: string;
@@ -554,6 +555,33 @@ serve(async (req: Request): Promise<Response> => {
       );
       whatsappSent = whatsappResult.success;
       ghlContactId = whatsappResult.contactId;
+      ghlWhatsappMessageId = whatsappResult.messageId;
+      
+      // Log WhatsApp message to whatsapp_message_logs for tracking and retry
+      const { error: whatsappLogError } = await adminClient.from("whatsapp_message_logs").insert({
+        ghl_contact_id: ghlContactId || null,
+        ghl_message_id: ghlWhatsappMessageId || null,
+        phone: parentPhone,
+        message_preview: whatsappMessage.substring(0, 200),
+        template_type: `approval_${approvalType}`,
+        status: whatsappResult.success ? "sent" : "error",
+        error_message: whatsappResult.error || null,
+        retry_count: 0,
+        next_retry_at: whatsappResult.success ? null : new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        metadata: {
+          parentId,
+          parentName,
+          approvalType,
+          childName: childName || null,
+          full_message: whatsappMessage,
+        }
+      });
+
+      if (whatsappLogError) {
+        logger.warn("whatsapp_log_failed", { error: whatsappLogError.message });
+      } else {
+        logger.info("whatsapp_log_saved");
+      }
       
       if (whatsappResult.success) {
         logger.info("whatsapp_sent", { metadata: { phone: parentPhone } });

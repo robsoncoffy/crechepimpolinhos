@@ -313,6 +313,10 @@ Recebemos a pré-matrícula de *${childFirstName}* para a turma de *${turmaDesej
 💜 Creche Pimpolinhos`;
 
     // Send WhatsApp message via GHL Conversations API
+    let whatsappSent = false;
+    let whatsappMessageId: string | null = null;
+    let whatsappError: string | null = null;
+    
     try {
       const whatsappResponse = await fetch(
         "https://services.leadconnectorhq.com/conversations/messages",
@@ -334,13 +338,46 @@ Recebemos a pré-matrícula de *${childFirstName}* para a turma de *${turmaDesej
 
       if (whatsappResponse.ok) {
         const whatsappResult = await whatsappResponse.json();
-        console.log("WhatsApp message sent successfully:", whatsappResult.messageId || whatsappResult.id);
+        whatsappMessageId = whatsappResult.messageId || whatsappResult.id;
+        whatsappSent = true;
+        console.log("WhatsApp message sent successfully:", whatsappMessageId);
       } else {
         const errorText = await whatsappResponse.text();
-        console.warn("WhatsApp message failed (will retry via workflow):", errorText);
+        whatsappError = `GHL error: ${whatsappResponse.status} - ${errorText}`;
+        console.warn("WhatsApp message failed:", errorText);
       }
-    } catch (whatsappError) {
+    } catch (err) {
+      whatsappError = err instanceof Error ? err.message : String(err);
       console.warn("WhatsApp send error:", whatsappError);
+    }
+
+    // Log WhatsApp message to whatsapp_message_logs for tracking and retry
+    try {
+      const { error: logError } = await supabase.from("whatsapp_message_logs").insert({
+        ghl_contact_id: ghlContactId,
+        ghl_message_id: whatsappMessageId,
+        phone: formattedPhone,
+        message_preview: whatsappMessage.substring(0, 200),
+        template_type: "pre_enrollment_received",
+        status: whatsappSent ? "sent" : "error",
+        error_message: whatsappError,
+        retry_count: 0,
+        next_retry_at: whatsappSent ? null : new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        metadata: {
+          preEnrollmentId,
+          childName: preEnrollment.child_name,
+          parentName: preEnrollment.parent_name,
+          full_message: whatsappMessage,
+        }
+      });
+
+      if (logError) {
+        console.warn("Failed to log WhatsApp message:", logError.message);
+      } else {
+        console.log("WhatsApp message logged for tracking");
+      }
+    } catch (logErr) {
+      console.warn("Error logging WhatsApp message:", logErr);
     }
 
     // Create opportunity in pipeline - Stage: Pré-Matrícula Recebida
