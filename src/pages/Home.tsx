@@ -307,9 +307,9 @@ export default function Home() {
           </div>
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
-              { name: "Básico", desc: "Meio período (4h)", highlight: false },
-              { name: "Intermediário", desc: "Integral (até 8h)", highlight: true },
-              { name: "Plus+", desc: "Integral estendido (até 10h)", highlight: false },
+              { name: "Meio Turno", desc: "5 horas diárias", highlight: false },
+              { name: "Integral", desc: "Até 9 horas", highlight: true },
+              { name: "Plus+", desc: "Até 10 horas", highlight: false },
             ].map((plan) => (
               <Card key={plan.name} className={`text-center ${plan.highlight ? 'border-primary shadow-lg' : ''}`}>
                 <CardContent className="pt-6 pb-4">

@@ -68,13 +68,22 @@ export default function PreEnrollment() {
       const today = new Date();
       const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
       
-      let classType: "bercario" | "maternal" | "jardim";
+      // Berçário: 0-2 anos (0-23 meses)
+      // Maternal I: 2-3 anos (24-35 meses)
+      // Maternal II: 3-4 anos (36-47 meses)
+      // Jardim I: 4-5 anos (48-59 meses)
+      // Jardim II: 5-6 anos (60-71 meses)
+      let classType: "bercario" | "maternal_1" | "maternal_2" | "jardim_1" | "jardim_2";
       if (ageInMonths < 24) {
         classType = "bercario";
+      } else if (ageInMonths < 36) {
+        classType = "maternal_1";
       } else if (ageInMonths < 48) {
-        classType = "maternal";
+        classType = "maternal_2";
+      } else if (ageInMonths < 60) {
+        classType = "jardim_1";
       } else {
-        classType = "jardim";
+        classType = "jardim_2";
       }
 
       const { data: record, error } = await supabase.from("pre_enrollments").insert({

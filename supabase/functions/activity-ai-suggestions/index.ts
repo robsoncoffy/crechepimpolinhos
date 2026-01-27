@@ -15,7 +15,11 @@ interface ActivityRequest {
 const classLabels: Record<string, string> = {
   bercario: "Berçário (0-2 anos)",
   maternal: "Maternal (2-4 anos)",
+  maternal_1: "Maternal I (2-3 anos)",
+  maternal_2: "Maternal II (3-4 anos)",
   jardim: "Jardim (4-6 anos)",
+  jardim_1: "Jardim I (4-5 anos)",
+  jardim_2: "Jardim II (5-6 anos)",
 };
 
 const activityLabels: Record<string, string> = {

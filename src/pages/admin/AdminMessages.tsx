@@ -174,7 +174,11 @@ export default function AdminMessages() {
   const classTypeLabels: Record<string, string> = {
     bercario: "Berçário",
     maternal: "Maternal",
+    maternal_1: "Maternal I",
+    maternal_2: "Maternal II",
     jardim: "Jardim",
+    jardim_1: "Jardim I",
+    jardim_2: "Jardim II",
   };
 
   const filteredChildren = children.filter((child) =>

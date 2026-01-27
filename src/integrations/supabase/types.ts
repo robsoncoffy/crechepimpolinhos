@@ -2842,7 +2842,14 @@ export type Database = {
         | "pedagogue"
         | "auxiliar"
       approval_status: "pending" | "approved" | "rejected"
-      class_type: "bercario" | "maternal" | "jardim"
+      class_type:
+        | "bercario"
+        | "maternal"
+        | "jardim"
+        | "maternal_1"
+        | "maternal_2"
+        | "jardim_1"
+        | "jardim_2"
       clock_source: "controlid" | "manual" | "mobile"
       clock_type: "entry" | "exit" | "break_start" | "break_end"
       evacuation_status: "normal" | "pastosa" | "liquida" | "nao"
@@ -2988,7 +2995,15 @@ export const Constants = {
         "auxiliar",
       ],
       approval_status: ["pending", "approved", "rejected"],
-      class_type: ["bercario", "maternal", "jardim"],
+      class_type: [
+        "bercario",
+        "maternal",
+        "jardim",
+        "maternal_1",
+        "maternal_2",
+        "jardim_1",
+        "jardim_2",
+      ],
       clock_source: ["controlid", "manual", "mobile"],
       clock_type: ["entry", "exit", "break_start", "break_end"],
       evacuation_status: ["normal", "pastosa", "liquida", "nao"],

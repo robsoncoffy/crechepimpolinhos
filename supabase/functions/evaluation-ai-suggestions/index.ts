@@ -42,7 +42,16 @@ serve(async (req: Request): Promise<Response> => {
     const { childName, childClass, quarter, field, existingData }: EvaluationRequest = await req.json();
 
     const quarterLabel = `${quarter}º Trimestre`;
-    const classLabel = childClass === "bercario" ? "Berçário" : childClass === "maternal" ? "Maternal" : "Jardim";
+    const classLabels: Record<string, string> = {
+      bercario: "Berçário",
+      maternal: "Maternal",
+      maternal_1: "Maternal I",
+      maternal_2: "Maternal II",
+      jardim: "Jardim",
+      jardim_1: "Jardim I",
+      jardim_2: "Jardim II",
+    };
+    const classLabel = classLabels[childClass] || childClass;
 
     const systemPrompt = `Você é uma pedagoga experiente em Educação Infantil no Brasil, especializada em avaliações de desenvolvimento para crianças de 0 a 5 anos.
 

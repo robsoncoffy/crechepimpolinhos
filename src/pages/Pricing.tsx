@@ -20,21 +20,35 @@ const classCards = [
   {
     id: 'bercario' as const,
     name: 'Berçário',
-    ageRange: '0 a 1 ano',
+    ageRange: '0 a 2 anos',
     icon: Baby,
     color: 'bg-pimpo-blue',
   },
   {
-    id: 'maternal' as const,
-    name: 'Maternal',
-    ageRange: '1 a 3 anos',
+    id: 'maternal_1' as const,
+    name: 'Maternal I',
+    ageRange: '2 a 3 anos',
     icon: Users,
     color: 'bg-pimpo-red',
   },
   {
-    id: 'jardim' as const,
-    name: 'Jardim',
-    ageRange: '4 a 6 anos',
+    id: 'maternal_2' as const,
+    name: 'Maternal II',
+    ageRange: '3 a 4 anos',
+    icon: Users,
+    color: 'bg-pimpo-red',
+  },
+  {
+    id: 'jardim_1' as const,
+    name: 'Jardim I',
+    ageRange: '4 a 5 anos',
+    icon: BookOpen,
+    color: 'bg-pimpo-green',
+  },
+  {
+    id: 'jardim_2' as const,
+    name: 'Jardim II',
+    ageRange: '5 a 6 anos',
     icon: BookOpen,
     color: 'bg-pimpo-green',
   },
@@ -143,20 +157,20 @@ export default function Pricing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
             {classCards.map((cls) => (
               <Card key={cls.id} className="text-center hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className={`w-16 h-16 ${cls.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                    <cls.icon className="w-8 h-8 text-white" />
+                <CardHeader className="pb-3">
+                  <div className={`w-14 h-14 ${cls.color} rounded-full flex items-center justify-center mx-auto mb-3`}>
+                    <cls.icon className="w-7 h-7 text-white" />
                   </div>
-                  <CardTitle className="font-fredoka text-xl">{cls.name}</CardTitle>
-                  <CardDescription>{cls.ageRange}</CardDescription>
+                  <CardTitle className="font-fredoka text-lg">{cls.name}</CardTitle>
+                  <CardDescription className="text-sm">{cls.ageRange}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Button variant="ghost" className="gap-2" asChild>
+                <CardContent className="pt-0">
+                  <Button variant="ghost" size="sm" className="gap-2" asChild>
                     <a href={GHL_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
-                      Consultar valores
+                      Consultar
                       <ArrowRight className="w-4 h-4" />
                     </a>
                   </Button>
