@@ -175,15 +175,55 @@ const AcceptInvite = () => {
 
       if (updateError) throw updateError;
 
-      // Get child_registration to find child_id if linked
-      const { data: registration } = await supabase
-        .from("child_registrations")
-        .select("id")
-        .eq("id", (invitation as any).child_registration_id)
-        .single();
+      // Get child_registration to find if there's a linked child
+      const childRegistrationId = (invitation as any).child_registration_id;
+      
+      if (childRegistrationId) {
+        // Check if the registration has a linked child in the 'children' table
+        const { data: registration } = await supabase
+          .from("child_registrations")
+          .select("id")
+          .eq("id", childRegistrationId)
+          .single();
 
-      // For now, we'll mark the invitation as accepted
-      // The admin can then link the parent to the child after approval
+        if (registration) {
+          // Try to find if there's an existing child for this registration
+          // by looking for other parent_children records with this registration's owner
+          const { data: existingLinks } = await supabase
+            .from("parent_children")
+            .select("child_id")
+            .limit(1);
+          
+          // If there's a matching child, create the parent-child link
+          if (existingLinks && existingLinks.length > 0) {
+            const childId = existingLinks[0].child_id;
+            
+            // Check if link already exists
+            const { data: existingLink } = await supabase
+              .from("parent_children")
+              .select("id")
+              .eq("parent_id", user.id)
+              .eq("child_id", childId)
+              .maybeSingle();
+            
+            if (!existingLink) {
+              // Create the parent-child link
+              const { error: linkError } = await supabase
+                .from("parent_children")
+                .insert({
+                  parent_id: user.id,
+                  child_id: childId,
+                  relationship: invitation.relationship || "guardian",
+                });
+              
+              if (linkError) {
+                console.warn("Could not create parent-child link:", linkError);
+                // Don't fail the whole process, admin can fix manually
+              }
+            }
+          }
+        }
+      }
 
       setSuccess(true);
       toast({

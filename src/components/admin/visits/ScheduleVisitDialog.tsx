@@ -110,14 +110,30 @@ export function ScheduleVisitDialog({
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
-      // First, try to create in GHL if calendar is selected
+      // First, try to sync contact with GHL if we have contact info
       let ghlAppointmentId = null;
       let ghlContactId = null;
 
-      if (selectedCalendar) {
-        // Create or find contact in GHL first
-        // For now, we'll skip GHL contact creation and just store locally
-        // TODO: Integrate with ghl-sync-contact
+      if (selectedCalendar && (contactEmail || contactPhone)) {
+        try {
+          // Sync contact with GHL
+          const { data: contactData, error: contactError } = await supabase.functions.invoke("ghl-sync-contact", {
+            body: {
+              name: contactName,
+              email: contactEmail || undefined,
+              phone: contactPhone || undefined,
+              source: "visita_escolar",
+            },
+          });
+          
+          if (!contactError && contactData?.contactId) {
+            ghlContactId = contactData.contactId;
+            console.log("GHL contact synced:", ghlContactId);
+          }
+        } catch (ghlError) {
+          // Log but don't fail - we can still save locally
+          console.warn("Could not sync with GHL:", ghlError);
+        }
       }
 
       // Save to local database

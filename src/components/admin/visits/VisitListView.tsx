@@ -1,10 +1,13 @@
 import { format, parseISO, isToday, isTomorrow, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Phone, Mail, User, MoreVertical, CheckCircle, XCircle, Calendar } from "lucide-react";
+import { Clock, Phone, Mail, CheckCircle, XCircle, Calendar, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
 import type { ScheduledVisit } from "@/pages/admin/AdminVisits";
 
 interface VisitListViewProps {
@@ -21,7 +24,31 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   cancelled: { label: "Cancelada", variant: "destructive" },
 };
 
-export function VisitListView({ visits, isLoading, onVisitClick }: VisitListViewProps) {
+export function VisitListView({ visits, isLoading, onVisitClick, onRefresh }: VisitListViewProps) {
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const handleQuickStatusChange = async (e: React.MouseEvent, visitId: string, newStatus: "confirmed" | "cancelled") => {
+    e.stopPropagation();
+    setUpdatingId(visitId);
+    
+    try {
+      const { error } = await supabase
+        .from("scheduled_visits")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", visitId);
+      
+      if (error) throw error;
+      
+      toast.success(newStatus === "confirmed" ? "Visita confirmada!" : "Visita cancelada");
+      onRefresh();
+    } catch (error) {
+      toast.error("Erro ao atualizar status");
+      console.error(error);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -79,6 +106,7 @@ export function VisitListView({ visits, isLoading, onVisitClick }: VisitListView
               const date = parseISO(visit.scheduled_at);
               const status = statusConfig[visit.status] || statusConfig.pending;
               const isOverdue = isPast(date) && visit.status === "pending";
+              const isUpdating = updatingId === visit.id;
 
               return (
                 <Card
@@ -135,22 +163,22 @@ export function VisitListView({ visits, isLoading, onVisitClick }: VisitListView
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // TODO: Quick confirm
-                              }}
+                              className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                              disabled={isUpdating}
+                              onClick={(e) => handleQuickStatusChange(e, visit.id, "confirmed")}
                             >
-                              <CheckCircle className="h-4 w-4" />
+                              {isUpdating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // TODO: Quick cancel
-                              }}
+                              disabled={isUpdating}
+                              onClick={(e) => handleQuickStatusChange(e, visit.id, "cancelled")}
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
