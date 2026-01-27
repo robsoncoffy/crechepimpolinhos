@@ -24,6 +24,7 @@ const UpcomingExpensesAlert = lazy(() => import("@/components/admin/UpcomingExpe
 const StaffAbsencesWidget = lazy(() => import("@/components/admin/StaffAbsencesWidget").then(m => ({ default: m.StaffAbsencesWidget })));
 const TodayAttendanceWidget = lazy(() => import("@/components/admin/TodayAttendanceWidget").then(m => ({ default: m.TodayAttendanceWidget })));
 const EmailHealthWidget = lazy(() => import("@/components/admin/EmailHealthWidget").then(m => ({ default: m.EmailHealthWidget })));
+const WhatsAppStatusWidget = lazy(() => import("@/components/admin/WhatsAppStatusWidget").then(m => ({ default: m.WhatsAppStatusWidget })));
 
 // Widget loading skeleton
 function WidgetSkeleton() {
@@ -187,6 +188,9 @@ export default function AdminDashboard() {
           </Suspense>
           <Suspense fallback={<WidgetSkeleton />}>
             <EmailHealthWidget />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <WhatsAppStatusWidget />
           </Suspense>
           <Suspense fallback={<WidgetSkeleton />}>
             <PendingContractsWidget />
