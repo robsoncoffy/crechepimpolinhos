@@ -1190,6 +1190,13 @@ export type Database = {
             referencedRelation: "employee_profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "employee_time_clock_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_profiles_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       enrollment_contracts: {
@@ -2746,7 +2753,66 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      employee_profiles_safe: {
+        Row: {
+          birth_date: string | null
+          city: string | null
+          created_at: string | null
+          education_level: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string | null
+          hire_date: string | null
+          id: string | null
+          job_title: string | null
+          phone: string | null
+          photo_url: string | null
+          specialization: string | null
+          state: string | null
+          updated_at: string | null
+          user_id: string | null
+          work_shift: string | null
+        }
+        Insert: {
+          birth_date?: string | null
+          city?: string | null
+          created_at?: string | null
+          education_level?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string | null
+          hire_date?: string | null
+          id?: string | null
+          job_title?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          specialization?: string | null
+          state?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          work_shift?: string | null
+        }
+        Update: {
+          birth_date?: string | null
+          city?: string | null
+          created_at?: string | null
+          education_level?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string | null
+          hire_date?: string | null
+          id?: string | null
+          job_title?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          specialization?: string | null
+          state?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          work_shift?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
