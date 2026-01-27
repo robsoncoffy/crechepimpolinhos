@@ -1,193 +1,406 @@
 
+# Plano de Otimização Completa - Top 10 Gargalos de Performance
 
-# Plano de Otimização de Performance - Fase 3
+## Visão Geral
 
-## Resumo das Otimizações Identificadas
-
-Após a implementação das Fases 1 e 2, ainda existem oportunidades para melhorar a performance.
+Este plano aborda sistematicamente os 10 principais gargalos de performance identificados na plataforma Pimpolinhos, priorizados por impacto e complexidade.
 
 ---
 
-## 1. Corrigir Warning de forwardRef
+## Prioridade 1: Cache Global de Dados (Itens 5 e 9)
 
 ### Problema
-O console mostra warning: "Function components cannot be given refs. Attempts to access this ref will fail." nos componentes `PageLoader` e `EmployeeRegistration`.
+Múltiplas páginas buscam os mesmos dados (children, profiles, roles) independentemente, gerando dezenas de chamadas duplicadas ao banco.
 
 ### Solução
-Quando usamos `React.lazy()` com `Suspense`, o componente pode receber uma ref. Precisamos usar `forwardRef` no `PageLoader` ou mover o PageLoader para fora do App para evitar recriação.
+Criar um contexto global `AppDataProvider` que centraliza os dados mais usados com React Query.
 
-### Impacto
-Elimina warnings no console e melhora estabilidade do código.
+### Arquivos a criar
+- `src/contexts/AppDataContext.tsx`
+
+### Arquivos a modificar
+- `src/pages/Dashboard.tsx` - Envolver com AppDataProvider
+- `src/pages/admin/AdminChildren.tsx` - Usar dados do contexto
+- `src/pages/admin/AdminAgenda.tsx` - Usar dados do contexto
+- `src/components/admin/AdminSidebar.tsx` - Remover queries locais
+
+### Código proposto
+```typescript
+// src/contexts/AppDataContext.tsx
+const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
+
+export function AppDataProvider({ children }: { children: ReactNode }) {
+  const { data: allChildren } = useQuery({
+    queryKey: ['children'],
+    queryFn: async () => {
+      const { data } = await supabase.from('children').select('*').order('full_name');
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
+
+  const { data: allProfiles } = useQuery({
+    queryKey: ['profiles-approved'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('*').eq('status', 'approved');
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // ... outros dados compartilhados
+}
+```
 
 ---
 
-## 2. Lazy Loading do Footer com Intersection Observer
+## Prioridade 2: Dividir AdminChildren.tsx (Item 1)
 
 ### Problema
-O Footer é carregado imediatamente em todas as páginas públicas, mesmo que o usuário não role até ele.
+Arquivo monolítico com 1187 linhas contendo formulários, tabelas, diálogos e lógica de negócio misturados.
 
 ### Solução
-Criar um componente `LazyFooter` que usa Intersection Observer para carregar o Footer apenas quando o usuário se aproxima do final da página.
+Extrair componentes e lógica em arquivos separados.
+
+### Arquivos a criar
+- `src/components/admin/children/ChildForm.tsx` - Formulário de cadastro/edição
+- `src/components/admin/children/ChildTable.tsx` - Tabela de listagem
+- `src/components/admin/children/LinkParentDialog.tsx` - Dialog de vincular responsável
+- `src/components/admin/children/ChildStatsCards.tsx` - Cards de estatísticas
+- `src/hooks/useChildren.ts` - Hook para gerenciar dados de crianças
+
+### Arquivos a modificar
+- `src/pages/admin/AdminChildren.tsx` - Reduzir para ~200 linhas, apenas orquestrando componentes
+
+### Estrutura proposta
+```text
+src/
+├── pages/admin/
+│   └── AdminChildren.tsx (~200 linhas - orquestrador)
+├── components/admin/children/
+│   ├── ChildForm.tsx (~150 linhas)
+│   ├── ChildTable.tsx (~200 linhas)
+│   ├── LinkParentDialog.tsx (~120 linhas)
+│   ├── ChildStatsCards.tsx (~80 linhas)
+│   └── index.ts (exports)
+└── hooks/
+    └── useChildren.ts (~100 linhas - lógica de dados)
+```
 
 ---
 
-## 3. Remover Animações Não Utilizadas do Tailwind
+## Prioridade 3: Lazy Loading de Recharts em Tabs (Item 3)
 
 ### Problema
-O `tailwind.config.ts` define animações customizadas (`bounce-gentle`, `wiggle`, `float`) que não estão sendo usadas em nenhum componente.
+Componentes como `TodayOverviewWidget` e `WeeklyNutritionSummary` importam recharts imediatamente, mesmo quando suas tabs não estão visíveis.
 
 ### Solução
-Remover as definições de keyframes e animations não utilizadas para reduzir o CSS final.
+Criar wrapper de lazy loading para componentes de gráficos dentro de tabs.
+
+### Arquivos a modificar
+- `src/pages/admin/AdminMenu.tsx` - Lazy load de tabs com gráficos
+- `src/pages/admin/AdminReports.tsx` - Lazy load de componentes de relatório
+- `src/pages/admin/AdminTimeClock.tsx` - Lazy load de gráficos
+
+### Padrão a implementar
+```typescript
+// Dentro de AdminMenu.tsx
+const NutritionTabContent = lazy(() => import('@/components/admin/nutritionist/TodayOverviewWidget'));
+
+<TabsContent value="nutrition">
+  <Suspense fallback={<Skeleton className="h-64" />}>
+    <NutritionTabContent {...props} />
+  </Suspense>
+</TabsContent>
+```
 
 ---
 
-## 4. Otimizar Estratégia de Cache do PWA
+## Prioridade 4: Otimizar AdminSidebar (Item 2)
 
 ### Problema
-O service worker atual usa uma única estratégia para todos os assets. Podemos refinar para melhor performance.
+Importa 27 ícones do Lucide e renderiza todos em cada navegação.
 
 ### Solução
-Adicionar estratégia `StaleWhileRevalidate` para chunks JS e `CacheFirst` para imagens e fontes.
+1. Memoizar o componente da sidebar
+2. Usar React.memo nos itens do menu
+3. Mover definições de menu para fora do componente
+
+### Arquivos a modificar
+- `src/components/admin/AdminSidebar.tsx`
+
+### Código proposto
+```typescript
+// Mover para fora do componente
+const MENU_CONFIG = {
+  studentItems: [...],
+  routineItems: [...],
+  // ...
+} as const;
+
+// Memoizar itens individuais
+const MemoizedMenuItem = memo(function MenuItem({ item, isActive }: MenuItemProps) {
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+        <Link to={item.href}>
+          <item.icon className="h-4 w-4" />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+});
+
+// Memoizar a sidebar inteira
+export const AdminSidebar = memo(function AdminSidebar() { ... });
+```
 
 ---
 
-## 5. React Router Future Flags
+## Prioridade 5: Consolidar Code Splitting (Item 4)
 
 ### Problema
-O console mostra warnings sobre future flags do React Router v7 que devem ser habilitadas.
+45+ chunks separados geram muitas requisições HTTP.
 
 ### Solução
-Adicionar as flags `v7_startTransition` e `v7_relativeSplatPath` no BrowserRouter.
+Agrupar páginas relacionadas em chunks maiores usando Vite.
+
+### Arquivos a modificar
+- `vite.config.ts`
+
+### Configuração proposta
+```typescript
+manualChunks: {
+  'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+  'vendor-query': ['@tanstack/react-query'],
+  'vendor-ui': ['@radix-ui/react-dialog', ...],
+  'vendor-charts': ['recharts'],
+  // Agrupar páginas por categoria
+  'admin-core': [
+    './src/pages/admin/AdminDashboard.tsx',
+    './src/pages/admin/AdminChildren.tsx',
+    './src/pages/admin/AdminAgenda.tsx',
+  ],
+  'admin-finance': [
+    './src/pages/admin/AdminPayments.tsx',
+    './src/pages/admin/AdminReports.tsx',
+    './src/pages/admin/AdminBudgets.tsx',
+  ],
+  'admin-comm': [
+    './src/pages/admin/AdminChat.tsx',
+    './src/pages/admin/AdminFeed.tsx',
+    './src/pages/admin/AdminEmails.tsx',
+  ],
+}
+```
 
 ---
 
-## 6. Lazy Loading dos Componentes de Gráficos
+## Prioridade 6: Otimizar Imports de date-fns (Item 7)
 
 ### Problema
-Componentes que usam `recharts` (FinancialForecastTab, FinancialReportsTab, WeeklyCashFlowTab, GrowthChart) são importados sincronamente dentro de páginas já lazy-loaded, mas podemos otimizar ainda mais.
+Imports não tree-shaked podem incluir a biblioteca inteira.
 
 ### Solução
-Como esses componentes só são renderizados em tabs específicas, podemos criar wrappers lazy dentro das próprias páginas para carregar o recharts apenas quando necessário.
+Usar imports específicos de subpaths.
+
+### Arquivos a modificar (busca e substituição global)
+- Todos os arquivos que usam date-fns
+
+### Padrão a implementar
+```typescript
+// ❌ Evitar
+import { format, addDays } from "date-fns";
+
+// ✅ Preferir
+import format from "date-fns/format";
+import addDays from "date-fns/addDays";
+```
+
+Nota: Com a versão atual do date-fns (v3), os imports já são tree-shakeable por padrão. Verificar se há imports excessivos.
 
 ---
 
-## 7. Prefetch de Rotas do Dashboard
+## Prioridade 7: Extrair Formulários Grandes (Item 8)
 
 ### Problema
-Quando o usuário está no Dashboard, navegar para subpáginas ainda requer download dos chunks.
+Formulários enormes em AdminChildren, AdminAgenda e AdminConfig estão inline.
 
 ### Solução
-Implementar prefetch das rotas mais acessadas (criancas, agenda, cardapio) quando o Dashboard carrega.
+Criar componentes de formulário separados e lazy-loadable.
+
+### Arquivos a criar
+- `src/components/admin/forms/AgendaFormDialog.tsx` - Extraído de AdminAgenda
+- `src/components/admin/forms/ConfigForm.tsx` - Extraído de AdminConfig
+
+### Arquivos a modificar
+- `src/pages/admin/AdminAgenda.tsx` - Usar AgendaFormDialog lazy
+- `src/pages/admin/AdminConfig.tsx` - Usar ConfigForm lazy
 
 ---
 
-## Resumo das Alterações por Arquivo
+## Prioridade 8: Lazy Loading de Imagens (Item 10)
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/App.tsx` | Corrigir PageLoader e adicionar future flags |
-| `src/components/layout/PublicLayout.tsx` | Lazy loading do Footer |
-| `tailwind.config.ts` | Remover animações não utilizadas |
-| `vite.config.ts` | Otimizar estratégia de cache PWA |
+### Problema
+Galeria e avatares carregam imagens imediatamente.
+
+### Solução
+Criar componente de imagem otimizada com IntersectionObserver.
+
+### Arquivos a criar
+- `src/components/ui/lazy-image.tsx`
+
+### Arquivos a modificar
+- `src/pages/admin/AdminGallery.tsx`
+- `src/components/parent/PhotoGalleryTab.tsx`
+
+### Código proposto
+```typescript
+// src/components/ui/lazy-image.tsx
+export function LazyImage({ src, alt, className, ...props }: LazyImageProps) {
+  const [isVisible, setIsVisible] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    if (imgRef.current) observer.observe(imgRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={imgRef} className={className}>
+      {isVisible ? (
+        <img src={src} alt={alt} loading="lazy" {...props} />
+      ) : (
+        <Skeleton className="w-full h-full" />
+      )}
+    </div>
+  );
+}
+```
 
 ---
 
-## Impacto Esperado
+## Prioridade 9: Reduzir Dependência de Radix UI (Item 6)
 
-| Métrica | Melhoria Estimada |
-|---------|-------------------|
-| Warnings no Console | -100% (eliminados) |
-| CSS Bundle Size | -5-10% |
-| Footer Load Time | Delayed (melhor perceived perf) |
-| Cache Hit Rate | +20-30% |
+### Problema
+Múltiplos primitivos Radix carregam em cada página.
+
+### Solução
+Verificar uso real e substituir componentes simples por HTML nativo.
+
+### Avaliação
+- Dialog, Select, Tabs, Tooltip: Manter (funcionalidade complexa)
+- Separator: Substituir por `<hr />` ou div com border
+- Label: Substituir por `<label>` nativo
+
+### Arquivos a modificar
+- Componentes que usam apenas Separator/Label
+
+---
+
+## Prioridade 10: Agrupar Dashboards por Cargo (Item 4 complementar)
+
+### Problema
+Cada dashboard (Teacher, Cook, Nutritionist, etc.) é um chunk separado com código repetido.
+
+### Solução
+Criar componente base reutilizável e especializar apenas widgets específicos.
+
+### Arquivos a criar
+- `src/components/admin/dashboards/BaseDashboard.tsx`
+- `src/components/admin/dashboards/DashboardWidgetRegistry.tsx`
+
+### Arquivos a modificar
+- `src/pages/admin/TeacherDashboard.tsx`
+- `src/pages/admin/CookDashboard.tsx`
+- `src/pages/admin/NutritionistDashboard.tsx`
+- `src/pages/admin/PedagogueDashboard.tsx`
+- `src/pages/admin/AuxiliarDashboard.tsx`
+
+---
+
+## Resumo de Impacto Esperado
+
+| Otimização | Redução Bundle | Melhoria LCP | Redução Requests |
+|------------|----------------|--------------|------------------|
+| Cache Global | - | -30% | -50% |
+| Dividir AdminChildren | -50KB | -15% | - |
+| Lazy Recharts em Tabs | -400KB | -20% | - |
+| Memoizar Sidebar | - | -10% | - |
+| Consolidar Chunks | - | - | -40% |
+| Otimizar date-fns | -20KB | - | - |
+| Extrair Formulários | -30KB | -10% | - |
+| Lazy Images | - | -25% | -30% |
+| Simplificar Radix | -15KB | - | - |
+| Base Dashboard | -40KB | - | - |
+
+**Total Estimado**: ~555KB a menos no bundle, 40-60% de melhoria no LCP, 50% menos requisições à API.
+
+---
+
+## Ordem de Implementação Recomendada
+
+```text
+Fase 1 (Alto Impacto, Baixa Complexidade):
+├── 1. Cache Global (AppDataContext)
+├── 2. Memoizar AdminSidebar
+└── 3. Lazy Images Component
+
+Fase 2 (Alto Impacto, Média Complexidade):
+├── 4. Dividir AdminChildren em componentes
+├── 5. Lazy loading de Recharts em Tabs
+└── 6. Consolidar code splitting no Vite
+
+Fase 3 (Médio Impacto, Alta Complexidade):
+├── 7. Extrair formulários grandes
+├── 8. Base Dashboard reutilizável
+└── 9. Otimizar imports date-fns
+
+Fase 4 (Refinamento):
+└── 10. Simplificar uso de Radix
+```
 
 ---
 
 ## Seção Técnica
 
+### Arquivos que serão criados:
+1. `src/contexts/AppDataContext.tsx` - Cache global de dados
+2. `src/components/admin/children/ChildForm.tsx` - Formulário extraído
+3. `src/components/admin/children/ChildTable.tsx` - Tabela extraída
+4. `src/components/admin/children/LinkParentDialog.tsx` - Dialog extraído
+5. `src/components/admin/children/ChildStatsCards.tsx` - Cards extraídos
+6. `src/hooks/useChildren.ts` - Hook de dados
+7. `src/components/ui/lazy-image.tsx` - Imagem otimizada
+8. `src/components/admin/forms/AgendaFormDialog.tsx` - Formulário extraído
+9. `src/components/admin/dashboards/BaseDashboard.tsx` - Dashboard base
+
 ### Arquivos que serão modificados:
-1. `src/App.tsx` - Corrigir PageLoader e adicionar future flags do React Router
-2. `src/components/layout/PublicLayout.tsx` - Lazy loading do Footer
-3. `tailwind.config.ts` - Remover animações não utilizadas
-4. `vite.config.ts` - Adicionar `StaleWhileRevalidate` para JS chunks
+1. `src/pages/Dashboard.tsx` - Adicionar AppDataProvider
+2. `src/pages/admin/AdminChildren.tsx` - Refatorar para ~200 linhas
+3. `src/pages/admin/AdminAgenda.tsx` - Extrair formulário
+4. `src/pages/admin/AdminMenu.tsx` - Lazy load de tabs
+5. `src/components/admin/AdminSidebar.tsx` - Memoização
+6. `vite.config.ts` - Novos manual chunks
+7. `src/pages/admin/AdminGallery.tsx` - Usar LazyImage
+8. Dashboards específicos - Usar BaseDashboard
 
-### Código PageLoader corrigido (App.tsx):
-```typescript
-// Move PageLoader outside to avoid recreating on each render
-function PageLoader() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  );
-}
-```
-
-### Código Future Flags (App.tsx):
-```typescript
-<BrowserRouter
-  future={{
-    v7_startTransition: true,
-    v7_relativeSplatPath: true,
-  }}
->
-```
-
-### Código Lazy Footer (PublicLayout.tsx):
-```typescript
-const LazyFooter = lazy(() => import("./Footer").then(m => ({ default: m.Footer })));
-
-export function PublicLayout({ children }: PublicLayoutProps) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">{children}</main>
-      <Suspense fallback={<div className="h-64 bg-primary" />}>
-        <LazyFooter />
-      </Suspense>
-    </div>
-  );
-}
-```
-
-### Tailwind Config - Remover animações não usadas:
-```typescript
-keyframes: {
-  "accordion-down": { ... },
-  "accordion-up": { ... },
-  // Remover bounce-gentle, wiggle, float
-},
-animation: {
-  "accordion-down": "...",
-  "accordion-up": "...",
-  // Remover bounce-gentle, wiggle, float
-},
-```
-
-### Vite Config - Cache Strategy:
-```typescript
-runtimeCaching: [
-  {
-    urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-    handler: "NetworkFirst",
-    options: { cacheName: "supabase-api-cache", expiration: { maxEntries: 100, maxAgeSeconds: 3600 } },
-  },
-  {
-    urlPattern: /\.(?:js|css)$/i,
-    handler: "StaleWhileRevalidate",
-    options: { cacheName: "static-resources", expiration: { maxEntries: 100, maxAgeSeconds: 86400 } },
-  },
-  {
-    urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|woff|woff2)$/i,
-    handler: "CacheFirst",
-    options: { cacheName: "images-fonts", expiration: { maxEntries: 100, maxAgeSeconds: 2592000 } },
-  },
-],
-```
+### Dependências:
+- Nenhuma nova dependência necessária
 
 ### Considerações:
-- Todas as alterações são retrocompatíveis
-- O lazy loading do Footer não afeta SEO pois bots carregam a página completa
-- As future flags preparam o projeto para React Router v7
-- A remoção de animações não usadas é segura (confirmado via busca no código)
-
+- Implementar em fases para evitar regressões
+- Testar cada fase antes de prosseguir
+- Manter compatibilidade com PWA e cache existente
+- Monitorar métricas de performance após cada fase
