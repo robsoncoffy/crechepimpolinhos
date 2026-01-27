@@ -53,6 +53,7 @@ const AdminPickupHistory = lazy(() => import("./admin/AdminPickupHistory"));
 const AdminEmailLogs = lazy(() => import("./admin/AdminEmailLogs"));
 const AdminShoppingList = lazy(() => import("./admin/AdminShoppingList"));
 const AdminBudgets = lazy(() => import("./admin/AdminBudgets"));
+const AdminTimeClockConfig = lazy(() => import("./admin/AdminTimeClockConfig"));
 
 // Loading fallback component
 function PageLoader() {
@@ -157,6 +158,11 @@ function DashboardContent() {
             <Route path="/ponto" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminTimeClock />
+              </ProtectedRoute>
+            } />
+            <Route path="/ponto/config" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTimeClockConfig />
               </ProtectedRoute>
             } />
             <Route path="/pre-matriculas" element={
