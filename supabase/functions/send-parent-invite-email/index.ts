@@ -15,6 +15,7 @@ interface InviteEmailRequest {
   couponCode?: string;
   couponDiscountType?: "percentage" | "fixed";
   couponDiscountValue?: number;
+  ghlContactId?: string; // Direct GHL contact ID for reliable WhatsApp delivery
 }
 
 interface EmailLogEntry {
@@ -195,51 +196,58 @@ async function sendEmailViaGHL(
   return { success: true, contactId, messageId };
 }
 
-// Send WhatsApp message via GHL
+// Send WhatsApp message via GHL using direct contact ID (preferred) or phone search (fallback)
 async function sendWhatsAppViaGHL(
-  phone: string,
+  phoneOrContactId: string,
   message: string,
   apiKey: string,
   locationId: string,
-  logger: ReturnType<typeof createLogger>
+  logger: ReturnType<typeof createLogger>,
+  useDirectContactId: boolean = false
 ): Promise<{ success: boolean; contactId?: string; messageId?: string; error?: string }> {
-  // Normalize phone number (remove non-digits, add country code if needed)
-  let normalizedPhone = phone.replace(/\D/g, "");
-  if (normalizedPhone.startsWith("0")) {
-    normalizedPhone = normalizedPhone.substring(1);
-  }
-  if (!normalizedPhone.startsWith("55")) {
-    normalizedPhone = "55" + normalizedPhone;
-  }
-  normalizedPhone = "+" + normalizedPhone;
-
-  // Search for contact by phone
-  const searchResponse = await fetch(
-    `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&phone=${encodeURIComponent(normalizedPhone)}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Version: "2021-07-28",
-      },
-    }
-  );
-
   let contactId: string | undefined;
 
-  if (searchResponse.ok) {
-    const searchResult = await searchResponse.json();
-    if (searchResult.contact?.id) {
-      contactId = searchResult.contact.id;
-      logger.info("ghl_whatsapp_contact_found", { ghlContactId: contactId });
-    } else {
-      logger.warn("ghl_whatsapp_contact_not_found", { metadata: { phone: normalizedPhone } });
-      return { success: false, error: "Contact not found for WhatsApp" };
-    }
+  if (useDirectContactId) {
+    // Direct contact ID provided - no search needed
+    contactId = phoneOrContactId;
+    logger.info("ghl_whatsapp_using_direct_contact", { ghlContactId: contactId });
   } else {
-    const errorText = await searchResponse.text();
-    logger.error("ghl_whatsapp_search_failed", errorText);
-    return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
+    // Normalize phone number (remove non-digits, add country code if needed)
+    let normalizedPhone = phoneOrContactId.replace(/\D/g, "");
+    if (normalizedPhone.startsWith("0")) {
+      normalizedPhone = normalizedPhone.substring(1);
+    }
+    if (!normalizedPhone.startsWith("55")) {
+      normalizedPhone = "55" + normalizedPhone;
+    }
+    normalizedPhone = "+" + normalizedPhone;
+
+    // Search for contact by phone
+    const searchResponse = await fetch(
+      `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&phone=${encodeURIComponent(normalizedPhone)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Version: "2021-07-28",
+        },
+      }
+    );
+
+    if (searchResponse.ok) {
+      const searchResult = await searchResponse.json();
+      if (searchResult.contact?.id) {
+        contactId = searchResult.contact.id;
+        logger.info("ghl_whatsapp_contact_found", { ghlContactId: contactId });
+      } else {
+        logger.warn("ghl_whatsapp_contact_not_found", { metadata: { phone: normalizedPhone } });
+        return { success: false, error: "Contact not found for WhatsApp" };
+      }
+    } else {
+      const errorText = await searchResponse.text();
+      logger.error("ghl_whatsapp_search_failed", errorText);
+      return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
+    }
   }
 
   // Send WhatsApp message
@@ -341,12 +349,12 @@ serve(async (req: Request): Promise<Response> => {
     logger.info("admin_verified", { metadata: { adminId: user.id } });
 
     const body: InviteEmailRequest = await req.json();
-    const { email, phone, inviteCode, childName, parentName, couponCode, couponDiscountType, couponDiscountValue } = body;
+    const { email, phone, inviteCode, childName, parentName, couponCode, couponDiscountType, couponDiscountValue, ghlContactId } = body;
 
     logger.info("request_parsed", { 
       to: email, 
       templateType: "parent_invite",
-      metadata: { inviteCode, childName: childName || null, hasCoupon: !!couponCode, hasPhone: !!phone }
+      metadata: { inviteCode, childName: childName || null, hasCoupon: !!couponCode, hasPhone: !!phone, hasGhlContactId: !!ghlContactId }
     });
 
     if (!email || !inviteCode) {
@@ -553,29 +561,38 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email via GHL");
     }
 
-    // Send WhatsApp notification if phone is available
+    // Send WhatsApp notification - prefer direct ghlContactId, fallback to phone search
     let whatsappSent = false;
-    if (phone) {
+    if (ghlContactId || phone) {
       const discountText = normalizedCouponCode && resolvedCouponDiscountValue
         ? (resolvedCouponDiscountType === "percentage" 
             ? `🎁 Use o cupom *${normalizedCouponCode}* e ganhe *${resolvedCouponDiscountValue}% OFF*!\n\n`
             : `🎁 Use o cupom *${normalizedCouponCode}* e ganhe *R$ ${resolvedCouponDiscountValue.toFixed(2)} OFF*!\n\n`)
         : "";
       
-      const whatsappMessage = `🎈 *Olá${parentName ? `, ${parentName}` : ""}!*\n\nVocê foi convidado(a) para fazer parte da *Creche Pimpolinhos*${childName ? ` como responsável de *${childName}*` : ""}!\n\n✨ Seu código de convite: *${inviteCode}*\n\n${discountText}👉 Clique para se cadastrar: ${signupUrl}\n\n💜 Creche Pimpolinhos`;
+      const whatsappMessage = `🎈 *Olá${parentName ? `, ${parentName}` : ""}!*
 
-      const whatsappResult = await sendWhatsAppViaGHL(
-        phone,
-        whatsappMessage,
-        GHL_API_KEY,
-        GHL_LOCATION_ID,
-        logger
-      );
+Você foi convidado(a) para finalizar o cadastro na *Creche Pimpolinhos*${childName ? ` como responsável de *${childName}*` : ""}!
+
+✅ Sua pré-matrícula foi *aprovada*! 🎉
+
+${discountText}👉 *Clique para completar seu cadastro:*
+${signupUrl}
+
+📋 Use o código *${inviteCode}* se solicitado.
+
+💜 Creche Pimpolinhos`;
+
+      // Use direct contactId if available, otherwise search by phone
+      const whatsappResult = ghlContactId
+        ? await sendWhatsAppViaGHL(ghlContactId, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, true)
+        : await sendWhatsAppViaGHL(phone!, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, false);
+      
       whatsappSent = whatsappResult.success;
       if (whatsappResult.success) {
-        logger.info("whatsapp_sent", { metadata: { phone } });
+        logger.info("whatsapp_invite_sent", { metadata: { phone, ghlContactId } });
       } else {
-        logger.warn("whatsapp_failed", { error: whatsappResult.error });
+        logger.warn("whatsapp_invite_failed", { error: whatsappResult.error });
       }
     }
 
