@@ -51,18 +51,20 @@ serve(async (req) => {
     let stageId = "";
     let skipCache = false;
 
+    let requestBody: Record<string, any> = {};
+    
     if (req.method === "POST") {
-      const body = await req.json();
-      action = body.action || "list";
-      conversationId = body.conversationId || "";
-      contactId = body.contactId || "";
-      limit = body.limit || "20";
-      messageContent = body.message || "";
-      messageType = body.type || "SMS";
-      pipelineId = body.pipelineId || "";
-      opportunityId = body.opportunityId || "";
-      stageId = body.stageId || "";
-      skipCache = body.skipCache || false;
+      requestBody = await req.json();
+      action = requestBody.action || "list";
+      conversationId = requestBody.conversationId || "";
+      contactId = requestBody.contactId || "";
+      limit = requestBody.limit || "20";
+      messageContent = requestBody.message || "";
+      messageType = requestBody.type || "SMS";
+      pipelineId = requestBody.pipelineId || "";
+      opportunityId = requestBody.opportunityId || "";
+      stageId = requestBody.stageId || "";
+      skipCache = requestBody.skipCache || false;
     }
 
     const baseUrl = "https://services.leadconnectorhq.com";
@@ -435,6 +437,150 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Update opportunity (name, value, stage)
+    if (action === "updateOpportunity") {
+      if (!opportunityId) {
+        throw new Error("opportunityId is required");
+      }
+
+      const updateData: Record<string, any> = {};
+
+      if (requestBody.name) updateData.name = requestBody.name;
+      if (requestBody.monetaryValue !== undefined) updateData.monetaryValue = requestBody.monetaryValue;
+      if (requestBody.stageId) {
+        updateData.pipelineStageId = requestBody.stageId;
+        updateData.pipelineId = pipelineId;
+      }
+
+      const response = await fetchWithTimeout(
+        `${baseUrl}/opportunities/${opportunityId}`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(updateData),
+        },
+        10000
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Update Opportunity Error:", response.status, errorText);
+        throw new Error(`Failed to update opportunity: ${response.status}`);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Update opportunity status (won/lost/abandoned/open)
+    if (action === "updateOpportunityStatus") {
+      if (!opportunityId) {
+        throw new Error("opportunityId is required");
+      }
+
+      const status = requestBody.status || "open";
+
+      const response = await fetchWithTimeout(
+        `${baseUrl}/opportunities/${opportunityId}/status`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ status }),
+        },
+        10000
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Update Status Error:", response.status, errorText);
+        throw new Error(`Failed to update opportunity status: ${response.status}`);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create new opportunity
+    if (action === "createOpportunity") {
+      if (!requestBody.name || !requestBody.pipelineId || !requestBody.stageId) {
+        throw new Error("name, pipelineId, and stageId are required");
+      }
+
+      // First, create or find contact if contact data provided
+      let newContactId = requestBody.contactId;
+      
+      if (!newContactId && (requestBody.contactName || requestBody.contactEmail || requestBody.contactPhone)) {
+        // Create a new contact
+        const contactPayload: Record<string, any> = {
+          locationId: GHL_LOCATION_ID,
+        };
+
+        if (requestBody.contactName) {
+          const nameParts = requestBody.contactName.split(" ");
+          contactPayload.firstName = nameParts[0];
+          contactPayload.lastName = nameParts.slice(1).join(" ") || "";
+          contactPayload.name = requestBody.contactName;
+        }
+        if (requestBody.contactEmail) contactPayload.email = requestBody.contactEmail;
+        if (requestBody.contactPhone) contactPayload.phone = requestBody.contactPhone;
+
+        const contactResponse = await fetchWithTimeout(
+          `${baseUrl}/contacts/`,
+          {
+            method: "POST",
+            headers,
+            body: JSON.stringify(contactPayload),
+          },
+          10000
+        );
+
+        if (contactResponse.ok) {
+          const contactData = await contactResponse.json();
+          newContactId = contactData.contact?.id;
+        }
+      }
+
+      // Create the opportunity
+      const opportunityPayload: Record<string, any> = {
+        name: requestBody.name,
+        pipelineId: requestBody.pipelineId,
+        pipelineStageId: requestBody.stageId,
+        status: "open",
+        monetaryValue: requestBody.monetaryValue || 0,
+      };
+
+      if (newContactId) {
+        opportunityPayload.contactId = newContactId;
+      }
+
+      const response = await fetchWithTimeout(
+        `${baseUrl}/opportunities/`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(opportunityPayload),
+        },
+        10000
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Create Opportunity Error:", response.status, errorText);
+        throw new Error(`Failed to create opportunity: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      return new Response(
+        JSON.stringify({ success: true, opportunity: result.opportunity }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
