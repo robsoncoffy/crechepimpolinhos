@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    AGUARDANDO_APROVACAO: "53392148-570b-449f-8326-e88ddb69751a",
+  },
+};
+
 interface InviteEmailRequest {
   email: string;
   phone?: string;
@@ -595,10 +603,88 @@ ${signupUrl}
       }
       
       whatsappSent = whatsappResult.success;
+      const finalContactId = whatsappResult.contactId || effectiveContactId;
+      
       if (whatsappResult.success) {
         logger.info("whatsapp_invite_sent", { metadata: { phone, contactId: effectiveContactId } });
       } else {
         logger.warn("whatsapp_invite_failed", { error: whatsappResult.error });
+      }
+
+      // Move opportunity to "Aguardando Aprovação" stage in pipeline
+      if (finalContactId) {
+        try {
+          // Search for existing opportunity or create one
+          const oppSearchResponse = await fetch(
+            `https://services.leadconnectorhq.com/opportunities/search`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${GHL_API_KEY}`,
+                "Content-Type": "application/json",
+                Version: "2021-07-28",
+              },
+              body: JSON.stringify({
+                locationId: GHL_LOCATION_ID,
+                contactId: finalContactId,
+                pipelineId: GHL_PIPELINE.id,
+              }),
+            }
+          );
+
+          if (oppSearchResponse.ok) {
+            const oppSearchResult = await oppSearchResponse.json();
+            const opportunities = oppSearchResult.opportunities || [];
+
+            if (opportunities.length > 0) {
+              // Move existing opportunity
+              const oppId = opportunities[0].id;
+              await fetch(
+                `https://services.leadconnectorhq.com/opportunities/${oppId}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-07-28",
+                  },
+                  body: JSON.stringify({
+                    pipelineStageId: GHL_PIPELINE.stages.AGUARDANDO_APROVACAO,
+                    pipelineId: GHL_PIPELINE.id,
+                  }),
+                }
+              );
+              logger.info("opportunity_moved", { metadata: { stage: "Aguardando Aprovação", oppId } });
+            } else {
+              // Create new opportunity
+              const createOppResponse = await fetch(
+                `https://services.leadconnectorhq.com/opportunities/`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-07-28",
+                  },
+                  body: JSON.stringify({
+                    locationId: GHL_LOCATION_ID,
+                    contactId: finalContactId,
+                    pipelineId: GHL_PIPELINE.id,
+                    pipelineStageId: GHL_PIPELINE.stages.AGUARDANDO_APROVACAO,
+                    name: `Matrícula - ${parentName || email}`,
+                    status: "open",
+                  }),
+                }
+              );
+
+              if (createOppResponse.ok) {
+                logger.info("opportunity_created", { metadata: { stage: "Aguardando Aprovação" } });
+              }
+            }
+          }
+        } catch (oppError) {
+          logger.warn("opportunity_update_failed", { error: oppError instanceof Error ? oppError.message : String(oppError) });
+        }
       }
     }
 

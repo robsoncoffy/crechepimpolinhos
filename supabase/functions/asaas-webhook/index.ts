@@ -6,6 +6,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, asaas-access-token",
 };
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    MATRICULADO: "4a775fa7-06f2-4133-b0ac-2d0c47962973",
+  },
+};
+
 // Status map from Asaas to our internal statuses
 const statusMap: Record<string, string> = {
   PENDING: "pending",
@@ -251,6 +259,50 @@ serve(async (req) => {
                           }
                         );
                         console.log("GHL contact updated with payment_confirmed tags");
+
+                        // Move opportunity to "Matriculado" (final stage) and mark as won
+                        const oppSearchResponse = await fetch(
+                          `https://services.leadconnectorhq.com/opportunities/search`,
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${GHL_API_KEY}`,
+                              "Content-Type": "application/json",
+                              Version: "2021-07-28",
+                            },
+                            body: JSON.stringify({
+                              locationId: GHL_LOCATION_ID,
+                              contactId: ghlContactId,
+                              pipelineId: GHL_PIPELINE.id,
+                            }),
+                          }
+                        );
+
+                        if (oppSearchResponse.ok) {
+                          const oppSearchResult = await oppSearchResponse.json();
+                          const opportunities = oppSearchResult.opportunities || [];
+
+                          if (opportunities.length > 0) {
+                            const oppId = opportunities[0].id;
+                            await fetch(
+                              `https://services.leadconnectorhq.com/opportunities/${oppId}`,
+                              {
+                                method: "PUT",
+                                headers: {
+                                  Authorization: `Bearer ${GHL_API_KEY}`,
+                                  "Content-Type": "application/json",
+                                  Version: "2021-07-28",
+                                },
+                                body: JSON.stringify({
+                                  pipelineStageId: GHL_PIPELINE.stages.MATRICULADO,
+                                  pipelineId: GHL_PIPELINE.id,
+                                  status: "won", // Mark as won!
+                                }),
+                              }
+                            );
+                            console.log("Opportunity moved to Matriculado stage and marked as WON");
+                          }
+                        }
 
                         // Send WhatsApp confirmation
                         const whatsappMessage = `✅ *Olá, ${parentName}!*

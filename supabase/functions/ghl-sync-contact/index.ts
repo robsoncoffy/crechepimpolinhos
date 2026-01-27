@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    NOVO_LEAD: "3c964fcf-2df2-4547-9446-2f503d51fe85",
+    PRE_MATRICULA_RECEBIDA: "ebe92739-d1c6-4721-8d05-129658cf3a36",
+  },
+};
+
 interface SyncContactRequest {
   preEnrollmentId: string;
 }
@@ -332,6 +341,38 @@ Recebemos a pré-matrícula de *${childFirstName}* para a turma de *${turmaDesej
       }
     } catch (whatsappError) {
       console.warn("WhatsApp send error:", whatsappError);
+    }
+
+    // Create opportunity in pipeline - Stage: Pré-Matrícula Recebida
+    try {
+      const createOppResponse = await fetch(
+        `https://services.leadconnectorhq.com/opportunities/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${GHL_API_KEY}`,
+            "Content-Type": "application/json",
+            Version: "2021-07-28",
+          },
+          body: JSON.stringify({
+            locationId: GHL_LOCATION_ID,
+            contactId: ghlContactId,
+            pipelineId: GHL_PIPELINE.id,
+            pipelineStageId: GHL_PIPELINE.stages.PRE_MATRICULA_RECEBIDA,
+            name: `Matrícula - ${preEnrollment.child_name}`,
+            status: "open",
+          }),
+        }
+      );
+
+      if (createOppResponse.ok) {
+        console.log("Created opportunity in pipeline: Pré-Matrícula Recebida");
+      } else {
+        const oppError = await createOppResponse.text();
+        console.warn("Failed to create opportunity:", oppError);
+      }
+    } catch (oppError) {
+      console.warn("Error creating opportunity:", oppError);
     }
 
     return new Response(
