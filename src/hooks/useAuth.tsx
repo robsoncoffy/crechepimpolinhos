@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Mark this browser session as active
     sessionStorage.setItem('pimpolinhos_session_active', 'true');
 
-    const fetchUserData = async (userId: string) => {
+    const fetchUserData = async (userId: string): Promise<boolean> => {
       try {
         // Fetch profile and roles in parallel
         const [profileResult, rolesResult] = await Promise.all([
@@ -77,17 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .eq("user_id", userId)
         ]);
 
-        if (!isMounted) return;
+        if (!isMounted) return false;
 
-        if (profileResult.data) {
+        if (profileResult.error) {
+          console.error("Error fetching profile:", profileResult.error);
+        } else if (profileResult.data) {
           setProfile(profileResult.data);
         }
 
-        if (rolesResult.data) {
+        if (rolesResult.error) {
+          console.error("Error fetching roles:", rolesResult.error);
+        } else if (rolesResult.data) {
           setRoles(rolesResult.data.map((r) => r.role));
         }
+        
+        return true;
       } catch (error) {
         console.error("Error fetching user data:", error);
+        return false;
       }
     };
 

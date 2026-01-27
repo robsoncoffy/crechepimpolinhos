@@ -137,11 +137,25 @@ export function getClassDisplayName(classType: ClassType, birthDate?: string | D
  * Get price for a plan, considering Maternal I uses Berçário prices
  */
 export function getPrice(classType: ClassType, planType: PlanType, birthDate?: string | Date): number {
+  // Validate inputs
+  if (!classType || !planType) {
+    console.warn("getPrice called with invalid params:", { classType, planType });
+    return 0;
+  }
+  
   // If maternal and we have birth date, check if it's Maternal I (uses Berçário prices)
   if (classType === 'maternal' && birthDate && isMaternalI(birthDate)) {
-    return PRICES.bercario[planType] ?? 0;
+    return PRICES.bercario?.[planType] ?? 0;
   }
-  return PRICES[classType]?.[planType] ?? 0;
+  
+  // Safe access with fallback
+  const classPrice = PRICES[classType];
+  if (!classPrice) {
+    console.warn("Unknown class type:", classType);
+    return 0;
+  }
+  
+  return classPrice[planType] ?? 0;
 }
 
 /**

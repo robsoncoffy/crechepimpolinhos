@@ -24,8 +24,14 @@ export function exportToCSV(
   filename: string,
   columns?: Column[]
 ): void {
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     toast.error("Nenhum dado para exportar");
+    return;
+  }
+  
+  // Validate first row exists and has keys
+  if (!data[0] || typeof data[0] !== 'object') {
+    toast.error("Formato de dados inválido");
     return;
   }
 
