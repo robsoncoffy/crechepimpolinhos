@@ -142,6 +142,24 @@ serve(async (req) => {
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
 
+    // Format phone to international format (+55)
+    const formatPhoneForGHL = (phone: string | null): string => {
+      if (!phone) return "";
+      // Remove all non-digits
+      let digits = phone.replace(/\D/g, "");
+      // If starts with 0, remove it
+      if (digits.startsWith("0")) {
+        digits = digits.substring(1);
+      }
+      // If doesn't start with 55, add it
+      if (!digits.startsWith("55")) {
+        digits = "55" + digits;
+      }
+      return "+" + digits;
+    };
+
+    const formattedPhone = formatPhoneForGHL(preEnrollment.phone);
+
     // Map class types to Portuguese labels
     const classTypeLabels: Record<string, string> = {
       bercario1: "Berçário 1",
@@ -164,7 +182,7 @@ serve(async (req) => {
       firstName,
       lastName,
       email: preEnrollment.email,
-      phone: preEnrollment.phone,
+      phone: formattedPhone,
       source: "Site Pimpolinhos",
       tags: ["pré-matrícula", "site", "novo-lead", "pre-matricula-completa"],
       customFields: [
@@ -194,21 +212,52 @@ serve(async (req) => {
 
     const ghlResult = await ghlResponse.json();
 
+    let ghlContactId = ghlResult.contact?.id;
+
+    // Handle duplicate contact - use existing contact ID and update tags
     if (!ghlResponse.ok) {
-      console.error("GHL API error:", ghlResult);
-      
-      // Update pre-enrollment with error
-      await supabase
-        .from("pre_enrollments")
-        .update({
-          ghl_sync_error: ghlResult.message || JSON.stringify(ghlResult),
-        })
-        .eq("id", preEnrollmentId);
+      if (ghlResult.meta?.contactId) {
+        // Contact already exists, use existing ID and update tags
+        console.log("Contact already exists, updating tags for:", ghlResult.meta.contactId);
+        ghlContactId = ghlResult.meta.contactId;
 
-      throw new Error(`GHL API error: ${ghlResult.message || ghlResponse.status}`);
+        // Update existing contact with tags
+        const updateResponse = await fetch(
+          `https://services.leadconnectorhq.com/contacts/${ghlContactId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${GHL_API_KEY}`,
+              "Content-Type": "application/json",
+              Version: "2021-07-28",
+            },
+            body: JSON.stringify({
+              tags: ["pré-matrícula", "site", "novo-lead", "pre-matricula-completa"],
+              customFields: ghlPayload.customFields,
+            }),
+          }
+        );
+
+        if (!updateResponse.ok) {
+          const updateError = await updateResponse.text();
+          console.error("GHL update error:", updateError);
+        } else {
+          console.log("Successfully updated existing contact with tags");
+        }
+      } else {
+        console.error("GHL API error:", ghlResult);
+        
+        // Update pre-enrollment with error
+        await supabase
+          .from("pre_enrollments")
+          .update({
+            ghl_sync_error: ghlResult.message || JSON.stringify(ghlResult),
+          })
+          .eq("id", preEnrollmentId);
+
+        throw new Error(`GHL API error: ${ghlResult.message || ghlResponse.status}`);
+      }
     }
-
-    const ghlContactId = ghlResult.contact?.id;
 
     if (!ghlContactId) {
       throw new Error("GHL did not return a contact ID");
