@@ -134,14 +134,15 @@ export function PreEnrollmentsContent() {
 
       if (preEnrollment.ghl_contact_id) {
         try {
-          await supabase.functions.invoke("ghl-sync-contact", {
+          await supabase.functions.invoke("ghl-sync-contact/update-stage", {
             body: {
               ghl_contact_id: preEnrollment.ghl_contact_id,
               stage: "Proposta Enviada",
+              tags: ["pre_matricula_aprovada"],
             },
           });
         } catch (e) {
-          console.error("Failed to update GHL stage:", e);
+          console.error("Failed to update GHL stage/tags:", e);
         }
       }
 

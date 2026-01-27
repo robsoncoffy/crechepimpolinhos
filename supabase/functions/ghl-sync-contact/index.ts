@@ -12,7 +12,8 @@ interface SyncContactRequest {
 
 interface UpdateStageRequest {
   ghl_contact_id: string;
-  stage: string;
+  stage?: string;
+  tags?: string[];
 }
 
 serve(async (req) => {
@@ -38,12 +39,16 @@ serve(async (req) => {
     const url = new URL(req.url);
     const path = url.pathname.split("/").pop();
 
-    // Handle stage update endpoint
+    // Handle stage/tag update endpoint
     if (path === "update-stage") {
-      const { ghl_contact_id, stage } = await req.json() as UpdateStageRequest;
+      const { ghl_contact_id, stage, tags } = await req.json() as UpdateStageRequest;
 
-      if (!ghl_contact_id || !stage) {
-        throw new Error("Missing ghl_contact_id or stage");
+      if (!ghl_contact_id) {
+        throw new Error("Missing ghl_contact_id");
+      }
+
+      if (!stage && (!tags || tags.length === 0)) {
+        throw new Error("Missing stage or tags");
       }
 
       // Map stage names to GHL pipeline stage IDs (these need to be configured in GHL)
@@ -55,9 +60,14 @@ serve(async (req) => {
         "Matriculado": "enrolled",
       };
 
-      const pipelineStage = stageMap[stage] || stage;
+      // Build tags array
+      const allTags: string[] = [...(tags || [])];
+      if (stage) {
+        const pipelineStage = stageMap[stage] || stage;
+        allTags.push(pipelineStage);
+      }
 
-      // Update contact in GHL with new stage/tag
+      // Update contact in GHL with new tags
       const ghlResponse = await fetch(
         `https://services.leadconnectorhq.com/contacts/${ghl_contact_id}`,
         {
@@ -68,19 +78,19 @@ serve(async (req) => {
             Version: "2021-07-28",
           },
           body: JSON.stringify({
-            tags: [pipelineStage],
+            tags: allTags,
           }),
         }
       );
 
       if (!ghlResponse.ok) {
         const errorText = await ghlResponse.text();
-        console.error("GHL stage update failed:", errorText);
+        console.error("GHL stage/tag update failed:", errorText);
         throw new Error(`GHL API error: ${ghlResponse.status}`);
       }
 
       return new Response(
-        JSON.stringify({ success: true, stage: pipelineStage }),
+        JSON.stringify({ success: true, tags: allTags }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
