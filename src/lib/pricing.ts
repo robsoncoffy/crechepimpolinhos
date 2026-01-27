@@ -30,6 +30,7 @@ export const PLANS: PlanInfo[] = [
       'Chat com professores',
     ],
     startingPrice: 649.90,
+    note: 'Disponível para todas as turmas',
   },
   {
     id: 'intermediario',
@@ -43,8 +44,8 @@ export const PLANS: PlanInfo[] = [
       'Agenda digital completa',
       'Chat com professores',
     ],
-    note: '*Atividades extras cobradas separadamente',
-    startingPrice: 799.90,
+    note: '*Atividades extras cobradas separadamente. Disponível para Berçário e Maternal.',
+    startingPrice: 1099.90,
     highlight: true,
   },
   {
@@ -58,49 +59,65 @@ export const PLANS: PlanInfo[] = [
       'Prioridade em eventos especiais',
       'Acompanhamento pedagógico exclusivo',
     ],
-    startingPrice: 1099.90,
+    note: 'Disponível para Berçário e Maternal.',
+    startingPrice: 1699.90,
   },
 ];
 
 // Base pricing matrix: prices[classType][planType]
 // Berçário: 0-2 anos, Maternal I: 2-3 anos, Maternal II: 3-4 anos, Jardim I: 4-5 anos, Jardim II: 5-6 anos
-export const PRICES: Record<ClassType, Record<PlanType, number>> = {
+// Jardim I e II só possuem meio turno (sala única por norma)
+export const PRICES: Record<ClassType, Partial<Record<PlanType, number>>> = {
   bercario: {
     basico: 799.90,
-    intermediario: 1099.90,
-    plus: 1299.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
   },
   maternal: {
-    basico: 749.90,
-    intermediario: 999.90,
-    plus: 1199.90,
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
   },
   maternal_1: {
-    basico: 749.90,
-    intermediario: 999.90,
-    plus: 1199.90,
+    basico: 799.90,
+    intermediario: 1299.90,
+    plus: 1699.90,
   },
   maternal_2: {
-    basico: 699.90,
-    intermediario: 899.90,
-    plus: 1099.90,
+    basico: 749.90,
+    intermediario: 1099.90,
+    plus: 1699.90,
   },
   jardim: {
     basico: 649.90,
-    intermediario: 799.90,
-    plus: 1099.90,
   },
   jardim_1: {
     basico: 649.90,
-    intermediario: 799.90,
-    plus: 1099.90,
   },
   jardim_2: {
     basico: 649.90,
-    intermediario: 799.90,
-    plus: 1099.90,
   },
 };
+
+// Classes that only have meio turno (basico) available
+export const MEIO_TURNO_ONLY_CLASSES: ClassType[] = ['jardim', 'jardim_1', 'jardim_2'];
+
+/**
+ * Check if a class type only supports meio turno
+ */
+export function isHalfDayOnly(classType: ClassType): boolean {
+  return MEIO_TURNO_ONLY_CLASSES.includes(classType);
+}
+
+/**
+ * Get available plans for a class type
+ */
+export function getAvailablePlans(classType: ClassType): PlanType[] {
+  if (isHalfDayOnly(classType)) {
+    return ['basico'];
+  }
+  return ['basico', 'intermediario', 'plus'];
+}
 
 export const CLASS_NAMES: Record<ClassType, string> = {
   bercario: 'Berçário',
@@ -180,7 +197,7 @@ export function getPrice(classType: ClassType, planType: PlanType): number {
 /**
  * Get all prices for a class type
  */
-export function getPricesForClass(classType: ClassType): Record<PlanType, number> {
+export function getPricesForClass(classType: ClassType): Partial<Record<PlanType, number>> {
   return PRICES[classType];
 }
 
