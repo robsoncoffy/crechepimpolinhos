@@ -81,9 +81,23 @@ async function sendEmailViaGHL(
   html: string,
   apiKey: string,
   locationId: string,
-  logger: ReturnType<typeof createLogger>
+  logger: ReturnType<typeof createLogger>,
+  phone?: string // Add phone to update contact if needed
 ): Promise<{ success: boolean; contactId?: string; messageId?: string; error?: string }> {
   const searchStart = Date.now();
+  
+  // Normalize phone number for GHL
+  let normalizedPhone: string | undefined;
+  if (phone) {
+    normalizedPhone = phone.replace(/\D/g, "");
+    if (normalizedPhone.startsWith("0")) {
+      normalizedPhone = normalizedPhone.substring(1);
+    }
+    if (!normalizedPhone.startsWith("55")) {
+      normalizedPhone = "55" + normalizedPhone;
+    }
+    normalizedPhone = "+" + normalizedPhone;
+  }
   
   // First, find or create contact
   const searchResponse = await fetch(
@@ -108,6 +122,44 @@ async function sendEmailViaGHL(
         ghlContactId: contactId,
         metadata: { searchDuration: Date.now() - searchStart }
       });
+      
+      // IMPORTANT: Update the contact's phone number if we have one and it's different
+      if (normalizedPhone) {
+        const existingPhone = searchResult.contact.phone;
+        if (!existingPhone || existingPhone !== normalizedPhone) {
+          const nameParts = name.trim().split(" ");
+          const firstName = nameParts[0] || "Usuário";
+          const lastName = nameParts.slice(1).join(" ") || "";
+          
+          const updateResponse = await fetch(
+            `https://services.leadconnectorhq.com/contacts/${contactId}`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+                Version: "2021-07-28",
+              },
+              body: JSON.stringify({
+                phone: normalizedPhone,
+                firstName,
+                lastName,
+                tags: ["convite-pais"],
+              }),
+            }
+          );
+          
+          if (updateResponse.ok) {
+            logger.info("ghl_contact_phone_updated", { 
+              ghlContactId: contactId,
+              metadata: { phone: normalizedPhone }
+            });
+          } else {
+            const updateError = await updateResponse.text();
+            logger.warn("ghl_contact_phone_update_failed", { error: updateError });
+          }
+        }
+      }
     } else {
       // Create new contact
       const createStart = Date.now();
@@ -129,6 +181,7 @@ async function sendEmailViaGHL(
             firstName,
             lastName,
             email,
+            phone: normalizedPhone, // Include phone when creating
             source: "Sistema Pimpolinhos",
             tags: ["convite-pais", "transacional"],
           }),
@@ -148,7 +201,7 @@ async function sendEmailViaGHL(
       wasCreated = true;
       logger.info("ghl_contact_created", { 
         ghlContactId: contactId,
-        metadata: { createDuration: Date.now() - createStart }
+        metadata: { createDuration: Date.now() - createStart, hasPhone: !!normalizedPhone }
       });
     }
   } else {
@@ -523,6 +576,7 @@ serve(async (req: Request): Promise<Response> => {
 
     logger.info("email_prepared", { subject });
 
+    // Send email via GHL - now also passing phone to update contact
     const result = await sendEmailViaGHL(
       email,
       parentName || "Usuário",
@@ -530,7 +584,8 @@ serve(async (req: Request): Promise<Response> => {
       html,
       GHL_API_KEY,
       GHL_LOCATION_ID,
-      logger
+      logger,
+      phone // Pass phone to update/create contact with it
     );
 
     // Persist to email_logs
