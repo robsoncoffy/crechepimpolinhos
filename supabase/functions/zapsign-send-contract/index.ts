@@ -192,9 +192,9 @@ serve(async (req) => {
 
     // Format shift hours
     const shiftHours: Record<string, string> = {
-      manha: "07h00min às 12h30min",
+      manha: "07h00min às 12h00min",
       tarde: "13h00min às 18h00min",
-      integral: "07h00min às 19h00min",
+      integral: "07h00min às 16h00min (9 horas)",
     };
 
     // Create document content with the complete 14-clause contract
@@ -258,7 +258,7 @@ d) Após 60 (sessenta) dias de inadimplência, poderá haver cancelamento da mat
 
 CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO
 
-5.1. A CONTRATADA funcionará de segunda a sexta-feira, das 07h00min às 19h00min.
+5.1. A CONTRATADA funcionará de segunda a sexta-feira, das 07h00min às 19h00min. O horário de permanência deve respeitar o turno contratado (Integral: 9 horas; Meio Turno Manhã: 7h às 12h; Meio Turno Tarde: 13h às 18h).
 
 5.2. O aluno está matriculado no turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'}).
 

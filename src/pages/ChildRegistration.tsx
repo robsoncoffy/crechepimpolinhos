@@ -1425,10 +1425,10 @@ const ChildRegistration = () => {
                                         </div>
                                       </div>
                                       <p className="text-sm text-muted-foreground mt-1">
-                                        Meio período - 4 horas diárias (Manhã ou Tarde)
+                                        Meio período - 5 horas diárias (Manhã ou Tarde)
                                       </p>
                                       <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                                        <li>• Manhã (7h às 11h) ou Tarde (15h às 19h)</li>
+                                        <li>• Manhã (7h às 12h) ou Tarde (13h às 18h)</li>
                                         <li>• 2 refeições incluídas</li>
                                         <li>• Atividades pedagógicas e recreação</li>
                                       </ul>
@@ -1466,10 +1466,10 @@ const ChildRegistration = () => {
                                         </div>
                                       </div>
                                       <p className="text-sm text-muted-foreground mt-1">
-                                        Período integral - até 8 horas diárias
+                                        Período integral - 9 horas diárias
                                       </p>
                                       <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                                        <li>• Funcionamento das 7h às 19h</li>
+                                        <li>• 9 horas de permanência com flexibilidade</li>
                                         <li>• Todas as refeições incluídas</li>
                                         <li>• Atividades extras (Ballet, Capoeira, Música)</li>
                                       </ul>

@@ -1588,9 +1588,9 @@ export default function AdminApprovals() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="manha">Manhã (7h - 11h)</SelectItem>
-                        <SelectItem value="tarde">Tarde (15h - 19h)</SelectItem>
-                        <SelectItem value="integral">Integral</SelectItem>
+                        <SelectItem value="manha">Manhã (7h às 12h)</SelectItem>
+                        <SelectItem value="tarde">Tarde (13h às 18h)</SelectItem>
+                        <SelectItem value="integral">Integral (9 horas)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

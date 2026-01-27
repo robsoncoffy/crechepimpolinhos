@@ -21,9 +21,9 @@ const classLabels: Record<string, string> = {
 };
 
 const shiftLabels: Record<string, string> = {
-  manha: "Manhã (7h às 11h)",
-  tarde: "Tarde (15h às 19h)",
-  integral: "Integral",
+  manha: "Manhã (7h às 12h)",
+  tarde: "Tarde (13h às 18h)",
+  integral: "Integral (9 horas)",
 };
 
 interface EmailLogEntry {
