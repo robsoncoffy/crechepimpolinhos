@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X, Mail, Send } from "lucide-react";
+import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X, Mail, Send, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -23,6 +23,7 @@ interface Invite {
   used_at: string | null;
   employee_email: string | null;
   employee_name: string | null;
+  employee_phone?: string | null;
 }
 
 // Always use the production URL for invite links
@@ -34,9 +35,11 @@ export default function AdminEmployeeInvites() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<string>("teacher");
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [employeeName, setEmployeeName] = useState("");
+  const [employeePhone, setEmployeePhone] = useState("");
   
   // Resend dialog state
   const [resendDialogOpen, setResendDialogOpen] = useState(false);
@@ -83,6 +86,8 @@ export default function AdminEmployeeInvites() {
       employee_name: employeeName.trim() || null,
     }]).select().single();
 
+    // Store phone separately in a note or metadata if needed - for now we'll use it for WhatsApp only
+
     if (error) {
       toast.error("Erro ao criar convite");
       setCreating(false);
@@ -99,7 +104,47 @@ export default function AdminEmployeeInvites() {
     fetchInvites();
     setEmployeeEmail("");
     setEmployeeName("");
+    setEmployeePhone("");
     setCreating(false);
+  };
+
+  const resendWhatsApp = async (invite: Invite) => {
+    // For employee invites, we need to prompt for phone if not stored
+    const phone = employeePhone.trim() || prompt("Digite o telefone do funcionário (com DDD):");
+    
+    if (!phone) {
+      toast.error("Telefone é obrigatório para enviar WhatsApp");
+      return;
+    }
+
+    setSendingWhatsApp(invite.invite_code);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      const response = await supabase.functions.invoke("resend-invite-whatsapp", {
+        body: {
+          inviteType: "employee",
+          inviteCode: invite.invite_code,
+          phone,
+          employeeName: invite.employee_name || undefined,
+          role: invite.role,
+        },
+        headers: {
+          Authorization: `Bearer ${sessionData.session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Erro ao enviar WhatsApp");
+      }
+
+      toast.success(`WhatsApp enviado para ${phone}!`);
+    } catch (error: any) {
+      console.error("Error sending WhatsApp:", error);
+      toast.error(error.message || "Erro ao enviar WhatsApp");
+    } finally {
+      setSendingWhatsApp(null);
+    }
   };
 
   const sendInviteEmail = async (code: string, role: string, email: string, name?: string) => {
@@ -336,16 +381,29 @@ export default function AdminEmployeeInvites() {
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => resendWhatsApp(invite)}
+                            disabled={sendingWhatsApp === invite.invite_code}
+                            className="text-pimpo-green hover:text-pimpo-green"
+                          >
+                            {sendingWhatsApp === invite.invite_code ? (
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            ) : (
+                              <MessageCircle className="w-4 h-4 mr-1" />
+                            )}
+                            WhatsApp
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => copyToClipboard(invite.invite_code)}
                           >
                             <Copy className="w-4 h-4 mr-1" />
-                            Copiar Link
+                            Copiar
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={async () => {
-                              // If invite has stored email, send directly without dialog
                               if (invite.employee_email) {
                                 await sendInviteEmail(
                                   invite.invite_code,
@@ -354,7 +412,6 @@ export default function AdminEmployeeInvites() {
                                   invite.employee_name || undefined
                                 );
                               } else {
-                                // No email stored, show dialog
                                 setResendInvite(invite);
                                 setResendEmail("");
                                 setResendName("");
@@ -368,7 +425,7 @@ export default function AdminEmployeeInvites() {
                             ) : (
                               <Mail className="w-4 h-4 mr-1" />
                             )}
-                            {invite.employee_email ? "Reenviar" : "Enviar"}
+                            {invite.employee_email ? "Reenviar" : "Email"}
                           </Button>
                         </>
                       )}
