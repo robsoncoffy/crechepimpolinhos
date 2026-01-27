@@ -321,6 +321,36 @@ export default function AdminApprovals() {
         // Don't block approval if email fails
       }
 
+      // Add GHL tag for approved enrollment (find ghl_contact_id via parent_invites → pre_enrollments)
+      try {
+        const { data: invite } = await supabase
+          .from("parent_invites")
+          .select("pre_enrollment_id")
+          .eq("used_by", selectedParent.user_id)
+          .maybeSingle();
+
+        if (invite?.pre_enrollment_id) {
+          const { data: preEnrollment } = await supabase
+            .from("pre_enrollments")
+            .select("ghl_contact_id")
+            .eq("id", invite.pre_enrollment_id)
+            .maybeSingle();
+
+          if (preEnrollment?.ghl_contact_id) {
+            await supabase.functions.invoke("ghl-sync-contact/update-stage", {
+              body: {
+                ghl_contact_id: preEnrollment.ghl_contact_id,
+                stage: "Matriculado",
+                tags: ["matricula_aprovada"],
+              },
+            });
+          }
+        }
+      } catch (ghlError) {
+        console.error("Error updating GHL tag:", ghlError);
+        // Don't block approval if GHL sync fails
+      }
+
       toast.success("Cadastro aprovado com sucesso!");
       setDialogOpen(false);
       setSelectedParent(null);
