@@ -1,406 +1,228 @@
 
-# Plano de Otimização Completa - Top 10 Gargalos de Performance
+# Plano: Integração Completa Control iD iDClass Bio
 
-## Visão Geral
+## Resumo
 
-Este plano aborda sistematicamente os 10 principais gargalos de performance identificados na plataforma Pimpolinhos, priorizados por impacto e complexidade.
+Integrar o relógio de ponto Control iD iDClass Bio com o sistema de ponto eletrônico existente, utilizando:
+- **Monitor (Push)**: O relógio envia batidas em tempo real via webhook
+- **Polling (Backup)**: Job periódico busca registros do relógio para garantir sincronização
+- **CPF**: Como identificador único para vincular funcionários
 
----
-
-## Prioridade 1: Cache Global de Dados (Itens 5 e 9)
-
-### Problema
-Múltiplas páginas buscam os mesmos dados (children, profiles, roles) independentemente, gerando dezenas de chamadas duplicadas ao banco.
-
-### Solução
-Criar um contexto global `AppDataProvider` que centraliza os dados mais usados com React Query.
-
-### Arquivos a criar
-- `src/contexts/AppDataContext.tsx`
-
-### Arquivos a modificar
-- `src/pages/Dashboard.tsx` - Envolver com AppDataProvider
-- `src/pages/admin/AdminChildren.tsx` - Usar dados do contexto
-- `src/pages/admin/AdminAgenda.tsx` - Usar dados do contexto
-- `src/components/admin/AdminSidebar.tsx` - Remover queries locais
-
-### Código proposto
-```typescript
-// src/contexts/AppDataContext.tsx
-const AppDataContext = createContext<AppDataContextType | undefined>(undefined);
-
-export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { data: allChildren } = useQuery({
-    queryKey: ['children'],
-    queryFn: async () => {
-      const { data } = await supabase.from('children').select('*').order('full_name');
-      return data || [];
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutos
-  });
-
-  const { data: allProfiles } = useQuery({
-    queryKey: ['profiles-approved'],
-    queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('*').eq('status', 'approved');
-      return data || [];
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // ... outros dados compartilhados
-}
-```
-
----
-
-## Prioridade 2: Dividir AdminChildren.tsx (Item 1)
-
-### Problema
-Arquivo monolítico com 1187 linhas contendo formulários, tabelas, diálogos e lógica de negócio misturados.
-
-### Solução
-Extrair componentes e lógica em arquivos separados.
-
-### Arquivos a criar
-- `src/components/admin/children/ChildForm.tsx` - Formulário de cadastro/edição
-- `src/components/admin/children/ChildTable.tsx` - Tabela de listagem
-- `src/components/admin/children/LinkParentDialog.tsx` - Dialog de vincular responsável
-- `src/components/admin/children/ChildStatsCards.tsx` - Cards de estatísticas
-- `src/hooks/useChildren.ts` - Hook para gerenciar dados de crianças
-
-### Arquivos a modificar
-- `src/pages/admin/AdminChildren.tsx` - Reduzir para ~200 linhas, apenas orquestrando componentes
-
-### Estrutura proposta
-```text
-src/
-├── pages/admin/
-│   └── AdminChildren.tsx (~200 linhas - orquestrador)
-├── components/admin/children/
-│   ├── ChildForm.tsx (~150 linhas)
-│   ├── ChildTable.tsx (~200 linhas)
-│   ├── LinkParentDialog.tsx (~120 linhas)
-│   ├── ChildStatsCards.tsx (~80 linhas)
-│   └── index.ts (exports)
-└── hooks/
-    └── useChildren.ts (~100 linhas - lógica de dados)
-```
-
----
-
-## Prioridade 3: Lazy Loading de Recharts em Tabs (Item 3)
-
-### Problema
-Componentes como `TodayOverviewWidget` e `WeeklyNutritionSummary` importam recharts imediatamente, mesmo quando suas tabs não estão visíveis.
-
-### Solução
-Criar wrapper de lazy loading para componentes de gráficos dentro de tabs.
-
-### Arquivos a modificar
-- `src/pages/admin/AdminMenu.tsx` - Lazy load de tabs com gráficos
-- `src/pages/admin/AdminReports.tsx` - Lazy load de componentes de relatório
-- `src/pages/admin/AdminTimeClock.tsx` - Lazy load de gráficos
-
-### Padrão a implementar
-```typescript
-// Dentro de AdminMenu.tsx
-const NutritionTabContent = lazy(() => import('@/components/admin/nutritionist/TodayOverviewWidget'));
-
-<TabsContent value="nutrition">
-  <Suspense fallback={<Skeleton className="h-64" />}>
-    <NutritionTabContent {...props} />
-  </Suspense>
-</TabsContent>
-```
-
----
-
-## Prioridade 4: Otimizar AdminSidebar (Item 2)
-
-### Problema
-Importa 27 ícones do Lucide e renderiza todos em cada navegação.
-
-### Solução
-1. Memoizar o componente da sidebar
-2. Usar React.memo nos itens do menu
-3. Mover definições de menu para fora do componente
-
-### Arquivos a modificar
-- `src/components/admin/AdminSidebar.tsx`
-
-### Código proposto
-```typescript
-// Mover para fora do componente
-const MENU_CONFIG = {
-  studentItems: [...],
-  routineItems: [...],
-  // ...
-} as const;
-
-// Memoizar itens individuais
-const MemoizedMenuItem = memo(function MenuItem({ item, isActive }: MenuItemProps) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-        <Link to={item.href}>
-          <item.icon className="h-4 w-4" />
-          <span>{item.label}</span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-});
-
-// Memoizar a sidebar inteira
-export const AdminSidebar = memo(function AdminSidebar() { ... });
-```
-
----
-
-## Prioridade 5: Consolidar Code Splitting (Item 4)
-
-### Problema
-45+ chunks separados geram muitas requisições HTTP.
-
-### Solução
-Agrupar páginas relacionadas em chunks maiores usando Vite.
-
-### Arquivos a modificar
-- `vite.config.ts`
-
-### Configuração proposta
-```typescript
-manualChunks: {
-  'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-  'vendor-query': ['@tanstack/react-query'],
-  'vendor-ui': ['@radix-ui/react-dialog', ...],
-  'vendor-charts': ['recharts'],
-  // Agrupar páginas por categoria
-  'admin-core': [
-    './src/pages/admin/AdminDashboard.tsx',
-    './src/pages/admin/AdminChildren.tsx',
-    './src/pages/admin/AdminAgenda.tsx',
-  ],
-  'admin-finance': [
-    './src/pages/admin/AdminPayments.tsx',
-    './src/pages/admin/AdminReports.tsx',
-    './src/pages/admin/AdminBudgets.tsx',
-  ],
-  'admin-comm': [
-    './src/pages/admin/AdminChat.tsx',
-    './src/pages/admin/AdminFeed.tsx',
-    './src/pages/admin/AdminEmails.tsx',
-  ],
-}
-```
-
----
-
-## Prioridade 6: Otimizar Imports de date-fns (Item 7)
-
-### Problema
-Imports não tree-shaked podem incluir a biblioteca inteira.
-
-### Solução
-Usar imports específicos de subpaths.
-
-### Arquivos a modificar (busca e substituição global)
-- Todos os arquivos que usam date-fns
-
-### Padrão a implementar
-```typescript
-// ❌ Evitar
-import { format, addDays } from "date-fns";
-
-// ✅ Preferir
-import format from "date-fns/format";
-import addDays from "date-fns/addDays";
-```
-
-Nota: Com a versão atual do date-fns (v3), os imports já são tree-shakeable por padrão. Verificar se há imports excessivos.
-
----
-
-## Prioridade 7: Extrair Formulários Grandes (Item 8)
-
-### Problema
-Formulários enormes em AdminChildren, AdminAgenda e AdminConfig estão inline.
-
-### Solução
-Criar componentes de formulário separados e lazy-loadable.
-
-### Arquivos a criar
-- `src/components/admin/forms/AgendaFormDialog.tsx` - Extraído de AdminAgenda
-- `src/components/admin/forms/ConfigForm.tsx` - Extraído de AdminConfig
-
-### Arquivos a modificar
-- `src/pages/admin/AdminAgenda.tsx` - Usar AgendaFormDialog lazy
-- `src/pages/admin/AdminConfig.tsx` - Usar ConfigForm lazy
-
----
-
-## Prioridade 8: Lazy Loading de Imagens (Item 10)
-
-### Problema
-Galeria e avatares carregam imagens imediatamente.
-
-### Solução
-Criar componente de imagem otimizada com IntersectionObserver.
-
-### Arquivos a criar
-- `src/components/ui/lazy-image.tsx`
-
-### Arquivos a modificar
-- `src/pages/admin/AdminGallery.tsx`
-- `src/components/parent/PhotoGalleryTab.tsx`
-
-### Código proposto
-```typescript
-// src/components/ui/lazy-image.tsx
-export function LazyImage({ src, alt, className, ...props }: LazyImageProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const imgRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '100px' }
-    );
-
-    if (imgRef.current) observer.observe(imgRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div ref={imgRef} className={className}>
-      {isVisible ? (
-        <img src={src} alt={alt} loading="lazy" {...props} />
-      ) : (
-        <Skeleton className="w-full h-full" />
-      )}
-    </div>
-  );
-}
-```
-
----
-
-## Prioridade 9: Reduzir Dependência de Radix UI (Item 6)
-
-### Problema
-Múltiplos primitivos Radix carregam em cada página.
-
-### Solução
-Verificar uso real e substituir componentes simples por HTML nativo.
-
-### Avaliação
-- Dialog, Select, Tabs, Tooltip: Manter (funcionalidade complexa)
-- Separator: Substituir por `<hr />` ou div com border
-- Label: Substituir por `<label>` nativo
-
-### Arquivos a modificar
-- Componentes que usam apenas Separator/Label
-
----
-
-## Prioridade 10: Agrupar Dashboards por Cargo (Item 4 complementar)
-
-### Problema
-Cada dashboard (Teacher, Cook, Nutritionist, etc.) é um chunk separado com código repetido.
-
-### Solução
-Criar componente base reutilizável e especializar apenas widgets específicos.
-
-### Arquivos a criar
-- `src/components/admin/dashboards/BaseDashboard.tsx`
-- `src/components/admin/dashboards/DashboardWidgetRegistry.tsx`
-
-### Arquivos a modificar
-- `src/pages/admin/TeacherDashboard.tsx`
-- `src/pages/admin/CookDashboard.tsx`
-- `src/pages/admin/NutritionistDashboard.tsx`
-- `src/pages/admin/PedagogueDashboard.tsx`
-- `src/pages/admin/AuxiliarDashboard.tsx`
-
----
-
-## Resumo de Impacto Esperado
-
-| Otimização | Redução Bundle | Melhoria LCP | Redução Requests |
-|------------|----------------|--------------|------------------|
-| Cache Global | - | -30% | -50% |
-| Dividir AdminChildren | -50KB | -15% | - |
-| Lazy Recharts em Tabs | -400KB | -20% | - |
-| Memoizar Sidebar | - | -10% | - |
-| Consolidar Chunks | - | - | -40% |
-| Otimizar date-fns | -20KB | - | - |
-| Extrair Formulários | -30KB | -10% | - |
-| Lazy Images | - | -25% | -30% |
-| Simplificar Radix | -15KB | - | - |
-| Base Dashboard | -40KB | - | - |
-
-**Total Estimado**: ~555KB a menos no bundle, 40-60% de melhoria no LCP, 50% menos requisições à API.
-
----
-
-## Ordem de Implementação Recomendada
+## Arquitetura da Integração
 
 ```text
-Fase 1 (Alto Impacto, Baixa Complexidade):
-├── 1. Cache Global (AppDataContext)
-├── 2. Memoizar AdminSidebar
-└── 3. Lazy Images Component
-
-Fase 2 (Alto Impacto, Média Complexidade):
-├── 4. Dividir AdminChildren em componentes
-├── 5. Lazy loading de Recharts em Tabs
-└── 6. Consolidar code splitting no Vite
-
-Fase 3 (Médio Impacto, Alta Complexidade):
-├── 7. Extrair formulários grandes
-├── 8. Base Dashboard reutilizável
-└── 9. Otimizar imports date-fns
-
-Fase 4 (Refinamento):
-└── 10. Simplificar uso de Radix
+┌─────────────────┐         Push (Realtime)         ┌──────────────────────┐
+│                 │ ─────────────────────────────▶  │                      │
+│  iDClass Bio    │                                 │  controlid-webhook   │
+│  (Relógio)      │ ◀────────────────────────────── │  (Edge Function)     │
+│                 │         Polling (5 min)         │                      │
+└─────────────────┘                                 └──────────────────────┘
+                                                              │
+                                                              ▼
+                                                    ┌──────────────────────┐
+                                                    │  employee_time_clock │
+                                                    │  (Tabela)            │
+                                                    └──────────────────────┘
 ```
 
 ---
 
-## Seção Técnica
+## Etapa 1: Atualizar Webhook Existente
 
-### Arquivos que serão criados:
-1. `src/contexts/AppDataContext.tsx` - Cache global de dados
-2. `src/components/admin/children/ChildForm.tsx` - Formulário extraído
-3. `src/components/admin/children/ChildTable.tsx` - Tabela extraída
-4. `src/components/admin/children/LinkParentDialog.tsx` - Dialog extraído
-5. `src/components/admin/children/ChildStatsCards.tsx` - Cards extraídos
-6. `src/hooks/useChildren.ts` - Hook de dados
-7. `src/components/ui/lazy-image.tsx` - Imagem otimizada
-8. `src/components/admin/forms/AgendaFormDialog.tsx` - Formulário extraído
-9. `src/components/admin/dashboards/BaseDashboard.tsx` - Dashboard base
+O webhook atual precisa ser adaptado para receber o formato do **Monitor** do Control iD.
 
-### Arquivos que serão modificados:
-1. `src/pages/Dashboard.tsx` - Adicionar AppDataProvider
-2. `src/pages/admin/AdminChildren.tsx` - Refatorar para ~200 linhas
-3. `src/pages/admin/AdminAgenda.tsx` - Extrair formulário
-4. `src/pages/admin/AdminMenu.tsx` - Lazy load de tabs
-5. `src/components/admin/AdminSidebar.tsx` - Memoização
-6. `vite.config.ts` - Novos manual chunks
-7. `src/pages/admin/AdminGallery.tsx` - Usar LazyImage
-8. Dashboards específicos - Usar BaseDashboard
+**Arquivo:** `supabase/functions/controlid-webhook/index.ts`
 
-### Dependências:
-- Nenhuma nova dependência necessária
+**Mudanças:**
+- Aceitar formato `/api/notifications/dao` com `object_changes`
+- Mapear `user_id` do relógio para funcionário via CPF
+- Suportar tanto formato atual quanto formato Monitor
 
-### Considerações:
-- Implementar em fases para evitar regressões
-- Testar cada fase antes de prosseguir
-- Manter compatibilidade com PWA e cache existente
-- Monitorar métricas de performance após cada fase
+**Formato recebido do Monitor:**
+```json
+{
+  "object_changes": [{
+    "object": "access_logs",
+    "type": "inserted",
+    "values": {
+      "id": "519",
+      "time": "1532977090",
+      "user_id": "123",
+      "device_id": "478435"
+    }
+  }],
+  "device_id": 478435
+}
+```
+
+---
+
+## Etapa 2: Criar Edge Function de Polling
+
+Nova função que conecta ao relógio periodicamente para buscar registros não sincronizados.
+
+**Arquivo:** `supabase/functions/controlid-sync/index.ts`
+
+**Funcionalidades:**
+- Fazer login no relógio (sessão)
+- Buscar `access_logs` desde último sync
+- Comparar com registros existentes
+- Inserir apenas registros novos
+- Registrar timestamp do último sync
+
+**Fluxo:**
+1. `POST /login.fcgi` → obter sessão
+2. `POST /load_objects.fcgi` → buscar access_logs
+3. Filtrar registros já existentes
+4. Inserir novos no `employee_time_clock`
+5. Atualizar `last_sync_at` na config
+
+---
+
+## Etapa 3: Criar Tabela de Mapeamento
+
+Tabela para vincular IDs do relógio aos funcionários via CPF.
+
+**Tabela:** `controlid_user_mappings`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | uuid | PK |
+| employee_id | uuid | FK para employee_profiles |
+| controlid_user_id | integer | ID do usuário no relógio |
+| cpf | text | CPF para mapeamento |
+| device_id | text | ID do dispositivo |
+| synced_at | timestamp | Última sincronização |
+
+---
+
+## Etapa 4: Atualizar Tabela de Configuração
+
+Adicionar campos necessários na `time_clock_config`:
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| device_ip | text | IP do relógio na rede |
+| device_login | text | Usuário (default: admin) |
+| device_password | text | Senha (criptografada) |
+| last_sync_at | timestamp | Último polling bem-sucedido |
+| sync_interval_minutes | integer | Intervalo do polling (default: 5) |
+
+---
+
+## Etapa 5: Criar Tela de Configuração Admin
+
+Interface para gerenciar a integração.
+
+**Arquivo:** `src/pages/admin/AdminTimeClockConfig.tsx`
+
+**Funcionalidades:**
+- Configurar IP/credenciais do relógio
+- Testar conexão com o equipamento
+- Ver status do último sync
+- Sincronizar funcionários (enviar para o relógio)
+- Buscar registros manualmente
+- Ver logs de sincronização
+
+**Seções:**
+1. **Conexão**: IP, usuário, senha, testar
+2. **Funcionários**: Lista de mapeados, sincronizar novos
+3. **Logs**: Últimas sincronizações, erros
+4. **Manual**: Botão para forçar sync
+
+---
+
+## Etapa 6: Criar Job de Polling (Cron)
+
+Agendar execução periódica do sync.
+
+**SQL (pg_cron):**
+```sql
+SELECT cron.schedule(
+  'controlid-sync-every-5-min',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_post(
+    url:='https://xxx.supabase.co/functions/v1/controlid-sync',
+    headers:='{"Authorization": "Bearer ANON_KEY"}'::jsonb,
+    body:='{}'::jsonb
+  );
+  $$
+);
+```
+
+---
+
+## Etapa 7: Criar Edge Function para Sincronizar Funcionários
+
+Enviar funcionários cadastrados para o relógio.
+
+**Arquivo:** `supabase/functions/controlid-sync-employees/index.ts`
+
+**Funcionalidades:**
+- Buscar funcionários ativos com CPF
+- Enviar para o relógio via `add_users.fcgi`
+- Salvar mapeamento de IDs
+- Retornar status de cada funcionário
+
+---
+
+## Estrutura de Arquivos
+
+```text
+supabase/functions/
+├── controlid-webhook/index.ts      # Atualizar (receber Monitor)
+├── controlid-sync/index.ts         # Novo (polling backup)
+├── controlid-sync-employees/index.ts # Novo (enviar funcionários)
+└── controlid-test-connection/index.ts # Novo (testar conexão)
+
+src/pages/admin/
+└── AdminTimeClockConfig.tsx        # Nova tela de configuração
+
+supabase/migrations/
+└── xxx_controlid_integration.sql   # Tabelas e colunas novas
+```
+
+---
+
+## Configuração no Relógio
+
+Após implementação, configurar no painel do iDClass:
+
+1. **Acessar**: `http://[IP-DO-RELOGIO]/`
+2. **Login**: admin / admin
+3. **Configurar Monitor**:
+   - Hostname: `ksguxhmqctmepbddbhdz.supabase.co`
+   - Port: `443`
+   - Path: `functions/v1/controlid-webhook`
+
+---
+
+## Detalhes Técnicos
+
+### Tratamento de Duplicatas
+- Usar constraint único em `(device_id, controlid_log_id)` para evitar duplicatas
+- Polling verifica se registro já existe antes de inserir
+
+### Segurança
+- Credenciais do relógio armazenadas criptografadas
+- Webhook valida `device_id` configurado
+- SSL para comunicação com relógio (HTTPS)
+
+### Logs e Monitoramento
+- Tabela `controlid_sync_logs` para histórico
+- Alerta se sync falhar por mais de 30 minutos
+- Dashboard mostra status em tempo real
+
+---
+
+## Sequência de Implementação
+
+1. Criar migração com tabelas novas
+2. Atualizar webhook existente
+3. Criar função de teste de conexão
+4. Criar função de sync de funcionários
+5. Criar função de polling
+6. Criar tela de configuração
+7. Agendar cron job
+8. Testar integração completa
