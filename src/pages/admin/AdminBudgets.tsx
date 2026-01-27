@@ -13,23 +13,30 @@ import {
   type ClassType 
 } from "@/lib/pricing";
 
-// Judicial prices - Maternal I (24-35 months) has same price as Berçário
-// Maternal II (36-47 months) has different pricing
-const JUDICIAL_PRICES = {
-  bercario: { integral: 1050, meioTurno: 650 },
-  maternal1: { integral: 1050, meioTurno: 650 }, // Same as Berçário
-  maternal2: { integral: 930, meioTurno: 550 },
-  jardim: { integral: 850, meioTurno: 500 },
+// Judicial prices - Updated 5-class structure
+// Berçário e Maternal I: mesmos valores
+// Maternal II: valores intermediários
+// Jardim I e II: apenas meio turno disponível
+const JUDICIAL_PRICES: Record<string, { integral: number; meioTurno: number }> = {
+  bercario: { integral: 1299.90, meioTurno: 799.90 },
+  maternal_1: { integral: 1299.90, meioTurno: 799.90 }, // Same as Berçário
+  maternal_2: { integral: 1099.90, meioTurno: 749.90 },
+  jardim_1: { integral: 0, meioTurno: 649.90 }, // Only meio turno
+  jardim_2: { integral: 0, meioTurno: 649.90 }, // Only meio turno
+  // Legacy types for backward compatibility
+  maternal: { integral: 1099.90, meioTurno: 749.90 },
+  jardim: { integral: 0, meioTurno: 649.90 },
 };
 
-// Get the correct price tier based on class type and age
+// Get the correct price tier based on class type
 const getPricesForChild = (classType: ClassType, birthDate: string) => {
+  // Handle legacy "maternal" type by checking age
   if (classType === "maternal" && birthDate) {
     const birth = new Date(birthDate + "T12:00:00");
     const months = differenceInMonths(new Date(), birth);
     // Maternal I: 24-35 months (same price as Berçário)
     // Maternal II: 36-47 months
-    return months < 36 ? JUDICIAL_PRICES.maternal1 : JUDICIAL_PRICES.maternal2;
+    return months < 36 ? JUDICIAL_PRICES.maternal_1 : JUDICIAL_PRICES.maternal_2;
   }
   return JUDICIAL_PRICES[classType] || JUDICIAL_PRICES.bercario;
 };
