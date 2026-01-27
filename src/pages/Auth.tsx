@@ -71,6 +71,14 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Prefetch Dashboard for faster navigation after login
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      import('./Dashboard');
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Check if user is already logged in and redirect appropriately
   useEffect(() => {
     const checkUserAndRedirect = async (userId: string) => {

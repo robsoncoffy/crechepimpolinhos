@@ -188,10 +188,10 @@ export default function Home() {
             {/* Images Grid */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
-                <img src={teacherImage} alt="Professora lendo para crianças" className="rounded-2xl shadow-xl w-full h-48 object-cover" loading="lazy" />
-                <img src={craftsImage} alt="Crianças fazendo artes" className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8" loading="lazy" />
-                <img src={playgroundImage} alt="Playground" className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4" loading="lazy" />
-                <img src={eatingImage} alt="Crianças no refeitório" className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4" loading="lazy" />
+                <img src={teacherImage} alt="Professora lendo para crianças" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover" loading="lazy" />
+                <img src={craftsImage} alt="Crianças fazendo artes" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8" loading="lazy" />
+                <img src={playgroundImage} alt="Playground" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4" loading="lazy" />
+                <img src={eatingImage} alt="Crianças no refeitório" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4" loading="lazy" />
               </div>
               {/* Floating Badge */}
               <div className="absolute -bottom-6 -right-6 bg-secondary p-6 rounded-2xl shadow-xl">
@@ -262,7 +262,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-3 gap-8">
             {features.map(feature => <Card key={feature.title} className="group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500">
                 <div className="relative h-56 overflow-hidden">
-                  <img src={feature.image} alt={feature.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                  <img src={feature.image} alt={feature.title} width={400} height={224} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4">
                     <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${feature.color} mb-2`}>
@@ -361,7 +361,7 @@ export default function Home() {
 
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img src={craftsImage} alt="Atividades na creche" className="w-full h-96 object-cover" loading="lazy" />
+                <img src={craftsImage} alt="Atividades na creche" width={600} height={384} className="w-full h-96 object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent flex items-end justify-center pb-8">
                   <Button size="lg" variant="secondary" className="gap-2" asChild>
                     <Link to="/sobre">
