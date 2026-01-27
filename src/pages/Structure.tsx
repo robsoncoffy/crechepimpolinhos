@@ -56,11 +56,6 @@ const features = [
     description: "Monitoramento por câmeras e controle de acesso rigoroso.",
   },
   {
-    icon: Camera,
-    title: "Câmeras Online",
-    description: "Acompanhe seu filho em tempo real pelo aplicativo.",
-  },
-  {
     icon: Sparkles,
     title: "Limpeza Rigorosa",
     description: "Higienização constante de todos os ambientes.",
