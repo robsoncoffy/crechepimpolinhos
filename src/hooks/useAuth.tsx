@@ -43,14 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    // Check if user should be logged out (session-only mode)
-    const shouldClearSession = sessionStorage.getItem('pimpolinhos_session_only') === 'true';
+    // Check if this is a new browser session for users who didn't want to be remembered
     const isRemembered = localStorage.getItem('pimpolinhos_remember_me') === 'true';
+    const sessionActive = sessionStorage.getItem('pimpolinhos_session_active');
     
-    // If session-only flag exists but localStorage remember flag doesn't, 
-    // this is a new browser session - clear auth
-    if (!isRemembered && !sessionStorage.getItem('pimpolinhos_session_active')) {
-      // This is a fresh browser session, check if we should clear
+    // If not remembered AND this is a fresh browser session (no sessionActive flag)
+    // AND there was a previous session-only login, clear the auth
+    if (!isRemembered && !sessionActive) {
       const wasSessionOnly = localStorage.getItem('pimpolinhos_was_session_only');
       if (wasSessionOnly === 'true') {
         // User didn't want to be remembered, clear session
