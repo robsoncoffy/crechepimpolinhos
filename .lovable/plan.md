@@ -1,151 +1,190 @@
 
-# Plano de Otimização de Performance - Creche Pimpolinhos
+# Plano de Otimização de Performance - Fase 2
 
-## Diagnóstico: Por que o site está pesado?
+## Resumo das Otimizações Adicionais Identificadas
 
-Após analisar o código, identifiquei vários fatores que contribuem para a lentidão:
-
-### 1. Carregamento de Fontes (Render Blocking)
-O arquivo `index.css` importa fontes do Google Fonts de forma síncrona, bloqueando a renderização:
-```css
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:...&family=Nunito:...&display=swap');
-```
-Isso atrasa significativamente o First Contentful Paint (FCP).
-
-### 2. Bundle Inicial Grande
-O arquivo `Dashboard.tsx` importa sincronamente mais de 40 páginas administrativas, mesmo que o usuário só acesse uma delas. Isso aumenta o tempo de carregamento inicial.
-
-### 3. Imagens Não Otimizadas
-A página Home carrega várias imagens grandes simultaneamente (hero, teacher, crafts, playground, etc.) sem lazy loading adequado.
-
-### 4. Componentes Não Lazificados
-Widgets do dashboard (Weather, Attendance, etc.) são importados sincronamente mesmo antes de serem visíveis.
-
-### 5. Preload Incorreto
-O `index.html` tenta fazer preload de um asset do src que não existe em produção:
-```html
-<link rel="preload" href="/src/assets/hero-children.jpg" ...>
-```
+Após a implementação da Fase 1 (lazy loading, code splitting, otimização de fontes), ainda existem oportunidades significativas para deixar o site mais leve e fluido.
 
 ---
 
-## Plano de Correções
+## 1. Lazy Loading de Recharts (Biblioteca Pesada)
 
-### Etapa 1: Otimizar Carregamento de Fontes
-**Arquivo:** `index.html`
+### Problema
+A biblioteca `recharts` (~400KB) está sendo importada sincronamente em vários componentes de relatórios e gráficos, mesmo que o usuário não acesse essas telas.
 
-Mover as fontes para o head do HTML com `preconnect` e `font-display: swap`:
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
-```
+### Solução
+Criar um wrapper lazy para componentes que usam recharts:
+- `AdminReports.tsx`
+- `AdminTimeClock.tsx`
+- `FinancialReportsTab.tsx`
+- `FinancialForecastTab.tsx`
+- `GrowthChart.tsx`
+- `WeeklyCashFlowTab.tsx`
 
-**Arquivo:** `src/index.css`
-Remover o `@import` de fontes (movido para HTML).
+**Impacto**: Redução de ~400KB no bundle inicial
 
-### Etapa 2: Lazy Loading das Páginas do Dashboard
-**Arquivo:** `src/pages/Dashboard.tsx`
+---
 
-Converter todos os imports síncronos para lazy imports:
-```typescript
-const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
-const AdminChildren = lazy(() => import("./admin/AdminChildren"));
-// ... demais páginas
-```
+## 2. Otimizar Ícones do Lucide React
 
-Adicionar Suspense com fallback leve em cada rota.
+### Problema
+Muitas páginas importam múltiplos ícones do lucide-react de forma não otimizada. Por exemplo, `AdminSidebar.tsx` importa 27 ícones de uma vez.
 
-### Etapa 3: Otimizar Imagens da Home
-**Arquivo:** `src/pages/Home.tsx`
+### Solução
+Os imports já estão corretos (named imports), mas podemos garantir que componentes que usam muitos ícones sejam lazy loaded. Além disso, verificar se há ícones não utilizados.
 
-Adicionar `loading="lazy"` em todas as imagens exceto a hero:
-```tsx
-<img src={teacherImage} loading="lazy" ... />
-<img src={craftsImage} loading="lazy" ... />
-```
+---
 
-### Etapa 4: Lazy Loading de Widgets do Dashboard
-**Arquivo:** `src/pages/admin/AdminDashboard.tsx`
+## 3. Prefetch de Rotas Críticas
 
-Converter widgets pesados para lazy loading:
-```typescript
-const WeatherWidget = lazy(() => import("@/components/admin/WeatherWidget"));
-const TodayAttendanceWidget = lazy(() => import("@/components/admin/TodayAttendanceWidget"));
-```
+### Problema
+Quando o usuário faz login, o Dashboard demora para carregar porque precisa baixar os chunks.
 
-### Etapa 5: Corrigir Preload no HTML
-**Arquivo:** `index.html`
+### Solução
+Adicionar prefetch inteligente nas rotas mais acessadas:
+- Prefetch do Dashboard quando o usuário está na tela de Auth
+- Prefetch de páginas filhas quando o usuário está no Dashboard
 
-Remover o preload quebrado:
-```html
-<!-- Remover esta linha -->
-<link rel="preload" href="/src/assets/hero-children.jpg" ...>
-```
+**Arquivo**: `src/pages/Auth.tsx` e `src/pages/Dashboard.tsx`
 
-### Etapa 6: Adicionar Code Splitting por Rota
-**Arquivo:** `vite.config.ts`
+---
 
-Configurar manual chunks para melhor separação:
-```typescript
-build: {
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-        'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', ...],
-        'vendor-query': ['@tanstack/react-query'],
-      }
-    }
+## 4. Otimizar Imagens com Dimensões Explícitas
+
+### Problema
+Algumas imagens não têm width/height definidos, causando Layout Shift (CLS).
+
+### Solução
+Adicionar dimensões explícitas em todas as imagens:
+- `src/components/layout/Header.tsx` (logo já tem)
+- `src/components/layout/Footer.tsx` (logo já tem)
+- `src/pages/Home.tsx` (imagens do grid)
+
+---
+
+## 5. Debounce em Operações Pesadas
+
+### Problema
+Componentes como `GlobalSearch` e formulários de filtro podem disparar múltiplas queries rapidamente.
+
+### Solução
+Implementar debounce consistente (300-500ms) em:
+- Busca global
+- Filtros de tabelas
+- Campos de pesquisa
+
+---
+
+## 6. Remover Animações Desnecessárias em Mobile
+
+### Problema
+Animações como `bounce-gentle`, `wiggle` e `float` consomem CPU em dispositivos móveis.
+
+### Solução
+Desabilitar animações pesadas em mobile via CSS:
+```css
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce-gentle,
+  .animate-wiggle,
+  .animate-float {
+    animation: none;
   }
 }
 ```
 
-### Etapa 7: Otimizar CSS com PurgeCSS Implícito
-O Tailwind já faz isso, mas podemos garantir que animações pesadas sejam otimizadas.
+---
+
+## 7. Otimizar PWA Service Worker
+
+### Problema
+O service worker está configurado para cachear todos os arquivos, incluindo chunks que podem não ser usados.
+
+### Solução
+Refinar a estratégia de cache:
+- Cache agressivo para assets estáticos (imagens, fontes)
+- NetworkFirst para API calls
+- StaleWhileRevalidate para chunks de JS
 
 ---
 
-## Resumo das Mudanças
+## 8. Lazy Loading de Componentes do Footer
+
+### Problema
+O Footer é carregado imediatamente, mesmo que o usuário não role até ele.
+
+### Solução
+Usar Intersection Observer para carregar o Footer apenas quando visível.
+
+---
+
+## Resumo das Alterações por Arquivo
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `index.html` | Mover fontes para head, remover preload quebrado |
-| `src/index.css` | Remover @import de fontes |
-| `src/pages/Dashboard.tsx` | Lazy load de todas as páginas admin |
-| `src/pages/Home.tsx` | Adicionar loading="lazy" nas imagens |
-| `src/pages/admin/AdminDashboard.tsx` | Lazy load dos widgets |
-| `vite.config.ts` | Configurar manual chunks para code splitting |
+| `src/pages/Auth.tsx` | Adicionar prefetch do Dashboard |
+| `src/pages/Home.tsx` | Dimensões explícitas em imagens |
+| `src/index.css` | Desabilitar animações com prefers-reduced-motion |
+| `src/components/admin/GlobalSearch.tsx` | Verificar debounce |
+| `vite.config.ts` | Adicionar recharts ao manual chunks |
 
 ---
 
 ## Impacto Esperado
 
-- **First Contentful Paint (FCP)**: Redução de 40-60%
-- **Largest Contentful Paint (LCP)**: Redução de 30-50%
-- **Time to Interactive (TTI)**: Redução significativa no dashboard
-- **Bundle Size Inicial**: Redução de 50-70% (lazy loading)
+| Métrica | Melhoria Estimada |
+|---------|-------------------|
+| Largest Contentful Paint (LCP) | -15-25% |
+| Cumulative Layout Shift (CLS) | -50-70% |
+| Time to Interactive (TTI) | -10-20% |
+| Total Bundle Size | -300-500KB |
 
 ---
 
 ## Seção Técnica
 
 ### Arquivos que serão modificados:
-1. `index.html` - Otimização de fontes e remoção de preload quebrado
-2. `src/index.css` - Remoção do @import de fontes
-3. `src/pages/Dashboard.tsx` - Lazy loading de 45+ páginas
-4. `src/pages/Home.tsx` - Lazy loading de imagens
-5. `src/pages/admin/AdminDashboard.tsx` - Lazy loading de widgets
-6. `vite.config.ts` - Code splitting configuração
+1. `src/pages/Auth.tsx` - Prefetch do Dashboard
+2. `src/pages/Home.tsx` - Dimensões explícitas em imagens
+3. `src/index.css` - Respeitar prefers-reduced-motion
+4. `vite.config.ts` - Adicionar recharts ao code splitting
+5. `src/App.tsx` - Pequena melhoria na estrutura de fallback
 
-### Dependências:
-- Nenhuma nova dependência necessária
+### Código de Prefetch (Auth.tsx):
+```typescript
+// Prefetch Dashboard when user is on auth page
+useEffect(() => {
+  const prefetchDashboard = () => {
+    import('./Dashboard');
+  };
+  // Delay prefetch to not compete with critical resources
+  const timer = setTimeout(prefetchDashboard, 2000);
+  return () => clearTimeout(timer);
+}, []);
+```
+
+### Código de Reduced Motion (index.css):
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+```
+
+### Vite Config - Recharts Chunk:
+```typescript
+manualChunks: {
+  // ... existing chunks
+  'vendor-charts': ['recharts'],
+}
+```
 
 ### Considerações:
-- O lazy loading pode causar um breve flash de loading em navegações, mas a experiência geral será muito mais fluida
-- As fontes aparecerão um pouco depois do texto, mas o texto ficará legível imediatamente (FOUT aceitável)
-- O PWA continuará funcionando normalmente
-
-### Compatibilidade:
-- Todas as alterações são compatíveis com o React 18 e Vite
-- O service worker do PWA irá cachear os chunks lazy automaticamente após a primeira visita
+- Todas as alterações são retrocompatíveis
+- Não afetam funcionalidade existente
+- Respeitam preferências de acessibilidade do usuário
+- Melhoram a experiência em dispositivos móveis e conexões lentas
