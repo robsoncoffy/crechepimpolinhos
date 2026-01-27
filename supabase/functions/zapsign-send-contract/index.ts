@@ -394,9 +394,9 @@ CNPJ: ${COMPANY_DATA.cnpj}
           lock_email: true,
           qualification: "Responsável Legal",
           external_id: parentId,
-          // Verificação com selfie obrigatória
+          // Verificação com selfie obrigatória (apenas rosto, sem documento)
           require_selfie_photo: true,
-          selfie_validation_type: "liveness-document-match",
+          selfie_validation_type: "liveness-only",
         },
       ],
     };
