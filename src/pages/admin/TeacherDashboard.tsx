@@ -1,15 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState, lazy, Suspense, memo, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
-import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
-import { TeacherAttendanceTab } from "@/components/teacher/TeacherAttendanceTab";
-import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
-import { MiniCalendar } from "@/components/calendar/MiniCalendar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,21 +17,22 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
-  FileText,
-  Activity,
   DollarSign,
-  Heart,
-  Utensils,
   Car,
   UserCheck,
   Bell,
-  Newspaper,
   ClipboardCheck,
 } from "lucide-react";
-import { toast } from "sonner";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
-import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { DashboardHeader, StatCard, StatGrid } from "@/components/admin/dashboards";
+import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
+
+// Lazy load heavy components
+const StaffChatWindow = lazy(() => import("@/components/staff/StaffChatWindow").then(m => ({ default: m.StaffChatWindow })));
+const TeacherParentChat = lazy(() => import("@/components/teacher/TeacherParentChat").then(m => ({ default: m.TeacherParentChat })));
+const TeacherAttendanceTab = lazy(() => import("@/components/teacher/TeacherAttendanceTab").then(m => ({ default: m.TeacherAttendanceTab })));
+const MyReportsTab = lazy(() => import("@/components/employee/MyReportsTab").then(m => ({ default: m.MyReportsTab })));
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type DailyRecord = Database["public"]["Tables"]["daily_records"]["Row"];
@@ -64,14 +59,10 @@ interface TeacherAssignment {
   is_primary: boolean;
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
+const formatDate = (date: Date): string => date.toISOString().split("T")[0];
 
-// Helper to get pickup notification badge info
 const getPickupBadgeInfo = (notification: PickupNotification | null | undefined) => {
   if (!notification) return null;
-  
   switch (notification.notification_type) {
     case "on_way":
       return { icon: Car, label: "A caminho", color: "bg-blue-100 text-blue-700 border-blue-300" };
@@ -84,162 +75,117 @@ const getPickupBadgeInfo = (notification: PickupNotification | null | undefined)
   }
 };
 
+const TabLoadingFallback = memo(() => (
+  <div className="flex items-center justify-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+  </div>
+));
 
 export default function TeacherDashboard() {
   const { user, profile } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("agenda");
-  const [selectedDate] = useState(new Date());
-  
-  // Data states
-  const [assignment, setAssignment] = useState<TeacherAssignment | null>(null);
-  const [children, setChildren] = useState<ChildWithRecord[]>([]);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [childrenWithAllergies, setChildrenWithAllergies] = useState<Child[]>([]);
+  const selectedDate = useMemo(() => new Date(), []);
 
   // Fetch teacher's class assignment
-  useEffect(() => {
-    if (!user) return;
-    
-    const fetchAssignment = async () => {
-      const { data, error } = await supabase
+  const { data: assignment } = useQuery({
+    queryKey: ["teacher-assignment", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("teacher_assignments")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .eq("is_primary", true)
         .maybeSingle();
-      
-      if (error) {
-        console.error("Error fetching assignment:", error);
-      } else if (data) {
-        setAssignment(data);
-      }
-    };
-    
-    fetchAssignment();
-  }, [user]);
+      return data as TeacherAssignment | null;
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 10,
+  });
 
   // Fetch children and their daily records
-  useEffect(() => {
-    if (!user) return;
-    
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch all children (or filter by assignment if available)
-        let childrenQuery = supabase.from("children").select("*");
-        
-        if (assignment) {
-          childrenQuery = childrenQuery
-            .eq("class_type", assignment.class_type)
-            .eq("shift_type", assignment.shift_type);
-        }
-        
-        const { data: childrenData, error: childrenError } = await childrenQuery.order("full_name");
-        
-        if (childrenError) throw childrenError;
-
-        // Get today's date for filtering
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        // Fetch today's records and active pickup notifications in parallel
-        const [recordsResult, pickupResult] = await Promise.all([
-          supabase
-            .from("daily_records")
-            .select("*")
-            .eq("record_date", formatDate(selectedDate)),
-          supabase
-            .from("pickup_notifications")
-            .select("*")
-            .eq("is_active", true)
-            .gte("created_at", today.toISOString())
-        ]);
-        
-        if (recordsResult.error) throw recordsResult.error;
-        
-        const recordsData = recordsResult.data;
-        const pickupData = pickupResult.data || [];
-        
-        // Combine children with their records and pickup notifications
-        const childrenWithRecords = (childrenData || []).map((child) => ({
-          ...child,
-          daily_record: recordsData?.find((r) => r.child_id === child.id) || null,
-          pickup_notification: pickupData.find((p) => p.child_id === child.id) as PickupNotification | null,
-        }));
-        
-        setChildren(childrenWithRecords);
-        
-        // Filter children with allergies for quick access
-        setChildrenWithAllergies(
-          (childrenData || []).filter(
-            (c) => c.allergies || c.dietary_restrictions || c.special_milk
-          )
-        );
-        
-        // Count unread staff messages
-        const { data: generalRoom } = await supabase
-          .from("staff_chat_rooms")
-          .select("id")
-          .eq("is_general", true)
-          .single();
-        
-        if (generalRoom) {
-          const { count } = await supabase
-            .from("staff_messages")
-            .select("*", { count: "exact", head: true })
-            .eq("room_id", generalRoom.id)
-            .eq("is_read", false)
-            .neq("sender_id", user.id);
-          
-          setUnreadMessages(count || 0);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Erro ao carregar dados");
-      } finally {
-        setLoading(false);
+  const { data: childrenData, isLoading } = useQuery({
+    queryKey: ["teacher-children", user?.id, assignment?.class_type, assignment?.shift_type, formatDate(selectedDate)],
+    queryFn: async () => {
+      let childrenQuery = supabase.from("children").select("*");
+      
+      if (assignment) {
+        childrenQuery = childrenQuery
+          .eq("class_type", assignment.class_type)
+          .eq("shift_type", assignment.shift_type);
       }
-    };
-    
-    fetchData();
+      
+      const { data: childrenResult } = await childrenQuery.order("full_name");
 
-    // Subscribe to realtime pickup notifications
-    const pickupChannel = supabase
-      .channel("teacher-pickup-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "pickup_notifications",
-        },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    return () => {
-      supabase.removeChannel(pickupChannel);
-    };
-  }, [user, assignment, selectedDate]);
+      const [recordsResult, pickupResult] = await Promise.all([
+        supabase
+          .from("daily_records")
+          .select("*")
+          .eq("record_date", formatDate(selectedDate)),
+        supabase
+          .from("pickup_notifications")
+          .select("*")
+          .eq("is_active", true)
+          .gte("created_at", today.toISOString()),
+      ]);
+
+      const childrenWithRecords = (childrenResult || []).map((child) => ({
+        ...child,
+        daily_record: recordsResult.data?.find((r) => r.child_id === child.id) || null,
+        pickup_notification: pickupResult.data?.find((p) => p.child_id === child.id) as PickupNotification | null,
+      }));
+
+      return {
+        children: childrenWithRecords,
+        allergies: (childrenResult || []).filter(c => c.allergies || c.dietary_restrictions || c.special_milk),
+      };
+    },
+    enabled: !!user,
+    staleTime: 1000 * 30,
+  });
+
+  const children = childrenData?.children || [];
+  const childrenWithAllergies = childrenData?.allergies || [];
+  
+  // Fetch unread messages count
+  const { data: unreadMessages = 0 } = useQuery({
+    queryKey: ["teacher-unread-messages", user?.id],
+    queryFn: async () => {
+      const { data: generalRoom } = await supabase
+        .from("staff_chat_rooms")
+        .select("id")
+        .eq("is_general", true)
+        .single();
+
+      if (!generalRoom) return 0;
+
+      const { count } = await supabase
+        .from("staff_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("room_id", generalRoom.id)
+        .eq("is_read", false)
+        .neq("sender_id", user!.id);
+
+      return count || 0;
+    },
+    enabled: !!user,
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
+  });
 
   const completedCount = children.filter((c) => c.daily_record).length;
   const pendingCount = children.length - completedCount;
   const firstName = profile?.full_name?.split(" ")[0] || "Professor";
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-5 w-48" />
-        </div>
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-5 w-48" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28" />)}
         </div>
         <Skeleton className="h-96" />
       </div>
@@ -248,450 +194,252 @@ export default function TeacherDashboard() {
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-hidden">
-      {/* Header */}
-      <div>
-        <h1 className="font-fredoka text-2xl lg:text-3xl font-bold">
-          Olá, {firstName}! 👋
-        </h1>
-        <p className="text-muted-foreground">
-          {assignment 
-            ? `${classTypeLabels[assignment.class_type]} • ${shiftTypeLabels[assignment.shift_type]}`
-            : "Todas as turmas"
-          } • {selectedDate.toLocaleDateString("pt-BR", { 
-            weekday: "long", 
-            day: "numeric", 
-            month: "long" 
-          })}
-        </p>
-      </div>
+      <DashboardHeader
+        greeting={`Olá, ${firstName}! 👋`}
+        subtitle={
+          assignment
+            ? `${classTypeLabels[assignment.class_type]} • ${shiftTypeLabels[assignment.shift_type]} • ${selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}`
+            : `Todas as turmas • ${selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}`
+        }
+      />
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <Baby className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-primary mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{children.length}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Alunos</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-pimpo-green/10 border-pimpo-green/30">
-          <CardContent className="p-3 sm:p-4 text-center">
-            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-green mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-fredoka font-bold text-pimpo-green">{completedCount}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Agendas prontas</p>
-          </CardContent>
-        </Card>
-        
-        <Card className={pendingCount > 0 ? "bg-pimpo-yellow/10 border-pimpo-yellow/30" : ""}>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <Clock className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-yellow mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{pendingCount}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Pendentes</p>
-          </CardContent>
-        </Card>
-        
-        <Card className={unreadMessages > 0 ? "bg-pimpo-blue/10 border-pimpo-blue/30" : ""}>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 mx-auto text-pimpo-blue mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-fredoka font-bold">{unreadMessages}</p>
-            <p className="text-xs sm:text-sm text-muted-foreground">Mensagens</p>
-          </CardContent>
-        </Card>
-      </div>
+      <StatGrid columns={4}>
+        <StatCard icon={Baby} iconColor="text-primary" value={children.length} label="Alunos" />
+        <StatCard icon={CheckCircle2} iconColor="text-pimpo-green" bgColor="bg-pimpo-green/10" borderColor="border-pimpo-green/30" value={completedCount} label="Agendas prontas" />
+        <StatCard icon={Clock} iconColor="text-pimpo-yellow" bgColor={pendingCount > 0 ? "bg-pimpo-yellow/10" : ""} borderColor={pendingCount > 0 ? "border-pimpo-yellow/30" : ""} value={pendingCount} label="Pendentes" />
+        <StatCard icon={MessageSquare} iconColor="text-pimpo-blue" bgColor={unreadMessages > 0 ? "bg-pimpo-blue/10" : ""} borderColor={unreadMessages > 0 ? "border-pimpo-blue/30" : ""} value={unreadMessages} label="Mensagens" />
+      </StatGrid>
 
-      {/* Main Tabs */}
       <Card>
-        <CardContent className="p-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b bg-muted/30 overflow-x-auto scrollbar-hide">
-              <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
-                <TabsTrigger 
-                  value="agenda" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Agenda</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="chamada" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <ClipboardCheck className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Chamada</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="turma" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Turma</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="pais" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Pais</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="alergias" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Alergias</span>
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="mensagens" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 relative whitespace-nowrap flex-shrink-0"
-                >
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Equipe</span>
-                  {unreadMessages > 0 && (
-                    <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-                      {unreadMessages}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="relatorios" 
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Relatórios</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <div className="p-4">
-              {/* Agenda Tab */}
-              <TabsContent value="agenda" className="mt-0 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">Agenda Digital</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Clique em uma criança para abrir a agenda completa
-                    </p>
-                  </div>
-                  <Badge variant="outline">
-                    {completedCount}/{children.length} preenchidas
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="border-b bg-muted/30 overflow-x-auto scrollbar-hide">
+            <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
+              <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Calendar className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Agenda</span>
+              </TabsTrigger>
+              <TabsTrigger value="chamada" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <ClipboardCheck className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Chamada</span>
+              </TabsTrigger>
+              <TabsTrigger value="turma" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Users className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Turma</span>
+              </TabsTrigger>
+              <TabsTrigger value="pais" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Pais</span>
+              </TabsTrigger>
+              <TabsTrigger value="alergias" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Alergias</span>
+              </TabsTrigger>
+              <TabsTrigger value="mensagens" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 relative whitespace-nowrap flex-shrink-0">
+                <Users className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Equipe</span>
+                {unreadMessages > 0 && (
+                  <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                    {unreadMessages}
                   </Badge>
-                </div>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="relatorios" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <DollarSign className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Relatórios</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-                <ScrollArea className="h-[50vh] max-h-[500px] min-h-[300px]">
-                  <div className="space-y-2">
-                    {children.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Baby className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Nenhuma criança encontrada na sua turma</p>
-                        {!assignment && (
-                          <p className="text-sm mt-2">
-                            Peça ao administrador para atribuir você a uma turma
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      children.map((child) => {
-                        const pickupBadge = getPickupBadgeInfo(child.pickup_notification);
-                        
-                        return (
-                          <Link
-                            key={child.id}
-                            to={`/painel/agenda?child=${child.id}`}
-                            className="block"
-                          >
-                            <div className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                              child.pickup_notification 
-                                ? "bg-gradient-to-r from-background to-blue-50/50 border-blue-200 hover:border-blue-300"
-                                : "hover:bg-muted/50"
-                            }`}>
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="relative">
-                                    <Avatar className="h-10 w-10">
-                                      {child.photo_url && (
-                                        <AvatarImage src={child.photo_url} alt={child.full_name} />
-                                      )}
-                                      <AvatarFallback className="bg-primary/10 text-primary">
-                                        {child.full_name.charAt(0)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    {child.pickup_notification && (
-                                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center animate-pulse">
-                                        <Bell className="w-2.5 h-2.5 text-white" />
-                                      </span>
+          <CardContent className="p-4">
+            <TabsContent value="agenda" className="mt-0 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">Agenda Digital</h3>
+                  <p className="text-sm text-muted-foreground">Clique em uma criança para abrir a agenda completa</p>
+                </div>
+                <Badge variant="outline">{completedCount}/{children.length} preenchidas</Badge>
+              </div>
+
+              <ScrollArea className="h-[50vh] max-h-[500px] min-h-[300px]">
+                <div className="space-y-2">
+                  {children.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Baby className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhuma criança encontrada na sua turma</p>
+                    </div>
+                  ) : (
+                    children.map((child) => {
+                      const pickupBadge = getPickupBadgeInfo(child.pickup_notification);
+                      
+                      return (
+                        <Link key={child.id} to={`/painel/agenda?child=${child.id}`} className="block">
+                          <div className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                            child.pickup_notification 
+                              ? "bg-gradient-to-r from-background to-blue-50/50 border-blue-200 hover:border-blue-300"
+                              : "hover:bg-muted/50"
+                          }`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="relative">
+                                  <Avatar className="h-10 w-10">
+                                    {child.photo_url && <AvatarImage src={child.photo_url} alt={child.full_name} />}
+                                    <AvatarFallback className="bg-primary/10 text-primary">
+                                      {child.full_name.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {child.pickup_notification && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center animate-pulse">
+                                      <Bell className="w-2.5 h-2.5 text-white" />
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{child.full_name}</p>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs text-muted-foreground">
+                                      {classTypeLabels[child.class_type]}
+                                    </p>
+                                    {pickupBadge && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${pickupBadge.color}`}>
+                                            <pickupBadge.icon className="w-3 h-3 mr-1" />
+                                            {pickupBadge.label}
+                                          </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          {child.pickup_notification?.message || "Notificação de busca"}
+                                        </TooltipContent>
+                                      </Tooltip>
                                     )}
                                   </div>
-                                  <div className="min-w-0">
-                                    <p className="font-medium truncate">{child.full_name}</p>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <p className="text-xs text-muted-foreground">
-                                        {classTypeLabels[child.class_type]} • {shiftTypeLabels[child.shift_type]}
-                                      </p>
-                                      {pickupBadge && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${pickupBadge.color}`}>
-                                              <pickupBadge.icon className="w-3 h-3" />
-                                              {pickupBadge.label}
-                                            </span>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p className="font-medium">
-                                              {child.pickup_notification?.notification_type === "on_way" && "Responsável a caminho"}
-                                              {child.pickup_notification?.notification_type === "delay" && `Atraso de ${child.pickup_notification?.delay_minutes} minutos`}
-                                              {child.pickup_notification?.notification_type === "other_person" && "Outra pessoa vai buscar"}
-                                            </p>
-                                            {child.pickup_notification?.message && (
-                                              <p className="text-xs text-muted-foreground">{child.pickup_notification.message}</p>
-                                            )}
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 shrink-0">
-                                  {child.allergies && (
-                                    <Badge variant="outline" className="text-pimpo-red border-pimpo-red/30 hidden sm:flex">
-                                      <AlertTriangle className="w-3 h-3 mr-1" />
-                                      Alergia
-                                    </Badge>
-                                  )}
-                                  {child.daily_record ? (
-                                    <Badge variant="secondary" className="bg-pimpo-green/20 text-pimpo-green">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                                      <span className="hidden sm:inline">Preenchida</span>
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline">
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      <span className="hidden sm:inline">Pendente</span>
-                                    </Badge>
-                                  )}
                                 </div>
                               </div>
-                              
-                              {/* Quick summary if record exists */}
-                              {child.daily_record && (
-                                <div className="mt-2 pt-2 border-t flex gap-4 text-xs text-muted-foreground">
-                                  {child.daily_record.lunch && (
-                                    <span className="flex items-center gap-1">
-                                      <Utensils className="w-3 h-3" />
-                                      Almoço: {child.daily_record.lunch === "tudo" ? "✓" : child.daily_record.lunch}
-                                    </span>
-                                  )}
-                                  {child.daily_record.mood && (
-                                    <span className="flex items-center gap-1">
-                                      Humor: {child.daily_record.mood}
-                                    </span>
-                                  )}
-                                  {child.daily_record.school_notes && (
-                                    <span className="flex items-center gap-1">
-                                      <FileText className="w-3 h-3" />
-                                      Com bilhete
-                                    </span>
-                                  )}
-                                </div>
-                            )}
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                {(child.allergies || child.dietary_restrictions) && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {child.allergies || child.dietary_restrictions}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {child.daily_record ? (
+                                  <Badge className="bg-pimpo-green text-white">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Pronta
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-muted-foreground">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Pendente
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </Link>
                       );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
 
-              {/* Chamada Tab */}
-              <TabsContent value="chamada" className="mt-0">
+            <TabsContent value="chamada" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
                 <TeacherAttendanceTab children={children} selectedDate={selectedDate} />
-              </TabsContent>
+              </Suspense>
+            </TabsContent>
 
-              {/* Minha Turma Tab */}
-              <TabsContent value="turma" className="mt-0 space-y-4">
-                <div>
-                  <h3 className="font-semibold">Minha Turma</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Lista completa de alunos com informações de contato
-                  </p>
+            <TabsContent value="turma" className="mt-0">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+                {children.map((child) => (
+                  <Card key={child.id} className="overflow-hidden">
+                    <CardContent className="p-3 text-center">
+                      <Avatar className="h-16 w-16 mx-auto mb-2">
+                        {child.photo_url && <AvatarImage src={child.photo_url} />}
+                        <AvatarFallback className="text-lg bg-primary/10 text-primary">
+                          {child.full_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="font-medium text-sm truncate">{child.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{classTypeLabels[child.class_type]}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="pais" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
+                <TeacherParentChat />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="alergias" className="mt-0">
+              {childrenWithAllergies.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-4 opacity-50 text-pimpo-green" />
+                  <p>Nenhuma criança com alergias ou restrições</p>
                 </div>
-
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-3">
-                    {children.map((child) => (
-                      <Card key={child.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-4">
-                            <Avatar className="h-12 w-12">
-                              {child.photo_url && (
-                                <AvatarImage src={child.photo_url} alt={child.full_name} />
-                              )}
-                              <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                                {child.full_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <p className="font-semibold">{child.full_name}</p>
-                                <Badge variant="outline">
-                                  {classTypeLabels[child.class_type]}
-                                </Badge>
+              ) : (
+                <div className="space-y-2">
+                  {childrenWithAllergies.map((child) => (
+                    <Card key={child.id} className="border-amber-200 bg-amber-50/50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-10 w-10">
+                            {child.photo_url && <AvatarImage src={child.photo_url} />}
+                            <AvatarFallback className="bg-amber-100 text-amber-700">
+                              {child.full_name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold">{child.full_name}</p>
+                            {child.allergies && (
+                              <div className="mt-1">
+                                <Badge variant="destructive" className="text-xs">Alergias</Badge>
+                                <p className="text-sm mt-1">{child.allergies}</p>
                               </div>
-                              <p className="text-sm text-muted-foreground">
-                                Nascimento: {new Date(child.birth_date).toLocaleDateString("pt-BR")}
-                              </p>
-                              
-                              {/* Contact info */}
-                              {child.pediatrician_name && (
-                                <div className="mt-2 pt-2 border-t">
-                                  <p className="text-xs text-muted-foreground">
-                                    <Heart className="w-3 h-3 inline mr-1" />
-                                    Pediatra: {child.pediatrician_name}
-                                    {child.pediatrician_phone && ` - ${child.pediatrician_phone}`}
-                                  </p>
-                                </div>
-                              )}
-                              
-                              {/* Health info badges */}
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {child.allergies && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    Alergias: {child.allergies}
-                                  </Badge>
-                                )}
-                                {child.special_milk && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Leite: {child.special_milk}
-                                  </Badge>
-                                )}
+                            )}
+                            {child.dietary_restrictions && (
+                              <div className="mt-2">
+                                <Badge variant="secondary" className="text-xs">Restrições</Badge>
+                                <p className="text-sm mt-1">{child.dietary_restrictions}</p>
                               </div>
-                            </div>
+                            )}
+                            {child.special_milk && (
+                              <div className="mt-2">
+                                <Badge className="text-xs bg-blue-100 text-blue-700">Leite Especial</Badge>
+                                <p className="text-sm mt-1">{child.special_milk}</p>
+                              </div>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
-
-              {/* Alergias Tab */}
-              <TabsContent value="alergias" className="mt-0 space-y-4">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-pimpo-red" />
-                    Alergias e Restrições Alimentares
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Crianças que precisam de atenção especial na alimentação
-                  </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
+              )}
+            </TabsContent>
 
-                {childrenWithAllergies.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-pimpo-green opacity-50" />
-                    <p>Nenhuma criança com restrições alimentares</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {childrenWithAllergies.map((child) => (
-                      <Card key={child.id} className="border-pimpo-red/30 bg-pimpo-red/5">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-pimpo-red/10 text-pimpo-red">
-                                {child.full_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
-                            {child.full_name}
-                          </CardTitle>
-                          <CardDescription>
-                            {classTypeLabels[child.class_type]}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          {child.allergies && (
-                            <div>
-                              <p className="text-xs font-medium text-pimpo-red">Alergias:</p>
-                              <p className="text-sm">{child.allergies}</p>
-                            </div>
-                          )}
-                          {child.dietary_restrictions && (
-                            <div>
-                              <p className="text-xs font-medium text-pimpo-yellow">Restrições:</p>
-                              <p className="text-sm">{child.dietary_restrictions}</p>
-                            </div>
-                          )}
-                          {child.special_milk && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">Leite especial:</p>
-                              <p className="text-sm">{child.special_milk}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
+            <TabsContent value="mensagens" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
+                <StaffChatWindow />
+              </Suspense>
+            </TabsContent>
 
-              {/* Chat com Pais Tab */}
-              <TabsContent value="pais" className="mt-0">
-                <div className="-mx-4 -mb-4">
-                  <TeacherParentChat />
-                </div>
-              </TabsContent>
-
-              {/* Chat Equipe Tab */}
-              <TabsContent value="mensagens" className="mt-0">
-                <div className="h-[500px] -mx-4 -mb-4">
-                  <StaffChatWindow />
-                </div>
-              </TabsContent>
-
-              {/* Meus Relatórios Tab */}
-              <TabsContent value="relatorios" className="mt-0">
+            <TabsContent value="relatorios" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
                 <MyReportsTab />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </CardContent>
+              </Suspense>
+            </TabsContent>
+          </CardContent>
+        </Tabs>
       </Card>
-
-      {/* Mini Calendar + Quick Post Creator */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <MiniCalendar />
-        <QuickPostCreator defaultClassType={assignment?.class_type} />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
-          <Link to="/painel/agenda">
-            <Calendar className="w-5 h-5 text-primary" />
-            <span>Agenda Completa</span>
-          </Link>
-        </Button>
-        <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
-          <Link to="/painel/feed">
-            <Newspaper className="w-5 h-5 text-pimpo-green" />
-            <span>Feed da Escola</span>
-          </Link>
-        </Button>
-        <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
-          <Link to="/painel/galeria">
-            <Activity className="w-5 h-5 text-pimpo-blue" />
-            <span>Galeria</span>
-          </Link>
-        </Button>
-        <Button variant="outline" asChild className="h-auto py-4 flex-col gap-2">
-          <Link to="/painel/chat-equipe">
-            <MessageSquare className="w-5 h-5 text-pimpo-yellow" />
-            <span>Chat Equipe</span>
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 }

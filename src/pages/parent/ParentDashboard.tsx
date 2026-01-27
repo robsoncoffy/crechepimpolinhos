@@ -1,31 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense, memo, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ParentChatTabs } from "@/components/parent/ParentChatTabs";
-import { ParentAgendaView } from "@/components/parent/ParentAgendaView";
-import { GrowthChart } from "@/components/parent/GrowthChart";
-import { PickupNotification } from "@/components/parent/PickupNotification";
-import { AbsenceNotification } from "@/components/parent/AbsenceNotification";
-import { QuickSummaryCards } from "@/components/parent/QuickSummaryCards";
-import { TodayAtSchoolWidget } from "@/components/parent/TodayAtSchoolWidget";
-import { ChildProfileTab } from "@/components/parent/ChildProfileTab";
-import { WeeklyMenuTab } from "@/components/parent/WeeklyMenuTab";
-import { PhotoGalleryTab } from "@/components/parent/PhotoGalleryTab";
-import { SchoolFeedTab } from "@/components/parent/SchoolFeedTab";
-import { SchoolCalendarTab } from "@/components/parent/SchoolCalendarTab";
-import { AnnouncementsWidget } from "@/components/parent/AnnouncementsWidget";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { PaymentsTab } from "@/components/parent/PaymentsTab";
-import { DetailedWeatherWidget } from "@/components/parent/DetailedWeatherWidget";
-import { QuarterlyEvaluationsTab } from "@/components/parent/QuarterlyEvaluationsTab";
-import { ParentSettingsTab } from "@/components/parent/ParentSettingsTab";
-import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Clock,
   AlertCircle,
@@ -33,20 +16,36 @@ import {
   MessageSquare,
   Baby,
   Calendar,
-  TrendingUp,
   Home,
-  ChevronRight,
   UserPlus,
-  User,
   UtensilsCrossed,
   Camera,
-  CalendarDays,
   CreditCard,
   GraduationCap,
   Settings,
   Newspaper,
 } from "lucide-react";
 import logo from "@/assets/logo-pimpolinhos.png";
+import { useQuery } from "@tanstack/react-query";
+
+// Lazy load heavy tab components
+const ParentChatTabs = lazy(() => import("@/components/parent/ParentChatTabs").then(m => ({ default: m.ParentChatTabs })));
+const ParentAgendaView = lazy(() => import("@/components/parent/ParentAgendaView").then(m => ({ default: m.ParentAgendaView })));
+const GrowthChart = lazy(() => import("@/components/parent/GrowthChart").then(m => ({ default: m.GrowthChart })));
+const PickupNotification = lazy(() => import("@/components/parent/PickupNotification").then(m => ({ default: m.PickupNotification })));
+const AbsenceNotification = lazy(() => import("@/components/parent/AbsenceNotification").then(m => ({ default: m.AbsenceNotification })));
+const TodayAtSchoolWidget = lazy(() => import("@/components/parent/TodayAtSchoolWidget").then(m => ({ default: m.TodayAtSchoolWidget })));
+const ChildProfileTab = lazy(() => import("@/components/parent/ChildProfileTab").then(m => ({ default: m.ChildProfileTab })));
+const WeeklyMenuTab = lazy(() => import("@/components/parent/WeeklyMenuTab").then(m => ({ default: m.WeeklyMenuTab })));
+const PhotoGalleryTab = lazy(() => import("@/components/parent/PhotoGalleryTab").then(m => ({ default: m.PhotoGalleryTab })));
+const SchoolFeedTab = lazy(() => import("@/components/parent/SchoolFeedTab").then(m => ({ default: m.SchoolFeedTab })));
+const SchoolCalendarTab = lazy(() => import("@/components/parent/SchoolCalendarTab").then(m => ({ default: m.SchoolCalendarTab })));
+const AnnouncementsWidget = lazy(() => import("@/components/parent/AnnouncementsWidget").then(m => ({ default: m.AnnouncementsWidget })));
+const PaymentsTab = lazy(() => import("@/components/parent/PaymentsTab").then(m => ({ default: m.PaymentsTab })));
+const DetailedWeatherWidget = lazy(() => import("@/components/parent/DetailedWeatherWidget").then(m => ({ default: m.DetailedWeatherWidget })));
+const QuarterlyEvaluationsTab = lazy(() => import("@/components/parent/QuarterlyEvaluationsTab").then(m => ({ default: m.QuarterlyEvaluationsTab })));
+const ParentSettingsTab = lazy(() => import("@/components/parent/ParentSettingsTab").then(m => ({ default: m.ParentSettingsTab })));
+const MiniCalendar = lazy(() => import("@/components/calendar/MiniCalendar").then(m => ({ default: m.MiniCalendar })));
 
 interface Child {
   id: string;
@@ -68,166 +67,166 @@ interface MonthlyTracking {
   observations: string | null;
 }
 
-export default function ParentDashboard() {
-  const { user, profile, signOut, isApproved } = useAuth();
-  const navigate = useNavigate();
-  const [children, setChildren] = useState<Child[]>([]);
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-  const [growthData, setGrowthData] = useState<Record<string, MonthlyTracking[]>>({});
-  const [activeTab, setActiveTab] = useState("agenda");
-  const [pendingRegistrations, setPendingRegistrations] = useState<{ first_name: string; last_name: string; status: string }[]>([]);
-  const [checkingRegistrations, setCheckingRegistrations] = useState(true);
+// Loading fallback for tabs
+const TabLoadingFallback = memo(() => (
+  <div className="flex items-center justify-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
+  </div>
+));
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/");
-  };
-
-  // Check for pending child registrations (runs for all users, approved or not)
-  useEffect(() => {
-    if (!user) return;
-
-    const checkPendingRegistrations = async () => {
-      setCheckingRegistrations(true);
-      const { data } = await supabase
-        .from("child_registrations")
-        .select("first_name, last_name, status")
-        .eq("parent_id", user.id);
-
-      setPendingRegistrations(data || []);
-      setCheckingRegistrations(false);
-    };
-
-    checkPendingRegistrations();
-  }, [user]);
-
-  // Fetch children and growth data
-  useEffect(() => {
-    if (!isApproved || !user) return;
-
-    const fetchData = async () => {
-      const { data: parentChildren } = await supabase
-        .from("parent_children")
-        .select("child_id")
-        .eq("parent_id", user.id);
-
-      if (!parentChildren || parentChildren.length === 0) return;
-
-      const childIds = parentChildren.map((pc) => pc.child_id);
-
-      const [childrenRes, growthRes] = await Promise.all([
-        supabase.from("children").select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies, plan_type").in("id", childIds),
-        supabase.from("monthly_tracking").select("*").in("child_id", childIds),
-      ]);
-
-      if (childrenRes.data) {
-        setChildren(childrenRes.data);
-        if (childrenRes.data.length > 0) {
-          setSelectedChild(childrenRes.data[0]);
-        }
-      }
-
-      if (growthRes.data) {
-        const grouped: Record<string, MonthlyTracking[]> = {};
-        growthRes.data.forEach((item) => {
-          if (!grouped[item.child_id]) {
-            grouped[item.child_id] = [];
-          }
-          grouped[item.child_id].push(item);
-        });
-        setGrowthData(grouped);
-      }
-    };
-
-    fetchData();
-  }, [isApproved, user]);
-
-  // Fetch unread message counts
-  useEffect(() => {
-    if (!user || children.length === 0) return;
-
-    const fetchUnreadCounts = async () => {
-      const counts: Record<string, number> = {};
-
-      for (const child of children) {
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("child_id", child.id)
-          .eq("is_read", false)
-          .neq("sender_id", user.id);
-
-        counts[child.id] = count || 0;
-      }
-
-      setUnreadCounts(counts);
-    };
-
-    fetchUnreadCounts();
-
-    const channel = supabase
-      .channel("parent-unread-counts")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-        },
-        (payload) => {
-          const newMessage = payload.new as { child_id: string; sender_id: string };
-          if (
-            children.some((c) => c.id === newMessage.child_id) &&
-            newMessage.sender_id !== user.id
-          ) {
-            setUnreadCounts((prev) => ({
-              ...prev,
-              [newMessage.child_id]: (prev[newMessage.child_id] || 0) + 1,
-            }));
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-        },
-        () => {
-          fetchUnreadCounts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, children]);
-
+// Quick summary cards component (simplified inline)
+const QuickSummary = memo(function QuickSummary({ child }: { child: Child }) {
   const classTypeLabels: Record<string, string> = {
     bercario: "Berçário",
     maternal: "Maternal",
     jardim: "Jardim",
   };
 
-  // If not approved, check what to show
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <Card>
+        <CardContent className="p-4 text-center">
+          <Avatar className="h-16 w-16 mx-auto mb-2">
+            {child.photo_url && <AvatarImage src={child.photo_url} />}
+            <AvatarFallback className="bg-primary/10 text-primary text-lg">
+              {child.full_name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <p className="font-semibold truncate">{child.full_name}</p>
+          <Badge variant="outline" className="mt-1">{classTypeLabels[child.class_type] || child.class_type}</Badge>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="p-4 flex flex-col justify-center h-full">
+          <div className="text-center">
+            <Calendar className="w-6 h-6 mx-auto text-primary mb-2" />
+            <p className="text-sm text-muted-foreground">Turma</p>
+            <p className="font-semibold">{classTypeLabels[child.class_type] || child.class_type}</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+});
+
+export default function ParentDashboard() {
+  const { user, profile, signOut, isApproved } = useAuth();
+  const navigate = useNavigate();
+  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+  const [activeTab, setActiveTab] = useState("agenda");
+
+  const handleLogout = useCallback(async () => {
+    await signOut();
+    navigate("/");
+  }, [signOut, navigate]);
+
+  // Fetch pending registrations
+  const { data: pendingRegistrations = [], isLoading: checkingRegistrations } = useQuery({
+    queryKey: ["parent-registrations", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase
+        .from("child_registrations")
+        .select("first_name, last_name, status")
+        .eq("parent_id", user.id);
+      return data || [];
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch children data
+  const { data: children = [], isLoading: loadingChildren } = useQuery({
+    queryKey: ["parent-children", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data: parentChildren } = await supabase
+        .from("parent_children")
+        .select("child_id")
+        .eq("parent_id", user.id);
+
+      if (!parentChildren || parentChildren.length === 0) return [];
+
+      const childIds = parentChildren.map((pc) => pc.child_id);
+      const { data } = await supabase
+        .from("children")
+        .select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies, plan_type")
+        .in("id", childIds);
+
+      return data || [];
+    },
+    enabled: !!user && isApproved,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch growth data
+  const { data: growthData = {} } = useQuery({
+    queryKey: ["parent-growth-data", children.map(c => c.id).join(",")],
+    queryFn: async () => {
+      if (children.length === 0) return {};
+      const childIds = children.map(c => c.id);
+      const { data } = await supabase
+        .from("monthly_tracking")
+        .select("*")
+        .in("child_id", childIds);
+
+      const grouped: Record<string, MonthlyTracking[]> = {};
+      data?.forEach((item) => {
+        if (!grouped[item.child_id]) grouped[item.child_id] = [];
+        grouped[item.child_id].push(item);
+      });
+      return grouped;
+    },
+    enabled: children.length > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // Auto-select first child
+  useEffect(() => {
+    if (!selectedChild && children.length > 0) {
+      setSelectedChild(children[0]);
+    }
+  }, [children, selectedChild]);
+
+  // Fetch unread counts with React Query
+  const { data: unreadCounts = {} } = useQuery({
+    queryKey: ["parent-unread-counts", user?.id, children.map(c => c.id).join(",")],
+    queryFn: async () => {
+      if (!user || children.length === 0) return {};
+      const counts: Record<string, number> = {};
+      
+      await Promise.all(children.map(async (child) => {
+        const { count } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("child_id", child.id)
+          .eq("is_read", false)
+          .neq("sender_id", user.id);
+        counts[child.id] = count || 0;
+      }));
+      
+      return counts;
+    },
+    enabled: !!user && children.length > 0,
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
+  });
+
+  const handleChatClick = useCallback(() => setActiveTab("mensagens"), []);
+
+  // If not approved, show appropriate UI
   if (!isApproved) {
-    // Still loading registrations
     if (checkingRegistrations) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
         </div>
       );
     }
 
-    // No pending registrations - redirect to child registration
     if (pendingRegistrations.length === 0) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light">
-          {/* Header */}
           <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
             <div className="container py-4 flex items-center justify-between">
               <Link to="/" className="flex items-center gap-3">
@@ -244,7 +243,6 @@ export default function ParentDashboard() {
             </div>
           </header>
 
-          {/* Content - Prompt to register child */}
           <main className="container py-8 max-w-2xl">
             <div className="mb-8">
               <h1 className="font-fredoka text-3xl font-bold">
@@ -291,10 +289,8 @@ export default function ParentDashboard() {
       );
     }
 
-    // Has pending registrations - show waiting for approval
     return (
       <div className="min-h-screen bg-gradient-to-br from-pimpo-blue-light via-background to-pimpo-yellow-light">
-        {/* Header */}
         <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
           <div className="container py-4 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
@@ -311,7 +307,6 @@ export default function ParentDashboard() {
           </div>
         </header>
 
-        {/* Content */}
         <main className="container py-8 max-w-2xl">
           <div className="mb-8">
             <h1 className="font-fredoka text-3xl font-bold">
@@ -339,7 +334,6 @@ export default function ParentDashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 pt-6">
-              {/* List of pending children */}
               <div className="space-y-2">
                 {pendingRegistrations.map((reg, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 bg-pimpo-yellow/5 rounded-lg border border-pimpo-yellow/20">
@@ -386,6 +380,29 @@ export default function ParentDashboard() {
               </Button>
             </CardContent>
           </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (loadingChildren) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-pimpo-blue-light/30 to-background">
+        <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
+          <div className="container py-3 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3">
+              <img src={logo} alt="Creche Pimpolinhos" className="h-10" />
+            </Link>
+            <Skeleton className="h-8 w-20" />
+          </div>
+        </header>
+        <main className="container py-6 max-w-5xl space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid grid-cols-2 gap-4">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
+          </div>
+          <Skeleton className="h-96" />
         </main>
       </div>
     );
@@ -449,211 +466,184 @@ export default function ParentDashboard() {
                 <Baby className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Nenhum filho vinculado</h3>
-              <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-                Cadastre seu filho para que a escola possa aprovar e vincular à sua conta.
+              <p className="text-muted-foreground mb-4">
+                Aguardando a escola vincular seus filhos à sua conta
               </p>
-              <Button asChild size="lg" className="gap-2">
+              <Button asChild>
                 <Link to="/cadastro-pimpolho">
-                  <UserPlus className="w-5 h-5" />
-                  Adicionar Pimpolho
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Cadastrar filho
                 </Link>
               </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            {/* Children Selector */}
+            {/* Child Selector */}
             {children.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-                {children.map((child) => {
-                  const unread = unreadCounts[child.id] || 0;
-                  const isSelected = selectedChild?.id === child.id;
-                  return (
-                    <Card
-                      key={child.id}
-                      onClick={() => setSelectedChild(child)}
-                      className={`shrink-0 cursor-pointer transition-all hover:shadow-md ${
-                        isSelected
-                          ? "ring-2 ring-primary shadow-md"
-                          : "opacity-70 hover:opacity-100"
-                      }`}
-                    >
-                      <CardContent className="p-4 flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={child.photo_url || undefined} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-fredoka">
-                            {child.full_name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold">{child.full_name.split(" ")[0]}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {classTypeLabels[child.class_type]}
-                          </p>
-                        </div>
-                        {unread > 0 && (
-                          <Badge variant="destructive" className="ml-2">
-                            {unread}
-                          </Badge>
-                        )}
-                        {isSelected && <ChevronRight className="w-4 h-4 text-primary ml-auto" />}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {children.map((child) => (
+                  <Button
+                    key={child.id}
+                    variant={selectedChild?.id === child.id ? "default" : "outline"}
+                    className="flex-shrink-0 gap-2"
+                    onClick={() => setSelectedChild(child)}
+                  >
+                    <Avatar className="h-6 w-6">
+                      {child.photo_url && <AvatarImage src={child.photo_url} />}
+                      <AvatarFallback className="text-xs">
+                        {child.full_name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {child.full_name.split(" ")[0]}
+                    {(unreadCounts[child.id] || 0) > 0 && (
+                      <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+                        {unreadCounts[child.id]}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
               </div>
             )}
 
-            {/* Quick Summary Cards */}
             {selectedChild && (
-              <QuickSummaryCards
-                child={{
-                  id: selectedChild.id,
-                  name: selectedChild.full_name,
-                  class_type: selectedChild.class_type,
-                  photo_url: selectedChild.photo_url,
-                  birth_date: selectedChild.birth_date,
-                  shift: selectedChild.shift_type,
-                }}
-                unreadCount={unreadCounts[selectedChild.id] || 0}
-                onChatClick={() => setActiveTab("chat")}
-              />
-            )}
+              <>
+                {/* Quick Summary */}
+                <QuickSummary child={selectedChild} />
 
-            {/* Main Content Grid */}
-            {selectedChild && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Weather + Today + Announcements + Pickup + Calendar */}
-                <div className="lg:col-span-1 space-y-4">
-                  <DetailedWeatherWidget pickupTime="17:00" />
-                  <AnnouncementsWidget />
-                  <TodayAtSchoolWidget childId={selectedChild.id} />
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <PickupNotification 
-                      childId={selectedChild.id} 
-                      childName={selectedChild.full_name} 
-                    />
-                    <AbsenceNotification 
-                      childId={selectedChild.id} 
-                      childName={selectedChild.full_name} 
-                    />
-                  </div>
-                  <MiniCalendar />
+                {/* Quick Actions */}
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  <Suspense fallback={null}>
+                    <PickupNotification childId={selectedChild.id} childName={selectedChild.full_name} />
+                  </Suspense>
+                  <Suspense fallback={null}>
+                    <AbsenceNotification childId={selectedChild.id} childName={selectedChild.full_name} />
+                  </Suspense>
                 </div>
 
-                {/* Tabs - Right Column */}
-                <div className="lg:col-span-2">
-                  <Card className="shadow-lg overflow-hidden">
-                    <CardContent className="p-0">
-                      <Tabs value={activeTab} onValueChange={setActiveTab}>
-                        <div className="border-b bg-muted/30">
-                          <TabsList className={`w-full h-auto p-0 bg-transparent rounded-none grid ${selectedChild.plan_type === 'plus' ? 'grid-cols-5 sm:grid-cols-11' : 'grid-cols-5 sm:grid-cols-10'}`}>
-                            <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <Calendar className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <Newspaper className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="galeria" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <Camera className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="calendario" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <CalendarDays className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <UtensilsCrossed className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="pagamentos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs">
-                              <CreditCard className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="crescimento" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
-                              <TrendingUp className="w-4 h-4" />
-                            </TabsTrigger>
-                            {selectedChild.plan_type === 'plus' && (
-                              <TabsTrigger value="avaliacoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
-                                <GraduationCap className="w-4 h-4" />
-                              </TabsTrigger>
-                            )}
-                            <TabsTrigger value="perfil" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
-                              <User className="w-4 h-4" />
-                            </TabsTrigger>
-                            <TabsTrigger value="chat" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 relative text-xs hidden sm:flex">
-                              <MessageSquare className="w-4 h-4" />
-                              {unreadCounts[selectedChild.id] > 0 && (
-                                <Badge variant="destructive" className="ml-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
-                                  {unreadCounts[selectedChild.id]}
-                                </Badge>
-                              )}
-                            </TabsTrigger>
-                            <TabsTrigger value="configuracoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 text-xs hidden sm:flex">
-                              <Settings className="w-4 h-4" />
-                            </TabsTrigger>
-                          </TabsList>
-                        </div>
+                {/* Main Tabs */}
+                <Card>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <div className="border-b overflow-x-auto scrollbar-hide">
+                      <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
+                        <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <Calendar className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Agenda</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="mensagens" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap relative">
+                          <MessageSquare className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Chat</span>
+                          {(unreadCounts[selectedChild.id] || 0) > 0 && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                              {unreadCounts[selectedChild.id]}
+                            </Badge>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <UtensilsCrossed className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Cardápio</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="fotos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <Camera className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Fotos</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <Newspaper className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Feed</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="financeiro" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <CreditCard className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Finanças</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="avaliacoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <GraduationCap className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Avaliações</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="config" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
+                          <Settings className="w-4 h-4" />
+                          <span className="text-xs sm:text-sm">Perfil</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
 
-                        <TabsContent value="agenda" className="m-0 p-4 sm:p-6">
-                          <ParentAgendaView childId={selectedChild.id} childName={selectedChild.full_name} />
-                        </TabsContent>
-
-                        <TabsContent value="feed" className="m-0 p-4 sm:p-6">
-                          <SchoolFeedTab childClassType={selectedChild.class_type} />
-                        </TabsContent>
-
-                        <TabsContent value="galeria" className="m-0 p-4 sm:p-6">
-                          <PhotoGalleryTab childClassType={selectedChild.class_type} />
-                        </TabsContent>
-
-                        <TabsContent value="calendario" className="m-0 p-4 sm:p-6">
-                          <SchoolCalendarTab childClassType={selectedChild.class_type} />
-                        </TabsContent>
-
-                        <TabsContent value="cardapio" className="m-0 p-4 sm:p-6">
-                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
-                        </TabsContent>
-
-                        <TabsContent value="pagamentos" className="m-0 p-4 sm:p-6">
-                          <PaymentsTab childId={selectedChild.id} />
-                        </TabsContent>
-
-                        <TabsContent value="crescimento" className="m-0 p-4 sm:p-6">
-                          <GrowthChart data={growthData[selectedChild.id] || []} childName={selectedChild.full_name} />
-                        </TabsContent>
-
-                        <TabsContent value="perfil" className="m-0 p-4 sm:p-6">
-                          <ChildProfileTab 
-                            childId={selectedChild.id} 
-                            childName={selectedChild.full_name}
-                            inviterName={profile?.full_name || ""}
-                          />
-                        </TabsContent>
-
-                        {selectedChild.plan_type === 'plus' && (
-                          <TabsContent value="avaliacoes" className="m-0 p-4 sm:p-6">
-                            <QuarterlyEvaluationsTab
-                              childId={selectedChild.id}
-                              childName={selectedChild.full_name}
-                            />
-                          </TabsContent>
-                        )}
-
-                        <TabsContent value="chat" className="m-0">
-                          <div className="h-[500px]">
-                            <ParentChatTabs
-                              key={selectedChild.id}
-                              childId={selectedChild.id}
-                              childName={selectedChild.full_name}
-                            />
+                    <CardContent className="p-4">
+                      <TabsContent value="agenda" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <div className="space-y-4">
+                            <TodayAtSchoolWidget childId={selectedChild.id} />
+                            <ParentAgendaView childId={selectedChild.id} childName={selectedChild.full_name} />
                           </div>
-                        </TabsContent>
+                        </Suspense>
+                      </TabsContent>
 
-                        <TabsContent value="configuracoes" className="m-0 p-4 sm:p-6">
-                          <ParentSettingsTab children={children} />
-                        </TabsContent>
-                      </Tabs>
+                      <TabsContent value="mensagens" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <ParentChatTabs childId={selectedChild.id} childName={selectedChild.full_name} />
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="cardapio" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="fotos" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <PhotoGalleryTab childClassType={selectedChild.class_type} />
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="feed" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <div className="space-y-4">
+                            <AnnouncementsWidget />
+                            <SchoolFeedTab childClassType={selectedChild.class_type} />
+                          </div>
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="financeiro" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <PaymentsTab childId={selectedChild.id} />
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="avaliacoes" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <QuarterlyEvaluationsTab childId={selectedChild.id} childName={selectedChild.full_name} />
+                        </Suspense>
+                      </TabsContent>
+
+                      <TabsContent value="config" className="mt-0">
+                        <Suspense fallback={<TabLoadingFallback />}>
+                          <div className="space-y-6">
+                            <ChildProfileTab
+                              childId={selectedChild.id}
+                              childName={selectedChild.full_name}
+                              inviterName={profile?.full_name || "Responsável"}
+                            />
+                            {growthData[selectedChild.id] && growthData[selectedChild.id].length > 0 && (
+                              <GrowthChart data={growthData[selectedChild.id]} childName={selectedChild.full_name} />
+                            )}
+                            <ParentSettingsTab children={children} />
+                          </div>
+                        </Suspense>
+                      </TabsContent>
                     </CardContent>
-                  </Card>
+                  </Tabs>
+                </Card>
+
+                {/* Side widgets - Weather + Calendar */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Suspense fallback={<Skeleton className="h-64" />}>
+                    <DetailedWeatherWidget />
+                  </Suspense>
+                  <Suspense fallback={<Skeleton className="h-64" />}>
+                    <MiniCalendar />
+                  </Suspense>
                 </div>
-              </div>
+              </>
             )}
           </div>
         )}
