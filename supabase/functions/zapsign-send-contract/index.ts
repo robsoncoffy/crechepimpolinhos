@@ -9,6 +9,14 @@ const corsHeaders = {
 
 const ZAPSIGN_API_URL = "https://api.zapsign.com.br/api/v1";
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    CONTRATO_ENVIADO: "716d8093-2530-49d9-8b89-1956b028b973",
+  },
+};
+
 interface ContractRequest {
   childId: string;
   registrationId: string;
@@ -644,6 +652,49 @@ CNPJ: ${COMPANY_DATA.cnpj}
                 }
               );
               console.log("GHL contact updated with contract_sent tags");
+
+              // Move opportunity to "Contrato Enviado" stage in pipeline
+              const oppSearchResponse = await fetch(
+                `https://services.leadconnectorhq.com/opportunities/search`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-07-28",
+                  },
+                  body: JSON.stringify({
+                    locationId: GHL_LOCATION_ID,
+                    contactId: ghlContactId,
+                    pipelineId: GHL_PIPELINE.id,
+                  }),
+                }
+              );
+
+              if (oppSearchResponse.ok) {
+                const oppSearchResult = await oppSearchResponse.json();
+                const opportunities = oppSearchResult.opportunities || [];
+
+                if (opportunities.length > 0) {
+                  const oppId = opportunities[0].id;
+                  await fetch(
+                    `https://services.leadconnectorhq.com/opportunities/${oppId}`,
+                    {
+                      method: "PUT",
+                      headers: {
+                        Authorization: `Bearer ${GHL_API_KEY}`,
+                        "Content-Type": "application/json",
+                        Version: "2021-07-28",
+                      },
+                      body: JSON.stringify({
+                        pipelineStageId: GHL_PIPELINE.stages.CONTRATO_ENVIADO,
+                        pipelineId: GHL_PIPELINE.id,
+                      }),
+                    }
+                  );
+                  console.log("Opportunity moved to Contrato Enviado stage");
+                }
+              }
 
               // Send WhatsApp message with signing link
               const whatsappMessage = `📝 *Olá, ${parentName}!*

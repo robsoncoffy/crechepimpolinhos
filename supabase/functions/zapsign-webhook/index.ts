@@ -8,6 +8,15 @@ const corsHeaders = {
 
 const ASAAS_API_URL = "https://api.asaas.com/v3";
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    CONTRATO_ASSINADO: "96393ddf-6958-4195-a063-872bfb57c250",
+    AGUARDANDO_PAGAMENTO: "d83d3acb-f47c-4190-a958-ee26ed5d851b",
+  },
+};
+
 // Pricing matrix: prices[classType][planType]
 // Updated 5-class structure:
 // - Berçário e Maternal I: mesmos valores
@@ -426,6 +435,49 @@ serve(async (req) => {
                   }
                 );
                 console.log("GHL contact updated with contract_signed tags");
+
+                // Move opportunity to "Contrato Assinado" then "Aguardando Pagamento" stage
+                const oppSearchResponse = await fetch(
+                  `https://services.leadconnectorhq.com/opportunities/search`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${GHL_API_KEY}`,
+                      "Content-Type": "application/json",
+                      Version: "2021-07-28",
+                    },
+                    body: JSON.stringify({
+                      locationId: GHL_LOCATION_ID,
+                      contactId: ghlContactId,
+                      pipelineId: GHL_PIPELINE.id,
+                    }),
+                  }
+                );
+
+                if (oppSearchResponse.ok) {
+                  const oppSearchResult = await oppSearchResponse.json();
+                  const opportunities = oppSearchResult.opportunities || [];
+
+                  if (opportunities.length > 0) {
+                    const oppId = opportunities[0].id;
+                    await fetch(
+                      `https://services.leadconnectorhq.com/opportunities/${oppId}`,
+                      {
+                        method: "PUT",
+                        headers: {
+                          Authorization: `Bearer ${GHL_API_KEY}`,
+                          "Content-Type": "application/json",
+                          Version: "2021-07-28",
+                        },
+                        body: JSON.stringify({
+                          pipelineStageId: GHL_PIPELINE.stages.AGUARDANDO_PAGAMENTO,
+                          pipelineId: GHL_PIPELINE.id,
+                        }),
+                      }
+                    );
+                    console.log("Opportunity moved to Aguardando Pagamento stage");
+                  }
+                }
 
                 // Send WhatsApp confirmation
                 const whatsappMessage = `✅ *Olá, ${parentName}!*

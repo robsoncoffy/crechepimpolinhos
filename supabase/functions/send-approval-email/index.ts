@@ -6,6 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// GHL Pipeline Configuration - Jornada de Matrícula
+const GHL_PIPELINE = {
+  id: "gfqyCfBI23CDEkJk9gwC",
+  stages: {
+    AGUARDANDO_APROVACAO: "53392148-570b-449f-8326-e88ddb69751a",
+    CADASTRO_EM_ANDAMENTO: "9eb929ad-0e14-48c9-aaea-b08b002d1792",
+  },
+};
+
 interface ApprovalEmailRequest {
   parentId: string;
   parentName: string;
@@ -602,6 +611,54 @@ serve(async (req: Request): Promise<Response> => {
               body: JSON.stringify({ tags }),
             }
           );
+          
+          // Move opportunity to "Cadastro em Andamento" stage
+          const targetStageId = GHL_PIPELINE.stages.CADASTRO_EM_ANDAMENTO;
+          
+          // Search for existing opportunity
+          const oppSearchResponse = await fetch(
+            `https://services.leadconnectorhq.com/opportunities/search`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${GHL_API_KEY}`,
+                "Content-Type": "application/json",
+                Version: "2021-07-28",
+              },
+              body: JSON.stringify({
+                locationId: GHL_LOCATION_ID,
+                contactId: ghlContactId,
+                pipelineId: GHL_PIPELINE.id,
+              }),
+            }
+          );
+
+          if (oppSearchResponse.ok) {
+            const oppSearchResult = await oppSearchResponse.json();
+            const opportunities = oppSearchResult.opportunities || [];
+
+            if (opportunities.length > 0) {
+              // Move existing opportunity
+              const oppId = opportunities[0].id;
+              await fetch(
+                `https://services.leadconnectorhq.com/opportunities/${oppId}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-07-28",
+                  },
+                  body: JSON.stringify({
+                    pipelineStageId: targetStageId,
+                    pipelineId: GHL_PIPELINE.id,
+                  }),
+                }
+              );
+              logger.info("ghl_opportunity_moved", { metadata: { stage: "Cadastro em Andamento", oppId } });
+            }
+          }
+          
           logger.info("ghl_pipeline_updated", { metadata: { tags, contactId: ghlContactId } });
         }
       } catch (pipelineError) {
