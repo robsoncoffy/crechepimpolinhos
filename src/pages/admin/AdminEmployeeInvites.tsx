@@ -367,16 +367,15 @@ export default function AdminEmployeeInvites() {
                           </Button>
                         </>
                       )}
-                      {!invite.is_used && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteInvite(invite.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteInvite(invite.id)}
+                        className="text-destructive hover:text-destructive"
+                        title="Excluir convite"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 );
