@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.ghl-calendar]
 verify_jwt = false
+
+[functions.ghl-send-email]
+verify_jwt = false
