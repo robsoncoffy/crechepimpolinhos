@@ -182,6 +182,89 @@ async function sendEmailViaGHL(
   return { success: true, contactId, messageId };
 }
 
+// Send WhatsApp message via GHL
+async function sendWhatsAppViaGHL(
+  phone: string,
+  message: string,
+  apiKey: string,
+  locationId: string,
+  logger: ReturnType<typeof createLogger>
+): Promise<{ success: boolean; contactId?: string; messageId?: string; error?: string }> {
+  // Normalize phone number (remove non-digits, add country code if needed)
+  let normalizedPhone = phone.replace(/\D/g, "");
+  if (normalizedPhone.startsWith("0")) {
+    normalizedPhone = normalizedPhone.substring(1);
+  }
+  if (!normalizedPhone.startsWith("55")) {
+    normalizedPhone = "55" + normalizedPhone;
+  }
+  normalizedPhone = "+" + normalizedPhone;
+
+  // Search for contact by phone
+  const searchResponse = await fetch(
+    `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&phone=${encodeURIComponent(normalizedPhone)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Version: "2021-07-28",
+      },
+    }
+  );
+
+  let contactId: string | undefined;
+
+  if (searchResponse.ok) {
+    const searchResult = await searchResponse.json();
+    if (searchResult.contact?.id) {
+      contactId = searchResult.contact.id;
+      logger.info("ghl_whatsapp_contact_found", { ghlContactId: contactId });
+    } else {
+      logger.warn("ghl_whatsapp_contact_not_found", { metadata: { phone: normalizedPhone } });
+      return { success: false, error: "Contact not found for WhatsApp" };
+    }
+  } else {
+    const errorText = await searchResponse.text();
+    logger.error("ghl_whatsapp_search_failed", errorText);
+    return { success: false, error: `Failed to search contact: ${searchResponse.status}` };
+  }
+
+  // Send WhatsApp message
+  const sendResponse = await fetch(
+    "https://services.leadconnectorhq.com/conversations/messages",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Version: "2021-04-15",
+      },
+      body: JSON.stringify({
+        type: "WhatsApp",
+        contactId,
+        message,
+        body: message,
+      }),
+    }
+  );
+
+  if (!sendResponse.ok) {
+    const errorText = await sendResponse.text();
+    logger.warn("ghl_whatsapp_send_failed", { error: errorText, metadata: { status: sendResponse.status } });
+    return { success: false, contactId, error: `Failed to send WhatsApp: ${sendResponse.status}` };
+  }
+
+  const sendResult = await sendResponse.json();
+  const messageId = sendResult.messageId || sendResult.id;
+  
+  logger.info("ghl_whatsapp_sent", {
+    ghlContactId: contactId,
+    ghlMessageId: messageId,
+  });
+
+  return { success: true, contactId, messageId };
+}
+
 serve(async (req: Request): Promise<Response> => {
   const logger = createLogger("send-approval-email");
   logger.info("request_received");
@@ -259,7 +342,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get parent email
+    // Get parent email and phone
     const { data: userData, error: userDataError } = await adminClient.auth.admin.getUserById(parentId);
     
     if (userDataError || !userData?.user?.email) {
@@ -271,12 +354,23 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const parentEmail = userData.user.email;
-    logger.info("parent_email_resolved", { to: parentEmail });
+    
+    // Get parent phone from profile
+    const { data: profileData } = await adminClient
+      .from("profiles")
+      .select("phone")
+      .eq("user_id", parentId)
+      .maybeSingle();
+    
+    const parentPhone = profileData?.phone || null;
+    logger.info("parent_contact_resolved", { to: parentEmail, metadata: { hasPhone: !!parentPhone } });
 
     const appUrl = "https://www.crechepimpolinhos.com.br";
 
     let subject: string;
     let bodyHtml: string;
+
+    const logoUrl = `${appUrl}/logo-email.png`;
 
     if (approvalType === "parent") {
       subject = "✅ Seu cadastro foi aprovado na Creche Pimpolinhos!";
@@ -290,8 +384,10 @@ serve(async (req: Request): Promise<Response> => {
 <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); padding: 30px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">🎈 Creche Pimpolinhos</h1>
-      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Cadastro Aprovado!</p>
+      <div style="background: #ffffff; border-radius: 16px; padding: 12px 20px; display: inline-block; margin-bottom: 12px;">
+        <img src="${logoUrl}" alt="Creche Pimpolinhos" width="100" style="display: block; height: auto;">
+      </div>
+      <h1 style="color: white; margin: 0; font-size: 24px;">Cadastro Aprovado!</h1>
     </div>
     <div style="padding: 30px;">
       <h2 style="color: #1e293b; margin-top: 0;">Olá, ${parentName}! 👋</h2>
@@ -333,8 +429,10 @@ serve(async (req: Request): Promise<Response> => {
 <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
   <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #22c55e, #16a34a); padding: 30px; text-align: center;">
-      <h1 style="color: white; margin: 0; font-size: 24px;">🎈 Creche Pimpolinhos</h1>
-      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Matrícula Aprovada!</p>
+      <div style="background: #ffffff; border-radius: 16px; padding: 12px 20px; display: inline-block; margin-bottom: 12px;">
+        <img src="${logoUrl}" alt="Creche Pimpolinhos" width="100" style="display: block; height: auto;">
+      </div>
+      <h1 style="color: white; margin: 0; font-size: 24px;">Matrícula Aprovada!</h1>
     </div>
     <div style="padding: 30px;">
       <h2 style="color: #1e293b; margin-top: 0;">Olá, ${parentName}! 🎉</h2>
@@ -426,8 +524,33 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email via GHL");
     }
 
+    // Send WhatsApp notification if phone is available
+    let whatsappSent = false;
+    if (parentPhone) {
+      let whatsappMessage: string;
+      if (approvalType === "parent") {
+        whatsappMessage = `✅ *Olá, ${parentName}!*\n\nSeu cadastro foi *aprovado* na Creche Pimpolinhos! 🎉\n\nAgora você pode acessar o sistema e cadastrar seu(s) filho(s) para matrícula.\n\n👉 Acesse: ${appUrl}/painel-pais\n\nQualquer dúvida, estamos à disposição!\n\n💜 Creche Pimpolinhos`;
+      } else {
+        whatsappMessage = `🎉 *Olá, ${parentName}!*\n\nA matrícula de *${childName}* foi *aprovada* na Creche Pimpolinhos! 🎈\n\n📋 Próximos passos:\n• Você receberá o contrato para assinatura digital\n• Após assinatura, a matrícula estará confirmada\n\n👉 Acompanhe tudo no painel: ${appUrl}/painel-pais\n\n💜 Creche Pimpolinhos`;
+      }
+
+      const whatsappResult = await sendWhatsAppViaGHL(
+        parentPhone,
+        whatsappMessage,
+        GHL_API_KEY,
+        GHL_LOCATION_ID,
+        logger
+      );
+      whatsappSent = whatsappResult.success;
+      if (whatsappResult.success) {
+        logger.info("whatsapp_sent", { metadata: { phone: parentPhone } });
+      } else {
+        logger.warn("whatsapp_failed", { error: whatsappResult.error });
+      }
+    }
+
     logger.info("request_completed", { 
-      metadata: { totalDuration: Date.now() - logger.startTime }
+      metadata: { totalDuration: Date.now() - logger.startTime, whatsappSent }
     });
 
     return new Response(

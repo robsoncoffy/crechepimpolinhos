@@ -158,6 +158,7 @@ export function PreEnrollmentsContent() {
       const { error: emailError } = await supabase.functions.invoke("send-parent-invite-email", {
         body: {
           email: preEnrollment.email,
+          phone: preEnrollment.phone,
           inviteCode: inviteCode,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
@@ -218,6 +219,7 @@ export function PreEnrollmentsContent() {
       const { error: emailError } = await supabase.functions.invoke("send-parent-invite-email", {
         body: {
           email: preEnrollment.email,
+          phone: preEnrollment.phone,
           inviteCode: invite.invite_code,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,

@@ -238,6 +238,7 @@ export default function AdminParentInvites() {
 
       await sendInviteEmail(
         formData.email,
+        formData.phone || undefined,
         code,
         formData.childName || undefined,
         couponCodeToUse || undefined,
@@ -257,6 +258,7 @@ export default function AdminParentInvites() {
 
   const sendInviteEmail = async (
     email: string,
+    phone: string | undefined,
     inviteCode: string,
     childName?: string,
     couponCode?: string,
@@ -294,6 +296,7 @@ export default function AdminParentInvites() {
       const response = await supabase.functions.invoke("send-parent-invite-email", {
         body: {
           email,
+          phone: phone || undefined,
           inviteCode,
           childName,
           couponCode: normalizedCouponCode,
@@ -734,7 +737,7 @@ export default function AdminParentInvites() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => sendInviteEmail(invite.email!, invite.invite_code, invite.child_name || undefined, invite.coupon_code || undefined)}
+                          onClick={() => sendInviteEmail(invite.email!, invite.phone || undefined, invite.invite_code, invite.child_name || undefined, invite.coupon_code || undefined)}
                           disabled={sendingEmail === invite.invite_code}
                         >
                           {sendingEmail === invite.invite_code ? (
