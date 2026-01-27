@@ -183,5 +183,4 @@
   }
 }
 
-/* Google Fonts import */
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600;700;800&display=swap');
+/* Google Fonts are now loaded via index.html for better performance */
