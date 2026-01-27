@@ -23,6 +23,7 @@ const classCards = [
     ageRange: '0 a 2 anos',
     icon: Baby,
     color: 'bg-pimpo-blue',
+    plans: 'Meio Turno, Integral e Plus+',
   },
   {
     id: 'maternal_1' as const,
@@ -30,6 +31,7 @@ const classCards = [
     ageRange: '2 a 3 anos',
     icon: Users,
     color: 'bg-pimpo-red',
+    plans: 'Meio Turno, Integral e Plus+',
   },
   {
     id: 'maternal_2' as const,
@@ -37,6 +39,7 @@ const classCards = [
     ageRange: '3 a 4 anos',
     icon: Users,
     color: 'bg-pimpo-red',
+    plans: 'Meio Turno, Integral e Plus+',
   },
   {
     id: 'jardim_1' as const,
@@ -44,6 +47,8 @@ const classCards = [
     ageRange: '4 a 5 anos',
     icon: BookOpen,
     color: 'bg-pimpo-green',
+    plans: 'Apenas Meio Turno',
+    note: 'Sala única por norma',
   },
   {
     id: 'jardim_2' as const,
@@ -51,6 +56,8 @@ const classCards = [
     ageRange: '5 a 6 anos',
     icon: BookOpen,
     color: 'bg-pimpo-green',
+    plans: 'Apenas Meio Turno',
+    note: 'Sala única por norma',
   },
 ];
 
@@ -167,7 +174,11 @@ export default function Pricing() {
                   <CardTitle className="font-fredoka text-lg">{cls.name}</CardTitle>
                   <CardDescription className="text-sm">{cls.ageRange}</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-2">
+                  <p className="text-xs text-muted-foreground">{cls.plans}</p>
+                  {cls.note && (
+                    <p className="text-xs text-pimpo-yellow italic">{cls.note}</p>
+                  )}
                   <Button variant="ghost" size="sm" className="gap-2" asChild>
                     <a href={GHL_WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
                       Consultar
