@@ -1789,7 +1789,6 @@ export type Database = {
       }
       parent_invites: {
         Row: {
-          child_name: string | null
           coupon_code: string | null
           created_at: string
           created_by: string | null
@@ -1798,13 +1797,13 @@ export type Database = {
           id: string
           invite_code: string
           notes: string | null
+          parent_name: string | null
           phone: string | null
           pre_enrollment_id: string | null
           used_at: string | null
           used_by: string | null
         }
         Insert: {
-          child_name?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -1813,13 +1812,13 @@ export type Database = {
           id?: string
           invite_code: string
           notes?: string | null
+          parent_name?: string | null
           phone?: string | null
           pre_enrollment_id?: string | null
           used_at?: string | null
           used_by?: string | null
         }
         Update: {
-          child_name?: string | null
           coupon_code?: string | null
           created_at?: string
           created_by?: string | null
@@ -1828,6 +1827,7 @@ export type Database = {
           id?: string
           invite_code?: string
           notes?: string | null
+          parent_name?: string | null
           phone?: string | null
           pre_enrollment_id?: string | null
           used_at?: string | null

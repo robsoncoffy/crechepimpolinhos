@@ -42,7 +42,7 @@ export default function Auth() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inviteStatus, setInviteStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
   const [inviteData, setInviteData] = useState<{ 
-    child_name?: string;
+    parent_name?: string;
     pre_enrollment?: {
       parent_name: string;
       email: string;
@@ -147,7 +147,7 @@ export default function Auth() {
     // First check parent_invites with pre_enrollment data
     const { data: parentData, error: parentError } = await supabase
       .from("parent_invites")
-      .select("id, child_name, email, phone, expires_at, used_by, pre_enrollment_id")
+      .select("id, parent_name, email, phone, expires_at, used_by, pre_enrollment_id")
       .eq("invite_code", code.toUpperCase())
       .maybeSingle();
 
@@ -188,7 +188,7 @@ export default function Auth() {
 
       setInviteStatus("valid");
       setInviteData({ 
-        child_name: parentData.child_name || undefined,
+        parent_name: parentData.parent_name || undefined,
         pre_enrollment: preEnrollmentData
       });
       return;
@@ -542,12 +542,12 @@ export default function Auth() {
                         )}
                       </div>
                     </div>
-                    {inviteStatus === "valid" && inviteData?.child_name && (
+                    {inviteStatus === "valid" && inviteData?.parent_name && (
                       <p className="text-sm text-green-600">
-                        ✓ Convite válido para responsável de: {inviteData.child_name}
+                        ✓ Convite válido para: {inviteData.parent_name}
                       </p>
                     )}
-                    {inviteStatus === "valid" && !inviteData?.child_name && (
+                    {inviteStatus === "valid" && !inviteData?.parent_name && (
                       <p className="text-sm text-green-600">
                         ✓ Código de convite válido
                       </p>
