@@ -576,6 +576,93 @@ export type Database = {
         }
         Relationships: []
       }
+      controlid_sync_logs: {
+        Row: {
+          completed_at: string | null
+          details: Json | null
+          device_id: string | null
+          error_message: string | null
+          id: string
+          records_failed: number | null
+          records_synced: number | null
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          details?: Json | null
+          device_id?: string | null
+          error_message?: string | null
+          id?: string
+          records_failed?: number | null
+          records_synced?: number | null
+          started_at?: string
+          status: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          details?: Json | null
+          device_id?: string | null
+          error_message?: string | null
+          id?: string
+          records_failed?: number | null
+          records_synced?: number | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+        }
+        Relationships: []
+      }
+      controlid_user_mappings: {
+        Row: {
+          controlid_user_id: number
+          cpf: string
+          created_at: string
+          device_id: string | null
+          employee_id: string
+          id: string
+          synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          controlid_user_id: number
+          cpf: string
+          created_at?: string
+          device_id?: string | null
+          employee_id: string
+          id?: string
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          controlid_user_id?: number
+          cpf?: string
+          created_at?: string
+          device_id?: string | null
+          employee_id?: string
+          id?: string
+          synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controlid_user_mappings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controlid_user_mappings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employee_profiles_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_records: {
         Row: {
           activities: string | null
@@ -1136,6 +1223,7 @@ export type Database = {
       employee_time_clock: {
         Row: {
           clock_type: Database["public"]["Enums"]["clock_type"]
+          controlid_log_id: string | null
           created_at: string
           created_by: string | null
           device_id: string | null
@@ -1152,6 +1240,7 @@ export type Database = {
         }
         Insert: {
           clock_type: Database["public"]["Enums"]["clock_type"]
+          controlid_log_id?: string | null
           created_at?: string
           created_by?: string | null
           device_id?: string | null
@@ -1168,6 +1257,7 @@ export type Database = {
         }
         Update: {
           clock_type?: Database["public"]["Enums"]["clock_type"]
+          controlid_log_id?: string | null
           created_at?: string
           created_by?: string | null
           device_id?: string | null
@@ -2519,9 +2609,13 @@ export type Database = {
           break_duration_minutes: number
           created_at: string
           device_ip: string | null
+          device_login: string | null
           device_name: string
+          device_password: string | null
           id: string
           is_active: boolean
+          last_sync_at: string | null
+          sync_interval_minutes: number | null
           tolerance_minutes: number
           updated_at: string
           webhook_secret: string | null
@@ -2532,9 +2626,13 @@ export type Database = {
           break_duration_minutes?: number
           created_at?: string
           device_ip?: string | null
+          device_login?: string | null
           device_name?: string
+          device_password?: string | null
           id?: string
           is_active?: boolean
+          last_sync_at?: string | null
+          sync_interval_minutes?: number | null
           tolerance_minutes?: number
           updated_at?: string
           webhook_secret?: string | null
@@ -2545,9 +2643,13 @@ export type Database = {
           break_duration_minutes?: number
           created_at?: string
           device_ip?: string | null
+          device_login?: string | null
           device_name?: string
+          device_password?: string | null
           id?: string
           is_active?: boolean
+          last_sync_at?: string | null
+          sync_interval_minutes?: number | null
           tolerance_minutes?: number
           updated_at?: string
           webhook_secret?: string | null

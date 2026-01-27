@@ -62,3 +62,12 @@ verify_jwt = false
 
 [functions.ghl-send-email]
 verify_jwt = false
+
+[functions.controlid-test-connection]
+verify_jwt = false
+
+[functions.controlid-sync]
+verify_jwt = false
+
+[functions.controlid-sync-employees]
+verify_jwt = false
