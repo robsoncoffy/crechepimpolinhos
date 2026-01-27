@@ -11,17 +11,40 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
+          // Core React
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': [
+          
+          // UI Components (grouped)
+          'vendor-ui-core': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-select',
             '@radix-ui/react-popover',
             '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
           ],
+          'vendor-ui-forms': [
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-radio-group',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-slider',
+          ],
+          'vendor-ui-nav': [
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-navigation-menu',
+          ],
+          'vendor-ui-feedback': [
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-hover-card',
+          ],
+          
+          // Charts (lazy loaded)
           'vendor-charts': ['recharts'],
+          
+          // Date utilities
+          'vendor-date': ['date-fns'],
         },
       },
     },
