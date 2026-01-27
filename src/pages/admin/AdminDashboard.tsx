@@ -1,17 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { WeatherWidget } from "@/components/admin/WeatherWidget";
-import { PickupNotificationsWidget } from "@/components/admin/PickupNotificationsWidget";
-import { PendingContractsWidget } from "@/components/admin/PendingContractsWidget";
-import { TimeClockStatusCard } from "@/components/admin/TimeClockStatusCard";
-import { UpcomingExpensesAlert } from "@/components/admin/UpcomingExpensesAlert";
-import { StaffAbsencesWidget } from "@/components/admin/StaffAbsencesWidget";
-import { TodayAttendanceWidget } from "@/components/admin/TodayAttendanceWidget";
-import { EmailHealthWidget } from "@/components/admin/EmailHealthWidget";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
   Baby,
@@ -21,6 +14,30 @@ import {
   TrendingUp,
   Calendar,
 } from "lucide-react";
+
+// Lazy load heavy widgets
+const WeatherWidget = lazy(() => import("@/components/admin/WeatherWidget").then(m => ({ default: m.WeatherWidget })));
+const PickupNotificationsWidget = lazy(() => import("@/components/admin/PickupNotificationsWidget").then(m => ({ default: m.PickupNotificationsWidget })));
+const PendingContractsWidget = lazy(() => import("@/components/admin/PendingContractsWidget").then(m => ({ default: m.PendingContractsWidget })));
+const TimeClockStatusCard = lazy(() => import("@/components/admin/TimeClockStatusCard").then(m => ({ default: m.TimeClockStatusCard })));
+const UpcomingExpensesAlert = lazy(() => import("@/components/admin/UpcomingExpensesAlert").then(m => ({ default: m.UpcomingExpensesAlert })));
+const StaffAbsencesWidget = lazy(() => import("@/components/admin/StaffAbsencesWidget").then(m => ({ default: m.StaffAbsencesWidget })));
+const TodayAttendanceWidget = lazy(() => import("@/components/admin/TodayAttendanceWidget").then(m => ({ default: m.TodayAttendanceWidget })));
+const EmailHealthWidget = lazy(() => import("@/components/admin/EmailHealthWidget").then(m => ({ default: m.EmailHealthWidget })));
+
+// Widget loading skeleton
+function WidgetSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <Skeleton className="h-5 w-32" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-20 w-full" />
+      </CardContent>
+    </Card>
+  );
+}
 
 interface DashboardStats {
   totalChildren: number;
@@ -151,18 +168,34 @@ export default function AdminDashboard() {
       {/* Weather, Time Clock, Alerts, Pickup Notifications and Pending Contracts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4">
-          <WeatherWidget />
-          <TodayAttendanceWidget />
-          <StaffAbsencesWidget />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <WeatherWidget />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <TodayAttendanceWidget />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <StaffAbsencesWidget />
+          </Suspense>
         </div>
         <div className="space-y-4">
-          <UpcomingExpensesAlert />
-          <TimeClockStatusCard />
-          <EmailHealthWidget />
-          <PendingContractsWidget />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <UpcomingExpensesAlert />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <TimeClockStatusCard />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <EmailHealthWidget />
+          </Suspense>
+          <Suspense fallback={<WidgetSkeleton />}>
+            <PendingContractsWidget />
+          </Suspense>
         </div>
         <div>
-          <PickupNotificationsWidget />
+          <Suspense fallback={<WidgetSkeleton />}>
+            <PickupNotificationsWidget />
+          </Suspense>
         </div>
       </div>
 

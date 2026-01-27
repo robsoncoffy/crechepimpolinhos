@@ -1,55 +1,66 @@
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import { DashboardViewProvider, useDashboardView } from "@/hooks/useDashboardView";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import TeacherDashboard from "@/pages/admin/TeacherDashboard";
-import AdminApprovals from "@/pages/admin/AdminApprovals";
-import AdminTeachers from "@/pages/admin/AdminTeachers";
-import AdminChildren from "@/pages/admin/AdminChildren";
-import AdminAgenda from "@/pages/admin/AdminAgenda";
-import AdminMessages from "@/pages/admin/AdminMessages";
-import AdminChat from "@/pages/admin/AdminChat";
-import AdminGrowth from "@/pages/admin/AdminGrowth";
-import AdminMenu from "@/pages/admin/AdminMenu";
-import AdminGallery from "@/pages/admin/AdminGallery";
-import AdminEvents from "@/pages/admin/AdminEvents";
-import AdminCalendar from "@/pages/admin/AdminCalendar";
-import AdminVisits from "@/pages/admin/AdminVisits";
-import AdminEmployeeInvites from "@/pages/admin/AdminEmployeeInvites";
-import AdminAttendance from "@/pages/admin/AdminAttendance";
-import AdminParentInvites from "@/pages/admin/AdminParentInvites";
-import AdminAnnouncements from "@/pages/admin/AdminAnnouncements";
-import AdminPayments from "@/pages/admin/AdminPayments";
-import AdminContracts from "@/pages/admin/AdminContracts";
-import AdminStaffChat from "@/pages/admin/AdminStaffChat";
-import AdminProfiles from "@/pages/admin/AdminProfiles";
-import AdminTimeClock from "@/pages/admin/AdminTimeClock";
-import AdminQuarterlyEvaluations from "@/pages/admin/AdminQuarterlyEvaluations";
-import AdminReports from "@/pages/admin/AdminReports";
-import AdminAbsences from "@/pages/admin/AdminAbsences";
-import NutritionistDashboard from "@/pages/admin/NutritionistDashboard";
-import CookDashboard from "@/pages/admin/CookDashboard";
-import PedagogueDashboard from "@/pages/admin/PedagogueDashboard";
-import AuxiliarDashboard from "@/pages/admin/AuxiliarDashboard";
-import AdminPreEnrollments from "@/pages/admin/AdminPreEnrollments";
-import AdminGhlEmails from "@/pages/admin/AdminGhlEmails";
-import AdminPipeline from "@/pages/admin/AdminPipeline";
-import AdminConfig from "@/pages/admin/AdminConfig";
-import AdminFeed from "@/pages/admin/AdminFeed";
-import AdminEmployees from "@/pages/admin/AdminEmployees";
-import ParentDashboard from "@/pages/parent/ParentDashboard";
-import AdminContactSubmissions from "@/pages/admin/AdminContactSubmissions";
-import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
-import AdminNotifications from "@/pages/admin/AdminNotifications";
-import AdminMealTracking from "@/pages/admin/AdminMealTracking";
-import AdminPickupHistory from "@/pages/admin/AdminPickupHistory";
-import AdminEmailLogs from "@/pages/admin/AdminEmailLogs";
-import AdminShoppingList from "@/pages/admin/AdminShoppingList";
-import AdminBudgets from "@/pages/admin/AdminBudgets";
 import { Loader2 } from "lucide-react";
+
+// Lazy load all admin pages for code splitting
+const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
+const TeacherDashboard = lazy(() => import("./admin/TeacherDashboard"));
+const NutritionistDashboard = lazy(() => import("./admin/NutritionistDashboard"));
+const CookDashboard = lazy(() => import("./admin/CookDashboard"));
+const PedagogueDashboard = lazy(() => import("./admin/PedagogueDashboard"));
+const AuxiliarDashboard = lazy(() => import("./admin/AuxiliarDashboard"));
+const ParentDashboard = lazy(() => import("./parent/ParentDashboard"));
+const AdminApprovals = lazy(() => import("./admin/AdminApprovals"));
+const AdminTeachers = lazy(() => import("./admin/AdminTeachers"));
+const AdminChildren = lazy(() => import("./admin/AdminChildren"));
+const AdminAgenda = lazy(() => import("./admin/AdminAgenda"));
+const AdminMessages = lazy(() => import("./admin/AdminMessages"));
+const AdminChat = lazy(() => import("./admin/AdminChat"));
+const AdminGrowth = lazy(() => import("./admin/AdminGrowth"));
+const AdminMenu = lazy(() => import("./admin/AdminMenu"));
+const AdminGallery = lazy(() => import("./admin/AdminGallery"));
+const AdminEvents = lazy(() => import("./admin/AdminEvents"));
+const AdminCalendar = lazy(() => import("./admin/AdminCalendar"));
+const AdminVisits = lazy(() => import("./admin/AdminVisits"));
+const AdminEmployeeInvites = lazy(() => import("./admin/AdminEmployeeInvites"));
+const AdminAttendance = lazy(() => import("./admin/AdminAttendance"));
+const AdminParentInvites = lazy(() => import("./admin/AdminParentInvites"));
+const AdminAnnouncements = lazy(() => import("./admin/AdminAnnouncements"));
+const AdminPayments = lazy(() => import("./admin/AdminPayments"));
+const AdminContracts = lazy(() => import("./admin/AdminContracts"));
+const AdminStaffChat = lazy(() => import("./admin/AdminStaffChat"));
+const AdminProfiles = lazy(() => import("./admin/AdminProfiles"));
+const AdminTimeClock = lazy(() => import("./admin/AdminTimeClock"));
+const AdminQuarterlyEvaluations = lazy(() => import("./admin/AdminQuarterlyEvaluations"));
+const AdminReports = lazy(() => import("./admin/AdminReports"));
+const AdminAbsences = lazy(() => import("./admin/AdminAbsences"));
+const AdminPreEnrollments = lazy(() => import("./admin/AdminPreEnrollments"));
+const AdminGhlEmails = lazy(() => import("./admin/AdminGhlEmails"));
+const AdminPipeline = lazy(() => import("./admin/AdminPipeline"));
+const AdminConfig = lazy(() => import("./admin/AdminConfig"));
+const AdminFeed = lazy(() => import("./admin/AdminFeed"));
+const AdminEmployees = lazy(() => import("./admin/AdminEmployees"));
+const AdminContactSubmissions = lazy(() => import("./admin/AdminContactSubmissions"));
+const AdminAuditLogs = lazy(() => import("./admin/AdminAuditLogs"));
+const AdminNotifications = lazy(() => import("./admin/AdminNotifications"));
+const AdminMealTracking = lazy(() => import("./admin/AdminMealTracking"));
+const AdminPickupHistory = lazy(() => import("./admin/AdminPickupHistory"));
+const AdminEmailLogs = lazy(() => import("./admin/AdminEmailLogs"));
+const AdminShoppingList = lazy(() => import("./admin/AdminShoppingList"));
+const AdminBudgets = lazy(() => import("./admin/AdminBudgets"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+  );
+}
 
 // Component to select the right dashboard based on view preference
 function RoleBasedDashboard() {
@@ -97,211 +108,217 @@ function DashboardContent() {
   if (isStaff) {
     return (
       <AdminLayout>
-        <Routes>
-          <Route path="/" element={<RoleBasedDashboard />} />
-          
-          {/* Admin only routes */}
-          <Route path="/aprovacoes" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminApprovals />
-            </ProtectedRoute>
-          } />
-          <Route path="/professores" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminTeachers />
-            </ProtectedRoute>
-          } />
-          <Route path="/convites" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminEmployeeInvites />
-            </ProtectedRoute>
-          } />
-          <Route path="/convites-pais" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminParentInvites />
-            </ProtectedRoute>
-          } />
-          <Route path="/financeiro" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminPayments />
-            </ProtectedRoute>
-          } />
-          <Route path="/orcamentos" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminBudgets />
-            </ProtectedRoute>
-          } />
-          <Route path="/contratos" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminContracts />
-            </ProtectedRoute>
-          } />
-          <Route path="/perfis" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminProfiles />
-            </ProtectedRoute>
-          } />
-          <Route path="/ponto" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminTimeClock />
-            </ProtectedRoute>
-          } />
-          <Route path="/pre-matriculas" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminPreEnrollments />
-            </ProtectedRoute>
-          } />
-          <Route path="/emails" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminGhlEmails />
-            </ProtectedRoute>
-          } />
-          <Route path="/pipeline" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminPipeline />
-            </ProtectedRoute>
-          } />
-          <Route path="/config" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminConfig />
-            </ProtectedRoute>
-          } />
-          <Route path="/funcionarios" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminEmployees />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin + Teacher routes */}
-          <Route path="/avisos" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher"]}>
-              <AdminAnnouncements />
-            </ProtectedRoute>
-          } />
-          <Route path="/galeria" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher"]}>
-              <AdminGallery />
-            </ProtectedRoute>
-          } />
-          <Route path="/feed" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher"]}>
-              <AdminFeed />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin + Teacher + Auxiliar routes */}
-          <Route path="/criancas" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue", "auxiliar"]}>
-              <AdminChildren />
-            </ProtectedRoute>
-          } />
-          <Route path="/chamada" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
-              <AdminAttendance />
-            </ProtectedRoute>
-          } />
-          <Route path="/mensagens" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
-              <AdminMessages />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin + Teacher + Pedagogue routes */}
-          <Route path="/agenda" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar", "pedagogue"]}>
-              <AdminAgenda />
-            </ProtectedRoute>
-          } />
-          <Route path="/crescimento" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
-              <AdminGrowth />
-            </ProtectedRoute>
-          } />
-          <Route path="/eventos" element={
-            <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
-              <AdminEvents />
-            </ProtectedRoute>
-          } />
-          <Route path="/calendario" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminCalendar />
-            </ProtectedRoute>
-          } />
-          <Route path="/visitas" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminVisits />
-            </ProtectedRoute>
-          } />
-          <Route path="/avaliacoes" element={
-            <ProtectedRoute allowedRoles={["admin", "pedagogue"]}>
-              <AdminQuarterlyEvaluations />
-            </ProtectedRoute>
-          } />
-          <Route path="/relatorios" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminReports />
-            </ProtectedRoute>
-          } />
-          <Route path="/ausencias" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminAbsences />
-            </ProtectedRoute>
-          } />
-          <Route path="/contatos" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminContactSubmissions />
-            </ProtectedRoute>
-          } />
-          <Route path="/logs-auditoria" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminAuditLogs />
-            </ProtectedRoute>
-          } />
-          <Route path="/notificacoes" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminNotifications />
-            </ProtectedRoute>
-          } />
-          <Route path="/historico-retiradas" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminPickupHistory />
-            </ProtectedRoute>
-          } />
-          <Route path="/logs-email" element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminEmailLogs />
-            </ProtectedRoute>
-          } />
-          <Route path="/lista-compras" element={
-            <ProtectedRoute allowedRoles={["admin", "cook", "nutritionist"]}>
-              <AdminShoppingList />
-            </ProtectedRoute>
-          } />
-          <Route path="/controle-refeicoes" element={
-            <ProtectedRoute allowedRoles={["admin", "cook"]}>
-              <AdminMealTracking />
-            </ProtectedRoute>
-          } />
-          
-          {/* Admin + Nutritionist + Cook routes */}
-          <Route path="/cardapio" element={
-            <ProtectedRoute allowedRoles={["admin", "nutritionist", "cook"]}>
-              <AdminMenu />
-            </ProtectedRoute>
-          } />
-          
-          {/* All staff can access */}
-          <Route path="/chat" element={<AdminChat />} />
-          <Route path="/chat-equipe" element={<AdminStaffChat />} />
-          <Route path="/mensagens" element={<AdminMessages />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<RoleBasedDashboard />} />
+            
+            {/* Admin only routes */}
+            <Route path="/aprovacoes" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminApprovals />
+              </ProtectedRoute>
+            } />
+            <Route path="/professores" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTeachers />
+              </ProtectedRoute>
+            } />
+            <Route path="/convites" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminEmployeeInvites />
+              </ProtectedRoute>
+            } />
+            <Route path="/convites-pais" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminParentInvites />
+              </ProtectedRoute>
+            } />
+            <Route path="/financeiro" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPayments />
+              </ProtectedRoute>
+            } />
+            <Route path="/orcamentos" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminBudgets />
+              </ProtectedRoute>
+            } />
+            <Route path="/contratos" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminContracts />
+              </ProtectedRoute>
+            } />
+            <Route path="/perfis" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminProfiles />
+              </ProtectedRoute>
+            } />
+            <Route path="/ponto" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminTimeClock />
+              </ProtectedRoute>
+            } />
+            <Route path="/pre-matriculas" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPreEnrollments />
+              </ProtectedRoute>
+            } />
+            <Route path="/emails" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminGhlEmails />
+              </ProtectedRoute>
+            } />
+            <Route path="/pipeline" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPipeline />
+              </ProtectedRoute>
+            } />
+            <Route path="/config" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminConfig />
+              </ProtectedRoute>
+            } />
+            <Route path="/funcionarios" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminEmployees />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin + Teacher routes */}
+            <Route path="/avisos" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                <AdminAnnouncements />
+              </ProtectedRoute>
+            } />
+            <Route path="/galeria" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                <AdminGallery />
+              </ProtectedRoute>
+            } />
+            <Route path="/feed" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                <AdminFeed />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin + Teacher + Auxiliar routes */}
+            <Route path="/criancas" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue", "auxiliar"]}>
+                <AdminChildren />
+              </ProtectedRoute>
+            } />
+            <Route path="/chamada" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
+                <AdminAttendance />
+              </ProtectedRoute>
+            } />
+            <Route path="/mensagens" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar"]}>
+                <AdminMessages />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin + Teacher + Pedagogue routes */}
+            <Route path="/agenda" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "auxiliar", "pedagogue"]}>
+                <AdminAgenda />
+              </ProtectedRoute>
+            } />
+            <Route path="/crescimento" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
+                <AdminGrowth />
+              </ProtectedRoute>
+            } />
+            <Route path="/eventos" element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "pedagogue"]}>
+                <AdminEvents />
+              </ProtectedRoute>
+            } />
+            <Route path="/calendario" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCalendar />
+              </ProtectedRoute>
+            } />
+            <Route path="/visitas" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminVisits />
+              </ProtectedRoute>
+            } />
+            <Route path="/avaliacoes" element={
+              <ProtectedRoute allowedRoles={["admin", "pedagogue"]}>
+                <AdminQuarterlyEvaluations />
+              </ProtectedRoute>
+            } />
+            <Route path="/relatorios" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminReports />
+              </ProtectedRoute>
+            } />
+            <Route path="/ausencias" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminAbsences />
+              </ProtectedRoute>
+            } />
+            <Route path="/contatos" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminContactSubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs-auditoria" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminAuditLogs />
+              </ProtectedRoute>
+            } />
+            <Route path="/notificacoes" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminNotifications />
+              </ProtectedRoute>
+            } />
+            <Route path="/historico-retiradas" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminPickupHistory />
+              </ProtectedRoute>
+            } />
+            <Route path="/logs-email" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminEmailLogs />
+              </ProtectedRoute>
+            } />
+            <Route path="/lista-compras" element={
+              <ProtectedRoute allowedRoles={["admin", "cook", "nutritionist"]}>
+                <AdminShoppingList />
+              </ProtectedRoute>
+            } />
+            <Route path="/controle-refeicoes" element={
+              <ProtectedRoute allowedRoles={["admin", "cook"]}>
+                <AdminMealTracking />
+              </ProtectedRoute>
+            } />
+            
+            {/* Admin + Nutritionist + Cook routes */}
+            <Route path="/cardapio" element={
+              <ProtectedRoute allowedRoles={["admin", "nutritionist", "cook"]}>
+                <AdminMenu />
+              </ProtectedRoute>
+            } />
+            
+            {/* All staff can access */}
+            <Route path="/chat" element={<AdminChat />} />
+            <Route path="/chat-equipe" element={<AdminStaffChat />} />
+            <Route path="/mensagens" element={<AdminMessages />} />
+          </Routes>
+        </Suspense>
       </AdminLayout>
     );
   }
 
   // Parent only (not staff) - show parent panel
   if (isParent) {
-    return <ParentDashboard />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <ParentDashboard />
+      </Suspense>
+    );
   }
 
   // Fallback
@@ -321,4 +338,3 @@ export default function Dashboard() {
     </AuthProvider>
   );
 }
-
