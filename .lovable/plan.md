@@ -1,119 +1,83 @@
 
-# Plano de Otimização de Performance - Fase 2
 
-## Resumo das Otimizações Adicionais Identificadas
+# Plano de Otimização de Performance - Fase 3
 
-Após a implementação da Fase 1 (lazy loading, code splitting, otimização de fontes), ainda existem oportunidades significativas para deixar o site mais leve e fluido.
+## Resumo das Otimizações Identificadas
 
----
-
-## 1. Lazy Loading de Recharts (Biblioteca Pesada)
-
-### Problema
-A biblioteca `recharts` (~400KB) está sendo importada sincronamente em vários componentes de relatórios e gráficos, mesmo que o usuário não acesse essas telas.
-
-### Solução
-Criar um wrapper lazy para componentes que usam recharts:
-- `AdminReports.tsx`
-- `AdminTimeClock.tsx`
-- `FinancialReportsTab.tsx`
-- `FinancialForecastTab.tsx`
-- `GrowthChart.tsx`
-- `WeeklyCashFlowTab.tsx`
-
-**Impacto**: Redução de ~400KB no bundle inicial
+Após a implementação das Fases 1 e 2, ainda existem oportunidades para melhorar a performance.
 
 ---
 
-## 2. Otimizar Ícones do Lucide React
+## 1. Corrigir Warning de forwardRef
 
 ### Problema
-Muitas páginas importam múltiplos ícones do lucide-react de forma não otimizada. Por exemplo, `AdminSidebar.tsx` importa 27 ícones de uma vez.
+O console mostra warning: "Function components cannot be given refs. Attempts to access this ref will fail." nos componentes `PageLoader` e `EmployeeRegistration`.
 
 ### Solução
-Os imports já estão corretos (named imports), mas podemos garantir que componentes que usam muitos ícones sejam lazy loaded. Além disso, verificar se há ícones não utilizados.
+Quando usamos `React.lazy()` com `Suspense`, o componente pode receber uma ref. Precisamos usar `forwardRef` no `PageLoader` ou mover o PageLoader para fora do App para evitar recriação.
+
+### Impacto
+Elimina warnings no console e melhora estabilidade do código.
 
 ---
 
-## 3. Prefetch de Rotas Críticas
+## 2. Lazy Loading do Footer com Intersection Observer
 
 ### Problema
-Quando o usuário faz login, o Dashboard demora para carregar porque precisa baixar os chunks.
+O Footer é carregado imediatamente em todas as páginas públicas, mesmo que o usuário não role até ele.
 
 ### Solução
-Adicionar prefetch inteligente nas rotas mais acessadas:
-- Prefetch do Dashboard quando o usuário está na tela de Auth
-- Prefetch de páginas filhas quando o usuário está no Dashboard
-
-**Arquivo**: `src/pages/Auth.tsx` e `src/pages/Dashboard.tsx`
+Criar um componente `LazyFooter` que usa Intersection Observer para carregar o Footer apenas quando o usuário se aproxima do final da página.
 
 ---
 
-## 4. Otimizar Imagens com Dimensões Explícitas
+## 3. Remover Animações Não Utilizadas do Tailwind
 
 ### Problema
-Algumas imagens não têm width/height definidos, causando Layout Shift (CLS).
+O `tailwind.config.ts` define animações customizadas (`bounce-gentle`, `wiggle`, `float`) que não estão sendo usadas em nenhum componente.
 
 ### Solução
-Adicionar dimensões explícitas em todas as imagens:
-- `src/components/layout/Header.tsx` (logo já tem)
-- `src/components/layout/Footer.tsx` (logo já tem)
-- `src/pages/Home.tsx` (imagens do grid)
+Remover as definições de keyframes e animations não utilizadas para reduzir o CSS final.
 
 ---
 
-## 5. Debounce em Operações Pesadas
+## 4. Otimizar Estratégia de Cache do PWA
 
 ### Problema
-Componentes como `GlobalSearch` e formulários de filtro podem disparar múltiplas queries rapidamente.
+O service worker atual usa uma única estratégia para todos os assets. Podemos refinar para melhor performance.
 
 ### Solução
-Implementar debounce consistente (300-500ms) em:
-- Busca global
-- Filtros de tabelas
-- Campos de pesquisa
+Adicionar estratégia `StaleWhileRevalidate` para chunks JS e `CacheFirst` para imagens e fontes.
 
 ---
 
-## 6. Remover Animações Desnecessárias em Mobile
+## 5. React Router Future Flags
 
 ### Problema
-Animações como `bounce-gentle`, `wiggle` e `float` consomem CPU em dispositivos móveis.
+O console mostra warnings sobre future flags do React Router v7 que devem ser habilitadas.
 
 ### Solução
-Desabilitar animações pesadas em mobile via CSS:
-```css
-@media (prefers-reduced-motion: reduce) {
-  .animate-bounce-gentle,
-  .animate-wiggle,
-  .animate-float {
-    animation: none;
-  }
-}
-```
+Adicionar as flags `v7_startTransition` e `v7_relativeSplatPath` no BrowserRouter.
 
 ---
 
-## 7. Otimizar PWA Service Worker
+## 6. Lazy Loading dos Componentes de Gráficos
 
 ### Problema
-O service worker está configurado para cachear todos os arquivos, incluindo chunks que podem não ser usados.
+Componentes que usam `recharts` (FinancialForecastTab, FinancialReportsTab, WeeklyCashFlowTab, GrowthChart) são importados sincronamente dentro de páginas já lazy-loaded, mas podemos otimizar ainda mais.
 
 ### Solução
-Refinar a estratégia de cache:
-- Cache agressivo para assets estáticos (imagens, fontes)
-- NetworkFirst para API calls
-- StaleWhileRevalidate para chunks de JS
+Como esses componentes só são renderizados em tabs específicas, podemos criar wrappers lazy dentro das próprias páginas para carregar o recharts apenas quando necessário.
 
 ---
 
-## 8. Lazy Loading de Componentes do Footer
+## 7. Prefetch de Rotas do Dashboard
 
 ### Problema
-O Footer é carregado imediatamente, mesmo que o usuário não role até ele.
+Quando o usuário está no Dashboard, navegar para subpáginas ainda requer download dos chunks.
 
 ### Solução
-Usar Intersection Observer para carregar o Footer apenas quando visível.
+Implementar prefetch das rotas mais acessadas (criancas, agenda, cardapio) quando o Dashboard carrega.
 
 ---
 
@@ -121,11 +85,10 @@ Usar Intersection Observer para carregar o Footer apenas quando visível.
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/pages/Auth.tsx` | Adicionar prefetch do Dashboard |
-| `src/pages/Home.tsx` | Dimensões explícitas em imagens |
-| `src/index.css` | Desabilitar animações com prefers-reduced-motion |
-| `src/components/admin/GlobalSearch.tsx` | Verificar debounce |
-| `vite.config.ts` | Adicionar recharts ao manual chunks |
+| `src/App.tsx` | Corrigir PageLoader e adicionar future flags |
+| `src/components/layout/PublicLayout.tsx` | Lazy loading do Footer |
+| `tailwind.config.ts` | Remover animações não utilizadas |
+| `vite.config.ts` | Otimizar estratégia de cache PWA |
 
 ---
 
@@ -133,58 +96,98 @@ Usar Intersection Observer para carregar o Footer apenas quando visível.
 
 | Métrica | Melhoria Estimada |
 |---------|-------------------|
-| Largest Contentful Paint (LCP) | -15-25% |
-| Cumulative Layout Shift (CLS) | -50-70% |
-| Time to Interactive (TTI) | -10-20% |
-| Total Bundle Size | -300-500KB |
+| Warnings no Console | -100% (eliminados) |
+| CSS Bundle Size | -5-10% |
+| Footer Load Time | Delayed (melhor perceived perf) |
+| Cache Hit Rate | +20-30% |
 
 ---
 
 ## Seção Técnica
 
 ### Arquivos que serão modificados:
-1. `src/pages/Auth.tsx` - Prefetch do Dashboard
-2. `src/pages/Home.tsx` - Dimensões explícitas em imagens
-3. `src/index.css` - Respeitar prefers-reduced-motion
-4. `vite.config.ts` - Adicionar recharts ao code splitting
-5. `src/App.tsx` - Pequena melhoria na estrutura de fallback
+1. `src/App.tsx` - Corrigir PageLoader e adicionar future flags do React Router
+2. `src/components/layout/PublicLayout.tsx` - Lazy loading do Footer
+3. `tailwind.config.ts` - Remover animações não utilizadas
+4. `vite.config.ts` - Adicionar `StaleWhileRevalidate` para JS chunks
 
-### Código de Prefetch (Auth.tsx):
+### Código PageLoader corrigido (App.tsx):
 ```typescript
-// Prefetch Dashboard when user is on auth page
-useEffect(() => {
-  const prefetchDashboard = () => {
-    import('./Dashboard');
-  };
-  // Delay prefetch to not compete with critical resources
-  const timer = setTimeout(prefetchDashboard, 2000);
-  return () => clearTimeout(timer);
-}, []);
-```
-
-### Código de Reduced Motion (index.css):
-```css
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+// Move PageLoader outside to avoid recreating on each render
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
 }
 ```
 
-### Vite Config - Recharts Chunk:
+### Código Future Flags (App.tsx):
 ```typescript
-manualChunks: {
-  // ... existing chunks
-  'vendor-charts': ['recharts'],
+<BrowserRouter
+  future={{
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  }}
+>
+```
+
+### Código Lazy Footer (PublicLayout.tsx):
+```typescript
+const LazyFooter = lazy(() => import("./Footer").then(m => ({ default: m.Footer })));
+
+export function PublicLayout({ children }: PublicLayoutProps) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1">{children}</main>
+      <Suspense fallback={<div className="h-64 bg-primary" />}>
+        <LazyFooter />
+      </Suspense>
+    </div>
+  );
 }
+```
+
+### Tailwind Config - Remover animações não usadas:
+```typescript
+keyframes: {
+  "accordion-down": { ... },
+  "accordion-up": { ... },
+  // Remover bounce-gentle, wiggle, float
+},
+animation: {
+  "accordion-down": "...",
+  "accordion-up": "...",
+  // Remover bounce-gentle, wiggle, float
+},
+```
+
+### Vite Config - Cache Strategy:
+```typescript
+runtimeCaching: [
+  {
+    urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+    handler: "NetworkFirst",
+    options: { cacheName: "supabase-api-cache", expiration: { maxEntries: 100, maxAgeSeconds: 3600 } },
+  },
+  {
+    urlPattern: /\.(?:js|css)$/i,
+    handler: "StaleWhileRevalidate",
+    options: { cacheName: "static-resources", expiration: { maxEntries: 100, maxAgeSeconds: 86400 } },
+  },
+  {
+    urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|woff|woff2)$/i,
+    handler: "CacheFirst",
+    options: { cacheName: "images-fonts", expiration: { maxEntries: 100, maxAgeSeconds: 2592000 } },
+  },
+],
 ```
 
 ### Considerações:
 - Todas as alterações são retrocompatíveis
-- Não afetam funcionalidade existente
-- Respeitam preferências de acessibilidade do usuário
-- Melhoram a experiência em dispositivos móveis e conexões lentas
+- O lazy loading do Footer não afeta SEO pois bots carregam a página completa
+- As future flags preparam o projeto para React Router v7
+- A remoção de animações não usadas é segura (confirmado via busca no código)
+
