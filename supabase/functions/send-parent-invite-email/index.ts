@@ -222,9 +222,9 @@ async function sendWhatsAppViaGHL(
     }
     normalizedPhone = "+" + normalizedPhone;
 
-    // Search for contact by phone
+    // Use the contacts lookup endpoint (not duplicate search which doesn't accept phone)
     const searchResponse = await fetch(
-      `https://services.leadconnectorhq.com/contacts/search/duplicate?locationId=${locationId}&phone=${encodeURIComponent(normalizedPhone)}`,
+      `https://services.leadconnectorhq.com/contacts/?locationId=${locationId}&query=${encodeURIComponent(normalizedPhone)}&limit=1`,
       {
         method: "GET",
         headers: {
@@ -236,8 +236,8 @@ async function sendWhatsAppViaGHL(
 
     if (searchResponse.ok) {
       const searchResult = await searchResponse.json();
-      if (searchResult.contact?.id) {
-        contactId = searchResult.contact.id;
+      if (searchResult.contacts && searchResult.contacts.length > 0) {
+        contactId = searchResult.contacts[0].id;
         logger.info("ghl_whatsapp_contact_found", { ghlContactId: contactId });
       } else {
         logger.warn("ghl_whatsapp_contact_not_found", { metadata: { phone: normalizedPhone } });
@@ -561,9 +561,11 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email via GHL");
     }
 
-    // Send WhatsApp notification - prefer direct ghlContactId, fallback to phone search
+    // Send WhatsApp notification - prefer contactId from email result, then ghlContactId param, then phone search
     let whatsappSent = false;
-    if (ghlContactId || phone) {
+    const effectiveContactId = result.contactId || ghlContactId;
+    
+    if (effectiveContactId || phone) {
       const discountText = normalizedCouponCode && resolvedCouponDiscountValue
         ? (resolvedCouponDiscountType === "percentage" 
             ? `🎁 Use o cupom *${normalizedCouponCode}* e ganhe *${resolvedCouponDiscountValue}% OFF*!\n\n`
@@ -583,14 +585,18 @@ ${signupUrl}
 
 💜 Creche Pimpolinhos`;
 
-      // Use direct contactId if available, otherwise search by phone
-      const whatsappResult = ghlContactId
-        ? await sendWhatsAppViaGHL(ghlContactId, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, true)
-        : await sendWhatsAppViaGHL(phone!, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, false);
+      // Priority: 1) contactId from email result, 2) ghlContactId param, 3) phone search
+      let whatsappResult;
+      if (effectiveContactId) {
+        logger.info("whatsapp_using_email_contact", { ghlContactId: effectiveContactId });
+        whatsappResult = await sendWhatsAppViaGHL(effectiveContactId, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, true);
+      } else {
+        whatsappResult = await sendWhatsAppViaGHL(phone!, whatsappMessage, GHL_API_KEY, GHL_LOCATION_ID, logger, false);
+      }
       
       whatsappSent = whatsappResult.success;
       if (whatsappResult.success) {
-        logger.info("whatsapp_invite_sent", { metadata: { phone, ghlContactId } });
+        logger.info("whatsapp_invite_sent", { metadata: { phone, contactId: effectiveContactId } });
       } else {
         logger.warn("whatsapp_invite_failed", { error: whatsappResult.error });
       }
