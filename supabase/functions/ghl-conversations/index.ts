@@ -379,6 +379,125 @@ serve(async (req) => {
       );
     }
 
+    // List contacts
+    if (action === "contacts") {
+      const searchParams = new URLSearchParams({
+        locationId: GHL_LOCATION_ID,
+        limit: limit || "50",
+      });
+
+      // Optional search query
+      if (conversationId) {
+        // Using conversationId as search query for contacts
+        searchParams.set("query", conversationId);
+      }
+
+      const response = await fetchWithTimeout(
+        `${baseUrl}/contacts/?${searchParams.toString()}`,
+        { method: "GET", headers },
+        10000
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("GHL Contacts Error:", response.status, errorText);
+        throw new Error(`GHL API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Format contacts for frontend
+      const contacts = (data.contacts || []).map((contact: any) => ({
+        id: contact.id,
+        name: contact.contactName || contact.name || `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || contact.email || contact.phone || "Contato",
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        email: contact.email,
+        phone: contact.phone,
+        tags: contact.tags || [],
+        dateAdded: contact.dateAdded,
+      }));
+
+      return new Response(
+        JSON.stringify({ contacts, total: data.meta?.total || contacts.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Start new conversation with a contact
+    if (action === "startConversation" && contactId) {
+      if (!messageContent) {
+        throw new Error("Message content is required");
+      }
+
+      // Normalize type
+      const validTypes: Record<string, string> = {
+        whatsapp: "WhatsApp",
+        sms: "SMS",
+        email: "Email",
+      };
+      const normalizedType = validTypes[messageType.toLowerCase()] || "SMS";
+
+      // GHL uses the messages endpoint to create a conversation if one doesn't exist
+      const payload = {
+        type: normalizedType,
+        message: messageContent,
+        body: messageContent,
+        contactId: contactId,
+      };
+
+      console.log("Starting conversation with contact:", {
+        endpoint: `${baseUrl}/conversations/messages`,
+        type: normalizedType,
+        contactId,
+        messageLength: messageContent.length,
+      });
+
+      const response = await fetchWithTimeout(
+        `${baseUrl}/conversations/messages`,
+        {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+        },
+        15000
+      );
+
+      const responseText = await response.text();
+      
+      if (!response.ok) {
+        console.error("GHL Start Conversation Error:", response.status, responseText);
+        
+        let errorDetail = responseText;
+        try {
+          const errorJson = JSON.parse(responseText);
+          errorDetail = errorJson.message || errorJson.error || responseText;
+        } catch {
+          // Keep original text
+        }
+        
+        throw new Error(`Falha ao iniciar conversa: ${errorDetail}`);
+      }
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { id: null };
+      }
+      
+      console.log("Conversation started:", { messageId: result.id || result.messageId, conversationId: result.conversationId });
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          messageId: result.id || result.messageId,
+          conversationId: result.conversationId 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     throw new Error("Invalid action or missing parameters");
 
   } catch (error) {

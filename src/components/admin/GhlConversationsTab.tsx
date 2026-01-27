@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -19,7 +20,10 @@ import {
   ArrowLeft,
   Smartphone,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Users,
+  Search,
+  MessageSquarePlus
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -53,6 +57,17 @@ interface ContactInfo {
   phone?: string;
 }
 
+interface GhlContact {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  dateAdded?: string;
+}
+
 type LeadChannel = "WhatsApp" | "SMS";
 
 export function GhlConversationsTab() {
@@ -74,6 +89,15 @@ export function GhlConversationsTab() {
   const previousInboundCountRef = useRef<number>(0);
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
+  
+  // Contacts tab state
+  const [sidebarTab, setSidebarTab] = useState<"conversas" | "contatos">("conversas");
+  const [contacts, setContacts] = useState<GhlContact[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactsSearchTerm, setContactsSearchTerm] = useState("");
+  const [selectedContact, setSelectedContact] = useState<GhlContact | null>(null);
+  const [startingConversation, setStartingConversation] = useState(false);
+  const [newConversationMessage, setNewConversationMessage] = useState("");
 
   const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
     // Prefer the most recent known message type
@@ -241,10 +265,110 @@ export function GhlConversationsTab() {
 
   const handleBack = () => {
     setSelectedConversation(null);
+    setSelectedContact(null);
     setMessages([]);
     setContactInfo(null);
     setNewMessage("");
+    setNewConversationMessage("");
   };
+
+  // Fetch contacts from GHL
+  const fetchContacts = useCallback(async (searchQuery?: string) => {
+    setLoadingContacts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: { 
+          action: "contacts", 
+          limit: "50",
+          conversationId: searchQuery || "" // Using conversationId as search query
+        },
+      });
+
+      if (error) throw error;
+      setContacts(data?.contacts || []);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      toast({
+        title: "Erro ao buscar contatos",
+        description: "Não foi possível carregar os contatos.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingContacts(false);
+    }
+  }, [toast]);
+
+  // Load contacts when switching to contacts tab
+  useEffect(() => {
+    if (sidebarTab === "contatos" && contacts.length === 0) {
+      fetchContacts();
+    }
+  }, [sidebarTab, contacts.length, fetchContacts]);
+
+  // Handle contact selection to start a new conversation
+  const handleSelectContact = (contact: GhlContact) => {
+    setSelectedContact(contact);
+    setSelectedConversation(null);
+    setMessages([]);
+    setContactInfo({
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+    });
+  };
+
+  // Start a new conversation with a contact
+  const handleStartConversation = async () => {
+    if (!selectedContact || !newConversationMessage.trim() || startingConversation) return;
+
+    setStartingConversation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: {
+          action: "startConversation",
+          contactId: selectedContact.id,
+          message: newConversationMessage.trim(),
+          type: "WhatsApp", // Default to WhatsApp for new conversations
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Conversa iniciada",
+        description: "Sua mensagem foi enviada com sucesso.",
+      });
+
+      setNewConversationMessage("");
+      setSelectedContact(null);
+      setSidebarTab("conversas");
+      
+      // Refresh conversations to show the new one
+      await fetchConversations();
+      
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      const details = error instanceof Error ? error.message : "";
+      toast({
+        title: "Erro ao iniciar conversa",
+        description: details || "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
+  // Filter contacts by search term
+  const filteredContacts = contacts.filter((contact) =>
+    contact.name.toLowerCase().includes(contactsSearchTerm.toLowerCase()) ||
+    contact.email?.toLowerCase().includes(contactsSearchTerm.toLowerCase()) ||
+    contact.phone?.includes(contactsSearchTerm)
+  );
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || sending) return;
@@ -436,110 +560,201 @@ export function GhlConversationsTab() {
 
   return (
     <div className="h-[calc(100vh-16rem)] flex flex-col lg:flex-row gap-4">
-      {/* Conversations List */}
+      {/* Sidebar with Conversations/Contacts Tabs */}
       <Card className={cn(
         "lg:w-80 shrink-0 flex flex-col",
-        isMobile && selectedConversation && "hidden"
+        isMobile && (selectedConversation || selectedContact) && "hidden"
       )}>
         <CardHeader className="pb-3 border-b">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Smartphone className="h-5 w-5 text-pimpo-green" />
               Leads
-              {conversations.length > 0 && (
-                <Badge variant="secondary">{conversations.length}</Badge>
-              )}
             </CardTitle>
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={handleRefresh}
-              disabled={refreshing}
+              onClick={() => {
+                handleRefresh();
+                if (sidebarTab === "contatos") fetchContacts();
+              }}
+              disabled={refreshing || loadingContacts}
             >
-              <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-4 w-4", (refreshing || loadingContacts) && "animate-spin")} />
             </Button>
           </div>
+          
+          {/* Tabs for Conversations and Contacts */}
+          <Tabs value={sidebarTab} onValueChange={(v) => setSidebarTab(v as "conversas" | "contatos")} className="mt-3">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="conversas" className="flex items-center gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5" />
+                Conversas
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Contatos
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
+        
         <CardContent className="p-0 flex-1">
-          <ScrollArea className="h-[calc(100vh-22rem)]">
-            {loading ? (
-              <div className="p-4 space-y-3">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-1/2" />
-                      <Skeleton className="h-3 w-3/4" />
+          {sidebarTab === "conversas" ? (
+            <ScrollArea className="h-[calc(100vh-26rem)]">
+              {loading ? (
+                <div className="p-4 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-3 w-3/4" />
+                      </div>
                     </div>
+                  ))}
+                </div>
+              ) : loadError ? (
+                <button 
+                  onClick={() => {
+                    setLoading(true);
+                    fetchConversations();
+                  }}
+                  className="w-full p-8 text-center"
+                >
+                  <RefreshCw className="h-12 w-12 mx-auto mb-3 text-destructive opacity-50" />
+                  <p className="text-sm text-muted-foreground">{loadError}</p>
+                  <p className="text-xs text-primary mt-2">Clique para tentar novamente</p>
+                </button>
+              ) : conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Nenhuma conversa encontrada</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {conversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        setSelectedContact(null);
+                        handleSelectConversation(conv);
+                      }}
+                      className={cn(
+                        "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                        selectedConversation?.id === conv.id && "bg-muted"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium truncate">
+                              {conv.contactName}
+                            </span>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                              {formatMessageDate(conv.lastMessageDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getChannelIcon(conv.type)}
+                            <p className="text-sm text-muted-foreground truncate">
+                              {conv.lastMessage || "Sem mensagens"}
+                            </p>
+                          </div>
+                          {conv.unreadCount > 0 && (
+                            <Badge variant="destructive" className="mt-1">
+                              {conv.unreadCount} não lida{conv.unreadCount > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          ) : (
+            /* Contacts Tab */
+            <div className="flex flex-col h-[calc(100vh-26rem)]">
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar contato..."
+                    value={contactsSearchTerm}
+                    onChange={(e) => setContactsSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                {loadingContacts ? (
+                  <div className="p-4 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-1/2" />
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : loadError ? (
-              <button 
-                onClick={() => {
-                  setLoading(true);
-                  fetchConversations();
-                }}
-                className="w-full p-8 text-center"
-              >
-                <RefreshCw className="h-12 w-12 mx-auto mb-3 text-destructive opacity-50" />
-                <p className="text-sm text-muted-foreground">{loadError}</p>
-                <p className="text-xs text-primary mt-2">Clique para tentar novamente</p>
-              </button>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Nenhuma conversa encontrada</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {conversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => handleSelectConversation(conv)}
-                    className={cn(
-                      "w-full p-4 text-left hover:bg-muted/50 transition-colors",
-                      selectedConversation?.id === conv.id && "bg-muted"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium truncate">
-                            {conv.contactName}
-                          </span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
-                            {formatMessageDate(conv.lastMessageDate)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {getChannelIcon(conv.type)}
-                          <p className="text-sm text-muted-foreground truncate">
-                            {conv.lastMessage || "Sem mensagens"}
-                          </p>
-                        </div>
-                        {conv.unreadCount > 0 && (
-                          <Badge variant="destructive" className="mt-1">
-                            {conv.unreadCount} não lida{conv.unreadCount > 1 ? "s" : ""}
-                          </Badge>
+                ) : filteredContacts.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>{contactsSearchTerm ? "Nenhum contato encontrado" : "Nenhum contato disponível"}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredContacts.map((contact) => (
+                      <button
+                        key={contact.id}
+                        onClick={() => handleSelectContact(contact)}
+                        className={cn(
+                          "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                          selectedContact?.id === contact.id && "bg-muted"
                         )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-full bg-pimpo-green/10 flex items-center justify-center flex-shrink-0">
+                            <User className="h-5 w-5 text-pimpo-green" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium truncate block">
+                              {contact.name}
+                            </span>
+                            {contact.phone && (
+                              <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {contact.phone}
+                              </p>
+                            )}
+                            {contact.email && (
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {contact.email}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Messages Area */}
+      {/* Messages Area / New Conversation Panel */}
       <Card className={cn(
         "flex-1 flex flex-col",
-        isMobile && !selectedConversation && "hidden"
+        isMobile && !selectedConversation && !selectedContact && "hidden"
       )}>
         {selectedConversation ? (
           <>
@@ -662,12 +877,109 @@ export function GhlConversationsTab() {
               </div>
             </div>
           </>
+        ) : selectedContact ? (
+          /* New Conversation Panel */
+          <>
+            <CardHeader className="pb-3 border-b">
+              <div className="flex items-center gap-3">
+                {isMobile && (
+                  <Button variant="ghost" size="icon" onClick={handleBack}>
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <div className="h-10 w-10 rounded-full bg-pimpo-green/10 flex items-center justify-center">
+                  <MessageSquarePlus className="h-5 w-5 text-pimpo-green" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Nova Conversa</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Iniciar conversa com {selectedContact.name}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <div className="flex-1 p-6">
+              <div className="max-w-md mx-auto space-y-6">
+                {/* Contact Info Card */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-pimpo-green/10 flex items-center justify-center">
+                      <User className="h-6 w-6 text-pimpo-green" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{selectedContact.name}</p>
+                      {selectedContact.phone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {selectedContact.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {selectedContact.email && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {selectedContact.email}
+                    </p>
+                  )}
+                  {selectedContact.tags && selectedContact.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedContact.tags.slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Channel Info */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Smartphone className="h-4 w-4 text-pimpo-green" />
+                  <span>Mensagem será enviada via <strong>WhatsApp</strong></span>
+                </div>
+
+                {/* Message Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sua mensagem</label>
+                  <textarea
+                    value={newConversationMessage}
+                    onChange={(e) => setNewConversationMessage(e.target.value)}
+                    placeholder="Digite a mensagem que deseja enviar..."
+                    className="w-full min-h-[120px] p-3 rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={startingConversation}
+                  />
+                </div>
+
+                {/* Send Button */}
+                <Button 
+                  onClick={handleStartConversation}
+                  disabled={startingConversation || !newConversationMessage.trim()}
+                  className="w-full"
+                  size="lg"
+                >
+                  {startingConversation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Iniciar Conversa
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
             <div className="text-center">
               <Smartphone className="h-16 w-16 mx-auto mb-4 opacity-30" />
-              <p className="font-medium">Selecione uma conversa</p>
-              <p className="text-sm">Escolha um lead para visualizar as mensagens</p>
+              <p className="font-medium">Selecione uma conversa ou contato</p>
+              <p className="text-sm">Escolha um lead para visualizar as mensagens ou inicie uma nova conversa</p>
             </div>
           </div>
         )}
