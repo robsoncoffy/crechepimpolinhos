@@ -585,6 +585,126 @@ CNPJ: ${COMPANY_DATA.cnpj}
       console.warn("RESEND_API_KEY not configured - skipping email notification");
     }
 
+    // Step 6: Send WhatsApp notification with signing link
+    const GHL_API_KEY = Deno.env.get('GHL_API_KEY');
+    const GHL_LOCATION_ID = Deno.env.get('GHL_LOCATION_ID');
+    
+    if (GHL_API_KEY && GHL_LOCATION_ID) {
+      try {
+        // Get parent phone from profile
+        const { data: parentProfile } = await supabase
+          .from('profiles')
+          .select('phone')
+          .eq('user_id', parentId)
+          .maybeSingle();
+        
+        const parentPhone = parentProfile?.phone;
+        
+        if (parentPhone) {
+          // Normalize phone number
+          let normalizedPhone = parentPhone.replace(/\D/g, "");
+          if (normalizedPhone.startsWith("0")) {
+            normalizedPhone = normalizedPhone.substring(1);
+          }
+          if (!normalizedPhone.startsWith("55")) {
+            normalizedPhone = "55" + normalizedPhone;
+          }
+          normalizedPhone = "+" + normalizedPhone;
+
+          // Search for GHL contact by phone
+          const searchResponse = await fetch(
+            `https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(normalizedPhone)}&limit=1`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${GHL_API_KEY}`,
+                Version: "2021-07-28",
+              },
+            }
+          );
+
+          if (searchResponse.ok) {
+            const searchResult = await searchResponse.json();
+            const ghlContactId = searchResult.contacts?.[0]?.id;
+
+            if (ghlContactId) {
+              // Update GHL contact tags - Move to "Contrato Enviado" stage
+              await fetch(
+                `https://services.leadconnectorhq.com/contacts/${ghlContactId}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-07-28",
+                  },
+                  body: JSON.stringify({
+                    tags: ["contrato_enviado", "aguardando_assinatura"],
+                  }),
+                }
+              );
+              console.log("GHL contact updated with contract_sent tags");
+
+              // Send WhatsApp message with signing link
+              const whatsappMessage = `📝 *Olá, ${parentName}!*
+
+O contrato de matrícula de *${childName}* foi enviado para assinatura digital! ✍️
+
+📋 *Dados do Contrato:*
+• Criança: ${childName}
+• Turma: ${classTypeLabels[classType] || classType}
+• Turno: ${shiftTypeLabels[shiftType] || shiftType}
+${planType ? `• Plano: ${planTypeLabels[planType] || planType}` : ''}
+
+👉 *Clique no link abaixo para assinar:*
+${signUrl}
+
+⏰ Após a assinatura, a cobrança será gerada automaticamente.
+
+Qualquer dúvida, estamos à disposição!
+
+💜 Creche Pimpolinhos`;
+
+              const whatsappResponse = await fetch(
+                "https://services.leadconnectorhq.com/conversations/messages",
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${GHL_API_KEY}`,
+                    "Content-Type": "application/json",
+                    Version: "2021-04-15",
+                  },
+                  body: JSON.stringify({
+                    type: "WhatsApp",
+                    contactId: ghlContactId,
+                    message: whatsappMessage,
+                    body: whatsappMessage,
+                  }),
+                }
+              );
+
+              if (whatsappResponse.ok) {
+                console.log("WhatsApp contract notification sent successfully");
+              } else {
+                const errorText = await whatsappResponse.text();
+                console.warn("WhatsApp send failed:", errorText);
+              }
+            } else {
+              console.warn("GHL contact not found for WhatsApp notification");
+            }
+          } else {
+            console.warn("Failed to search GHL contact for WhatsApp");
+          }
+        } else {
+          console.warn("Parent phone not found - skipping WhatsApp notification");
+        }
+      } catch (whatsappError) {
+        console.warn("Failed to send WhatsApp notification:", whatsappError);
+      }
+    } else {
+      console.warn("GHL credentials not configured - skipping WhatsApp notification");
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

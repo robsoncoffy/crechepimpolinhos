@@ -362,8 +362,109 @@ serve(async (req) => {
           }
         }
       } catch (subscriptionError) {
-        console.error("Failed to create Asaas subscription:", subscriptionError);
+      console.error("Failed to create Asaas subscription:", subscriptionError);
         // Don't throw - we still want to process the contract status update
+      }
+
+      // Send WhatsApp notification for signed contract + update GHL pipeline
+      const GHL_API_KEY = Deno.env.get('GHL_API_KEY');
+      const GHL_LOCATION_ID = Deno.env.get('GHL_LOCATION_ID');
+      
+      if (GHL_API_KEY && GHL_LOCATION_ID) {
+        try {
+          // Get parent profile for name and phone
+          const { data: parentProfile } = await supabase
+            .from('profiles')
+            .select('full_name, phone')
+            .eq('user_id', contract.parent_id)
+            .maybeSingle();
+
+          const parentPhone = parentProfile?.phone;
+          const parentName = parentProfile?.full_name || 'Responsável';
+
+          if (parentPhone) {
+            // Normalize phone
+            let normalizedPhone = parentPhone.replace(/\D/g, "");
+            if (normalizedPhone.startsWith("0")) {
+              normalizedPhone = normalizedPhone.substring(1);
+            }
+            if (!normalizedPhone.startsWith("55")) {
+              normalizedPhone = "55" + normalizedPhone;
+            }
+            normalizedPhone = "+" + normalizedPhone;
+
+            // Search GHL contact
+            const searchResponse = await fetch(
+              `https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=${encodeURIComponent(normalizedPhone)}&limit=1`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${GHL_API_KEY}`,
+                  Version: "2021-07-28",
+                },
+              }
+            );
+
+            if (searchResponse.ok) {
+              const searchResult = await searchResponse.json();
+              const ghlContactId = searchResult.contacts?.[0]?.id;
+
+              if (ghlContactId) {
+                // Update tags - Move to "Contrato Assinado" stage
+                await fetch(
+                  `https://services.leadconnectorhq.com/contacts/${ghlContactId}`,
+                  {
+                    method: "PUT",
+                    headers: {
+                      Authorization: `Bearer ${GHL_API_KEY}`,
+                      "Content-Type": "application/json",
+                      Version: "2021-07-28",
+                    },
+                    body: JSON.stringify({
+                      tags: ["contrato_assinado", "aguardando_pagamento"],
+                    }),
+                  }
+                );
+                console.log("GHL contact updated with contract_signed tags");
+
+                // Send WhatsApp confirmation
+                const whatsappMessage = `✅ *Olá, ${parentName}!*
+
+O contrato de matrícula de *${contract.child_name}* foi *assinado com sucesso*! 🎉
+
+📋 *Próximos passos:*
+• A cobrança foi gerada automaticamente
+• Você receberá as opções de pagamento em breve
+• Após o pagamento, a matrícula estará confirmada
+
+👉 Acompanhe tudo no painel: https://www.crechepimpolinhos.com.br/painel-pais
+
+💜 Creche Pimpolinhos`;
+
+                await fetch(
+                  "https://services.leadconnectorhq.com/conversations/messages",
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: `Bearer ${GHL_API_KEY}`,
+                      "Content-Type": "application/json",
+                      Version: "2021-04-15",
+                    },
+                    body: JSON.stringify({
+                      type: "WhatsApp",
+                      contactId: ghlContactId,
+                      message: whatsappMessage,
+                      body: whatsappMessage,
+                    }),
+                  }
+                );
+                console.log("WhatsApp contract signed notification sent");
+              }
+            }
+          }
+        } catch (whatsappError) {
+          console.warn("Failed to send WhatsApp for signed contract:", whatsappError);
+        }
       }
     }
 
