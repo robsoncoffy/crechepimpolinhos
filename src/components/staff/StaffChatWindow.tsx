@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StaffQuickReplySuggestions } from "@/components/chat/StaffQuickReplySuggestions";
-import { Send, Users, MessageCircle, Hash, Plus, Trash2, User, ArrowLeft } from "lucide-react";
+import { Send, Users, MessageCircle, Hash, Plus, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -67,15 +69,16 @@ const roleColors: Record<AppRole, string> = {
   auxiliar: "bg-amber-100 text-amber-700",
 };
 
-export function StaffChatWindow() {
+// Profile cache shared across chat instances
+const profileCache = new Map<string, { full_name: string; avatar_url: string | null }>();
+
+const STALE_TIME = 1000 * 60 * 2; // 2 minutes
+
+export const StaffChatWindow = memo(function StaffChatWindow() {
   const { user, profile, isAdmin } = useAuth();
-  const [rooms, setRooms] = useState<StaffChatRoom[]>([]);
-  const [privateRooms, setPrivateRooms] = useState<StaffChatRoom[]>([]);
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const queryClient = useQueryClient();
   const [selectedRoom, setSelectedRoom] = useState<StaffChatRoom | null>(null);
-  const [messages, setMessages] = useState<StaffMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"groups" | "private" | "contacts">("groups");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -84,89 +87,117 @@ export function StaffChatWindow() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch chat rooms and staff members
-  useEffect(() => {
-    const fetchData = async () => {
-      // Fetch all rooms
-      const { data: roomsData } = await supabase
+  // Parallel fetch: rooms + staff in one effect using React Query
+  const { data: roomsData, isLoading: roomsLoading, refetch: refetchRooms } = useQuery({
+    queryKey: ["staff-chat-rooms"],
+    queryFn: async () => {
+      const { data } = await supabase
         .from("staff_chat_rooms")
         .select("*")
         .order("is_general", { ascending: false })
         .order("created_at", { ascending: true });
+      return data || [];
+    },
+    staleTime: STALE_TIME,
+    enabled: !!user,
+  });
 
-      if (roomsData) {
-        const groupRooms = roomsData.filter(r => !r.is_private);
-        const privateChats = roomsData.filter(r => r.is_private);
-        setRooms(groupRooms);
-        setPrivateRooms(privateChats);
-        if (groupRooms.length > 0) {
-          setSelectedRoom(groupRooms[0]);
+  const { data: staffMembers = [], isLoading: staffLoading } = useQuery({
+    queryKey: ["staff-members"],
+    queryFn: async () => {
+      // Parallel fetch: roles + profiles
+      const [rolesRes, profilesRes] = await Promise.all([
+        supabase.from("user_roles").select("user_id, role").neq("role", "parent"),
+        supabase.from("profiles").select("user_id, full_name, avatar_url").eq("status", "approved"),
+      ]);
+
+      if (!rolesRes.data || !profilesRes.data) return [];
+
+      const roleMap = new Map<string, AppRole>();
+      rolesRes.data.forEach(r => {
+        if (!roleMap.has(r.user_id) || r.role === 'admin') {
+          roleMap.set(r.user_id, r.role as AppRole);
         }
-      }
+      });
 
-      // Fetch staff members (non-parent roles)
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .neq("role", "parent");
+      const staffUserIds = new Set(rolesRes.data.map(r => r.user_id));
+      
+      return profilesRes.data
+        .filter(p => staffUserIds.has(p.user_id))
+        .map(p => {
+          // Cache for message rendering
+          profileCache.set(p.user_id, { full_name: p.full_name, avatar_url: p.avatar_url });
+          return {
+            ...p,
+            role: roleMap.get(p.user_id) || "teacher" as AppRole
+          };
+        });
+    },
+    staleTime: STALE_TIME,
+    enabled: !!user,
+  });
 
-      if (rolesData) {
-        const userIds = [...new Set(rolesData.map(r => r.user_id))];
-        
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, full_name, avatar_url")
-          .in("user_id", userIds);
+  // Derived room lists
+  const rooms = useMemo(() => 
+    roomsData?.filter(r => !r.is_private) || [], 
+    [roomsData]
+  );
+  
+  const privateRooms = useMemo(() => 
+    roomsData?.filter(r => r.is_private) || [], 
+    [roomsData]
+  );
 
-        if (profilesData) {
-          const staffWithRoles: StaffMember[] = profilesData.map(p => {
-            const userRole = rolesData.find(r => r.user_id === p.user_id);
-            return {
-              ...p,
-              role: userRole?.role || "teacher"
-            };
-          });
-
-          setStaffMembers(staffWithRoles);
-        }
-      }
-
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [user?.id]);
-
-  // Fetch messages for selected room
+  // Auto-select first room
   useEffect(() => {
-    if (!selectedRoom) return;
+    if (!selectedRoom && rooms.length > 0) {
+      setSelectedRoom(rooms[0]);
+    }
+  }, [rooms, selectedRoom]);
 
-    const fetchMessages = async () => {
-      const { data: messagesData } = await supabase
+  // Fetch messages for selected room with React Query
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery({
+    queryKey: ["staff-messages", selectedRoom?.id],
+    queryFn: async () => {
+      if (!selectedRoom) return [];
+
+      const { data } = await supabase
         .from("staff_messages")
         .select("*")
         .eq("room_id", selectedRoom.id)
         .order("created_at", { ascending: true });
 
-      if (messagesData) {
-        const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+      if (!data) return [];
+
+      // Batch fetch uncached profiles
+      const uncachedIds = data
+        .map(m => m.sender_id)
+        .filter(id => !profileCache.has(id));
+
+      if (uncachedIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, full_name, avatar_url")
-          .in("user_id", senderIds);
+          .in("user_id", [...new Set(uncachedIds)]);
 
-        const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-
-        const enrichedMessages = messagesData.map(msg => ({
-          ...msg,
-          sender: profileMap.get(msg.sender_id) || { full_name: "Usuário", avatar_url: null }
-        }));
-
-        setMessages(enrichedMessages);
+        profiles?.forEach(p => {
+          profileCache.set(p.user_id, { full_name: p.full_name, avatar_url: p.avatar_url });
+        });
       }
-    };
 
-    fetchMessages();
+      // Enrich messages from cache
+      return data.map(msg => ({
+        ...msg,
+        sender: profileCache.get(msg.sender_id) || { full_name: "Usuário", avatar_url: null }
+      }));
+    },
+    staleTime: 1000 * 30, // 30 seconds
+    enabled: !!selectedRoom,
+  });
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!selectedRoom) return;
 
     const channel = supabase
       .channel(`staff-chat-${selectedRoom.id}`)
@@ -178,19 +209,8 @@ export function StaffChatWindow() {
           table: "staff_messages",
           filter: `room_id=eq.${selectedRoom.id}`
         },
-        async (payload) => {
-          const newMsg = payload.new as StaffMessage;
-          
-          const { data: senderProfile } = await supabase
-            .from("profiles")
-            .select("user_id, full_name, avatar_url")
-            .eq("user_id", newMsg.sender_id)
-            .single();
-
-          setMessages(prev => [...prev, {
-            ...newMsg,
-            sender: senderProfile || { full_name: "Usuário", avatar_url: null }
-          }]);
+        () => {
+          refetchMessages();
         }
       )
       .subscribe();
@@ -198,15 +218,16 @@ export function StaffChatWindow() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedRoom]);
+  }, [selectedRoom, refetchMessages]);
 
+  // Scroll to bottom
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages.length]);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!newMessage.trim() || !user || !selectedRoom) return;
 
     setSending(true);
@@ -216,47 +237,44 @@ export function StaffChatWindow() {
         sender_id: user.id,
         content: newMessage.trim()
       });
-
       setNewMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
     } finally {
       setSending(false);
     }
-  };
+  }, [newMessage, user, selectedRoom]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
-  };
+  }, [sendMessage]);
 
-  const getInitials = (name: string) => {
+  const getInitials = useCallback((name: string) => {
     return name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
+  }, []);
 
-  const createGroup = async () => {
+  const createGroup = useCallback(async () => {
     if (!newGroupName.trim()) return;
 
     setCreatingGroup(true);
     try {
-      const { data, error } = await supabase.from("staff_chat_rooms").insert({
+      await supabase.from("staff_chat_rooms").insert({
         name: newGroupName.trim(),
         description: newGroupDescription.trim() || null,
         is_general: false,
         is_private: false,
         created_by: user?.id
-      }).select().single();
+      });
 
-      if (error) throw error;
-
-      setRooms(prev => [...prev, data]);
+      refetchRooms();
       setNewGroupName("");
       setNewGroupDescription("");
       setShowCreateDialog(false);
@@ -267,14 +285,12 @@ export function StaffChatWindow() {
     } finally {
       setCreatingGroup(false);
     }
-  };
+  }, [newGroupName, newGroupDescription, user?.id, refetchRooms]);
 
-  const deleteGroup = async (roomId: string) => {
+  const deleteGroup = useCallback(async (roomId: string) => {
     try {
-      const { error } = await supabase.from("staff_chat_rooms").delete().eq("id", roomId);
-      if (error) throw error;
-
-      setRooms(prev => prev.filter(r => r.id !== roomId));
+      await supabase.from("staff_chat_rooms").delete().eq("id", roomId);
+      refetchRooms();
       if (selectedRoom?.id === roomId) {
         setSelectedRoom(rooms.find(r => r.is_general) || null);
       }
@@ -283,10 +299,9 @@ export function StaffChatWindow() {
       console.error("Error deleting group:", error);
       toast.error("Erro ao excluir grupo");
     }
-  };
+  }, [selectedRoom?.id, rooms, refetchRooms]);
 
-  const startPrivateChat = async (member: StaffMember) => {
-    // Check if private chat already exists
+  const startPrivateChat = useCallback(async (member: StaffMember) => {
     const existingChat = privateRooms.find(r => 
       (r.participant_1 === user?.id && r.participant_2 === member.user_id) ||
       (r.participant_1 === member.user_id && r.participant_2 === user?.id)
@@ -298,9 +313,8 @@ export function StaffChatWindow() {
       return;
     }
 
-    // Create new private chat
     try {
-      const { data, error } = await supabase.from("staff_chat_rooms").insert({
+      const { data } = await supabase.from("staff_chat_rooms").insert({
         name: member.full_name,
         description: null,
         is_general: false,
@@ -310,34 +324,44 @@ export function StaffChatWindow() {
         created_by: user?.id
       }).select().single();
 
-      if (error) throw error;
-
-      setPrivateRooms(prev => [...prev, data]);
-      setSelectedRoom(data);
-      setActiveTab("private");
-      toast.success(`Chat com ${member.full_name.split(" ")[0]} iniciado`);
+      if (data) {
+        refetchRooms();
+        setSelectedRoom(data);
+        setActiveTab("private");
+        toast.success(`Chat com ${member.full_name.split(" ")[0]} iniciado`);
+      }
     } catch (error) {
       console.error("Error creating private chat:", error);
       toast.error("Erro ao iniciar conversa");
     }
-  };
+  }, [privateRooms, user?.id, refetchRooms]);
 
-  const getPrivateChatName = (room: StaffChatRoom) => {
+  const getPrivateChatName = useCallback((room: StaffChatRoom) => {
     const otherUserId = room.participant_1 === user?.id ? room.participant_2 : room.participant_1;
     const otherUser = staffMembers.find(m => m.user_id === otherUserId);
     return otherUser?.full_name || room.name;
-  };
+  }, [user?.id, staffMembers]);
 
-  const getPrivateChatAvatar = (room: StaffChatRoom) => {
+  const getPrivateChatAvatar = useCallback((room: StaffChatRoom) => {
     const otherUserId = room.participant_1 === user?.id ? room.participant_2 : room.participant_1;
     const otherUser = staffMembers.find(m => m.user_id === otherUserId);
     return otherUser?.avatar_url || null;
-  };
+  }, [user?.id, staffMembers]);
 
-  if (loading) {
+  const isLoading = roomsLoading || staffLoading;
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Carregando chat...</p>
+      <div className="flex h-[450px] md:h-[500px] bg-card rounded-xl border overflow-hidden">
+        <div className="w-full md:w-64 lg:w-72 border-r bg-muted/30 p-3 space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+        <div className="flex-1 hidden md:flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
       </div>
     );
   }
@@ -554,7 +578,7 @@ export function StaffChatWindow() {
           )}
         </ScrollArea>
 
-        {/* Current user info - hidden on small mobile */}
+        {/* Current user info */}
         <div className="p-2 md:p-3 border-t bg-muted/50">
           <div className="flex items-center gap-2 md:gap-3">
             <Avatar className="h-7 w-7 md:h-8 md:w-8">
@@ -572,7 +596,7 @@ export function StaffChatWindow() {
         </div>
       </div>
 
-      {/* Chat area - shown on mobile only when room is selected */}
+      {/* Chat area */}
       <div className={`flex-1 flex flex-col ${!selectedRoom ? "hidden md:flex" : "flex"}`}>
         {selectedRoom ? (
           <>
@@ -617,51 +641,57 @@ export function StaffChatWindow() {
 
             {/* Messages */}
             <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-              <div className="space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p>Nenhuma mensagem ainda.</p>
-                    <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isOwn = message.sender_id === user?.id;
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex gap-3 ${isOwn ? "flex-row-reverse" : ""}`}
-                      >
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarImage src={message.sender?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(message.sender?.full_name || "U")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={`max-w-[70%] ${isOwn ? "items-end" : ""}`}>
-                          <div className={`flex items-center gap-2 mb-1 ${isOwn ? "flex-row-reverse" : ""}`}>
-                            <span className="text-xs font-medium">
-                              {isOwn ? "Você" : message.sender?.full_name}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {format(new Date(message.created_at), "HH:mm", { locale: ptBR })}
-                            </span>
-                          </div>
-                          <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              isOwn
-                                ? "bg-primary text-primary-foreground rounded-br-md"
-                                : "bg-muted rounded-bl-md"
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {messagesLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhuma mensagem ainda.</p>
+                      <p className="text-sm">Seja o primeiro a enviar uma mensagem!</p>
+                    </div>
+                  ) : (
+                    messages.map((message) => {
+                      const isOwn = message.sender_id === user?.id;
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex gap-3 ${isOwn ? "flex-row-reverse" : ""}`}
+                        >
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarImage src={message.sender?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {getInitials(message.sender?.full_name || "U")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={`max-w-[70%] ${isOwn ? "items-end" : ""}`}>
+                            <div className={`flex items-center gap-2 mb-1 ${isOwn ? "flex-row-reverse" : ""}`}>
+                              <span className="text-xs font-medium">
+                                {isOwn ? "Você" : message.sender?.full_name}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(message.created_at), "HH:mm", { locale: ptBR })}
+                              </span>
+                            </div>
+                            <div
+                              className={`rounded-2xl px-4 py-2 ${
+                                isOwn
+                                  ? "bg-primary text-primary-foreground rounded-br-md"
+                                  : "bg-muted rounded-bl-md"
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </ScrollArea>
 
             {/* AI Quick Reply Suggestions */}
@@ -704,4 +734,4 @@ export function StaffChatWindow() {
       </div>
     </div>
   );
-}
+});
