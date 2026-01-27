@@ -71,3 +71,9 @@ verify_jwt = false
 
 [functions.controlid-sync-employees]
 verify_jwt = false
+
+[functions.ghl-message-webhook]
+verify_jwt = false
+
+[functions.retry-failed-whatsapp]
+verify_jwt = false

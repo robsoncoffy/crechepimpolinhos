@@ -660,6 +660,42 @@ ${signupUrl}
       whatsappSent = whatsappResult.success;
       const finalContactId = whatsappResult.contactId || effectiveContactId;
       
+      // Log WhatsApp message to whatsapp_message_logs for tracking and retry
+      try {
+        const messageLogData: Record<string, unknown> = {
+          ghl_contact_id: finalContactId,
+          ghl_message_id: whatsappResult.messageId || null,
+          phone: phone || "",
+          message_preview: whatsappMessage.substring(0, 200),
+          template_type: "parent_invite",
+          status: whatsappResult.success ? "sent" : "error",
+          error_message: whatsappResult.success ? null : whatsappResult.error,
+          metadata: {
+            full_message: whatsappMessage,
+            invite_code: inviteCode,
+            parent_name: parentName,
+            child_name: childName,
+            coupon_code: normalizedCouponCode,
+          },
+        };
+
+        // Find parent_invite_id if available
+        const { data: inviteData } = await adminClient
+          .from("parent_invites")
+          .select("id")
+          .eq("invite_code", inviteCode)
+          .maybeSingle();
+        
+        if (inviteData?.id) {
+          messageLogData.parent_invite_id = inviteData.id;
+        }
+
+        await adminClient.from("whatsapp_message_logs").insert(messageLogData);
+        logger.info("whatsapp_log_saved", { metadata: { status: whatsappResult.success ? "sent" : "error" } });
+      } catch (logErr) {
+        logger.warn("whatsapp_log_failed", { error: logErr instanceof Error ? logErr.message : String(logErr) });
+      }
+      
       if (whatsappResult.success) {
         logger.info("whatsapp_invite_sent", { metadata: { phone, contactId: effectiveContactId } });
       } else {
