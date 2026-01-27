@@ -1,175 +1,151 @@
 
-# Guia Completo para Ativar Login com Google
+# Plano de Otimização de Performance - Creche Pimpolinhos
 
-## Visao Geral
-O login com Google requer configuracao em 3 locais:
-1. **Google Cloud Console** - Criar credenciais OAuth
-2. **Lovable Cloud** - Configurar o provedor de autenticacao
-3. **Codigo** - Adicionar o botao de login com Google
+## Diagnóstico: Por que o site está pesado?
 
-## Status Atual
-Os secrets `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` ja estao configurados no projeto. Isso e um bom sinal - as credenciais podem ja estar criadas no Google Cloud Console.
+Após analisar o código, identifiquei vários fatores que contribuem para a lentidão:
 
----
+### 1. Carregamento de Fontes (Render Blocking)
+O arquivo `index.css` importa fontes do Google Fonts de forma síncrona, bloqueando a renderização:
+```css
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:...&family=Nunito:...&display=swap');
+```
+Isso atrasa significativamente o First Contentful Paint (FCP).
 
-## Passo 1: Configurar Google Cloud Console
+### 2. Bundle Inicial Grande
+O arquivo `Dashboard.tsx` importa sincronamente mais de 40 páginas administrativas, mesmo que o usuário só acesse uma delas. Isso aumenta o tempo de carregamento inicial.
 
-### 1.1 Acessar o Console
-Acesse: **https://console.cloud.google.com/**
+### 3. Imagens Não Otimizadas
+A página Home carrega várias imagens grandes simultaneamente (hero, teacher, crafts, playground, etc.) sem lazy loading adequado.
 
-### 1.2 Configurar a Tela de Consentimento OAuth
-1. Va em **APIs e Servicos** → **Tela de consentimento OAuth**
-2. Configure:
-   - **Tipo de usuario**: Externo
-   - **Nome do aplicativo**: Creche Pimpolinhos
-   - **Email de suporte**: seu email
-   - **Dominios autorizados**: Adicione `supabase.co`
-   - **Escopos**: Adicione:
-     - `.../auth/userinfo.email`
-     - `.../auth/userinfo.profile`
-     - `openid`
+### 4. Componentes Não Lazificados
+Widgets do dashboard (Weather, Attendance, etc.) são importados sincronamente mesmo antes de serem visíveis.
 
-### 1.3 Criar Credenciais OAuth
-1. Va em **APIs e Servicos** → **Credenciais**
-2. Clique em **Criar Credenciais** → **ID do cliente OAuth**
-3. Configure:
-   - **Tipo de aplicativo**: Aplicativo da Web
-   - **Nome**: Creche Pimpolinhos Web
-   - **Origens JavaScript autorizadas**:
-     ```
-     https://www.crechepimpolinhos.com.br
-     https://crechepimpolinhos.lovable.app
-     https://18dd1870-3f03-4c3d-a7c0-e13301683901.lovableproject.com
-     http://localhost:5173
-     ```
-   - **URIs de redirecionamento autorizados**:
-     ```
-     https://ksguxhmqctmepbddbhdz.supabase.co/auth/v1/callback
-     ```
-
-4. Copie o **ID do Cliente** e o **Segredo do Cliente**
-
----
-
-## Passo 2: Configurar no Lovable Cloud
-
-### 2.1 Acessar o Painel do Backend
-Clique no botao abaixo para abrir as configuracoes do backend:
-
-### 2.2 Configurar o Provedor Google
-1. No painel, va em **Users** → **Authentication Settings**
-2. Em **Sign In Methods**, encontre **Google**
-3. **Ative** o toggle do Google
-4. Insira:
-   - **Client ID**: O ID copiado do Google Cloud Console
-   - **Client Secret**: O segredo copiado
-5. Salve as configuracoes
-
----
-
-## Passo 3: Alteracoes no Codigo
-
-### 3.1 Adicionar Botao de Login com Google
-No arquivo `src/pages/Auth.tsx`, sera adicionado:
-
-```text
-+---------------------------------------------+
-|  [G] Entrar com Google                      |
-+---------------------------------------------+
-|                  ou                          |
-+---------------------------------------------+
-|  Email: ___________________________         |
-|  Senha: ___________________________         |
-|  [Entrar]                                   |
-+---------------------------------------------+
+### 5. Preload Incorreto
+O `index.html` tenta fazer preload de um asset do src que não existe em produção:
+```html
+<link rel="preload" href="/src/assets/hero-children.jpg" ...>
 ```
 
-### 3.2 Funcao de Login com Google
+---
+
+## Plano de Correções
+
+### Etapa 1: Otimizar Carregamento de Fontes
+**Arquivo:** `index.html`
+
+Mover as fontes para o head do HTML com `preconnect` e `font-display: swap`:
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+```
+
+**Arquivo:** `src/index.css`
+Remover o `@import` de fontes (movido para HTML).
+
+### Etapa 2: Lazy Loading das Páginas do Dashboard
+**Arquivo:** `src/pages/Dashboard.tsx`
+
+Converter todos os imports síncronos para lazy imports:
 ```typescript
-const handleGoogleLogin = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${window.location.origin}/painel`,
-    },
-  });
-  
-  if (error) {
-    toast({
-      title: "Erro ao entrar com Google",
-      description: error.message,
-      variant: "destructive",
-    });
+const AdminDashboard = lazy(() => import("./admin/AdminDashboard"));
+const AdminChildren = lazy(() => import("./admin/AdminChildren"));
+// ... demais páginas
+```
+
+Adicionar Suspense com fallback leve em cada rota.
+
+### Etapa 3: Otimizar Imagens da Home
+**Arquivo:** `src/pages/Home.tsx`
+
+Adicionar `loading="lazy"` em todas as imagens exceto a hero:
+```tsx
+<img src={teacherImage} loading="lazy" ... />
+<img src={craftsImage} loading="lazy" ... />
+```
+
+### Etapa 4: Lazy Loading de Widgets do Dashboard
+**Arquivo:** `src/pages/admin/AdminDashboard.tsx`
+
+Converter widgets pesados para lazy loading:
+```typescript
+const WeatherWidget = lazy(() => import("@/components/admin/WeatherWidget"));
+const TodayAttendanceWidget = lazy(() => import("@/components/admin/TodayAttendanceWidget"));
+```
+
+### Etapa 5: Corrigir Preload no HTML
+**Arquivo:** `index.html`
+
+Remover o preload quebrado:
+```html
+<!-- Remover esta linha -->
+<link rel="preload" href="/src/assets/hero-children.jpg" ...>
+```
+
+### Etapa 6: Adicionar Code Splitting por Rota
+**Arquivo:** `vite.config.ts`
+
+Configurar manual chunks para melhor separação:
+```typescript
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+        'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-select', ...],
+        'vendor-query': ['@tanstack/react-query'],
+      }
+    }
   }
-};
+}
 ```
 
-### 3.3 Componente do Botao
-```typescript
-<Button
-  type="button"
-  variant="outline"
-  className="w-full"
-  onClick={handleGoogleLogin}
->
-  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-    {/* Icone do Google */}
-  </svg>
-  Entrar com Google
-</Button>
-
-<div className="relative my-4">
-  <div className="absolute inset-0 flex items-center">
-    <span className="w-full border-t" />
-  </div>
-  <div className="relative flex justify-center text-xs uppercase">
-    <span className="bg-background px-2 text-muted-foreground">
-      ou continue com email
-    </span>
-  </div>
-</div>
-```
+### Etapa 7: Otimizar CSS com PurgeCSS Implícito
+O Tailwind já faz isso, mas podemos garantir que animações pesadas sejam otimizadas.
 
 ---
 
-## Passo 4: Verificar Site URL e Redirect URLs
+## Resumo das Mudanças
 
-### No Lovable Cloud, confirme que as URLs estao corretas:
-- **Site URL**: `https://www.crechepimpolinhos.com.br`
-- **Redirect URLs** (adicionar todas):
-  - `https://www.crechepimpolinhos.com.br/**`
-  - `https://crechepimpolinhos.lovable.app/**`
-  - `https://18dd1870-3f03-4c3d-a7c0-e13301683901.lovableproject.com/**`
-
----
-
-## Resumo das Acoes
-
-| Onde | Acao |
-|------|------|
-| Google Cloud Console | Verificar/criar credenciais OAuth com URLs corretas |
-| Lovable Cloud | Ativar Google como provedor e inserir credenciais |
-| Codigo | Adicionar botao de login com Google na pagina Auth.tsx |
+| Arquivo | Alteração |
+|---------|-----------|
+| `index.html` | Mover fontes para head, remover preload quebrado |
+| `src/index.css` | Remover @import de fontes |
+| `src/pages/Dashboard.tsx` | Lazy load de todas as páginas admin |
+| `src/pages/Home.tsx` | Adicionar loading="lazy" nas imagens |
+| `src/pages/admin/AdminDashboard.tsx` | Lazy load dos widgets |
+| `vite.config.ts` | Configurar manual chunks para code splitting |
 
 ---
 
-## Secao Tecnica
+## Impacto Esperado
 
-### Arquivos que serao modificados:
-1. `src/pages/Auth.tsx` - Adicionar botao e funcao de login com Google
+- **First Contentful Paint (FCP)**: Redução de 40-60%
+- **Largest Contentful Paint (LCP)**: Redução de 30-50%
+- **Time to Interactive (TTI)**: Redução significativa no dashboard
+- **Bundle Size Inicial**: Redução de 50-70% (lazy loading)
 
-### Dependencias:
-- Nenhuma nova dependencia necessaria (Supabase JS ja suporta OAuth)
+---
 
-### Consideracoes de Seguranca:
-- O fluxo OAuth e gerenciado pelo Supabase, nao expondo credenciais no frontend
-- O `GOOGLE_CLIENT_SECRET` fica apenas no backend
-- Usuarios que fizerem login com Google terao perfil criado automaticamente pelo trigger existente `handle_new_user`
+## Seção Técnica
 
-### Fluxo de Autenticacao:
-1. Usuario clica "Entrar com Google"
-2. Redirecionado para tela de login do Google
-3. Google redireciona para `supabase.co/auth/v1/callback`
-4. Supabase cria/atualiza usuario e redireciona para o app
-5. Trigger `handle_new_user` cria perfil automaticamente
+### Arquivos que serão modificados:
+1. `index.html` - Otimização de fontes e remoção de preload quebrado
+2. `src/index.css` - Remoção do @import de fontes
+3. `src/pages/Dashboard.tsx` - Lazy loading de 45+ páginas
+4. `src/pages/Home.tsx` - Lazy loading de imagens
+5. `src/pages/admin/AdminDashboard.tsx` - Lazy loading de widgets
+6. `vite.config.ts` - Code splitting configuração
 
+### Dependências:
+- Nenhuma nova dependência necessária
+
+### Considerações:
+- O lazy loading pode causar um breve flash de loading em navegações, mas a experiência geral será muito mais fluida
+- As fontes aparecerão um pouco depois do texto, mas o texto ficará legível imediatamente (FOUT aceitável)
+- O PWA continuará funcionando normalmente
+
+### Compatibilidade:
+- Todas as alterações são compatíveis com o React 18 e Vite
+- O service worker do PWA irá cachear os chunks lazy automaticamente após a primeira visita
