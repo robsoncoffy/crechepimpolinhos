@@ -134,13 +134,18 @@ export default function AdminEmployeeInvites() {
   };
 
   const deleteInvite = async (id: string) => {
-    const { error } = await supabase.from("employee_invites").delete().eq("id", id);
+    try {
+      const { error } = await supabase.from("employee_invites").delete().eq("id", id);
 
-    if (error) {
-      toast.error("Erro ao excluir convite");
-    } else {
-      toast.success("Convite excluído");
+      if (error) {
+        throw error;
+      }
+
+      toast.success("Convite excluído permanentemente");
       fetchInvites();
+    } catch (error) {
+      console.error("Error deleting invite:", error);
+      toast.error("Erro ao excluir convite");
     }
   };
 
