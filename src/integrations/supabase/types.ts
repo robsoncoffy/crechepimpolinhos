@@ -2853,6 +2853,66 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          ghl_contact_id: string | null
+          ghl_message_id: string | null
+          id: string
+          last_retry_at: string | null
+          max_retries: number
+          message_preview: string | null
+          metadata: Json | null
+          next_retry_at: string | null
+          parent_invite_id: string | null
+          phone: string
+          pre_enrollment_id: string | null
+          retry_count: number
+          status: string
+          template_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          ghl_contact_id?: string | null
+          ghl_message_id?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number
+          message_preview?: string | null
+          metadata?: Json | null
+          next_retry_at?: string | null
+          parent_invite_id?: string | null
+          phone: string
+          pre_enrollment_id?: string | null
+          retry_count?: number
+          status?: string
+          template_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          ghl_contact_id?: string | null
+          ghl_message_id?: string | null
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number
+          message_preview?: string | null
+          metadata?: Json | null
+          next_retry_at?: string | null
+          parent_invite_id?: string | null
+          phone?: string
+          pre_enrollment_id?: string | null
+          retry_count?: number
+          status?: string
+          template_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       employee_profiles_safe: {
