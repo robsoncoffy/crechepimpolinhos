@@ -162,6 +162,7 @@ export function PreEnrollmentsContent() {
           inviteCode: inviteCode,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
+          ghlContactId: preEnrollment.ghl_contact_id, // Pass GHL contact ID for reliable WhatsApp delivery
         },
       });
 
