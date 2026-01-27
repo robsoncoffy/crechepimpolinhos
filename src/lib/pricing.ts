@@ -18,10 +18,10 @@ export interface PlanInfo {
 export const PLANS: PlanInfo[] = [
   {
     id: 'basico',
-    name: 'Plano Básico',
-    description: 'Meio período - 4 horas diárias',
+    name: 'Meio Turno',
+    description: 'Meio período - 5 horas diárias',
     features: [
-      'Manhã (7h às 11h) ou Tarde (15h às 19h)',
+      'Manhã (7h às 12h) ou Tarde (13h às 18h)',
       '2 refeições incluídas',
       'Atividades pedagógicas',
       'Agenda digital',
@@ -30,11 +30,11 @@ export const PLANS: PlanInfo[] = [
   },
   {
     id: 'intermediario',
-    name: 'Plano Intermediário',
-    description: 'Período integral - até 8 horas',
+    name: 'Integral',
+    description: 'Período integral - até 9 horas',
     features: [
       'Funcionamento das 7h às 19h',
-      'Até 8 horas diárias',
+      'Até 9 horas diárias',
       'Todas as refeições incluídas',
       'Atividades extras (Ballet, Capoeira, Música)',
       'Agenda digital completa',
@@ -47,7 +47,7 @@ export const PLANS: PlanInfo[] = [
     name: 'Plano Plus+',
     description: 'Integral estendido - até 10 horas',
     features: [
-      'Tudo do Plano Intermediário',
+      'Tudo do Plano Integral',
       'Até 10 horas diárias',
       'Flexibilidade total de horário',
       'Prioridade em eventos especiais',
@@ -84,8 +84,8 @@ export const CLASS_NAMES: Record<ClassType, string> = {
 };
 
 export const PLAN_NAMES: Record<PlanType, string> = {
-  basico: 'Básico',
-  intermediario: 'Intermediário',
+  basico: 'Meio Turno',
+  intermediario: 'Integral',
   plus: 'Plus+',
 };
 
