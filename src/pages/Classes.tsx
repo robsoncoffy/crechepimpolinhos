@@ -106,10 +106,9 @@ const classes = [
       "Educação socioemocional",
     ],
     highlights: [
-      "Material didático completo",
-      "Aulas de inglês semanais",
       "Atividades extras disponíveis",
       "Preparação pré-escolar",
+      "Professoras especializadas",
     ],
   },
   {
@@ -132,10 +131,9 @@ const classes = [
       "Preparação para o Fundamental",
     ],
     highlights: [
-      "Material didático avançado",
-      "Aulas de inglês semanais",
       "Atividades extras disponíveis",
       "Formatura especial",
+      "Professoras especializadas",
     ],
   },
 ];
