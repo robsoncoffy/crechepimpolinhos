@@ -4,6 +4,7 @@ import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import { DashboardViewProvider, useDashboardView } from "@/hooks/useDashboardView";
+import { AppDataProvider } from "@/contexts/AppDataContext";
 import { Loader2 } from "lucide-react";
 
 // Lazy load all admin pages for code splitting
@@ -333,7 +334,9 @@ export default function Dashboard() {
   return (
     <AuthProvider>
       <DashboardViewProvider>
-        <DashboardContent />
+        <AppDataProvider>
+          <DashboardContent />
+        </AppDataProvider>
       </DashboardViewProvider>
     </AuthProvider>
   );
