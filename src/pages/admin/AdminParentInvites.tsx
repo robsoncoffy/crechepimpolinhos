@@ -28,8 +28,10 @@ import {
   ChevronDown,
   Gift,
   FileText,
-  MessageCircle
+  MessageCircle,
+  Database
 } from "lucide-react";
+import { EmailDiagnosticModal } from "@/components/admin/EmailDiagnosticModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -68,6 +70,7 @@ export default function AdminParentInvites() {
   const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
   const [wantsCoupon, setWantsCoupon] = useState(false);
   const [couponMode, setCouponMode] = useState<"existing" | "new">("existing");
+  const [emailDiagnosticOpen, setEmailDiagnosticOpen] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     phone: "",
@@ -417,15 +420,32 @@ export default function AdminParentInvites() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Users className="w-7 h-7 text-pimpo-blue" />
-          Convites de Pais/Responsáveis
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Gere códigos de convite para novos pais se cadastrarem no sistema
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Users className="w-7 h-7 text-pimpo-blue" />
+            Convites de Pais/Responsáveis
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Gere códigos de convite para novos pais se cadastrarem no sistema
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setEmailDiagnosticOpen(true)}
+          className="gap-2"
+        >
+          <Database className="w-4 h-4" />
+          Liberar E-mail
+        </Button>
       </div>
+
+      {/* Email Diagnostic Modal */}
+      <EmailDiagnosticModal
+        open={emailDiagnosticOpen}
+        onOpenChange={setEmailDiagnosticOpen}
+        onCleanupComplete={() => fetchInvites()}
+      />
 
       {/* Create Invite */}
       <Card className="border-pimpo-blue/30 bg-gradient-to-r from-pimpo-blue/5 to-transparent">
