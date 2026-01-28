@@ -163,6 +163,7 @@ export function PreEnrollmentsContent() {
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
           ghlContactId: preEnrollment.ghl_contact_id, // Pass GHL contact ID for reliable WhatsApp delivery
+          isPreEnrollment: true, // This invite comes from an approved pre-enrollment
         },
       });
 
@@ -224,6 +225,7 @@ export function PreEnrollmentsContent() {
           inviteCode: invite.invite_code,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
+          isPreEnrollment: true, // This invite comes from an approved pre-enrollment
         },
       });
 

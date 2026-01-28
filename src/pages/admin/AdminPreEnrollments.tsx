@@ -149,6 +149,7 @@ export default function AdminPreEnrollments() {
           inviteCode: inviteCode,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
+          isPreEnrollment: true, // This invite comes from an approved pre-enrollment
         },
       });
 
@@ -213,6 +214,7 @@ export default function AdminPreEnrollments() {
           inviteCode: invite.invite_code,
           childName: preEnrollment.child_name,
           parentName: preEnrollment.parent_name,
+          isPreEnrollment: true, // This invite comes from an approved pre-enrollment
         },
       });
 

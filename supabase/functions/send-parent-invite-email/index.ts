@@ -24,6 +24,7 @@ interface InviteEmailRequest {
   couponDiscountType?: "percentage" | "fixed";
   couponDiscountValue?: number;
   ghlContactId?: string; // Direct GHL contact ID for reliable WhatsApp delivery
+  isPreEnrollment?: boolean; // Whether this invite comes from an approved pre-enrollment
 }
 
 interface EmailLogEntry {
@@ -410,12 +411,12 @@ serve(async (req: Request): Promise<Response> => {
     logger.info("admin_verified", { metadata: { adminId: user.id } });
 
     const body: InviteEmailRequest = await req.json();
-    const { email, phone, inviteCode, childName, parentName, couponCode, couponDiscountType, couponDiscountValue, ghlContactId } = body;
+    const { email, phone, inviteCode, childName, parentName, couponCode, couponDiscountType, couponDiscountValue, ghlContactId, isPreEnrollment } = body;
 
     logger.info("request_parsed", { 
       to: email, 
       templateType: "parent_invite",
-      metadata: { inviteCode, parentName: parentName || null, hasCoupon: !!couponCode, hasPhone: !!phone, hasGhlContactId: !!ghlContactId }
+      metadata: { inviteCode, parentName: parentName || null, hasCoupon: !!couponCode, hasPhone: !!phone, hasGhlContactId: !!ghlContactId, isPreEnrollment: !!isPreEnrollment }
     });
 
     if (!email || !inviteCode) {
@@ -635,13 +636,16 @@ serve(async (req: Request): Promise<Response> => {
             : `🎁 Use o cupom *${normalizedCouponCode}* e ganhe *R$ ${resolvedCouponDiscountValue.toFixed(2)} OFF*!\n\n`)
         : "";
       
+      // Different message for pre-enrollment vs direct invite
+      const statusLine = isPreEnrollment 
+        ? `✅ Sua pré-matrícula foi *aprovada*! 🎉\n\n`
+        : ``;
+      
       const whatsappMessage = `🎈 *Olá${parentName ? `, ${parentName}` : ""}!*
 
 Você foi convidado(a) para finalizar o cadastro na *Creche Pimpolinhos*${childName ? ` como responsável de *${childName}*` : ""}!
 
-✅ Sua pré-matrícula foi *aprovada*! 🎉
-
-${discountText}👉 *Clique para completar seu cadastro:*
+${statusLine}${discountText}👉 *Clique para completar seu cadastro:*
 ${signupUrl}
 
 📋 Use o código *${inviteCode}* se solicitado.
