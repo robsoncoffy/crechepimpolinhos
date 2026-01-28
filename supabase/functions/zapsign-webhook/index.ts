@@ -493,7 +493,7 @@ O contrato de matrícula de *${contract.child_name}* foi *assinado com sucesso*!
 
 💜 Creche Pimpolinhos`;
 
-                await fetch(
+                const whatsappResponse = await fetch(
                   "https://services.leadconnectorhq.com/conversations/messages",
                   {
                     method: "POST",
@@ -510,7 +510,33 @@ O contrato de matrícula de *${contract.child_name}* foi *assinado com sucesso*!
                     }),
                   }
                 );
-                console.log("WhatsApp contract signed notification sent");
+
+                const whatsappResult = await whatsappResponse.json();
+                
+                // Log to whatsapp_message_logs for tracking
+                const logStatus = whatsappResponse.ok ? "sent" : "failed";
+                await supabase.from("whatsapp_message_logs").insert({
+                  phone: normalizedPhone,
+                  template_type: "contract_signed",
+                  message_preview: whatsappMessage.substring(0, 200),
+                  status: logStatus,
+                  ghl_contact_id: ghlContactId,
+                  ghl_message_id: whatsappResult?.messageId || whatsappResult?.id || null,
+                  error_message: whatsappResponse.ok ? null : JSON.stringify(whatsappResult),
+                  metadata: {
+                    parentId: contract.parent_id,
+                    parentName: parentName,
+                    childName: contract.child_name,
+                    contractId: contract.id,
+                    full_message: whatsappMessage,
+                  },
+                });
+
+                if (whatsappResponse.ok) {
+                  console.log("WhatsApp contract signed notification sent successfully:", whatsappResult?.messageId || whatsappResult?.id);
+                } else {
+                  console.error("WhatsApp contract signed notification FAILED:", whatsappResult);
+                }
               }
             }
           }
