@@ -339,8 +339,12 @@ export default function Auth() {
           if (error.message.includes("already registered") || error.message.includes("already been registered")) {
             toast({
               title: "Email já cadastrado",
-              description: `Este email já está em uso. Tente fazer login. (Erro técnico: ${error.message})`,
+              description: `Este email (${formData.email}) já está registrado no sistema. Se você já fez cadastro anteriormente, tente fazer login. Se o problema persistir, entre em contato com a administração para liberar o email.`,
               variant: "destructive",
+              duration: 10000,
+            });
+            setErrors({
+              email: "Email já está em uso. Tente fazer login ou solicite liberação à administração."
             });
           } else {
             toast({

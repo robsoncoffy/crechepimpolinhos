@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
-import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X, Mail, Send, MessageCircle } from "lucide-react";
+import { Copy, Plus, Loader2, KeyRound, Trash2, Check, X, Mail, Send, MessageCircle, Database } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { EmailDiagnosticModal } from "@/components/admin/EmailDiagnosticModal";
 
 interface Invite {
   id: string;
@@ -40,6 +41,7 @@ export default function AdminEmployeeInvites() {
   const [employeeEmail, setEmployeeEmail] = useState("");
   const [employeeName, setEmployeeName] = useState("");
   const [employeePhone, setEmployeePhone] = useState("");
+  const [emailDiagnosticOpen, setEmailDiagnosticOpen] = useState(false);
   
   // Resend dialog state
   const [resendDialogOpen, setResendDialogOpen] = useState(false);
@@ -233,15 +235,32 @@ export default function AdminEmployeeInvites() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <KeyRound className="w-7 h-7 text-pimpo-yellow" />
-          Convites de Funcionários
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Gere códigos de convite e envie por e-mail para novos funcionários
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <KeyRound className="w-7 h-7 text-pimpo-yellow" />
+            Convites de Funcionários
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Gere códigos de convite e envie por e-mail para novos funcionários
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setEmailDiagnosticOpen(true)}
+          className="gap-2"
+        >
+          <Database className="w-4 h-4" />
+          Liberar E-mail
+        </Button>
       </div>
+
+      {/* Email Diagnostic Modal */}
+      <EmailDiagnosticModal
+        open={emailDiagnosticOpen}
+        onOpenChange={setEmailDiagnosticOpen}
+        onCleanupComplete={() => fetchInvites()}
+      />
 
       {/* Create Invite */}
       <Card className="border-pimpo-green/30 bg-gradient-to-r from-pimpo-green/5 to-transparent">
