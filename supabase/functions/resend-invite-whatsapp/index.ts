@@ -14,6 +14,7 @@ interface ResendWhatsAppRequest {
   employeeName?: string;
   role?: string;
   couponCode?: string;
+  isPreEnrollment?: boolean; // Whether this invite comes from an approved pre-enrollment
 }
 
 function createLogger(functionName: string) {
@@ -190,9 +191,9 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const body: ResendWhatsAppRequest = await req.json();
-    const { inviteType, inviteCode, phone, parentName, employeeName, role, couponCode } = body;
+    const { inviteType, inviteCode, phone, parentName, employeeName, role, couponCode, isPreEnrollment } = body;
 
-    logger.info("request_parsed", { inviteType, inviteCode, hasPhone: !!phone });
+    logger.info("request_parsed", { inviteType, inviteCode, hasPhone: !!phone, isPreEnrollment: !!isPreEnrollment });
 
     if (!inviteCode || !phone) {
       logger.error("validation_failed", "Missing required fields");
@@ -213,11 +214,14 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       const couponText = couponCode ? `\n🎁 Use o cupom *${couponCode}* para um desconto especial!\n` : "";
+      
+      // Only mention "pré-matrícula aprovada" if this comes from a pre-enrollment
+      const statusLine = isPreEnrollment ? `\n✅ Sua pré-matrícula foi *aprovada*! 🎉\n` : "";
 
       message = `🎈 *Olá${parentName ? `, ${parentName}` : ""}!*
 
 Você foi convidado(a) para a *Creche Pimpolinhos*!
-${couponText}
+${statusLine}${couponText}
 👉 *Clique para completar seu cadastro:*
 ${signupUrl}
 

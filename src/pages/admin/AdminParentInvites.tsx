@@ -304,6 +304,7 @@ export default function AdminParentInvites() {
           couponCode: normalizedCouponCode,
           couponDiscountType: resolvedType,
           couponDiscountValue: resolvedValue,
+          isPreEnrollment: false, // Direct invite, not from pre-enrollment
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -340,6 +341,7 @@ export default function AdminParentInvites() {
           phone: invite.phone,
           parentName: invite.parent_name || undefined,
           couponCode: invite.coupon_code || undefined,
+          isPreEnrollment: !!invite.pre_enrollment_id, // Pass if this comes from a pre-enrollment
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
