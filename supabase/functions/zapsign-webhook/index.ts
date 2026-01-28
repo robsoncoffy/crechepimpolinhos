@@ -333,6 +333,7 @@ serve(async (req) => {
             console.log(`Creating subscription: value=${subscriptionValue}, endDate=${endDate.toISOString()}`);
 
             // Create subscription in Asaas with end date
+            // notificationDisabled: false ensures Asaas sends payment notifications via email/SMS/WhatsApp
             const subscription = await asaasRequest("/subscriptions", "POST", {
               customer: customerId,
               billingType: "UNDEFINED",
@@ -342,6 +343,8 @@ serve(async (req) => {
               description: `Mensalidade ${contract.child_name} - ${contract.class_type} ${contract.plan_type}`,
               externalReference: contract.child_id,
               endDate: endDate.toISOString().split("T")[0],
+              // Enable Asaas native notifications (email + WhatsApp if configured in Asaas dashboard)
+              notificationDisabled: false,
             });
 
             console.log("Asaas subscription created:", subscription.id);
