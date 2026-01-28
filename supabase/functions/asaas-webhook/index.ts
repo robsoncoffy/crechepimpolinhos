@@ -59,6 +59,95 @@ async function sendPushNotification(
   }
 }
 
+// Helper function to auto-approve parent and child on first payment
+async function autoApproveOnFirstPayment(
+  supabase: any,
+  parentId: string,
+  childId: string | null
+) {
+  try {
+    // Check if this is the first paid invoice for this parent
+    const { count: paidInvoicesCount } = await supabase
+      .from("asaas_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("linked_parent_id", parentId)
+      .eq("status", "paid");
+
+    // If this is the first payment (count would be 1 after the current update)
+    if (paidInvoicesCount && paidInvoicesCount <= 1) {
+      console.log(`First payment detected for parent ${parentId}, auto-approving...`);
+
+      // Check current parent status
+      const { data: parentProfile } = await supabase
+        .from("profiles")
+        .select("status, full_name")
+        .eq("user_id", parentId)
+        .single();
+
+      if (parentProfile && parentProfile.status === "pending") {
+        // Approve parent
+        const { error: approveError } = await supabase
+          .from("profiles")
+          .update({ status: "approved" })
+          .eq("user_id", parentId);
+
+        if (!approveError) {
+          console.log(`Parent ${parentId} auto-approved (${parentProfile.full_name})`);
+
+          // Notify the parent about approval
+          await supabase.from("notifications").insert({
+            user_id: parentId,
+            title: "🎉 Cadastro Aprovado!",
+            message: "Seu cadastro foi aprovado automaticamente após a confirmação do pagamento. Bem-vindo(a)!",
+            type: "approval",
+            link: "/painel-responsavel",
+          });
+        } else {
+          console.error("Error auto-approving parent:", approveError);
+        }
+      }
+
+      // If there's a linked child, ensure it's properly linked to the parent
+      if (childId) {
+        // Check if parent-child relationship exists
+        const { data: existingLink } = await supabase
+          .from("parent_children")
+          .select("id")
+          .eq("parent_id", parentId)
+          .eq("child_id", childId)
+          .maybeSingle();
+
+        if (!existingLink) {
+          // Create parent-child link
+          await supabase.from("parent_children").insert({
+            parent_id: parentId,
+            child_id: childId,
+          });
+          console.log(`Parent-child link created: ${parentId} -> ${childId}`);
+        }
+
+        // Get child name for notification
+        const { data: childData } = await supabase
+          .from("children")
+          .select("full_name")
+          .eq("id", childId)
+          .single();
+
+        if (childData) {
+          console.log(`Child ${childId} (${childData.full_name}) linked and activated`);
+        }
+      }
+
+      return true; // First payment, auto-approved
+    }
+
+    return false; // Not first payment
+  } catch (error) {
+    console.error("Error in autoApproveOnFirstPayment:", error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -387,6 +476,18 @@ Obrigado pela confiança!
 
             await supabase.from("notifications").insert(adminNotifications);
             console.log(`Notifications created for ${adminRoles.length} admins`);
+          }
+
+          // Auto-approve parent and child on first payment
+          if (asaasPayment.linked_parent_id) {
+            const wasAutoApproved = await autoApproveOnFirstPayment(
+              supabase,
+              asaasPayment.linked_parent_id,
+              asaasPayment.linked_child_id
+            );
+            if (wasAutoApproved) {
+              console.log("Parent/child auto-approved on first payment");
+            }
           }
         }
       }
