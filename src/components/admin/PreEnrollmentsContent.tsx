@@ -121,7 +121,7 @@ export function PreEnrollmentsContent() {
           invite_code: inviteCode,
           email: preEnrollment.email,
           phone: preEnrollment.phone,
-          child_name: preEnrollment.child_name,
+          parent_name: preEnrollment.parent_name,
           expires_at: expiresAt.toISOString(),
           pre_enrollment_id: preEnrollment.id,
           notes: `Convertido da pré-matrícula. Tipo de vaga: ${preEnrollment.vacancy_type === "municipal" ? "Municipal" : "Particular"}`,
