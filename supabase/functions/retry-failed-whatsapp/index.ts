@@ -159,13 +159,16 @@ serve(async (req: Request): Promise<Response> => {
   try {
     // Fetch failed messages that are eligible for retry
     // Criteria:
-    // 1. status = 'error' OR (status = 'sent' AND created_at > 10 minutes ago without delivery confirmation)
+    // 1. status = 'error' ONLY (not 'sent' - those are already delivered successfully!)
     // 2. retry_count < max_retries (default 3)
     // 3. next_retry_at is null or in the past
+    // NOTE: We removed the logic that retried 'sent' messages after 10 minutes
+    // because GHL doesn't always send delivery callbacks, and resending
+    // successfully sent messages causes duplicate notifications!
     const { data: failedMessages, error: fetchError } = await adminClient
       .from("whatsapp_message_logs")
       .select("id, ghl_contact_id, phone, message_preview, template_type, retry_count, metadata")
-      .or(`status.eq.error,and(status.eq.sent,created_at.lt.${new Date(Date.now() - 10 * 60 * 1000).toISOString()})`)
+      .eq("status", "error")
       .lt("retry_count", 3)
       .or("next_retry_at.is.null,next_retry_at.lte.now()")
       .order("created_at", { ascending: true })
