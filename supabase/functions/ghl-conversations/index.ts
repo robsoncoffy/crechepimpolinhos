@@ -224,6 +224,8 @@ serve(async (req) => {
         type: msg.type, // "SMS", "WhatsApp", "Email", etc.
         status: msg.status,
         contentType: msg.contentType,
+        // Include attachments for media messages
+        attachments: msg.attachments || [],
       }));
 
       // Get contact info from parallel request
