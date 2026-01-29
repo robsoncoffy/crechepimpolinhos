@@ -512,7 +512,7 @@ export default function ParentDashboard() {
                 <QuickSummary child={selectedChild} />
 
                 {/* Quick Actions */}
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="flex gap-3">
                   <Suspense fallback={null}>
                     <PickupNotification childId={selectedChild.id} childName={selectedChild.full_name} />
                   </Suspense>
