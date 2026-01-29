@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useForm, useFieldArray, Controller, type FieldErrors } from "react-hook-form";
+import { useForm, Controller, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { PublicLayout } from "@/components/layout/PublicLayout";
@@ -22,11 +22,8 @@ import {
   MapPin, 
   FileText, 
   Heart, 
-  Users, 
   Building2, 
   Upload, 
-  Plus, 
-  Trash2,
   CheckCircle2,
   ArrowRight,
   Camera,
@@ -73,11 +70,6 @@ const registrationSchema = z.object({
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
 
-interface AuthorizedPickupFile {
-  index: number;
-  file: File | null;
-  preview: string | null;
-}
 
 const ChildRegistration = () => {
   const navigate = useNavigate();
@@ -102,7 +94,7 @@ const ChildRegistration = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [birthCertificateFile, setBirthCertificateFile] = useState<File | null>(null);
   const [birthCertificatePreview, setBirthCertificatePreview] = useState<string | null>(null);
-  const [authorizedPickupFiles, setAuthorizedPickupFiles] = useState<AuthorizedPickupFile[]>([]);
+  
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [couponCode, setCouponCode] = useState("");
@@ -310,10 +302,6 @@ const ChildRegistration = () => {
     }
   };
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "authorizedPickups",
-  });
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -367,46 +355,6 @@ const ChildRegistration = () => {
     }
   };
 
-  const handleAuthorizedPickupDocChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast({
-          title: "Arquivo muito grande",
-          description: "O tamanho máximo é 5MB",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!ACCEPTED_DOC_TYPES.includes(file.type)) {
-        toast({
-          title: "Formato inválido",
-          description: "Use apenas JPG, PNG, WebP ou PDF",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
-      
-      setAuthorizedPickupFiles(prev => {
-        const existing = prev.find(p => p.index === index);
-        if (existing) {
-          return prev.map(p => p.index === index ? { ...p, file, preview } : p);
-        }
-        return [...prev, { index, file, preview }];
-      });
-    }
-  };
-
-  const addAuthorizedPickup = () => {
-    append({ fullName: "", relationship: "" });
-  };
-
-  const removeAuthorizedPickup = (index: number) => {
-    remove(index);
-    setAuthorizedPickupFiles(prev => prev.filter(p => p.index !== index));
-  };
 
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
@@ -484,30 +432,6 @@ const ChildRegistration = () => {
 
       if (regError) throw regError;
 
-      // Insert authorized pickups with their documents
-      if (data.authorizedPickups && data.authorizedPickups.length > 0) {
-        for (let i = 0; i < data.authorizedPickups.length; i++) {
-          const pickup = data.authorizedPickups[i];
-          const pickupFile = authorizedPickupFiles.find(p => p.index === i);
-          
-          let documentUrl: string | null = null;
-          if (pickupFile?.file) {
-            documentUrl = await uploadFile(pickupFile.file, 'authorized-pickups');
-          }
-
-          const { error: pickupError } = await supabase
-            .from('authorized_pickups')
-            .insert({
-              registration_id: registration.id,
-              full_name: pickup.fullName,
-              relationship: pickup.relationship,
-              document_url: documentUrl,
-              is_approved: false,
-            });
-
-          if (pickupError) throw pickupError;
-        }
-      }
 
       setRegistrationId(registration.id);
       setChildFullName(`${data.firstName} ${data.lastName}`);
@@ -698,10 +622,6 @@ const ChildRegistration = () => {
                 <TabsTrigger value="health" className="flex items-center justify-center gap-1.5 py-2">
                   <Heart className="h-4 w-4" />
                   <span className="hidden sm:inline">Saúde</span>
-                </TabsTrigger>
-                <TabsTrigger value="authorized" className="flex items-center justify-center gap-1.5 py-2">
-                  <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Autorizados</span>
                 </TabsTrigger>
                 <TabsTrigger value="enrollment" className="flex items-center justify-center gap-1.5 py-2">
                   <Building2 className="h-4 w-4" />
@@ -1089,124 +1009,6 @@ const ChildRegistration = () => {
                       <Button type="button" variant="outline" onClick={() => setActiveTab("documents")}>
                         Anterior
                       </Button>
-                      <Button type="button" onClick={() => setActiveTab("authorized")}>
-                        Próximo
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Authorized Pickups Tab */}
-              <TabsContent value="authorized">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      Pessoas Autorizadas
-                    </CardTitle>
-                    <CardDescription>
-                      Adicione pessoas autorizadas a retirar a criança. O documento é obrigatório para aprovação.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-                      <strong>Importante:</strong> Apenas pessoas com documentos anexados e aprovados pela escola poderão retirar a criança.
-                    </div>
-
-                    {fields.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhuma pessoa autorizada adicionada</p>
-                      </div>
-                    )}
-
-                    {fields.map((field, index) => {
-                      const pickupFile = authorizedPickupFiles.find(p => p.index === index);
-                      
-                      return (
-                        <div key={field.id} className="border rounded-lg p-4 space-y-4 relative">
-                          <button
-                            type="button"
-                            onClick={() => removeAuthorizedPickup(index)}
-                            className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                          
-                          <div className="grid md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Nome Completo *</Label>
-                              <Input
-                                placeholder="Nome completo da pessoa"
-                                {...register(`authorizedPickups.${index}.fullName`)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Grau de Parentesco *</Label>
-                              <Input
-                                placeholder="Ex: Avó, Tio, etc."
-                                {...register(`authorizedPickups.${index}.relationship`)}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label>Documento de Identidade (obrigatório para aprovação)</Label>
-                            <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
-                              {pickupFile?.file ? (
-                                <div className="flex items-center justify-center gap-4">
-                                  {pickupFile.preview ? (
-                                    <img src={pickupFile.preview} alt="Preview" className="h-16 w-16 object-cover rounded" />
-                                  ) : (
-                                    <FileText className="h-10 w-10 text-muted-foreground" />
-                                  )}
-                                  <div className="text-left">
-                                    <p className="font-medium text-sm">{pickupFile.file.name}</p>
-                                    <button
-                                      type="button"
-                                      onClick={() => setAuthorizedPickupFiles(prev => prev.filter(p => p.index !== index))}
-                                      className="text-xs text-destructive hover:underline"
-                                    >
-                                      Remover
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <label className="cursor-pointer">
-                                  <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
-                                  <p className="text-sm text-muted-foreground">
-                                    Anexar documento (RG ou CNH)
-                                  </p>
-                                  <input
-                                    type="file"
-                                    accept="image/*,.pdf"
-                                    onChange={(e) => handleAuthorizedPickupDocChange(index, e)}
-                                    className="hidden"
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addAuthorizedPickup}
-                      className="w-full"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Adicionar Pessoa Autorizada
-                    </Button>
-
-                    <div className="flex justify-between">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab("health")}>
-                        Anterior
-                      </Button>
                       <Button type="button" onClick={() => setActiveTab("enrollment")}>
                         Próximo
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -1215,6 +1017,7 @@ const ChildRegistration = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
 
               {/* Enrollment Type Tab */}
               <TabsContent value="enrollment">
@@ -1540,7 +1343,7 @@ const ChildRegistration = () => {
                     )}
 
                     <div className="flex justify-between pt-4">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab("authorized")}>
+                      <Button type="button" variant="outline" onClick={() => setActiveTab("health")}>
                         Anterior
                       </Button>
                       <Button type="submit" disabled={isSubmitting || (selectedEnrollmentType === "private" && !watch("planType"))} className="min-w-[160px]">
