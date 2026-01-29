@@ -121,42 +121,47 @@ export default function ParentDashboard() {
   }, [signOut, navigate]);
 
   // Fetch pending registrations
-  const { data: pendingRegistrations = [], isLoading: checkingRegistrations } = useQuery({
+  const { data: pendingRegistrations = [], isLoading: checkingRegistrations, error: registrationsError } = useQuery({
     queryKey: ["parent-registrations", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("child_registrations")
         .select("first_name, last_name, status")
         .eq("parent_id", user.id);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
+    retry: 2,
   });
 
   // Fetch children data
-  const { data: children = [], isLoading: loadingChildren } = useQuery({
+  const { data: children = [], isLoading: loadingChildren, error: childrenError, refetch: refetchChildren } = useQuery({
     queryKey: ["parent-children", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data: parentChildren } = await supabase
+      const { data: parentChildren, error: pcError } = await supabase
         .from("parent_children")
         .select("child_id")
         .eq("parent_id", user.id);
 
+      if (pcError) throw pcError;
       if (!parentChildren || parentChildren.length === 0) return [];
 
       const childIds = parentChildren.map((pc) => pc.child_id);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("children")
         .select("id, full_name, class_type, photo_url, birth_date, shift_type, allergies, plan_type")
         .in("id", childIds);
 
+      if (error) throw error;
       return data || [];
     },
     enabled: !!user && isApproved,
     staleTime: 1000 * 60 * 5,
+    retry: 2,
   });
 
   // Fetch growth data
@@ -385,6 +390,49 @@ export default function ParentDashboard() {
     );
   }
 
+  // Error state
+  if (childrenError || registrationsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-pimpo-blue-light/30 to-background">
+        <header className="bg-card/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 border-b">
+          <div className="container py-3 flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3">
+              <img src={logo} alt="Creche Pimpolinhos" className="h-10" />
+            </Link>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
+        </header>
+        <main className="container py-8 max-w-2xl">
+          <Card className="shadow-lg border-2 border-destructive/20">
+            <CardHeader className="bg-destructive/10 border-b">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-full bg-destructive/20">
+                  <AlertCircle className="w-6 h-6 text-destructive" />
+                </div>
+                <div>
+                  <CardTitle>Erro ao carregar dados</CardTitle>
+                  <CardDescription>Não foi possível carregar suas informações</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-6">
+              <p className="text-sm text-muted-foreground">
+                Ocorreu um erro ao carregar os dados. Isso pode ser um problema temporário de conexão.
+              </p>
+              <Button onClick={() => refetchChildren()} className="w-full gap-2">
+                <Clock className="w-4 h-4" />
+                Tentar novamente
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   // Loading state
   if (loadingChildren) {
     return (
@@ -394,15 +442,15 @@ export default function ParentDashboard() {
             <Link to="/" className="flex items-center gap-3">
               <img src={logo} alt="Creche Pimpolinhos" className="h-10" />
             </Link>
-            <Skeleton className="h-8 w-20" />
+            <div className="h-8 w-20 bg-muted/50 rounded animate-pulse" />
           </div>
         </header>
         <main className="container py-6 max-w-5xl space-y-6">
-          <Skeleton className="h-10 w-64" />
+          <div className="h-10 w-64 bg-muted/50 rounded animate-pulse" />
           <div className="grid grid-cols-2 gap-4">
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-24" />)}
+            {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted/50 rounded animate-pulse" />)}
           </div>
-          <Skeleton className="h-96" />
+          <div className="h-96 bg-muted/50 rounded animate-pulse" />
         </main>
       </div>
     );
