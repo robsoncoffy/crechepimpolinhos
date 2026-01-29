@@ -682,28 +682,28 @@ const ChildRegistration = () => {
 
           <form onSubmit={handleSubmit(onSubmit, onInvalid)}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-6">
-                <TabsTrigger value="basic" className="flex items-center gap-1.5">
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto gap-1 p-1 mb-6">
+                <TabsTrigger value="basic" className="flex items-center justify-center gap-1.5 py-2">
                   <Baby className="h-4 w-4" />
                   <span className="hidden sm:inline">Básico</span>
                 </TabsTrigger>
-                <TabsTrigger value="address" className="flex items-center gap-1.5">
+                <TabsTrigger value="address" className="flex items-center justify-center gap-1.5 py-2">
                   <MapPin className="h-4 w-4" />
                   <span className="hidden sm:inline">Endereço</span>
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center gap-1.5">
+                <TabsTrigger value="documents" className="flex items-center justify-center gap-1.5 py-2">
                   <FileText className="h-4 w-4" />
                   <span className="hidden sm:inline">Docs</span>
                 </TabsTrigger>
-                <TabsTrigger value="health" className="flex items-center gap-1.5">
+                <TabsTrigger value="health" className="flex items-center justify-center gap-1.5 py-2">
                   <Heart className="h-4 w-4" />
                   <span className="hidden sm:inline">Saúde</span>
                 </TabsTrigger>
-                <TabsTrigger value="authorized" className="flex items-center gap-1.5">
+                <TabsTrigger value="authorized" className="flex items-center justify-center gap-1.5 py-2">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Autorizados</span>
                 </TabsTrigger>
-                <TabsTrigger value="enrollment" className="flex items-center gap-1.5">
+                <TabsTrigger value="enrollment" className="flex items-center justify-center gap-1.5 py-2">
                   <Building2 className="h-4 w-4" />
                   <span className="hidden sm:inline">Vaga</span>
                 </TabsTrigger>
