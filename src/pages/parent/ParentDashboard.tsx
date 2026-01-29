@@ -522,48 +522,84 @@ export default function ParentDashboard() {
                 </div>
 
                 {/* Main Tabs */}
-                <Card>
+                <Card className="overflow-hidden">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <div className="border-b overflow-x-auto scrollbar-hide">
-                      <TabsList className="w-max min-w-full h-auto p-0 bg-transparent rounded-none flex">
-                        <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <Calendar className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Agenda</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="mensagens" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap relative">
-                          <MessageSquare className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Chat</span>
-                          {(unreadCounts[selectedChild.id] || 0) > 0 && (
-                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
-                              {unreadCounts[selectedChild.id]}
-                            </Badge>
-                          )}
-                        </TabsTrigger>
-                        <TabsTrigger value="cardapio" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <UtensilsCrossed className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Cardápio</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="fotos" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <Camera className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Fotos</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="feed" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <Newspaper className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Feed</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="financeiro" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <CreditCard className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Finanças</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="avaliacoes" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <GraduationCap className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Avaliações</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="config" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 gap-1.5 whitespace-nowrap">
-                          <Settings className="w-4 h-4" />
-                          <span className="text-xs sm:text-sm">Perfil</span>
-                        </TabsTrigger>
-                      </TabsList>
+                    {/* Mobile: Horizontal scrollable tabs with gradient indicators */}
+                    <div className="relative">
+                      {/* Scroll fade indicators */}
+                      <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-card to-transparent z-10 pointer-events-none md:hidden" />
+                      <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-card to-transparent z-10 pointer-events-none md:hidden" />
+                      
+                      <div className="overflow-x-auto scrollbar-hide border-b bg-muted/30">
+                        <TabsList className="w-max min-w-full h-auto p-1 bg-transparent rounded-none flex gap-1">
+                          <TabsTrigger 
+                            value="agenda" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <Calendar className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Agenda</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="mensagens" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap relative transition-all"
+                          >
+                            <div className="relative">
+                              <MessageSquare className="w-5 h-5 sm:w-4 sm:h-4" />
+                              {(unreadCounts[selectedChild.id] || 0) > 0 && (
+                                <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                              )}
+                            </div>
+                            <span className="text-[10px] sm:text-sm font-medium">Chat</span>
+                            {(unreadCounts[selectedChild.id] || 0) > 0 && (
+                              <Badge variant="destructive" className="h-4 px-1 text-[10px] hidden sm:flex">
+                                {unreadCounts[selectedChild.id]}
+                              </Badge>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="cardapio" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <UtensilsCrossed className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Cardápio</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="fotos" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <Camera className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Fotos</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="feed" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <Newspaper className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Feed</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="financeiro" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <CreditCard className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Finanças</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="avaliacoes" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <GraduationCap className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Avaliações</span>
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="config" 
+                            className="flex-col sm:flex-row rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2 px-3 sm:px-4 gap-1 whitespace-nowrap transition-all"
+                          >
+                            <Settings className="w-5 h-5 sm:w-4 sm:h-4" />
+                            <span className="text-[10px] sm:text-sm font-medium">Perfil</span>
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
                     </div>
 
                     <CardContent className="p-4">
