@@ -1,21 +1,47 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import Auth from "@/pages/Auth";
-import { 
-  mockSupabase, 
-  mockValidParentInvite, 
-  mockParentInviteWithPreEnrollment,
-  mockPreEnrollment,
-  mockAuthUser, 
-  mockValidEmployeeInvite,
-  resetSupabaseMocks,
-  createMockQueryBuilder 
-} from "./mocks/supabase";
+
+// Use vi.hoisted to create mocks that are available before vi.mock hoisting
+const { mockSupabaseAuth, mockSupabaseFrom, mockSupabaseFunctions } = vi.hoisted(() => {
+  const createQueryBuilder = () => ({
+    select: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    gt: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    single: vi.fn(),
+    limit: vi.fn().mockReturnThis(),
+  });
+
+  return {
+    mockSupabaseAuth: {
+      signUp: vi.fn(),
+      signInWithPassword: vi.fn(),
+      signOut: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      }),
+    },
+    mockSupabaseFrom: vi.fn(() => createQueryBuilder()),
+    mockSupabaseFunctions: {
+      invoke: vi.fn(),
+    },
+    createQueryBuilder,
+  };
+});
 
 // Mock the supabase client
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: mockSupabase,
+  supabase: {
+    auth: mockSupabaseAuth,
+    from: mockSupabaseFrom,
+    functions: mockSupabaseFunctions,
+  },
 }));
 
 // Mock useToast hook
@@ -24,6 +50,58 @@ vi.mock("@/hooks/use-toast", () => ({
     toast: vi.fn(),
   }),
 }));
+
+// Import component after mocks
+import Auth from "@/pages/Auth";
+
+// Mock valid parent invite
+const mockValidParentInvite = {
+  id: "parent-invite-id",
+  invite_code: "PAR123",
+  child_name: "Test Child",
+  email: "parent@test.com",
+  phone: "(11) 99999-9999",
+  expires_at: new Date(Date.now() + 86400000).toISOString(),
+  used_by: null,
+  pre_enrollment_id: null,
+};
+
+// Mock auth user
+const mockAuthUser = {
+  id: "test-user-id",
+  email: "test@test.com",
+  identities: [{ id: "identity-1" }],
+};
+
+// Helper to create query builder with custom responses
+const createMockQueryBuilder = (overrides: Record<string, unknown> = {}) => {
+  const base = {
+    select: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockReturnThis(),
+    update: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    gt: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn(),
+    single: vi.fn(),
+    limit: vi.fn().mockReturnThis(),
+  };
+  return { ...base, ...overrides };
+};
+
+// Reset all mocks
+const resetMocks = () => {
+  mockSupabaseAuth.signUp.mockReset();
+  mockSupabaseAuth.signInWithPassword.mockReset();
+  mockSupabaseAuth.signOut.mockReset();
+  mockSupabaseAuth.getSession.mockReset().mockResolvedValue({ data: { session: null }, error: null });
+  mockSupabaseAuth.onAuthStateChange.mockReset().mockReturnValue({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  });
+  mockSupabaseFrom.mockReset().mockImplementation(() => createMockQueryBuilder());
+  mockSupabaseFunctions.invoke.mockReset();
+};
 
 const renderAuth = (initialRoute = "/auth") => {
   return render(
@@ -35,7 +113,7 @@ const renderAuth = (initialRoute = "/auth") => {
 
 describe("Auth - Parent Registration", () => {
   beforeEach(() => {
-    resetSupabaseMocks();
+    resetMocks();
     vi.clearAllMocks();
   });
 
@@ -63,7 +141,7 @@ describe("Auth - Parent Registration", () => {
     });
 
     it("should handle successful login", async () => {
-      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+      mockSupabaseAuth.signInWithPassword.mockResolvedValue({
         data: { user: mockAuthUser, session: { user: mockAuthUser } },
         error: null,
       });
@@ -74,7 +152,7 @@ describe("Auth - Parent Registration", () => {
     });
 
     it("should handle invalid credentials error", () => {
-      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+      mockSupabaseAuth.signInWithPassword.mockResolvedValue({
         data: { user: null, session: null },
         error: { message: "Invalid login credentials" },
       });
@@ -138,13 +216,13 @@ describe("Auth - Parent Registration", () => {
     });
 
     it("should call supabase on invite validation", () => {
-      mockSupabase.from.mockReturnValue(createMockQueryBuilder({
+      mockSupabaseFrom.mockReturnValue(createMockQueryBuilder({
         maybeSingle: vi.fn().mockResolvedValue({ data: mockValidParentInvite, error: null }),
       }));
 
       renderAuth("/auth?mode=signup&invite=PAR123");
       
-      expect(mockSupabase.from).toHaveBeenCalled();
+      expect(mockSupabaseFrom).toHaveBeenCalled();
     });
   });
 
@@ -156,7 +234,7 @@ describe("Auth - Parent Registration", () => {
     });
 
     it("should show forgot password form when clicked", () => {
-      const { getByText, queryByText } = renderAuth();
+      const { getByText } = renderAuth();
       
       const forgotLink = getByText(/Esqueceu a senha/i);
       forgotLink.click();
@@ -168,7 +246,7 @@ describe("Auth - Parent Registration", () => {
 
   describe("Registration Submission", () => {
     it("should handle successful registration", () => {
-      mockSupabase.auth.signUp.mockResolvedValue({
+      mockSupabaseAuth.signUp.mockResolvedValue({
         data: { user: mockAuthUser },
         error: null,
       });
@@ -179,7 +257,7 @@ describe("Auth - Parent Registration", () => {
     });
 
     it("should handle duplicate email error", () => {
-      mockSupabase.auth.signUp.mockResolvedValue({
+      mockSupabaseAuth.signUp.mockResolvedValue({
         data: { user: null },
         error: { message: "User already registered", status: 400 },
       });
@@ -207,7 +285,7 @@ describe("Auth - Parent Registration", () => {
 
 describe("Auth - Form Formatting", () => {
   beforeEach(() => {
-    resetSupabaseMocks();
+    resetMocks();
     vi.clearAllMocks();
   });
 
@@ -235,19 +313,19 @@ describe("Auth - Form Formatting", () => {
 
 describe("Auth - Session Management", () => {
   beforeEach(() => {
-    resetSupabaseMocks();
+    resetMocks();
     vi.clearAllMocks();
   });
 
   it("should check existing session on mount", () => {
     renderAuth();
     
-    expect(mockSupabase.auth.getSession).toHaveBeenCalled();
+    expect(mockSupabaseAuth.getSession).toHaveBeenCalled();
   });
 
   it("should set up auth state listener", () => {
     renderAuth();
     
-    expect(mockSupabase.auth.onAuthStateChange).toHaveBeenCalled();
+    expect(mockSupabaseAuth.onAuthStateChange).toHaveBeenCalled();
   });
 });
