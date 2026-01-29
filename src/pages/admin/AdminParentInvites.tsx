@@ -814,7 +814,7 @@ export default function AdminParentInvites() {
                     </div>
 
                     <div className="flex items-center gap-2 mt-3 sm:mt-0 sm:ml-4 flex-wrap">
-                      {status === "active" && invite.phone && (
+                      {invite.phone && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -830,7 +830,7 @@ export default function AdminParentInvites() {
                           WhatsApp
                         </Button>
                       )}
-                      {status === "active" && invite.email && (
+                      {invite.email && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -845,16 +845,14 @@ export default function AdminParentInvites() {
                           Email
                         </Button>
                       )}
-                      {status === "active" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => copyToClipboard(invite)}
-                        >
-                          <Copy className="w-4 h-4 mr-1" />
-                          Copiar
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(invite)}
+                      >
+                        <Copy className="w-4 h-4 mr-1" />
+                        Copiar
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
