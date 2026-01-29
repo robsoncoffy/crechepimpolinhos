@@ -108,7 +108,7 @@ export function AbsenceNotification({ childId, childName }: AbsenceNotificationP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 flex-1 sm:flex-none bg-pimpo-red hover:bg-pimpo-red/90 text-white h-12 text-base font-semibold shadow-md">
+        <Button className="gap-2 w-full bg-pimpo-red hover:bg-pimpo-red/90 text-white h-14 text-base font-semibold shadow-md rounded-xl">
           <UserX className="w-5 h-5" />
           Avisar Falta
         </Button>

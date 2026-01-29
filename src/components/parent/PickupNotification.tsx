@@ -90,7 +90,7 @@ export function PickupNotification({ childId, childName }: PickupNotificationPro
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 flex-1 sm:flex-none bg-pimpo-green hover:bg-pimpo-green/90 text-white h-12 text-base font-semibold shadow-md">
+        <Button className="gap-2 w-full bg-pimpo-green hover:bg-pimpo-green/90 text-white h-14 text-base font-semibold shadow-md rounded-xl">
           <Car className="w-5 h-5" />
           Avisar Busca
         </Button>
