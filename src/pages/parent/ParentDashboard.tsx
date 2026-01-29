@@ -478,7 +478,7 @@ export default function ParentDashboard() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Child Selector */}
             {children.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
@@ -511,8 +511,8 @@ export default function ParentDashboard() {
                 {/* Quick Summary */}
                 <QuickSummary child={selectedChild} />
 
-                {/* Quick Actions */}
-                <div className="flex gap-3">
+                {/* Quick Actions - Larger buttons */}
+                <div className="grid grid-cols-2 gap-3">
                   <Suspense fallback={null}>
                     <PickupNotification childId={selectedChild.id} childName={selectedChild.full_name} />
                   </Suspense>
@@ -524,69 +524,69 @@ export default function ParentDashboard() {
                 {/* Main Tabs */}
                 <Card className="overflow-hidden">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    {/* Grid layout: 4 columns x 2 rows on mobile, single row on desktop */}
-                    <div className="border-b bg-muted/30 p-2">
-                      <TabsList className="w-full h-auto p-0 bg-transparent grid grid-cols-4 md:flex md:flex-wrap gap-1">
+                    {/* Grid layout: 4 columns x 2 rows on mobile */}
+                    <div className="border-b bg-muted/30 p-3">
+                      <TabsList className="w-full h-auto p-0 bg-transparent grid grid-cols-4 md:flex md:flex-wrap gap-2">
                         <TabsTrigger 
                           value="agenda" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <Calendar className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Agenda</span>
+                          <span className="text-[11px] font-medium leading-tight">Agenda</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="mensagens" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 relative transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 relative transition-all min-h-[60px]"
                         >
                           <div className="relative">
                             <MessageSquare className="w-5 h-5" />
                             {(unreadCounts[selectedChild.id] || 0) > 0 && (
-                              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-destructive rounded-full animate-pulse border-2 border-card" />
+                              <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-destructive rounded-full animate-pulse border-2 border-card" />
                             )}
                           </div>
-                          <span className="text-[10px] font-medium">Chat</span>
+                          <span className="text-[11px] font-medium leading-tight">Chat</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="cardapio" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <UtensilsCrossed className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Cardápio</span>
+                          <span className="text-[11px] font-medium leading-tight">Cardápio</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="fotos" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <Camera className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Fotos</span>
+                          <span className="text-[11px] font-medium leading-tight">Fotos</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="feed" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <Newspaper className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Feed</span>
+                          <span className="text-[11px] font-medium leading-tight">Feed</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="financeiro" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <CreditCard className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Finanças</span>
+                          <span className="text-[11px] font-medium leading-tight">Finanças</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="avaliacoes" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <GraduationCap className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Avaliações</span>
+                          <span className="text-[11px] font-medium leading-tight">Avaliações</span>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="config" 
-                          className="flex-col rounded-lg border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 py-2.5 px-1 gap-1 transition-all"
+                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
                           <Settings className="w-5 h-5" />
-                          <span className="text-[10px] font-medium">Perfil</span>
+                          <span className="text-[11px] font-medium leading-tight">Perfil</span>
                         </TabsTrigger>
                       </TabsList>
                     </div>
