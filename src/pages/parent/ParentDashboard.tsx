@@ -19,7 +19,7 @@ import {
   Home,
   UserPlus,
   UtensilsCrossed,
-  Camera,
+  
   CreditCard,
   GraduationCap,
   Settings,
@@ -37,10 +37,9 @@ const AbsenceNotification = lazy(() => import("@/components/parent/AbsenceNotifi
 const TodayAtSchoolWidget = lazy(() => import("@/components/parent/TodayAtSchoolWidget").then(m => ({ default: m.TodayAtSchoolWidget })));
 const ChildProfileTab = lazy(() => import("@/components/parent/ChildProfileTab").then(m => ({ default: m.ChildProfileTab })));
 const WeeklyMenuTab = lazy(() => import("@/components/parent/WeeklyMenuTab").then(m => ({ default: m.WeeklyMenuTab })));
-const PhotoGalleryTab = lazy(() => import("@/components/parent/PhotoGalleryTab").then(m => ({ default: m.PhotoGalleryTab })));
-const SchoolFeedTab = lazy(() => import("@/components/parent/SchoolFeedTab").then(m => ({ default: m.SchoolFeedTab })));
+const UnifiedFeedTab = lazy(() => import("@/components/parent/UnifiedFeedTab").then(m => ({ default: m.UnifiedFeedTab })));
 const SchoolCalendarTab = lazy(() => import("@/components/parent/SchoolCalendarTab").then(m => ({ default: m.SchoolCalendarTab })));
-const AnnouncementsWidget = lazy(() => import("@/components/parent/AnnouncementsWidget").then(m => ({ default: m.AnnouncementsWidget })));
+// AnnouncementsWidget is now inside UnifiedFeedTab
 const PaymentsTab = lazy(() => import("@/components/parent/PaymentsTab").then(m => ({ default: m.PaymentsTab })));
 const DetailedWeatherWidget = lazy(() => import("@/components/parent/DetailedWeatherWidget").then(m => ({ default: m.DetailedWeatherWidget })));
 const QuarterlyEvaluationsTab = lazy(() => import("@/components/parent/QuarterlyEvaluationsTab").then(m => ({ default: m.QuarterlyEvaluationsTab })));
@@ -602,13 +601,6 @@ export default function ParentDashboard() {
                           <span className="text-[11px] font-medium leading-tight">Cardápio</span>
                         </TabsTrigger>
                         <TabsTrigger 
-                          value="fotos" 
-                          className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
-                        >
-                          <Camera className="w-5 h-5" />
-                          <span className="text-[11px] font-medium leading-tight">Fotos</span>
-                        </TabsTrigger>
-                        <TabsTrigger 
                           value="feed" 
                           className="flex-col rounded-xl border-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm py-3 px-2 gap-1.5 transition-all min-h-[60px]"
                         >
@@ -661,18 +653,9 @@ export default function ParentDashboard() {
                         </Suspense>
                       </TabsContent>
 
-                      <TabsContent value="fotos" className="mt-0">
-                        <Suspense fallback={<TabLoadingFallback />}>
-                          <PhotoGalleryTab childClassType={selectedChild.class_type} />
-                        </Suspense>
-                      </TabsContent>
-
                       <TabsContent value="feed" className="mt-0">
                         <Suspense fallback={<TabLoadingFallback />}>
-                          <div className="space-y-4">
-                            <AnnouncementsWidget />
-                            <SchoolFeedTab childClassType={selectedChild.class_type} />
-                          </div>
+                          <UnifiedFeedTab childClassType={selectedChild.class_type} />
                         </Suspense>
                       </TabsContent>
 
