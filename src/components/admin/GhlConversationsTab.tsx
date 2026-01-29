@@ -23,7 +23,13 @@ import {
   CheckCircle2,
   Users,
   Search,
-  MessageSquarePlus
+  MessageSquarePlus,
+  FileText,
+  Image as ImageIcon,
+  FileAudio,
+  FileVideo,
+  Download,
+  Paperclip
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,6 +48,12 @@ interface Conversation {
   unreadCount: number;
 }
 
+interface Attachment {
+  url: string;
+  contentType?: string;
+  fileName?: string;
+}
+
 interface Message {
   id: string;
   body: string;
@@ -49,6 +61,7 @@ interface Message {
   direction: "inbound" | "outbound";
   type: string;
   status?: string;
+  attachments?: Attachment[];
 }
 
 interface ContactInfo {
@@ -871,34 +884,142 @@ export function GhlConversationsTab() {
                     Nenhuma mensagem encontrada
                   </p>
                 ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex",
-                        msg.direction === "outbound" ? "justify-end" : "justify-start"
-                      )}
-                    >
+                  messages.map((msg) => {
+                    // Helper to get attachment icon based on content type
+                    const getAttachmentIcon = (contentType?: string) => {
+                      if (!contentType) return <FileText className="h-4 w-4" />;
+                      if (contentType.startsWith("image/")) return <ImageIcon className="h-4 w-4" />;
+                      if (contentType.startsWith("audio/")) return <FileAudio className="h-4 w-4" />;
+                      if (contentType.startsWith("video/")) return <FileVideo className="h-4 w-4" />;
+                      return <FileText className="h-4 w-4" />;
+                    };
+
+                    // Helper to get file name from URL or use fileName
+                    const getFileName = (attachment: Attachment) => {
+                      if (attachment.fileName) return attachment.fileName;
+                      try {
+                        const url = new URL(attachment.url);
+                        const pathname = url.pathname;
+                        const segments = pathname.split("/");
+                        return segments[segments.length - 1] || "Anexo";
+                      } catch {
+                        return "Anexo";
+                      }
+                    };
+
+                    const hasAttachments = msg.attachments && msg.attachments.length > 0;
+
+                    return (
                       <div
+                        key={msg.id}
                         className={cn(
-                          "max-w-[70%] rounded-lg px-4 py-2",
-                          msg.direction === "outbound"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
+                          "flex",
+                          msg.direction === "outbound" ? "justify-end" : "justify-start"
                         )}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
-                        <p className={cn(
-                          "text-xs mt-1",
-                          msg.direction === "outbound" 
-                            ? "text-primary-foreground/70" 
-                            : "text-muted-foreground"
-                        )}>
-                          {formatMessageDate(msg.dateAdded)}
-                        </p>
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-lg px-4 py-2",
+                            msg.direction === "outbound"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          )}
+                        >
+                          {msg.body && (
+                            <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                          )}
+                          
+                          {/* Render attachments */}
+                          {hasAttachments && (
+                            <div className={cn(
+                              "space-y-2",
+                              msg.body && "mt-2 pt-2 border-t",
+                              msg.direction === "outbound" 
+                                ? "border-primary-foreground/20" 
+                                : "border-border"
+                            )}>
+                              {msg.attachments!.map((attachment, idx) => {
+                                const isImage = attachment.contentType?.startsWith("image/");
+                                const isAudio = attachment.contentType?.startsWith("audio/");
+                                const isVideo = attachment.contentType?.startsWith("video/");
+
+                                return (
+                                  <div key={idx} className="flex flex-col gap-1">
+                                    {/* Image preview */}
+                                    {isImage && (
+                                      <a 
+                                        href={attachment.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block"
+                                      >
+                                        <img 
+                                          src={attachment.url} 
+                                          alt={getFileName(attachment)}
+                                          className="max-w-full max-h-48 rounded-md object-cover hover:opacity-90 transition-opacity"
+                                          loading="lazy"
+                                        />
+                                      </a>
+                                    )}
+
+                                    {/* Audio player */}
+                                    {isAudio && (
+                                      <audio 
+                                        controls 
+                                        src={attachment.url}
+                                        className="max-w-full h-10"
+                                      >
+                                        Seu navegador não suporta áudio.
+                                      </audio>
+                                    )}
+
+                                    {/* Video player */}
+                                    {isVideo && (
+                                      <video 
+                                        controls 
+                                        src={attachment.url}
+                                        className="max-w-full max-h-48 rounded-md"
+                                      >
+                                        Seu navegador não suporta vídeo.
+                                      </video>
+                                    )}
+
+                                    {/* Download link for all attachments */}
+                                    <a
+                                      href={attachment.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={cn(
+                                        "inline-flex items-center gap-2 text-sm hover:underline",
+                                        msg.direction === "outbound"
+                                          ? "text-primary-foreground/90 hover:text-primary-foreground"
+                                          : "text-primary hover:text-primary/80"
+                                      )}
+                                    >
+                                      {getAttachmentIcon(attachment.contentType)}
+                                      <span className="truncate max-w-[200px]">
+                                        {getFileName(attachment)}
+                                      </span>
+                                      <Download className="h-3 w-3 flex-shrink-0" />
+                                    </a>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <p className={cn(
+                            "text-xs mt-1",
+                            msg.direction === "outbound" 
+                              ? "text-primary-foreground/70" 
+                              : "text-muted-foreground"
+                          )}>
+                            {formatMessageDate(msg.dateAdded)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
