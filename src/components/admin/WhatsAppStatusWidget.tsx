@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,9 +20,11 @@ interface WhatsAppLog {
 }
 
 export function WhatsAppStatusWidget() {
+  const queryClient = useQueryClient();
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: logs, isLoading, refetch } = useQuery({
+  const { data: logs, isLoading } = useQuery({
     queryKey: ["whatsapp-logs-summary"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -79,7 +81,8 @@ export function WhatsAppStatusWidget() {
       if (error) throw error;
 
       toast.success("Reenvio solicitado com sucesso!");
-      refetch();
+      await queryClient.invalidateQueries({ queryKey: ["whatsapp-logs-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["whatsapp-stats"] });
     } catch (err) {
       toast.error("Erro ao reenviar mensagem");
       console.error("Retry error:", err);
@@ -204,9 +207,15 @@ export function WhatsAppStatusWidget() {
           variant="outline"
           size="sm"
           className="w-full"
-          onClick={() => refetch()}
+          onClick={async () => {
+            setRefreshing(true);
+            await queryClient.invalidateQueries({ queryKey: ["whatsapp-logs-summary"] });
+            await queryClient.invalidateQueries({ queryKey: ["whatsapp-stats"] });
+            setRefreshing(false);
+          }}
+          disabled={refreshing}
         >
-          <RefreshCw className="w-3 h-3 mr-2" />
+          <RefreshCw className={`w-3 h-3 mr-2 ${refreshing ? "animate-spin" : ""}`} />
           Atualizar
         </Button>
       </CardContent>
