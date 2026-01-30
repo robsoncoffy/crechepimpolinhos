@@ -366,33 +366,23 @@ export default function AdminParentInvites() {
 
   const deleteInvite = async (id: string) => {
     try {
-      // Buscar o convite para verificar se tem pré-matrícula associada
-      const { data: invite } = await supabase
-        .from("parent_invites")
-        .select("pre_enrollment_id")
-        .eq("id", id)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      // Se tiver pré-matrícula associada, limpar a referência
-      if (invite?.pre_enrollment_id) {
-        await supabase
-          .from("pre_enrollments")
-          .update({ converted_to_invite_id: null })
-          .eq("id", invite.pre_enrollment_id);
-      }
+      const { data, error } = await supabase.functions.invoke("delete-invite", {
+        body: { inviteType: "parent", inviteId: id },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
 
-      // Deletar o convite
-      const { error } = await supabase.from("parent_invites").delete().eq("id", id);
-
-      if (error) {
-        throw error;
-      }
+      if (error) throw new Error(error.message || "Erro ao excluir convite");
+      if (data?.error) throw new Error(data.error);
 
       toast.success("Convite excluído permanentemente");
       fetchInvites();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting invite:", error);
-      toast.error("Erro ao excluir convite");
+      toast.error(error?.message || "Erro ao excluir convite");
     }
   };
 
