@@ -390,6 +390,158 @@ serve(async (req) => {
         }
       }
 
+      // ============ DELETE FROM ADDITIONAL TABLES (comprehensive cleanup) ============
+      
+      // Delete staff_messages sent by this user
+      const { error: staffMsgError, count: staffMsgCount } = await supabaseAdmin
+        .from("staff_messages")
+        .delete({ count: "exact" })
+        .eq("sender_id", targetUserId);
+      if (staffMsgCount && staffMsgCount > 0) {
+        deleteResults.push({
+          source: "staff_messages",
+          deleted: !staffMsgError,
+          count: staffMsgCount,
+          error: (staffMsgError as any)?.message,
+        });
+      }
+
+      // Delete messages sent by this user (sender_id)
+      const { error: msgSenderError, count: msgSenderCount } = await supabaseAdmin
+        .from("messages")
+        .delete({ count: "exact" })
+        .eq("sender_id", targetUserId);
+      if (msgSenderCount && msgSenderCount > 0) {
+        deleteResults.push({
+          source: "messages (sender)",
+          deleted: !msgSenderError,
+          count: msgSenderCount,
+          error: (msgSenderError as any)?.message,
+        });
+      }
+
+      // Delete school_feed created by this user
+      const { error: feedError, count: feedCount } = await supabaseAdmin
+        .from("school_feed")
+        .delete({ count: "exact" })
+        .eq("created_by", targetUserId);
+      if (feedCount && feedCount > 0) {
+        deleteResults.push({
+          source: "school_feed",
+          deleted: !feedError,
+          count: feedCount,
+          error: (feedError as any)?.message,
+        });
+      }
+
+      // Delete announcements created by this user (not targeting children)
+      await supabaseAdmin
+        .from("announcements")
+        .delete()
+        .eq("created_by", targetUserId);
+
+      // Delete gallery_photos created by this user
+      await supabaseAdmin
+        .from("gallery_photos")
+        .delete()
+        .eq("created_by", targetUserId);
+
+      // Delete teacher_assignments
+      const { error: teacherAssignError, count: teacherAssignCount } = await supabaseAdmin
+        .from("teacher_assignments")
+        .delete({ count: "exact" })
+        .eq("user_id", targetUserId);
+      if (teacherAssignCount && teacherAssignCount > 0) {
+        deleteResults.push({
+          source: "teacher_assignments",
+          deleted: !teacherAssignError,
+          count: teacherAssignCount,
+          error: (teacherAssignError as any)?.message,
+        });
+      }
+
+      // Clear attendance recorded_by reference (set to null, don't delete)
+      await supabaseAdmin
+        .from("attendance")
+        .update({ recorded_by: null })
+        .eq("recorded_by", targetUserId);
+
+      // Clear daily_records teacher_id reference
+      await supabaseAdmin
+        .from("daily_records")
+        .update({ teacher_id: null })
+        .eq("teacher_id", targetUserId);
+
+      // Delete employee_absences
+      const { error: absencesError, count: absencesCount } = await supabaseAdmin
+        .from("employee_absences")
+        .delete({ count: "exact" })
+        .eq("employee_id", targetUserId);
+      if (absencesCount && absencesCount > 0) {
+        deleteResults.push({
+          source: "employee_absences",
+          deleted: !absencesError,
+          count: absencesCount,
+          error: (absencesError as any)?.message,
+        });
+      }
+      // Clear approved_by reference in employee_absences
+      await supabaseAdmin
+        .from("employee_absences")
+        .update({ approved_by: null })
+        .eq("approved_by", targetUserId);
+
+      // Delete employee_documents
+      const { error: empDocsError, count: empDocsCount } = await supabaseAdmin
+        .from("employee_documents")
+        .delete({ count: "exact" })
+        .eq("employee_user_id", targetUserId);
+      if (empDocsCount && empDocsCount > 0) {
+        deleteResults.push({
+          source: "employee_documents",
+          deleted: !empDocsError,
+          count: empDocsCount,
+          error: (empDocsError as any)?.message,
+        });
+      }
+      // Clear created_by reference in employee_documents
+      await supabaseAdmin
+        .from("employee_documents")
+        .update({ created_by: null })
+        .eq("created_by", targetUserId);
+
+      // Delete employee_time_clock
+      const { error: timeClockError, count: timeClockCount } = await supabaseAdmin
+        .from("employee_time_clock")
+        .delete({ count: "exact" })
+        .eq("user_id", targetUserId);
+      if (timeClockCount && timeClockCount > 0) {
+        deleteResults.push({
+          source: "employee_time_clock",
+          deleted: !timeClockError,
+          count: timeClockCount,
+          error: (timeClockError as any)?.message,
+        });
+      }
+      // Clear created_by reference
+      await supabaseAdmin
+        .from("employee_time_clock")
+        .update({ created_by: null })
+        .eq("created_by", targetUserId);
+
+      // Delete controlid_user_mappings (get employee_profile id first)
+      const { data: empProfile } = await supabaseAdmin
+        .from("employee_profiles")
+        .select("id")
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      if (empProfile?.id) {
+        await supabaseAdmin
+          .from("controlid_user_mappings")
+          .delete()
+          .eq("employee_id", empProfile.id);
+      }
+
       // Delete pickup_notifications
       const { error: pickupError, count: pickupCount } = await supabaseAdmin
         .from("pickup_notifications")
@@ -497,7 +649,6 @@ serve(async (req) => {
         count: annCount || 0,
         error: announcementError?.message,
       });
-
       // Delete from push_subscriptions
       const { error: pushError, count: pushCount } = await supabaseAdmin
         .from("push_subscriptions")
@@ -610,6 +761,28 @@ serve(async (req) => {
         count: empInviteCount || 0,
         error: empInviteError?.message,
       });
+
+      // ============ DELETE WHATSAPP LOGS RELATED TO THIS EMAIL ============
+      // First, get all parent_invite IDs for this email to clean up related whatsapp logs
+      const { data: parentInviteIds } = await supabaseAdmin
+        .from("parent_invites")
+        .select("id")
+        .ilike("email", searchEmail);
+      
+      if (parentInviteIds && parentInviteIds.length > 0) {
+        const inviteIdList = parentInviteIds.map((inv: any) => inv.id);
+        const { count: waLogCount } = await supabaseAdmin
+          .from("whatsapp_message_logs")
+          .delete({ count: "exact" })
+          .in("parent_invite_id", inviteIdList);
+        if (waLogCount && waLogCount > 0) {
+          deleteResults.push({
+            source: "whatsapp_message_logs",
+            deleted: true,
+            count: waLogCount,
+          });
+        }
+      }
 
       // ============ DELETE ORPHAN PROFILES BY EMAIL (fallback) ============
       // This catches profiles that weren't deleted by userId (e.g., auth was deleted but profile remained)
