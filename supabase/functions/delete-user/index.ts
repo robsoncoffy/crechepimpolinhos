@@ -202,6 +202,19 @@ serve(async (req) => {
         });
       }
 
+      // Check employee_invites by email
+      if (searchEmail) {
+        const { count: empInviteCount } = await supabaseAdmin
+          .from("employee_invites")
+          .select("id", { count: "exact" })
+          .ilike("employee_email", searchEmail);
+        diagnostics.push({
+          source: "employee_invites (Convites de Funcionários)",
+          found: (empInviteCount || 0) > 0,
+          count: empInviteCount || 0,
+        });
+      }
+
       // Check user_roles
       if (targetUserId) {
         const { count: rolesCount } = await supabaseAdmin
@@ -530,6 +543,18 @@ serve(async (req) => {
         deleted: !preEnrollError,
         count: preEnrollCount || 0,
         error: preEnrollError?.message,
+      });
+
+      // Delete employee_invites by email
+      const { error: empInviteError, count: empInviteCount } = await supabaseAdmin
+        .from("employee_invites")
+        .delete({ count: "exact" })
+        .ilike("employee_email", searchEmail);
+      deleteResults.push({
+        source: "employee_invites",
+        deleted: !empInviteError,
+        count: empInviteCount || 0,
+        error: empInviteError?.message,
       });
     }
 
