@@ -75,30 +75,52 @@ serve(async (req) => {
     let authUserDeleted = false;
     let authDeleteAttempted = false;
     let foundByEmail = false;
+    let authUserNotFoundByEmail = false;
 
     // If only email is provided (or we need to find by email), search for the user
     if (!targetUserId && email) {
       console.log(`Searching for user by email: ${email}`);
       
-      // List all users and find by email
-      const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-        perPage: 1000,
-      });
+      // IMPORTANT: listUsers is paginated. If we only fetch the first page,
+      // we can miss the target user and incorrectly claim the email was "released".
+      const normalizedEmail = email.trim().toLowerCase();
+      const perPage = 1000;
+      let page = 1;
+      let foundUser: any | null = null;
 
-      if (listError) {
-        console.log(`Error listing users: ${listError.message}`);
-      } else if (usersData?.users) {
-        const foundUser = usersData.users.find(
-          (u) => u.email?.toLowerCase() === email.toLowerCase()
-        );
-        if (foundUser) {
-          targetUserId = foundUser.id;
-          authUserEmail = foundUser.email || null;
-          foundByEmail = true;
-          console.log(`Found user by email: ${foundUser.id}`);
-        } else {
-          console.log(`No auth user found with email: ${email}`);
+      while (!foundUser) {
+        const { data: usersData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage,
+        });
+
+        if (listError) {
+          throw new Error(`Erro ao listar usuários de autenticação: ${listError.message}`);
         }
+
+        const users = usersData?.users ?? [];
+        foundUser = users.find((u: any) => (u.email ?? "").trim().toLowerCase() === normalizedEmail) ?? null;
+
+        // Last page when the result count is less than perPage
+        if (foundUser || users.length < perPage) {
+          break;
+        }
+
+        page += 1;
+        // Safety limit to avoid infinite loops
+        if (page > 50) {
+          break;
+        }
+      }
+
+      if (foundUser) {
+        targetUserId = foundUser.id;
+        authUserEmail = foundUser.email || null;
+        foundByEmail = true;
+        console.log(`Found user by email: ${foundUser.id} (page ${page})`);
+      } else {
+        authUserNotFoundByEmail = true;
+        console.log(`No auth user found with email after pagination: ${email}`);
       }
     }
 
@@ -584,11 +606,12 @@ serve(async (req) => {
           count: 1,
         });
       }
-    } else if (searchEmail) {
-      // Email doesn't exist in auth.users
+    } else if (searchEmail && authUserNotFoundByEmail) {
+      // We paginated through auth users and did not find this email.
+      // In this case, there is no auth account to delete.
       authUserDeleted = true;
       deleteResults.push({
-        source: "auth.users",
+        source: "auth.users (Autenticação)",
         deleted: true,
         count: 0,
       });
