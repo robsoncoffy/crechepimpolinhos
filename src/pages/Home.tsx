@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Baby, BookOpen, Music, Users, Shield, Heart, CalendarDays, MessageCircle, ChevronRight, Star, Clock, MapPin, Phone, CheckCircle2, Sparkles, Award, Play } from "lucide-react";
-import heroImage from "@/assets/hero-children.jpg";
+// Hero image is in public folder for LCP optimization (preloaded in index.html)
+const heroImage = "/images/hero-children.jpg";
 import teacherImage from "@/assets/teacher-reading.jpg";
 import playgroundImage from "@/assets/playground.jpg";
 import craftsImage from "@/assets/kids-crafts.jpg";

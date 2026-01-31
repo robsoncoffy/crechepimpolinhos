@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Heart, Target, Eye, Award, Sparkles, Users, BookOpen, ChevronRight, CheckCircle2 } from "lucide-react";
-import heroImage from "@/assets/hero-children.jpg";
+// Hero image is in public folder for LCP optimization
+const heroImage = "/images/hero-children.jpg";
 import teacherImage from "@/assets/teacher-reading.jpg";
 import craftsImage from "@/assets/kids-crafts.jpg";
 import playgroundImage from "@/assets/playground.jpg";
