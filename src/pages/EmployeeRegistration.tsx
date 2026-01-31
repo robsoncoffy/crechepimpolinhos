@@ -265,29 +265,22 @@ export default function EmployeeRegistration() {
         // Don't throw - profile might already exist from trigger
       }
 
-      // 3. Assign role - use the exact role from the invite (use formData.jobTitle as fallback)
-      const roleToAssign = inviteRole || formData.jobTitle;
-      if (!roleToAssign) {
-        throw new Error("Cargo não definido no convite. Por favor, revalide o código de convite.");
-      }
-      
-      // IMPORTANT: The handle_new_user trigger automatically assigns "parent" role to all new users.
-      // For employees, we need to remove that role and assign the correct staff role.
-      // First, delete any existing "parent" role that was auto-assigned by the trigger
-      await supabase.from("user_roles").delete()
-        .eq("user_id", authData.user.id)
-        .eq("role", "parent");
-      
-      // Now insert the correct staff role from the invite
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: authData.user.id,
-        role: roleToAssign as "admin" | "teacher" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
-      });
+      // 3. Assign role using Edge Function (bypasses RLS to properly assign staff role)
+      // This is necessary because the handle_new_user trigger auto-assigns "parent" role,
+      // and RLS policies don't allow users to modify their own roles.
+      const { data: roleData, error: roleError } = await supabase.functions.invoke(
+        "assign-employee-role",
+        {
+          body: { inviteCode: formData.inviteCode.trim().toUpperCase() },
+        }
+      );
 
-      if (roleError) {
-        console.error("Role error:", roleError);
-        throw new Error("Erro ao atribuir cargo. Por favor, contate o administrador.");
+      if (roleError || !roleData?.success) {
+        console.error("Role assignment error:", roleError || roleData?.error);
+        throw new Error(roleData?.error || "Erro ao atribuir cargo. Por favor, contate o administrador.");
       }
+      
+      console.log("Role assigned successfully:", roleData.role);
 
       // 4. Create employee profile
       const { error: employeeError } = await supabase.from("employee_profiles").insert({
@@ -329,7 +322,7 @@ export default function EmployeeRegistration() {
         pix_key: formData.pixKey || null,
         education_level: formData.educationLevel || null,
         specialization: formData.specialization || null,
-        job_title: inviteRole || formData.jobTitle, // Use invite role as job title (with fallback)
+        job_title: roleData.role || inviteRole || formData.jobTitle, // Use role from edge function response
         work_shift: formData.workShift || null,
         has_disability: formData.hasDisability,
         disability_description: formData.hasDisability ? formData.disabilityDescription : null,
@@ -340,19 +333,7 @@ export default function EmployeeRegistration() {
         throw new Error("Erro ao criar perfil profissional. Por favor, tente novamente.");
       }
 
-      // 5. Mark invite as used
-      const { error: inviteUpdateError } = await supabase
-        .from("employee_invites")
-        .update({
-          is_used: true,
-          used_by: authData.user.id,
-          used_at: new Date().toISOString(),
-        })
-        .eq("invite_code", formData.inviteCode.trim().toUpperCase());
-
-      if (inviteUpdateError) {
-        console.error("Invite update error:", inviteUpdateError);
-      }
+      // Note: Invite is already marked as used by the edge function
 
       toast.success("Cadastro realizado com sucesso! Aguarde a aprovação do administrador.");
       
