@@ -265,13 +265,22 @@ export default function EmployeeRegistration() {
         // Don't throw - profile might already exist from trigger
       }
 
-      // 3. Assign role using Edge Function (bypasses RLS to properly assign staff role)
+      // 3. Assign role using backend function (bypasses RLS to properly assign staff role)
       // This is necessary because the handle_new_user trigger auto-assigns "parent" role,
       // and RLS policies don't allow users to modify their own roles.
+      // IMPORTANT: pass the access token explicitly to avoid cases where the client doesn't
+      // attach it automatically (and to make CORS preflight headers consistent).
+      const accessToken =
+        authData.session?.access_token ??
+        (await supabase.auth.getSession()).data.session?.access_token;
+
       const { data: roleData, error: roleError } = await supabase.functions.invoke(
         "assign-employee-role",
         {
           body: { inviteCode: formData.inviteCode.trim().toUpperCase() },
+          ...(accessToken
+            ? { headers: { Authorization: `Bearer ${accessToken}` } }
+            : {}),
         }
       );
 
