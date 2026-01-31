@@ -21,6 +21,7 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   isAdmin: boolean;
+  isDiretor: boolean;
   isTeacher: boolean;
   isCook: boolean;
   isNutritionist: boolean;
@@ -159,13 +160,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles([]);
   };
 
-  const isAdmin = roles.includes("admin");
+  const isAdmin = roles.includes("admin") || roles.includes("diretor");
+  const isDiretor = roles.includes("diretor");
   const isTeacher = roles.includes("teacher");
   const isCook = roles.includes("cook");
   const isNutritionist = roles.includes("nutritionist");
   const isPedagogue = roles.includes("pedagogue");
   const isAuxiliar = roles.includes("auxiliar");
-  const isStaff = isAdmin || isTeacher || isCook || isNutritionist || isPedagogue || isAuxiliar;
+  const isStaff = isAdmin || isDiretor || isTeacher || isCook || isNutritionist || isPedagogue || isAuxiliar;
   const isParent = roles.includes("parent");
   const isApproved = profile?.status === "approved";
 
@@ -177,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         roles,
         loading,
         isAdmin,
+        isDiretor,
         isTeacher,
         isCook,
         isNutritionist,
