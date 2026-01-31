@@ -221,7 +221,11 @@ export default function EmployeeRegistration() {
     setLoading(true);
 
     try {
-      // 1. Create auth user
+      let userId: string;
+      let accessToken: string | undefined;
+      let isExistingUser = false;
+
+      // 1. Try to create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -232,48 +236,69 @@ export default function EmployeeRegistration() {
         },
       });
 
-      // Check for user already exists error
-      if (authError) {
-        if (authError.message?.toLowerCase().includes("already registered") || 
-            authError.message?.toLowerCase().includes("already exists")) {
-          toast.error("Este e-mail já está cadastrado. Por favor, use outro e-mail ou faça login.");
+      // Check for user already exists error - try to recover incomplete registration
+      if (authError?.message?.toLowerCase().includes("already registered") || 
+          authError?.message?.toLowerCase().includes("already exists") ||
+          authData?.user?.identities?.length === 0) {
+        
+        // Try to sign in with the provided password to continue incomplete registration
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (signInError || !signInData.user) {
+          // Can't sign in - user exists but wrong password or other issue
+          toast.error("Este e-mail já está cadastrado. Se o cadastro anterior falhou, use a mesma senha para continuar ou contate o administrador.");
           setLoading(false);
           return;
         }
+
+        // Check if this user already has employee_profile (complete registration)
+        const { data: existingEmployee } = await supabase
+          .from("employee_profiles")
+          .select("id")
+          .eq("user_id", signInData.user.id)
+          .maybeSingle();
+
+        if (existingEmployee) {
+          toast.error("Este funcionário já está cadastrado. Por favor, faça login.");
+          await supabase.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        // User exists but registration incomplete - continue with this user
+        userId = signInData.user.id;
+        accessToken = signInData.session?.access_token;
+        isExistingUser = true;
+        console.log("Continuing incomplete registration for existing user:", userId);
+      } else if (authError) {
         throw authError;
+      } else if (!authData.user) {
+        throw new Error("Erro ao criar usuário");
+      } else {
+        userId = authData.user.id;
+        accessToken = authData.session?.access_token ?? 
+          (await supabase.auth.getSession()).data.session?.access_token;
       }
-      
-      // Also check if user was returned but identity already existed (Supabase v2 behavior)
-      if (authData.user?.identities?.length === 0) {
-        toast.error("Este e-mail já está cadastrado. Por favor, use outro e-mail ou faça login.");
-        setLoading(false);
-        return;
-      }
-      
-      if (!authData.user) throw new Error("Erro ao criar usuário");
 
-      // 2. Create profile with pending status (requires admin approval)
-      const { error: profileError } = await supabase.from("profiles").insert({
-        user_id: authData.user.id,
-        full_name: formData.fullName,
-        phone: formData.phone,
-        status: "pending",
-      });
+      // 2. Create/update profile with pending status (requires admin approval)
+      if (!isExistingUser) {
+        const { error: profileError } = await supabase.from("profiles").insert({
+          user_id: userId,
+          full_name: formData.fullName,
+          phone: formData.phone,
+          status: "pending",
+        });
 
-      if (profileError) {
-        console.error("Profile error:", profileError);
-        // Don't throw - profile might already exist from trigger
+        if (profileError) {
+          console.error("Profile error:", profileError);
+          // Don't throw - profile might already exist from trigger
+        }
       }
 
       // 3. Assign role using backend function (bypasses RLS to properly assign staff role)
-      // This is necessary because the handle_new_user trigger auto-assigns "parent" role,
-      // and RLS policies don't allow users to modify their own roles.
-      // IMPORTANT: pass the access token explicitly to avoid cases where the client doesn't
-      // attach it automatically (and to make CORS preflight headers consistent).
-      const accessToken =
-        authData.session?.access_token ??
-        (await supabase.auth.getSession()).data.session?.access_token;
-
       const { data: roleData, error: roleError } = await supabase.functions.invoke(
         "assign-employee-role",
         {
@@ -293,7 +318,7 @@ export default function EmployeeRegistration() {
 
       // 4. Create employee profile
       const { error: employeeError } = await supabase.from("employee_profiles").insert({
-        user_id: authData.user.id,
+        user_id: userId,
         full_name: formData.fullName,
         birth_date: formData.birthDate,
         gender: formData.gender || null,
