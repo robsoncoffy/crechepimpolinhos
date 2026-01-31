@@ -82,7 +82,7 @@ export default function AdminEmployeeInvites() {
 
     const { data, error } = await supabase.from("employee_invites").insert([{
       invite_code: code,
-      role: newRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
+      role: newRole as "admin" | "diretor" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       created_by: user.id,
       employee_email: employeeEmail.trim() || null,
       employee_name: employeeName.trim() || null,
@@ -212,6 +212,8 @@ export default function AdminEmployeeInvites() {
     switch (role) {
       case "admin":
         return <Badge className="bg-pimpo-red">Administrador</Badge>;
+      case "diretor":
+        return <Badge className="bg-indigo-500">Diretor(a)</Badge>;
       case "teacher":
         return <Badge className="bg-pimpo-blue">Professor(a)</Badge>;
       case "cook":
@@ -230,6 +232,7 @@ export default function AdminEmployeeInvites() {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: "Administrador(a)",
+      diretor: "Diretor(a)",
       teacher: "Professor(a)",
       cook: "Cozinheira",
       nutritionist: "Nutricionista",
@@ -290,6 +293,7 @@ export default function AdminEmployeeInvites() {
                   <SelectItem value="cook">Cozinheira</SelectItem>
                   <SelectItem value="nutritionist">Nutricionista</SelectItem>
                   <SelectItem value="pedagogue">Pedagoga</SelectItem>
+                  <SelectItem value="diretor">Diretor(a)</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
