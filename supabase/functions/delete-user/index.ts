@@ -492,6 +492,20 @@ serve(async (req) => {
         error: pushError?.message,
       });
 
+      // ============ CLEAR ASAAS REFERENCES (to avoid FK constraint on profiles) ============
+      await supabaseAdmin
+        .from("asaas_customers")
+        .update({ linked_parent_id: null })
+        .eq("linked_parent_id", targetUserId);
+      await supabaseAdmin
+        .from("asaas_payments")
+        .update({ linked_parent_id: null })
+        .eq("linked_parent_id", targetUserId);
+      await supabaseAdmin
+        .from("asaas_subscriptions")
+        .update({ linked_parent_id: null })
+        .eq("linked_parent_id", targetUserId);
+
       // Delete employee_profile if exists
       const { error: empProfileError, count: empCount } = await supabaseAdmin
         .from("employee_profiles")
