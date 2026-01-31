@@ -51,6 +51,7 @@ interface StaffMember {
 
 const roleLabels: Record<AppRole, string> = {
   admin: "Administrador",
+  diretor: "Diretor(a)",
   teacher: "Professor(a)",
   parent: "Responsável",
   cook: "Cozinheira",
@@ -61,6 +62,7 @@ const roleLabels: Record<AppRole, string> = {
 
 const roleColors: Record<AppRole, string> = {
   admin: "bg-blue-100 text-blue-700",
+  diretor: "bg-indigo-100 text-indigo-700",
   teacher: "bg-purple-100 text-purple-700",
   parent: "bg-green-100 text-green-700",
   cook: "bg-orange-100 text-orange-700",

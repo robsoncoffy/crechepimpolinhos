@@ -38,6 +38,7 @@ export const planTypeLabels: Record<PlanType, string> = {
 // Role labels
 export const roleLabels: Record<AppRole, string> = {
   admin: "Administrador",
+  diretor: "Diretor(a)",
   teacher: "Professor(a)",
   cook: "Cozinheira",
   nutritionist: "Nutricionista",
@@ -49,6 +50,7 @@ export const roleLabels: Record<AppRole, string> = {
 // Role badge colors for consistent UI
 export const roleBadgeColors: Record<AppRole, string> = {
   admin: "bg-blue-100 text-blue-800",
+  diretor: "bg-indigo-100 text-indigo-800",
   teacher: "bg-purple-100 text-purple-800",
   cook: "bg-orange-100 text-orange-800",
   nutritionist: "bg-emerald-100 text-emerald-800",
