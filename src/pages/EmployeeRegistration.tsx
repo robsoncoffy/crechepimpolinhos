@@ -271,9 +271,17 @@ export default function EmployeeRegistration() {
         throw new Error("Cargo não definido no convite. Por favor, revalide o código de convite.");
       }
       
+      // IMPORTANT: The handle_new_user trigger automatically assigns "parent" role to all new users.
+      // For employees, we need to remove that role and assign the correct staff role.
+      // First, delete any existing "parent" role that was auto-assigned by the trigger
+      await supabase.from("user_roles").delete()
+        .eq("user_id", authData.user.id)
+        .eq("role", "parent");
+      
+      // Now insert the correct staff role from the invite
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: authData.user.id,
-        role: roleToAssign as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
+        role: roleToAssign as "admin" | "teacher" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       });
 
       if (roleError) {
