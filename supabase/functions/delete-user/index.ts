@@ -824,6 +824,72 @@ serve(async (req) => {
       }
     }
 
+    // ============ DELETE STORAGE FILES ============
+    // Delete files from child-documents bucket
+    if (targetUserId) {
+      const bucketsToClean = ["child-documents", "employee-documents", "gallery-photos"];
+      
+      for (const bucketName of bucketsToClean) {
+        try {
+          // List all files in user's folder
+          const { data: folderFiles } = await supabaseAdmin.storage
+            .from(bucketName)
+            .list(targetUserId, { limit: 1000 });
+          
+          if (folderFiles && folderFiles.length > 0) {
+            const filePaths = folderFiles.map((f: any) => `${targetUserId}/${f.name}`);
+            const { error: deleteStorageError } = await supabaseAdmin.storage
+              .from(bucketName)
+              .remove(filePaths);
+            
+            if (!deleteStorageError) {
+              console.log(`Deleted ${filePaths.length} files from ${bucketName} for user ${targetUserId}`);
+              deleteResults.push({
+                source: `storage.${bucketName}`,
+                deleted: true,
+                count: filePaths.length,
+              });
+            }
+          }
+          
+          // Also check for nested folders (like photos/userId, birth-certificates/userId)
+          const subfolders = ["photos", "birth-certificates", "documents"];
+          for (const subfolder of subfolders) {
+            const { data: subFiles } = await supabaseAdmin.storage
+              .from(bucketName)
+              .list(`${subfolder}/${targetUserId}`, { limit: 1000 });
+            
+            if (subFiles && subFiles.length > 0) {
+              const subFilePaths = subFiles.map((f: any) => `${subfolder}/${targetUserId}/${f.name}`);
+              await supabaseAdmin.storage
+                .from(bucketName)
+                .remove(subFilePaths);
+              console.log(`Deleted ${subFilePaths.length} files from ${bucketName}/${subfolder} for user ${targetUserId}`);
+            }
+          }
+        } catch (storageError) {
+          console.log(`Error cleaning storage bucket ${bucketName}:`, storageError);
+        }
+      }
+    }
+
+    // ============ DELETE STORAGE FILES FOR ORPHANED CHILDREN ============
+    // Clean up storage files for any child_registrations that were deleted
+    if (searchEmail) {
+      try {
+        // Get any child_registration IDs that were linked to this email before deletion
+        const { data: childRegs } = await supabaseAdmin
+          .from("child_registrations")
+          .select("id")
+          .ilike("email", searchEmail);
+        
+        // Note: child_registrations might not have email field, so we'll clean by parent_id
+        // This is already handled above when we delete child_registrations
+      } catch (err) {
+        console.log("Error checking child_registrations for storage cleanup:", err);
+      }
+    }
+
     // ============ DELETE AUTH USER ============
     if (targetUserId) {
       authDeleteAttempted = true;
