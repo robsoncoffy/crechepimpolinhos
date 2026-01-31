@@ -77,25 +77,41 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     if (inviteType === "parent") {
-      // Best-effort cleanup of pre-enrollment links (avoid FK errors)
+      // Get invite data first to clean up related records
       const { data: inviteRow } = await supabaseAdmin
         .from("parent_invites")
-        .select("id, pre_enrollment_id")
+        .select("id, pre_enrollment_id, email, child_name")
         .eq("id", inviteId)
         .maybeSingle();
 
-      // Clear any pre_enrollments pointing to this invite (stronger than relying on pre_enrollment_id)
-      await supabaseAdmin
-        .from("pre_enrollments")
-        .update({ converted_to_invite_id: null })
-        .eq("converted_to_invite_id", inviteId);
+      if (inviteRow) {
+        // Delete related whatsapp_message_logs
+        await supabaseAdmin
+          .from("whatsapp_message_logs")
+          .delete()
+          .eq("parent_invite_id", inviteId);
 
-      // Also clear by explicit pre_enrollment_id if present
-      if (inviteRow?.pre_enrollment_id) {
+        // Clear any pre_enrollments pointing to this invite
         await supabaseAdmin
           .from("pre_enrollments")
           .update({ converted_to_invite_id: null })
-          .eq("id", inviteRow.pre_enrollment_id);
+          .eq("converted_to_invite_id", inviteId);
+
+        // Also clear by explicit pre_enrollment_id if present
+        if (inviteRow.pre_enrollment_id) {
+          await supabaseAdmin
+            .from("pre_enrollments")
+            .update({ converted_to_invite_id: null })
+            .eq("id", inviteRow.pre_enrollment_id);
+        }
+
+        // Delete contact_submissions with same email
+        if (inviteRow.email) {
+          await supabaseAdmin
+            .from("contact_submissions")
+            .delete()
+            .ilike("email", inviteRow.email);
+        }
       }
 
       const { error: delError, count } = await supabaseAdmin
@@ -112,6 +128,21 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     if (inviteType === "employee") {
+      // Get invite data first to clean up related records
+      const { data: inviteRow } = await supabaseAdmin
+        .from("employee_invites")
+        .select("id, employee_email")
+        .eq("id", inviteId)
+        .maybeSingle();
+
+      if (inviteRow?.employee_email) {
+        // Delete contact_submissions with same email
+        await supabaseAdmin
+          .from("contact_submissions")
+          .delete()
+          .ilike("email", inviteRow.employee_email);
+      }
+
       const { error: delError, count } = await supabaseAdmin
         .from("employee_invites")
         .delete({ count: "exact" })
