@@ -52,7 +52,15 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <img alt="Creche Pimpolinhos" className="h-14 w-auto" src="/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png" width="215" height="56" />
+            <img 
+              alt="Creche Pimpolinhos" 
+              className="h-14 w-auto" 
+              src="/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png" 
+              width={215} 
+              height={56}
+              fetchPriority="high"
+              decoding="async"
+            />
           </Link>
 
           {/* Desktop navigation */}
