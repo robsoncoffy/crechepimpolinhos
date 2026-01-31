@@ -294,7 +294,6 @@ export default function AdminEmployeeInvites() {
                   <SelectItem value="nutritionist">Nutricionista</SelectItem>
                   <SelectItem value="pedagogue">Pedagoga</SelectItem>
                   <SelectItem value="diretor">Diretor(a)</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
