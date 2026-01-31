@@ -104,7 +104,16 @@ export default function Home() {
       <section className="relative min-h-[90vh] flex items-center">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img src={heroImage} alt="Crianças felizes na Creche Pimpolinhos" className="w-full h-full object-cover object-[center_70%] md:object-center" fetchPriority="high" />
+          <img 
+            src={heroImage} 
+            alt="Crianças felizes na Creche Pimpolinhos" 
+            className="w-full h-full object-cover object-[center_70%] md:object-center" 
+            fetchPriority="high"
+            width={1504}
+            height={846}
+            sizes="100vw"
+            decoding="async"
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-transparent" />
         </div>
 
@@ -188,10 +197,10 @@ export default function Home() {
             {/* Images Grid */}
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
-                <img src={teacherImage} alt="Professora lendo para crianças" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover" loading="lazy" />
-                <img src={craftsImage} alt="Crianças fazendo artes" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8" loading="lazy" />
-                <img src={playgroundImage} alt="Playground" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4" loading="lazy" />
-                <img src={eatingImage} alt="Crianças no refeitório" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4" loading="lazy" />
+                <img src={teacherImage} alt="Professora lendo para crianças" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover" loading="lazy" decoding="async" sizes="(max-width: 768px) 50vw, 300px" />
+                <img src={craftsImage} alt="Crianças fazendo artes" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-8" loading="lazy" decoding="async" sizes="(max-width: 768px) 50vw, 300px" />
+                <img src={playgroundImage} alt="Playground" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover -mt-4" loading="lazy" decoding="async" sizes="(max-width: 768px) 50vw, 300px" />
+                <img src={eatingImage} alt="Crianças no refeitório" width={300} height={192} className="rounded-2xl shadow-xl w-full h-48 object-cover mt-4" loading="lazy" decoding="async" sizes="(max-width: 768px) 50vw, 300px" />
               </div>
               {/* Floating Badge */}
               <div className="absolute -bottom-6 -right-6 bg-secondary p-6 rounded-2xl shadow-xl">
@@ -262,7 +271,7 @@ export default function Home() {
           <div className="grid lg:grid-cols-3 gap-8">
             {features.map(feature => <Card key={feature.title} className="group overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500">
                 <div className="relative h-56 overflow-hidden">
-                  <img src={feature.image} alt={feature.title} width={400} height={224} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
+                  <img src={feature.image} alt={feature.title} width={400} height={224} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" decoding="async" sizes="(max-width: 1024px) 100vw, 400px" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4">
                     <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${feature.color} mb-2`}>
@@ -361,7 +370,7 @@ export default function Home() {
 
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                <img src={craftsImage} alt="Atividades na creche" width={600} height={384} className="w-full h-96 object-cover" loading="lazy" />
+                <img src={craftsImage} alt="Atividades na creche" width={600} height={384} className="w-full h-96 object-cover" loading="lazy" decoding="async" sizes="(max-width: 1024px) 100vw, 612px" />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/50 to-transparent flex items-end justify-center pb-8">
                   <Button size="lg" variant="secondary" className="gap-2" asChild>
                     <Link to="/sobre">
@@ -396,7 +405,7 @@ export default function Home() {
                     {/* App Content */}
                     <div className="p-4 space-y-4">
                       <div className="flex items-center gap-3 mb-6">
-                        <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
+                        <img src={logo} alt="Logo" className="w-10 h-10 object-contain" width={40} height={40} loading="lazy" decoding="async" />
                         <div>
                           <p className="font-semibold text-sm">Agenda Digital</p>
                           <p className="text-xs text-muted-foreground">Pedro Silva - Maternal</p>
@@ -514,7 +523,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-20 lg:py-28 relative overflow-hidden">
         <div className="absolute inset-0">
-          <img src={playgroundImage} alt="Playground" className="w-full h-full object-cover" />
+          <img src={playgroundImage} alt="Playground" className="w-full h-full object-cover" width={1335} height={400} loading="lazy" decoding="async" sizes="100vw" />
           <div className="absolute inset-0 bg-primary/90" />
         </div>
 
