@@ -9,8 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { 
   Users, 
@@ -25,7 +23,6 @@ import {
   FileText,
   Loader2,
   ShieldCheck,
-  ShieldOff,
   Trash2,
   Database
 } from "lucide-react";
@@ -34,6 +31,7 @@ import { Database as SupabaseDB } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { EmailDiagnosticModal } from "@/components/admin/EmailDiagnosticModal";
 import { UserDeletionDialog } from "@/components/admin/UserDeletionDialog";
+import { RoleManagementSection } from "@/components/admin/RoleManagementSection";
 
 type AppRole = SupabaseDB["public"]["Enums"]["app_role"];
 
@@ -90,7 +88,6 @@ export default function AdminProfiles() {
   const [loadingSelectedEmail, setLoadingSelectedEmail] = useState(false);
   const [parentChildren, setParentChildren] = useState<ParentChild[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [togglingAdmin, setTogglingAdmin] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
@@ -160,40 +157,8 @@ export default function AdminProfiles() {
   };
 
   const isUserAdmin = (userId: string) => {
-    return getRolesForUser(userId).includes("admin");
-  };
-
-  const toggleAdminRole = async (userId: string, currentlyAdmin: boolean) => {
-    setTogglingAdmin(true);
-    try {
-      if (currentlyAdmin) {
-        // Remove admin role
-        const { error } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .eq("role", "admin");
-
-        if (error) throw error;
-        toast.success("Acesso de administrador removido");
-      } else {
-        // Add admin role
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: "admin" });
-
-        if (error) throw error;
-        toast.success("Acesso de administrador concedido");
-      }
-
-      // Refresh data
-      await fetchData();
-    } catch (error) {
-      console.error("Error toggling admin role:", error);
-      toast.error("Erro ao alterar permissão de administrador");
-    } finally {
-      setTogglingAdmin(false);
-    }
+    const roles = getRolesForUser(userId);
+    return roles.includes("admin") || roles.includes("diretor");
   };
 
   const handleDeleteUser = async () => {
@@ -290,7 +255,7 @@ export default function AdminProfiles() {
   };
 
   const getStaffProfiles = () => {
-    const staffRoles = ["admin", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
+    const staffRoles = ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
     return profiles.filter(p => {
       const roles = getRolesForUser(p.user_id);
       return roles.some(r => staffRoles.includes(r));
@@ -546,37 +511,14 @@ export default function AdminProfiles() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Admin Toggle */}
+                {/* Role Management */}
                 {selectedProfile && (
-                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      {isUserAdmin(selectedProfile.user_id) ? (
-                        <ShieldCheck className="w-5 h-5 text-blue-600" />
-                      ) : (
-                        <ShieldOff className="w-5 h-5 text-muted-foreground" />
-                      )}
-                      <div>
-                        <Label htmlFor="admin-toggle" className="font-medium cursor-pointer">
-                          Acesso de Administrador
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {isUserAdmin(selectedProfile.user_id) 
-                            ? "Este usuário tem acesso total ao sistema" 
-                            : "Conceder acesso administrativo completo"
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      id="admin-toggle"
-                      checked={isUserAdmin(selectedProfile.user_id)}
-                      onCheckedChange={() => toggleAdminRole(
-                        selectedProfile.user_id, 
-                        isUserAdmin(selectedProfile.user_id)
-                      )}
-                      disabled={togglingAdmin}
-                    />
-                  </div>
+                  <RoleManagementSection
+                    userId={selectedProfile.user_id}
+                    currentRoles={getRolesForUser(selectedProfile.user_id)}
+                    onRolesChange={fetchData}
+                    disabled={selectedProfile.user_id === user?.id}
+                  />
                 )}
 
                 {/* Contact Info */}
