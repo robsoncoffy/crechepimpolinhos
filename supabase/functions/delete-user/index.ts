@@ -579,8 +579,9 @@ serve(async (req) => {
         authUserDeleted = true;
         console.log(`Successfully deleted auth user: ${targetUserId}`);
         deleteResults.push({
-          source: "auth.users",
+          source: "auth.users (Autenticação)",
           deleted: true,
+          count: 1,
         });
       }
     } else if (searchEmail) {
