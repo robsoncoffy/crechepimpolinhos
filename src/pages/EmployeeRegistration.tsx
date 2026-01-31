@@ -176,8 +176,14 @@ export default function EmployeeRegistration() {
       return;
     }
 
+    // Store role in both state and formData to ensure persistence across steps
+    const role = data.role || "";
     setInviteValid(true);
-    setInviteRole(data.role);
+    setInviteRole(role);
+    // Also store in formData for redundancy
+    setFormData(prev => ({ ...prev, jobTitle: role }));
+    
+    console.log("Invite validated - role:", role);
     toast.success("Código válido! Continue o cadastro.");
     setStep(2);
     setLoading(false);
@@ -259,10 +265,15 @@ export default function EmployeeRegistration() {
         // Don't throw - profile might already exist from trigger
       }
 
-      // 3. Assign role - use the exact role from the invite
+      // 3. Assign role - use the exact role from the invite (use formData.jobTitle as fallback)
+      const roleToAssign = inviteRole || formData.jobTitle;
+      if (!roleToAssign) {
+        throw new Error("Cargo não definido no convite. Por favor, revalide o código de convite.");
+      }
+      
       const { error: roleError } = await supabase.from("user_roles").insert({
         user_id: authData.user.id,
-        role: inviteRole as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
+        role: roleToAssign as "admin" | "teacher" | "parent" | "cook" | "nutritionist" | "pedagogue" | "auxiliar",
       });
 
       if (roleError) {
@@ -310,7 +321,7 @@ export default function EmployeeRegistration() {
         pix_key: formData.pixKey || null,
         education_level: formData.educationLevel || null,
         specialization: formData.specialization || null,
-        job_title: inviteRole, // Use invite role as job title
+        job_title: inviteRole || formData.jobTitle, // Use invite role as job title (with fallback)
         work_shift: formData.workShift || null,
         has_disability: formData.hasDisability,
         disability_description: formData.hasDisability ? formData.disabilityDescription : null,
@@ -898,13 +909,19 @@ export default function EmployeeRegistration() {
                     <Input
                       id="jobTitle"
                       value={
-                        inviteRole === "teacher" ? "Professor(a)" :
-                        inviteRole === "auxiliar" ? "Auxiliar de Sala" :
-                        inviteRole === "cook" ? "Cozinheiro(a)" :
-                        inviteRole === "nutritionist" ? "Nutricionista" :
-                        inviteRole === "pedagogue" ? "Pedagoga" :
-                        inviteRole === "admin" ? "Administrador(a)" :
-                        "Funcionário"
+                        (() => {
+                          // Use formData.jobTitle as fallback if inviteRole state was lost
+                          const role = inviteRole || formData.jobTitle;
+                          switch (role) {
+                            case "teacher": return "Professor(a)";
+                            case "auxiliar": return "Auxiliar de Sala";
+                            case "cook": return "Cozinheiro(a)";
+                            case "nutritionist": return "Nutricionista";
+                            case "pedagogue": return "Pedagoga";
+                            case "admin": return "Administrador(a)";
+                            default: return role ? role : "Funcionário";
+                          }
+                        })()
                       }
                       disabled
                       className="bg-muted"
