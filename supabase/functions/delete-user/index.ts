@@ -156,20 +156,38 @@ serve(async (req) => {
         details: targetUserId ? `ID: ${targetUserId}` : undefined,
       });
 
-      // Check profiles table
+      // Check profiles table by user_id
       if (targetUserId) {
         const { data: profileData, count: profileCount } = await supabaseAdmin
           .from("profiles")
           .select("id, full_name", { count: "exact" })
           .eq("user_id", targetUserId);
         diagnostics.push({
-          source: "profiles",
+          source: "profiles (por user_id)",
           found: (profileCount || 0) > 0,
           count: profileCount || 0,
           details: profileData?.[0]?.full_name,
         });
       } else {
-        diagnostics.push({ source: "profiles", found: false, count: 0 });
+        diagnostics.push({ source: "profiles (por user_id)", found: false, count: 0 });
+      }
+
+      // Check profiles table by email (detect orphans)
+      if (searchEmail) {
+        const { data: profileByEmail, count: profileByEmailCount } = await supabaseAdmin
+          .from("profiles")
+          .select("id, full_name, user_id", { count: "exact" })
+          .ilike("email", searchEmail);
+        
+        const isOrphan = profileByEmail?.[0] && (!targetUserId || profileByEmail[0].user_id !== targetUserId);
+        diagnostics.push({
+          source: "profiles (por email" + (isOrphan ? " - ÓRFÃO!" : "") + ")",
+          found: (profileByEmailCount || 0) > 0,
+          count: profileByEmailCount || 0,
+          details: profileByEmail?.[0] 
+            ? `${profileByEmail[0].full_name} (user_id: ${profileByEmail[0].user_id || 'null'})`
+            : undefined,
+        });
       }
 
       // Check parent_invites by email
@@ -592,6 +610,45 @@ serve(async (req) => {
         count: empInviteCount || 0,
         error: empInviteError?.message,
       });
+
+      // ============ DELETE ORPHAN PROFILES BY EMAIL (fallback) ============
+      // This catches profiles that weren't deleted by userId (e.g., auth was deleted but profile remained)
+      const { data: orphanedProfiles } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id, email")
+        .ilike("email", searchEmail);
+      
+      for (const orphan of (orphanedProfiles || [])) {
+        if (orphan.user_id && orphan.user_id !== targetUserId) {
+          console.log(`Found orphan profile with user_id ${orphan.user_id} for email ${searchEmail}, cleaning up...`);
+          // Clear asaas references before deleting
+          await supabaseAdmin.from("asaas_customers").update({ linked_parent_id: null }).eq("linked_parent_id", orphan.user_id);
+          await supabaseAdmin.from("asaas_payments").update({ linked_parent_id: null }).eq("linked_parent_id", orphan.user_id);
+          await supabaseAdmin.from("asaas_subscriptions").update({ linked_parent_id: null }).eq("linked_parent_id", orphan.user_id);
+          // Also clean other tables that might reference this orphan
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", orphan.user_id);
+          await supabaseAdmin.from("employee_profiles").delete().eq("user_id", orphan.user_id);
+          await supabaseAdmin.from("notifications").delete().eq("user_id", orphan.user_id);
+          await supabaseAdmin.from("announcement_reads").delete().eq("user_id", orphan.user_id);
+          await supabaseAdmin.from("push_subscriptions").delete().eq("user_id", orphan.user_id);
+        }
+      }
+      
+      // Delete orphan profiles by email
+      const { error: orphanProfileError, count: orphanProfileCount } = await supabaseAdmin
+        .from("profiles")
+        .delete({ count: "exact" })
+        .ilike("email", searchEmail);
+      
+      if (orphanProfileCount && orphanProfileCount > 0) {
+        deleteResults.push({
+          source: "profiles (órfãos por email)",
+          deleted: !orphanProfileError,
+          count: orphanProfileCount,
+          error: (orphanProfileError as any)?.message,
+        });
+        console.log(`Deleted ${orphanProfileCount} orphan profile(s) by email: ${searchEmail}`);
+      }
     }
 
     // ============ DELETE AUTH USER ============
