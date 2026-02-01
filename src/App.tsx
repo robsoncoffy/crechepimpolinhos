@@ -63,6 +63,7 @@ const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const LGPD = lazy(() => import("./pages/LGPD"));
 const TermsOfUse = lazy(() => import("./pages/TermsOfUse"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const PendingApproval = lazy(() => import("./pages/PendingApproval"));
 
 
 const queryClient = new QueryClient();
@@ -113,6 +114,7 @@ const App = () => (
             <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
             <Route path="/lgpd" element={<LGPD />} />
             <Route path="/termos-uso" element={<TermsOfUse />} />
+            <Route path="/aguardando-aprovacao" element={<PendingApproval />} />
             <Route path="/painel/*" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -369,13 +369,9 @@ export default function EmployeeRegistration() {
 
       // Note: Invite is already marked as used by the edge function
 
-      toast.success("Cadastro realizado com sucesso! Aguarde a aprovação do administrador.");
-      
-      // Sign out and redirect to auth page since they need approval
+      // Sign out and redirect to pending approval page
       await supabase.auth.signOut();
-      setTimeout(() => {
-        window.location.href = "/auth?pending=true";
-      }, 2000);
+      navigate("/aguardando-aprovacao");
     } catch (error: unknown) {
       console.error("Registration error:", error);
       const errorMessage = error instanceof Error ? error.message : "Erro ao realizar cadastro";
