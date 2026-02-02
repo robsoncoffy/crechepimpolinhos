@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDashboardView } from "@/hooks/useDashboardView";
-import { ShieldCheck, Leaf, BookOpen, ChefHat, GraduationCap, User, Users, ChevronDown } from "lucide-react";
+import { ShieldCheck, Leaf, BookOpen, ChefHat, GraduationCap, User, Users, ChevronDown, Calculator } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-type ViewType = "admin" | "nutritionist" | "pedagogue" | "cook" | "teacher" | "auxiliar" | "parent";
+type ViewType = "admin" | "nutritionist" | "pedagogue" | "cook" | "teacher" | "auxiliar" | "contador" | "parent";
 
 const viewConfig: Record<ViewType, { label: string; icon: React.ElementType; color: string }> = {
   admin: { label: "Administração", icon: ShieldCheck, color: "text-blue-600" },
@@ -23,6 +23,7 @@ const viewConfig: Record<ViewType, { label: string; icon: React.ElementType; col
   cook: { label: "Cozinheira", icon: ChefHat, color: "text-orange-600" },
   teacher: { label: "Professor(a)", icon: GraduationCap, color: "text-sky-600" },
   auxiliar: { label: "Auxiliar", icon: User, color: "text-amber-600" },
+  contador: { label: "Contador(a)", icon: Calculator, color: "text-teal-600" },
   parent: { label: "Responsável", icon: Users, color: "text-pink-600" },
 };
 
