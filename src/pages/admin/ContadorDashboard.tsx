@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -18,14 +18,24 @@ import {
   Search,
   Briefcase,
   Calculator,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Paperclip
 } from "lucide-react";
 import { roleLabels } from "@/lib/constants";
+import { EditSalaryDialog } from "@/components/admin/contador/EditSalaryDialog";
+import { PayslipUploadDialog } from "@/components/admin/contador/PayslipUploadDialog";
 
 export default function ContadorDashboard() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Dialog states
+  const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
+  const [payslipDialogOpen, setPayslipDialogOpen] = useState(false);
 
   // Fetch employees with profiles
   const { data: employees, isLoading: loadingEmployees } = useQuery({
@@ -388,6 +398,28 @@ export default function ContadorDashboard() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={() => {
+                            setSelectedEmployee(emp);
+                            setSalaryDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Salário
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedEmployee(emp);
+                            setPayslipDialogOpen(true);
+                          }}
+                        >
+                          <Paperclip className="h-4 w-4 mr-1" />
+                          Holerite
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handlePrintEmployee(emp)}
                         >
                           <Download className="h-4 w-4 mr-1" />
@@ -622,6 +654,20 @@ export default function ContadorDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Dialogs */}
+      <EditSalaryDialog
+        employee={selectedEmployee}
+        open={salaryDialogOpen}
+        onOpenChange={setSalaryDialogOpen}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["contador-employees"] })}
+      />
+      
+      <PayslipUploadDialog
+        employee={selectedEmployee}
+        open={payslipDialogOpen}
+        onOpenChange={setPayslipDialogOpen}
+      />
     </div>
   );
 }
