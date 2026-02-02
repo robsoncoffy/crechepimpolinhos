@@ -144,7 +144,7 @@ export default function AdminApprovals() {
         // Get all users with parent role to filter properly
         supabase.from("user_roles").select("user_id").eq("role", "parent"),
         // Get all staff roles (excluding parent)
-        supabase.from("user_roles").select("user_id, role").in("role", ["admin", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"]),
+        supabase.from("user_roles").select("user_id, role").in("role", ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar", "contador"]),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
@@ -154,14 +154,14 @@ export default function AdminApprovals() {
       const parentUserIds = new Set((parentRolesRes.data || []).map(r => r.user_id));
       const staffUserIds = new Map((staffRolesRes.data || []).map(r => [r.user_id, r.role]));
       
-      // Filter pending profiles to only include parents (exclude employees)
+      // Filter pending profiles to only include parents (exclude employees who also have parent role)
       const filteredParents = (profilesRes.data || []).filter(
-        profile => parentUserIds.has(profile.user_id)
+        profile => parentUserIds.has(profile.user_id) && !staffUserIds.has(profile.user_id)
       );
       
-      // Filter pending profiles to only include staff (exclude parents)
+      // Filter pending profiles to only include staff (staff takes priority if they have both roles)
       const filteredEmployees = (profilesRes.data || []).filter(
-        profile => staffUserIds.has(profile.user_id) && !parentUserIds.has(profile.user_id)
+        profile => staffUserIds.has(profile.user_id)
       );
 
       // Fetch employee profiles for job titles
@@ -407,11 +407,13 @@ export default function AdminApprovals() {
   function getRoleLabel(role: string): string {
     const roleLabels: Record<string, string> = {
       admin: "Administrador",
+      diretor: "Diretor(a)",
       teacher: "Professor(a)",
       cook: "Cozinheiro(a)",
       nutritionist: "Nutricionista",
       pedagogue: "Pedagogo(a)",
       auxiliar: "Auxiliar",
+      contador: "Contador(a)",
     };
     return roleLabels[role] || role;
   }
