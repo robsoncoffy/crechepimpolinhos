@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let dataFetched = false;
 
     // Check if this is a new browser session for users who didn't want to be remembered
     const isRemembered = localStorage.getItem('pimpolinhos_remember_me') === 'true';
@@ -63,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.setItem('pimpolinhos_session_active', 'true');
 
     const fetchUserData = async (userId: string): Promise<boolean> => {
+      if (dataFetched) return true; // Prevent duplicate fetches
+      
       try {
         // Fetch profile and roles in parallel
         const [profileResult, rolesResult] = await Promise.all([
@@ -91,12 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRoles(rolesResult.data.map((r) => r.role));
         }
         
+        dataFetched = true;
         return true;
       } catch (error) {
         console.error("Error fetching user data:", error);
         return false;
       }
     };
+
+    // Safety timeout to prevent infinite loading
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn("Auth loading timeout - forcing completion");
+        setLoading(false);
+      }
+    }, 10000);
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -148,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
