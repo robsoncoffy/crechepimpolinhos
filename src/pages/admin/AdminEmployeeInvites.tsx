@@ -224,6 +224,8 @@ export default function AdminEmployeeInvites() {
         return <Badge className="bg-purple-500">Pedagoga</Badge>;
       case "auxiliar":
         return <Badge className="bg-cyan-500">Auxiliar de Sala</Badge>;
+      case "contador":
+        return <Badge className="bg-teal-500">Contador(a)</Badge>;
       default:
         return <Badge variant="secondary">{role}</Badge>;
     }
@@ -238,6 +240,7 @@ export default function AdminEmployeeInvites() {
       nutritionist: "Nutricionista",
       pedagogue: "Pedagoga",
       auxiliar: "Auxiliar de Sala",
+      contador: "Contador(a)",
     };
     return labels[role] || role;
   };
@@ -294,6 +297,7 @@ export default function AdminEmployeeInvites() {
                   <SelectItem value="nutritionist">Nutricionista</SelectItem>
                   <SelectItem value="pedagogue">Pedagoga</SelectItem>
                   <SelectItem value="diretor">Diretor(a)</SelectItem>
+                  <SelectItem value="contador">Contador(a)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
