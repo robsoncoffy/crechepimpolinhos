@@ -317,6 +317,7 @@ serve(async (req) => {
         }
       }
 
+      case "sync_payments":
       case "sync_all_from_asaas": {
         if (!isStaff) {
           return new Response(JSON.stringify({ error: "Sem permissão" }), {
