@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +24,8 @@ import {
   Loader2,
   ShieldCheck,
   Trash2,
-  Database
+  Database,
+  Download
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
 import { Database as SupabaseDB } from "@/integrations/supabase/types";
@@ -32,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmailDiagnosticModal } from "@/components/admin/EmailDiagnosticModal";
 import { UserDeletionDialog } from "@/components/admin/UserDeletionDialog";
 import { RoleManagementSection } from "@/components/admin/RoleManagementSection";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type AppRole = SupabaseDB["public"]["Enums"]["app_role"];
 
@@ -73,6 +76,39 @@ interface EmployeeProfile {
   education_level: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
+  // Additional fields for PDF export
+  gender: string | null;
+  marital_status: string | null;
+  nationality: string | null;
+  place_of_birth: string | null;
+  mother_name: string | null;
+  father_name: string | null;
+  rg: string | null;
+  rg_issuer: string | null;
+  rg_issue_date: string | null;
+  pis_pasep: string | null;
+  ctps_number: string | null;
+  ctps_series: string | null;
+  ctps_state: string | null;
+  voter_title: string | null;
+  voter_zone: string | null;
+  voter_section: string | null;
+  military_certificate: string | null;
+  zip_code: string | null;
+  street: string | null;
+  street_number: string | null;
+  complement: string | null;
+  neighborhood: string | null;
+  bank_name: string | null;
+  bank_agency: string | null;
+  bank_account: string | null;
+  bank_account_type: string | null;
+  pix_key: string | null;
+  specialization: string | null;
+  work_shift: string | null;
+  has_disability: boolean | null;
+  disability_description: string | null;
+  salary: number | null;
 }
 
 export default function AdminProfiles() {
@@ -95,6 +131,90 @@ export default function AdminProfiles() {
   const [emailToLiberate, setEmailToLiberate] = useState("");
   const [liberatingEmail, setLiberatingEmail] = useState(false);
   const [userToDeleteEmail, setUserToDeleteEmail] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // Helper functions for PDF formatting
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    try {
+      return format(parseISO(dateStr), "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getGenderLabel = (gender: string | null) => {
+    const labels: Record<string, string> = {
+      masculino: "Masculino",
+      feminino: "Feminino",
+      outro: "Outro",
+      prefiro_nao_informar: "Não informado",
+    };
+    return gender ? labels[gender] || gender : "-";
+  };
+
+  const getMaritalStatusLabel = (status: string | null) => {
+    const labels: Record<string, string> = {
+      solteiro: "Solteiro(a)",
+      casado: "Casado(a)",
+      divorciado: "Divorciado(a)",
+      viuvo: "Viúvo(a)",
+      uniao_estavel: "União Estável",
+    };
+    return status ? labels[status] || status : "-";
+  };
+
+  const getBankAccountTypeLabel = (type: string | null) => {
+    const labels: Record<string, string> = {
+      corrente: "Conta Corrente",
+      poupanca: "Poupança",
+    };
+    return type ? labels[type] || type : "-";
+  };
+
+  const handlePrintEmployee = () => {
+    if (!printRef.current || !selectedEmployee) return;
+    
+    const printContents = printRef.current.innerHTML;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Ficha Cadastral - ${selectedEmployee.full_name}</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; line-height: 1.4; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 15px; }
+            .header h1 { font-size: 18px; margin-bottom: 5px; }
+            .header h2 { font-size: 14px; font-weight: normal; color: #666; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-size: 14px; font-weight: bold; background: #f0f0f0; padding: 8px; margin-bottom: 10px; border-left: 4px solid #333; }
+            .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+            .field { padding: 5px 0; }
+            .field-label { font-weight: bold; color: #555; font-size: 10px; text-transform: uppercase; }
+            .field-value { font-size: 12px; border-bottom: 1px solid #ddd; padding: 3px 0; min-height: 20px; }
+            .full-width { grid-column: span 2; }
+            .signature-area { margin-top: 40px; display: flex; justify-content: space-between; }
+            .signature-line { width: 45%; text-align: center; }
+            .signature-line div { border-top: 1px solid #000; padding-top: 5px; margin-top: 50px; }
+            .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #666; }
+            @media print { body { padding: 10px; } }
+          </style>
+        </head>
+        <body>
+          ${printContents}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
 
   useEffect(() => {
     fetchData();
@@ -576,10 +696,20 @@ export default function AdminProfiles() {
                   <>
                     <Separator />
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Dados Profissionais
-                      </h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          Dados Profissionais
+                        </h4>
+                        <Button 
+                          size="sm" 
+                          onClick={handlePrintEmployee}
+                          className="gap-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          Baixar PDF
+                        </Button>
+                      </div>
                       <div className="grid gap-2 text-sm">
                         {selectedEmployee.job_title && (
                           <div className="flex items-center gap-2">
@@ -638,6 +768,220 @@ export default function AdminProfiles() {
                           </div>
                         </>
                       )}
+                    </div>
+
+                    {/* Hidden print area for PDF generation */}
+                    <div className="hidden">
+                      <div ref={printRef}>
+                        <div className="header">
+                          <h1>CRECHE PIMPOLINHOS</h1>
+                          <h2>Ficha Cadastral de Funcionário</h2>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Dados Pessoais</div>
+                          <div className="grid">
+                            <div className="field full-width">
+                              <div className="field-label">Nome Completo</div>
+                              <div className="field-value">{selectedEmployee.full_name}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Data de Nascimento</div>
+                              <div className="field-value">{formatDate(selectedEmployee.birth_date)}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Gênero</div>
+                              <div className="field-value">{getGenderLabel(selectedEmployee.gender)}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Estado Civil</div>
+                              <div className="field-value">{getMaritalStatusLabel(selectedEmployee.marital_status)}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Nacionalidade</div>
+                              <div className="field-value">{selectedEmployee.nationality || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Naturalidade</div>
+                              <div className="field-value">{selectedEmployee.place_of_birth || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Nome da Mãe</div>
+                              <div className="field-value">{selectedEmployee.mother_name || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Nome do Pai</div>
+                              <div className="field-value">{selectedEmployee.father_name || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Documentos</div>
+                          <div className="grid">
+                            <div className="field">
+                              <div className="field-label">CPF</div>
+                              <div className="field-value">{selectedEmployee.cpf}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">RG</div>
+                              <div className="field-value">{selectedEmployee.rg || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Órgão Emissor</div>
+                              <div className="field-value">{selectedEmployee.rg_issuer || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Data de Emissão RG</div>
+                              <div className="field-value">{formatDate(selectedEmployee.rg_issue_date)}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">PIS/PASEP</div>
+                              <div className="field-value">{selectedEmployee.pis_pasep || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">CTPS Número</div>
+                              <div className="field-value">{selectedEmployee.ctps_number || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">CTPS Série</div>
+                              <div className="field-value">{selectedEmployee.ctps_series || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">CTPS UF</div>
+                              <div className="field-value">{selectedEmployee.ctps_state || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Título de Eleitor</div>
+                              <div className="field-value">{selectedEmployee.voter_title || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Zona Eleitoral</div>
+                              <div className="field-value">{selectedEmployee.voter_zone || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Seção Eleitoral</div>
+                              <div className="field-value">{selectedEmployee.voter_section || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Certificado Militar</div>
+                              <div className="field-value">{selectedEmployee.military_certificate || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Endereço</div>
+                          <div className="grid">
+                            <div className="field">
+                              <div className="field-label">CEP</div>
+                              <div className="field-value">{selectedEmployee.zip_code || "-"}</div>
+                            </div>
+                            <div className="field full-width">
+                              <div className="field-label">Logradouro</div>
+                              <div className="field-value">{selectedEmployee.street || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Número</div>
+                              <div className="field-value">{selectedEmployee.street_number || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Complemento</div>
+                              <div className="field-value">{selectedEmployee.complement || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Bairro</div>
+                              <div className="field-value">{selectedEmployee.neighborhood || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Cidade</div>
+                              <div className="field-value">{selectedEmployee.city || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Estado</div>
+                              <div className="field-value">{selectedEmployee.state || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Contato</div>
+                          <div className="grid">
+                            <div className="field">
+                              <div className="field-label">Telefone</div>
+                              <div className="field-value">{selectedEmployee.phone || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">E-mail</div>
+                              <div className="field-value">{selectedProfileEmail || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Contato de Emergência</div>
+                              <div className="field-value">{selectedEmployee.emergency_contact_name || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Telefone Emergência</div>
+                              <div className="field-value">{selectedEmployee.emergency_contact_phone || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Dados Bancários</div>
+                          <div className="grid">
+                            <div className="field">
+                              <div className="field-label">Banco</div>
+                              <div className="field-value">{selectedEmployee.bank_name || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Agência</div>
+                              <div className="field-value">{selectedEmployee.bank_agency || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Conta</div>
+                              <div className="field-value">{selectedEmployee.bank_account || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Tipo de Conta</div>
+                              <div className="field-value">{getBankAccountTypeLabel(selectedEmployee.bank_account_type)}</div>
+                            </div>
+                            <div className="field full-width">
+                              <div className="field-label">Chave PIX</div>
+                              <div className="field-value">{selectedEmployee.pix_key || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="section">
+                          <div className="section-title">Dados Profissionais</div>
+                          <div className="grid">
+                            <div className="field">
+                              <div className="field-label">Cargo</div>
+                              <div className="field-value">{selectedEmployee.job_title || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Turno</div>
+                              <div className="field-value">{selectedEmployee.work_shift || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Escolaridade</div>
+                              <div className="field-value">{selectedEmployee.education_level || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Especialização</div>
+                              <div className="field-value">{selectedEmployee.specialization || "-"}</div>
+                            </div>
+                            <div className="field">
+                              <div className="field-label">Data de Admissão</div>
+                              <div className="field-value">{formatDate(selectedEmployee.hire_date)}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="footer">
+                          <p>Documento gerado em {format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
