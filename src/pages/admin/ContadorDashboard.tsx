@@ -33,13 +33,13 @@ export default function ContadorDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("employee_profiles")
-        .select(`
-          *,
-          user_roles:user_id(role)
-        `)
+        .select("*")
         .order("full_name");
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching employees:", error);
+        throw error;
+      }
       return data;
     }
   });
