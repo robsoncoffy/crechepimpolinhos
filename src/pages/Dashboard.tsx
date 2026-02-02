@@ -82,7 +82,7 @@ function RoleBasedDashboard() {
 }
 
 function DashboardContent() {
-  const { user, loading, isParent, isStaff } = useAuth();
+  const { user, loading, isParent, isStaff, isApproved, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -90,6 +90,13 @@ function DashboardContent() {
       navigate("/auth");
     }
   }, [user, loading, navigate]);
+
+  // Redirect pending staff to waiting page
+  useEffect(() => {
+    if (!loading && user && isStaff && profile && profile.status === "pending") {
+      navigate("/aguardando-aprovacao");
+    }
+  }, [loading, user, isStaff, profile, navigate]);
 
   if (loading) {
     return (
@@ -104,6 +111,11 @@ function DashboardContent() {
 
   if (!user) {
     return null;
+  }
+
+  // Staff with pending status should not see admin panel
+  if (isStaff && profile?.status === "pending") {
+    return null; // Will be redirected by useEffect
   }
 
   // Staff (Admin, Teacher, Cook, Nutritionist, Pedagogue, Auxiliar) - show admin panel with layout
