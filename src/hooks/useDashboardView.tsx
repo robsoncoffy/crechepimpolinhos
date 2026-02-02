@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 import { useAuth } from "./useAuth";
 
 type DashboardViewType = "admin" | "nutritionist" | "pedagogue" | "cook" | "teacher" | "auxiliar" | "contador" | "parent";
@@ -12,10 +12,10 @@ interface DashboardViewContextType {
 const DashboardViewContext = createContext<DashboardViewContextType | undefined>(undefined);
 
 export function DashboardViewProvider({ children }: { children: ReactNode }) {
-  const { isAdmin, isNutritionist, isPedagogue, isCook, isTeacher, isAuxiliar, isContador, isParent } = useAuth();
+  const { isAdmin, isNutritionist, isPedagogue, isCook, isTeacher, isAuxiliar, isContador, isParent, loading } = useAuth();
   
-  // Build list of available views based on roles
-  const getAvailableViews = (): DashboardViewType[] => {
+  // Build list of available views based on roles - memoized to prevent unnecessary recalculations
+  const availableViews = useMemo((): DashboardViewType[] => {
     const views: DashboardViewType[] = [];
     if (isAdmin) views.push("admin");
     if (isTeacher) views.push("teacher");
@@ -26,9 +26,7 @@ export function DashboardViewProvider({ children }: { children: ReactNode }) {
     if (isContador) views.push("contador");
     if (isParent) views.push("parent");
     return views;
-  };
-  
-  const availableViews = getAvailableViews();
+  }, [isAdmin, isTeacher, isNutritionist, isPedagogue, isCook, isAuxiliar, isContador, isParent]);
   
   // Get stored preference from localStorage
   const getStoredView = (): DashboardViewType => {
@@ -41,14 +39,26 @@ export function DashboardViewProvider({ children }: { children: ReactNode }) {
     return availableViews[0] || "admin";
   };
   
-  const [currentView, setCurrentView] = useState<DashboardViewType>(getStoredView);
+  const [currentView, setCurrentView] = useState<DashboardViewType>("admin");
   
-  // Update view when roles change
+  // Initialize view once auth is loaded
   useEffect(() => {
-    if (!availableViews.includes(currentView) && availableViews.length > 0) {
+    if (!loading && availableViews.length > 0) {
+      const stored = localStorage.getItem("dashboard_view_preference") as DashboardViewType;
+      if (stored && availableViews.includes(stored)) {
+        setCurrentView(stored);
+      } else {
+        setCurrentView(availableViews[0]);
+      }
+    }
+  }, [loading, availableViews]);
+  
+  // Update view when roles change and current view becomes invalid
+  useEffect(() => {
+    if (!loading && !availableViews.includes(currentView) && availableViews.length > 0) {
       setCurrentView(availableViews[0]);
     }
-  }, [availableViews, currentView]);
+  }, [availableViews, currentView, loading]);
   
   const setView = (view: DashboardViewType) => {
     if (!availableViews.includes(view)) return;
