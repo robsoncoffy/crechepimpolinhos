@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./useAuth";
 
-type DashboardViewType = "admin" | "nutritionist" | "pedagogue" | "cook" | "teacher" | "auxiliar" | "parent";
+type DashboardViewType = "admin" | "nutritionist" | "pedagogue" | "cook" | "teacher" | "auxiliar" | "contador" | "parent";
 
 interface DashboardViewContextType {
   currentView: DashboardViewType;
@@ -12,7 +12,7 @@ interface DashboardViewContextType {
 const DashboardViewContext = createContext<DashboardViewContextType | undefined>(undefined);
 
 export function DashboardViewProvider({ children }: { children: ReactNode }) {
-  const { isAdmin, isNutritionist, isPedagogue, isCook, isTeacher, isAuxiliar, isParent } = useAuth();
+  const { isAdmin, isNutritionist, isPedagogue, isCook, isTeacher, isAuxiliar, isContador, isParent } = useAuth();
   
   // Build list of available views based on roles
   const getAvailableViews = (): DashboardViewType[] => {
@@ -23,6 +23,7 @@ export function DashboardViewProvider({ children }: { children: ReactNode }) {
     if (isPedagogue) views.push("pedagogue");
     if (isCook) views.push("cook");
     if (isAuxiliar) views.push("auxiliar");
+    if (isContador) views.push("contador");
     if (isParent) views.push("parent");
     return views;
   };

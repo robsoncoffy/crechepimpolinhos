@@ -58,6 +58,7 @@ const roleLabels: Record<AppRole, string> = {
   nutritionist: "Nutricionista",
   pedagogue: "Pedagoga",
   auxiliar: "Auxiliar",
+  contador: "Contador(a)",
 };
 
 const roleColors: Record<AppRole, string> = {
@@ -69,6 +70,7 @@ const roleColors: Record<AppRole, string> = {
   nutritionist: "bg-emerald-100 text-emerald-700",
   pedagogue: "bg-pink-100 text-pink-700",
   auxiliar: "bg-amber-100 text-amber-700",
+  contador: "bg-teal-100 text-teal-700",
 };
 
 // Profile cache shared across chat instances

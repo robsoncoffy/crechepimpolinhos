@@ -3009,6 +3009,7 @@ export type Database = {
         | "pedagogue"
         | "auxiliar"
         | "diretor"
+        | "contador"
       approval_status: "pending" | "approved" | "rejected"
       class_type:
         | "bercario"
@@ -3162,6 +3163,7 @@ export const Constants = {
         "pedagogue",
         "auxiliar",
         "diretor",
+        "contador",
       ],
       approval_status: ["pending", "approved", "rejected"],
       class_type: [

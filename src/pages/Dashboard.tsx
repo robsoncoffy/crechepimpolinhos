@@ -54,6 +54,7 @@ const AdminEmailLogs = lazy(() => import("./admin/AdminEmailLogs"));
 const AdminShoppingList = lazy(() => import("./admin/AdminShoppingList"));
 const AdminBudgets = lazy(() => import("./admin/AdminBudgets"));
 const AdminTimeClockConfig = lazy(() => import("./admin/AdminTimeClockConfig"));
+const ContadorDashboard = lazy(() => import("./admin/ContadorDashboard"));
 
 // Loading fallback component
 function PageLoader() {
@@ -76,6 +77,7 @@ function RoleBasedDashboard() {
     case "cook": return <CookDashboard />;
     case "pedagogue": return <PedagogueDashboard />;
     case "auxiliar": return <AuxiliarDashboard />;
+    case "contador": return <ContadorDashboard />;
     case "parent": return <ParentDashboard />;
     default: return <AdminDashboard />;
   }
@@ -163,12 +165,12 @@ function DashboardContent() {
               </ProtectedRoute>
             } />
             <Route path="/perfis" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["admin", "contador"]}>
                 <AdminProfiles />
               </ProtectedRoute>
             } />
             <Route path="/ponto" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["admin", "contador"]}>
                 <AdminTimeClock />
               </ProtectedRoute>
             } />
@@ -198,7 +200,7 @@ function DashboardContent() {
               </ProtectedRoute>
             } />
             <Route path="/funcionarios" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["admin", "contador"]}>
                 <AdminEmployees />
               </ProtectedRoute>
             } />
@@ -274,7 +276,7 @@ function DashboardContent() {
               </ProtectedRoute>
             } />
             <Route path="/ausencias" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={["admin", "contador"]}>
                 <AdminAbsences />
               </ProtectedRoute>
             } />
