@@ -47,11 +47,13 @@ import {
   Palette,
   BookMarked,
   DollarSign,
+  Settings,
 } from "lucide-react";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { EmployeeSettingsTab } from "@/components/employee/EmployeeSettingsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { ActivitySuggestions } from "@/components/admin/ActivitySuggestions";
 import type { Database } from "@/integrations/supabase/types";
@@ -540,6 +542,13 @@ export default function PedagogueDashboard() {
                 >
                   <DollarSign className="w-4 h-4" />
                   <span className="text-xs sm:text-sm">Relatórios</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="config"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="text-xs sm:text-sm">Config</span>
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -1101,6 +1110,11 @@ export default function PedagogueDashboard() {
               {/* Meus Relatórios Tab */}
               <TabsContent value="relatorios" className="mt-0">
                 <MyReportsTab />
+              </TabsContent>
+
+              {/* Configurações Tab */}
+              <TabsContent value="config" className="mt-0">
+                <EmployeeSettingsTab />
               </TabsContent>
             </div>
           </Tabs>

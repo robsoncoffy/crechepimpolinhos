@@ -20,11 +20,13 @@ import {
   Calculator,
   AlertCircle,
   Edit,
-  Paperclip
+  Paperclip,
+  Settings
 } from "lucide-react";
 import { roleLabels } from "@/lib/constants";
 import { EditSalaryDialog } from "@/components/admin/contador/EditSalaryDialog";
 import { PayslipUploadDialog } from "@/components/admin/contador/PayslipUploadDialog";
+import { EmployeeSettingsTab } from "@/components/employee/EmployeeSettingsTab";
 
 export default function ContadorDashboard() {
   const queryClient = useQueryClient();
@@ -340,6 +342,10 @@ export default function ContadorDashboard() {
             <Calendar className="h-4 w-4" />
             Ausências
           </TabsTrigger>
+          <TabsTrigger value="config" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Minha Conta
+          </TabsTrigger>
         </TabsList>
 
         {/* Employees Tab */}
@@ -652,6 +658,11 @@ export default function ContadorDashboard() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="config" className="space-y-4">
+          <EmployeeSettingsTab />
         </TabsContent>
       </Tabs>
       

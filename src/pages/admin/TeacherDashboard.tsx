@@ -22,6 +22,7 @@ import {
   UserCheck,
   Bell,
   ClipboardCheck,
+  Settings,
 } from "lucide-react";
 import { classTypeLabels, shiftTypeLabels } from "@/lib/constants";
 import { DashboardHeader, StatCard, StatGrid } from "@/components/admin/dashboards";
@@ -33,6 +34,7 @@ const StaffChatWindow = lazy(() => import("@/components/staff/StaffChatWindow").
 const TeacherParentChat = lazy(() => import("@/components/teacher/TeacherParentChat").then(m => ({ default: m.TeacherParentChat })));
 const TeacherAttendanceTab = lazy(() => import("@/components/teacher/TeacherAttendanceTab").then(m => ({ default: m.TeacherAttendanceTab })));
 const MyReportsTab = lazy(() => import("@/components/employee/MyReportsTab").then(m => ({ default: m.MyReportsTab })));
+const EmployeeSettingsTab = lazy(() => import("@/components/employee/EmployeeSettingsTab").then(m => ({ default: m.EmployeeSettingsTab })));
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type DailyRecord = Database["public"]["Tables"]["daily_records"]["Row"];
@@ -247,6 +249,10 @@ export default function TeacherDashboard() {
                 <DollarSign className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Relatórios</span>
               </TabsTrigger>
+              <TabsTrigger value="config" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Settings className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Config</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -435,6 +441,12 @@ export default function TeacherDashboard() {
             <TabsContent value="relatorios" className="mt-0">
               <Suspense fallback={<TabLoadingFallback />}>
                 <MyReportsTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="config" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
+                <EmployeeSettingsTab />
               </Suspense>
             </TabsContent>
           </CardContent>

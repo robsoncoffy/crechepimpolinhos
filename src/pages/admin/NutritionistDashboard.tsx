@@ -32,6 +32,7 @@ import {
   Sparkles,
   Wand2,
   CalendarDays,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
@@ -39,6 +40,7 @@ import { MiniCalendar } from "@/components/calendar/MiniCalendar";
 import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
 import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
 import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { EmployeeSettingsTab } from "@/components/employee/EmployeeSettingsTab";
 import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
 import { MealField, MenuItem, dayNames, emptyMenuItem } from "@/components/admin/MealField";
 import { IngredientWithNutrition } from "@/components/admin/IngredientQuantityEditor";
@@ -1250,6 +1252,10 @@ export default function NutritionistDashboard() {
               <DollarSign className="w-4 h-4" />
               <span className="text-xs sm:text-sm">Relatórios</span>
             </TabsTrigger>
+            <TabsTrigger value="config" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <Settings className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Config</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -1270,6 +1276,10 @@ export default function NutritionistDashboard() {
 
         <TabsContent value="relatorios" className="mt-4">
           <MyReportsTab />
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-4">
+          <EmployeeSettingsTab />
         </TabsContent>
 
         <TabsContent value="cardapio" className="mt-4 space-y-6">
