@@ -6,13 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Baby, ChevronRight, ClipboardList, Calendar, DollarSign, LayoutDashboard } from "lucide-react";
+import { Baby, ChevronRight, ClipboardList, Calendar, DollarSign, LayoutDashboard, Settings } from "lucide-react";
 import { DashboardHeader, StatCard, StatGrid } from "@/components/admin/dashboards";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 // Lazy load heavy components
 const MyReportsTab = lazy(() => import("@/components/employee/MyReportsTab").then(m => ({ default: m.MyReportsTab })));
+const EmployeeSettingsTab = lazy(() => import("@/components/employee/EmployeeSettingsTab").then(m => ({ default: m.EmployeeSettingsTab })));
 
 const TabLoadingFallback = memo(() => (
   <div className="flex items-center justify-center py-12">
@@ -76,6 +77,10 @@ export default function AuxiliarDashboard() {
             <TabsTrigger value="relatorios" className="flex items-center gap-2 flex-shrink-0 whitespace-nowrap px-4">
               <DollarSign className="w-4 h-4" />
               <span className="text-xs sm:text-sm">Meus Relatórios</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="flex items-center gap-2 flex-shrink-0 whitespace-nowrap px-4">
+              <Settings className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Configurações</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -153,6 +158,12 @@ export default function AuxiliarDashboard() {
         <TabsContent value="relatorios" className="mt-4">
           <Suspense fallback={<TabLoadingFallback />}>
             <MyReportsTab />
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-4">
+          <Suspense fallback={<TabLoadingFallback />}>
+            <EmployeeSettingsTab />
           </Suspense>
         </TabsContent>
       </Tabs>

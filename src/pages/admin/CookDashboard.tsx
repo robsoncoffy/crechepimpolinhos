@@ -36,6 +36,7 @@ import {
   Wand2,
   DollarSign,
   Baby,
+  Settings,
 } from "lucide-react";
 import { DashboardHeader, StatCard, StatGrid } from "@/components/admin/dashboards";
 import { format, startOfWeek, addDays } from "date-fns";
@@ -48,6 +49,7 @@ import type { Database } from "@/integrations/supabase/types";
 const StaffChatWindow = lazy(() => import("@/components/staff/StaffChatWindow").then(m => ({ default: m.StaffChatWindow })));
 const MyReportsTab = lazy(() => import("@/components/employee/MyReportsTab").then(m => ({ default: m.MyReportsTab })));
 const MealIngredientsList = lazy(() => import("@/components/admin/MealIngredientsList").then(m => ({ default: m.MealIngredientsList })));
+const EmployeeSettingsTab = lazy(() => import("@/components/employee/EmployeeSettingsTab").then(m => ({ default: m.EmployeeSettingsTab })));
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 
@@ -315,6 +317,10 @@ export default function CookDashboard() {
                 <DollarSign className="w-4 h-4" />
                 <span className="text-xs sm:text-sm">Relatórios</span>
               </TabsTrigger>
+              <TabsTrigger value="config" className="rounded-none border-b-2 border-transparent data-[state=active]:border-orange-500 data-[state=active]:bg-transparent py-3 px-3 md:px-4 gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Settings className="w-4 h-4" />
+                <span className="text-xs sm:text-sm">Config</span>
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -514,6 +520,12 @@ export default function CookDashboard() {
             <TabsContent value="relatorios" className="mt-0">
               <Suspense fallback={<TabLoadingFallback />}>
                 <MyReportsTab />
+              </Suspense>
+            </TabsContent>
+
+            <TabsContent value="config" className="mt-0">
+              <Suspense fallback={<TabLoadingFallback />}>
+                <EmployeeSettingsTab />
               </Suspense>
             </TabsContent>
           </CardContent>
