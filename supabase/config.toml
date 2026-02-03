@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.retry-failed-whatsapp]
 verify_jwt = false
+
+[functions.webhook-ponto]
+verify_jwt = false
