@@ -561,62 +561,12 @@ export default function AdminApprovals() {
     }
   }
 
-  async function handleApproveRegistration() {
+  // Preview contract WITHOUT approving - approval only happens when contract is sent
+  async function handlePreviewContract() {
     if (!selectedRegistration) return;
 
     setActionLoading(true);
     try {
-      // Create the child in the children table
-      const { data: newChild, error: childError } = await supabase
-        .from("children")
-        .insert({
-          full_name: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
-          birth_date: selectedRegistration.birth_date,
-          class_type: selectedClassType,
-          shift_type: selectedShiftType,
-          photo_url: selectedRegistration.photo_url,
-          allergies: selectedRegistration.allergies,
-          medical_info: selectedRegistration.medications,
-          plan_type: selectedRegistration.plan_type,
-        })
-        .select()
-        .single();
-
-      if (childError) throw childError;
-
-      // Link parent to child
-      const { error: linkError } = await supabase
-        .from("parent_children")
-        .insert({
-          parent_id: selectedRegistration.parent_id,
-          child_id: newChild.id,
-          relationship: relationship,
-        });
-
-      if (linkError) throw linkError;
-
-      // Update registration status to approved
-      const { error: regError } = await supabase
-        .from("child_registrations")
-        .update({ status: "approved" })
-        .eq("id", selectedRegistration.id);
-
-      if (regError) throw regError;
-
-      // Send approval email to parent (for child registration)
-      try {
-        await supabase.functions.invoke("send-approval-email", {
-          body: {
-            parentId: selectedRegistration.parent_id,
-            parentName: selectedRegistration.parent_name || "Responsável",
-            approvalType: "child",
-            childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
-          },
-        });
-      } catch (emailError) {
-        console.error("Error sending approval email:", emailError);
-      }
-
       // Fetch parent profile for contract preview (including email and relationship now)
       const { data: parentProfile } = await supabase
         .from("profiles")
@@ -671,15 +621,15 @@ export default function AdminApprovals() {
         emergencyContact: emergencyContact,
       };
 
-      // Store pending data and show contract preview
-      setPendingApprovalData({ registration: selectedRegistration, newChild });
+      // Store registration data for later approval and show contract preview
+      setPendingApprovalData({ registration: selectedRegistration, newChild: null as any });
       setContractData(contractPreviewData);
       setRegistrationDialogOpen(false);
       setContractPreviewOpen(true);
       
     } catch (error) {
-      console.error("Error approving registration:", error);
-      toast.error("Erro ao aprovar cadastro da criança");
+      console.error("Error preparing contract preview:", error);
+      toast.error("Erro ao preparar prévia do contrato");
     } finally {
       setActionLoading(false);
     }
@@ -688,9 +638,61 @@ export default function AdminApprovals() {
   async function sendContractAfterPreview(editedData: ContractData) {
     if (!pendingApprovalData) return;
 
-    const { registration, newChild } = pendingApprovalData;
+    const { registration } = pendingApprovalData;
 
     try {
+      // NOW create the child in the children table (only after user confirms sending contract)
+      const { data: newChild, error: childError } = await supabase
+        .from("children")
+        .insert({
+          full_name: `${registration.first_name} ${registration.last_name}`,
+          birth_date: registration.birth_date,
+          class_type: selectedClassType,
+          shift_type: selectedShiftType,
+          photo_url: registration.photo_url,
+          allergies: registration.allergies,
+          medical_info: registration.medications,
+          plan_type: registration.plan_type,
+        })
+        .select()
+        .single();
+
+      if (childError) throw childError;
+
+      // Link parent to child
+      const { error: linkError } = await supabase
+        .from("parent_children")
+        .insert({
+          parent_id: registration.parent_id,
+          child_id: newChild.id,
+          relationship: relationship,
+        });
+
+      if (linkError) throw linkError;
+
+      // Update registration status to approved
+      const { error: regError } = await supabase
+        .from("child_registrations")
+        .update({ status: "approved" })
+        .eq("id", registration.id);
+
+      if (regError) throw regError;
+
+      // Send approval email to parent (for child registration)
+      try {
+        await supabase.functions.invoke("send-approval-email", {
+          body: {
+            parentId: registration.parent_id,
+            parentName: registration.parent_name || "Responsável",
+            approvalType: "child",
+            childName: `${registration.first_name} ${registration.last_name}`,
+          },
+        });
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+      }
+
+      // Send contract via ZapSign
       const contractResponse = await supabase.functions.invoke("zapsign-send-contract", {
         body: {
           childId: newChild.id,
@@ -720,9 +722,9 @@ export default function AdminApprovals() {
       } else {
         toast.success(`Cadastro de ${editedData.childName} aprovado! E-mail de boas-vindas e contrato enviados.`);
       }
-    } catch (contractError) {
-      console.error("Error sending contract:", contractError);
-      toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato.");
+    } catch (error) {
+      console.error("Error approving and sending contract:", error);
+      toast.error("Erro ao aprovar cadastro. Por favor, tente novamente.");
     }
 
     setPendingApprovalData(null);
@@ -1640,10 +1642,10 @@ export default function AdminApprovals() {
                 <Button variant="outline" onClick={() => setRegistrationDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleApproveRegistration} disabled={actionLoading}>
+                <Button onClick={handlePreviewContract} disabled={actionLoading}>
                   {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <FileText className="w-4 h-4 mr-2" />
-                  Aprovar e Visualizar Contrato
+                  Visualizar e Enviar Contrato
                 </Button>
               </>
             )}
