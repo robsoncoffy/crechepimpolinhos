@@ -72,10 +72,13 @@ export function GhlEmailsTab() {
 
       if (error) throw error;
       
-      // Filter only email conversations
-      const emailConvs = (data?.conversations || []).filter(
-        (conv: any) => conv.type?.toLowerCase() === "email"
-      );
+      // Filter email conversations - GHL can return types like "TYPE_EMAIL", "Email", etc.
+      // Also include conversations that have email and the type contains "email"
+      const emailConvs = (data?.conversations || []).filter((conv: any) => {
+        const typeStr = (conv.type || "").toLowerCase();
+        // Include if type contains "email" or if type is email-related
+        return typeStr.includes("email") || typeStr === "type_email";
+      });
       setConversations(emailConvs);
     } catch (error) {
       console.error("Error fetching email conversations:", error);
