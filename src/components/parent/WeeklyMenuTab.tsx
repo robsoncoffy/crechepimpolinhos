@@ -20,7 +20,18 @@ import {
 
 interface WeeklyMenuTabProps {
   childAllergies?: string | null;
+  childClassType?: string;
 }
+
+// Map class_type to menu_type filter values
+const getMenuTypeFilter = (classType?: string): string[] => {
+  if (classType === 'bercario') {
+    // Berçário sees all nursery menu types
+    return ['bercario', 'bercario_0_6', 'bercario_6_12', 'bercario_12_24'];
+  }
+  // Maternal and Jardim see maternal menu
+  return ['maternal'];
+};
 
 interface MenuItem {
   id: string;
@@ -36,7 +47,7 @@ interface MenuItem {
 const dayNames = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 const dayEmojis = ['🌅', '🌤️', '☀️', '🌻', '🎉'];
 
-export function WeeklyMenuTab({ childAllergies }: WeeklyMenuTabProps) {
+export function WeeklyMenuTab({ childAllergies, childClassType }: WeeklyMenuTabProps) {
   const [weekStart, setWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -52,10 +63,14 @@ export function WeeklyMenuTab({ childAllergies }: WeeklyMenuTabProps) {
       setLoading(true);
       const weekStartStr = format(weekStart, 'yyyy-MM-dd');
       
+      // Filter by menu_type based on child's class
+      const menuTypes = getMenuTypeFilter(childClassType);
+      
       const { data, error } = await supabase
         .from('weekly_menus')
         .select('*')
         .eq('week_start', weekStartStr)
+        .in('menu_type', menuTypes)
         .order('day_of_week');
 
       if (!error && data) {
@@ -65,7 +80,7 @@ export function WeeklyMenuTab({ childAllergies }: WeeklyMenuTabProps) {
     };
 
     fetchMenu();
-  }, [weekStart]);
+  }, [weekStart, childClassType]);
 
   const goToPreviousWeek = () => setWeekStart(subWeeks(weekStart, 1));
   const goToNextWeek = () => setWeekStart(addWeeks(weekStart, 1));
