@@ -50,6 +50,7 @@ serve(async (req) => {
     let opportunityId = "";
     let stageId = "";
     let skipCache = false;
+    let filterType = ""; // Filter by conversation type (Email, SMS, etc.)
 
     let requestBody: Record<string, any> = {};
     
@@ -65,6 +66,7 @@ serve(async (req) => {
       opportunityId = requestBody.opportunityId || "";
       stageId = requestBody.stageId || "";
       skipCache = requestBody.skipCache || false;
+      filterType = requestBody.filterType || "";
     }
 
     const baseUrl = "https://services.leadconnectorhq.com";
@@ -82,6 +84,11 @@ serve(async (req) => {
         sort: "desc",
         sortBy: "last_message_date",
       });
+      
+      // Filter by conversation type if specified (Email, SMS, WhatsApp, etc.)
+      if (filterType) {
+        searchParams.set("type", filterType);
+      }
 
       // Fetch conversations, opportunities and pipelines in parallel
       const [conversationsResponse, opportunitiesResponse, pipelinesResponse] = await Promise.all([

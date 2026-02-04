@@ -66,20 +66,20 @@ export function GhlEmailsTab() {
 
   const fetchConversations = async () => {
     try {
+      // Request email conversations directly from GHL API using filterType
       const { data, error } = await supabase.functions.invoke("ghl-conversations", {
-        body: { action: "list", type: "Email" },
+        body: { action: "list", filterType: "Email", limit: "50" },
       });
 
       if (error) throw error;
       
-      // Filter email conversations - GHL can return types like "TYPE_EMAIL", "Email", etc.
-      // Also include conversations that have email and the type contains "email"
-      const emailConvs = (data?.conversations || []).filter((conv: any) => {
-        const typeStr = (conv.type || "").toLowerCase();
-        // Include if type contains "email" or if type is email-related
-        return typeStr.includes("email") || typeStr === "type_email";
-      });
+      // GHL should now return only email conversations
+      const emailConvs = data?.conversations || [];
       setConversations(emailConvs);
+      
+      if (emailConvs.length === 0) {
+        console.log("No email conversations found. Make sure emails are configured in GHL.");
+      }
     } catch (error) {
       console.error("Error fetching email conversations:", error);
     } finally {
