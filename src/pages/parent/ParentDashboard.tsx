@@ -649,7 +649,10 @@ export default function ParentDashboard() {
 
                       <TabsContent value="cardapio" className="mt-0">
                         <Suspense fallback={<TabLoadingFallback />}>
-                          <WeeklyMenuTab childAllergies={selectedChild.allergies} />
+                          <WeeklyMenuTab 
+                            childAllergies={selectedChild.allergies} 
+                            childClassType={selectedChild.class_type} 
+                          />
                         </Suspense>
                       </TabsContent>
 
