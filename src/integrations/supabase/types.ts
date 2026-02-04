@@ -1444,6 +1444,30 @@ export type Database = {
           },
         ]
       }
+      ghl_starred_conversations: {
+        Row: {
+          contact_id: string
+          conversation_id: string
+          id: string
+          starred_at: string
+          starred_by: string
+        }
+        Insert: {
+          contact_id: string
+          conversation_id: string
+          id?: string
+          starred_at?: string
+          starred_by: string
+        }
+        Update: {
+          contact_id?: string
+          conversation_id?: string
+          id?: string
+          starred_at?: string
+          starred_by?: string
+        }
+        Relationships: []
+      }
       guardian_invitations: {
         Row: {
           accepted_at: string | null

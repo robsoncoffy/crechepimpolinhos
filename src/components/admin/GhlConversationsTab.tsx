@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   MessageCircle, 
   RefreshCw, 
@@ -29,12 +30,17 @@ import {
   FileAudio,
   FileVideo,
   Download,
-  Paperclip
+  Paperclip,
+  Star,
+  StarOff,
+  Check,
+  CheckCheck
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Conversation {
   id: string;
@@ -85,12 +91,15 @@ interface OpportunityInfo {
   stageName: string;
   status: "open" | "won" | "lost" | "abandoned";
   pipelineName: string;
+  monetaryValue?: number;
 }
 
 type LeadChannel = "WhatsApp" | "SMS";
 
 export function GhlConversationsTab() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { playNotificationSound } = useNotificationSound();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -120,6 +129,74 @@ export function GhlConversationsTab() {
   
   // Opportunities map for lead status badges
   const [opportunitiesMap, setOpportunitiesMap] = useState<Record<string, OpportunityInfo>>({});
+
+  // Fetch starred conversations
+  const { data: starredConversations = [] } = useQuery({
+    queryKey: ["ghl-starred-conversations", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("ghl_starred_conversations")
+        .select("conversation_id")
+        .eq("starred_by", user.id);
+      if (error) throw error;
+      return data.map(s => s.conversation_id);
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Toggle starred mutation
+  const toggleStarredMutation = useMutation({
+    mutationFn: async ({ conversationId, contactId, isStarred }: { conversationId: string; contactId: string; isStarred: boolean }) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      if (isStarred) {
+        // Remove star
+        const { error } = await supabase
+          .from("ghl_starred_conversations")
+          .delete()
+          .eq("conversation_id", conversationId)
+          .eq("starred_by", user.id);
+        if (error) throw error;
+      } else {
+        // Add star
+        const { error } = await supabase
+          .from("ghl_starred_conversations")
+          .insert({ conversation_id: conversationId, contact_id: contactId, starred_by: user.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ghl-starred-conversations"] });
+      toast({ title: "Atualizado", description: "Conversa atualizada com sucesso." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível atualizar.", variant: "destructive" });
+    },
+  });
+
+  // Mark as read mutation
+  const markAsReadMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      await supabase.functions.invoke("ghl-conversations", {
+        body: { action: "markAsRead", conversationId },
+      });
+    },
+    onSuccess: () => {
+      fetchConversations(false); // Refresh to update unread counts
+      toast({ title: "Marcado como lido", description: "A conversa foi marcada como lida." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível marcar como lido.", variant: "destructive" });
+    },
+  });
+
+  const isStarred = (conversationId: string) => starredConversations.includes(conversationId);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
 
   const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
     // Prefer the most recent known message type
@@ -521,12 +598,45 @@ export function GhlConversationsTab() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h2 className="font-semibold">{contactInfo?.name || selectedConversation.contactName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">{contactInfo?.name || selectedConversation.contactName}</h2>
+              {opportunitiesMap[selectedConversation.contactId]?.monetaryValue ? (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {formatCurrency(opportunitiesMap[selectedConversation.contactId].monetaryValue!)}
+                </Badge>
+              ) : null}
+            </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               {getChannelIcon(activeLeadChannel)}
               {activeLeadChannel}
             </p>
           </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => toggleStarredMutation.mutate({ 
+              conversationId: selectedConversation.id, 
+              contactId: selectedConversation.contactId,
+              isStarred: isStarred(selectedConversation.id) 
+            })}
+            disabled={toggleStarredMutation.isPending}
+          >
+            {isStarred(selectedConversation.id) ? (
+              <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+            ) : (
+              <StarOff className="h-5 w-5" />
+            )}
+          </Button>
+          {selectedConversation.unreadCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => markAsReadMutation.mutate(selectedConversation.id)}
+              disabled={markAsReadMutation.isPending}
+            >
+              <CheckCheck className="h-5 w-5" />
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm"
@@ -701,8 +811,11 @@ export function GhlConversationsTab() {
                           <User className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2 min-w-0">
+                              {isStarred(conv.id) && (
+                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                              )}
                               <span className="font-medium truncate">
                                 {conv.contactName}
                               </span>
@@ -712,8 +825,16 @@ export function GhlConversationsTab() {
                                     "text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0",
                                     getOpportunityBadgeStyles(opportunitiesMap[conv.contactId].status)
                                   )}
+                                  title={opportunitiesMap[conv.contactId].monetaryValue 
+                                    ? formatCurrency(opportunitiesMap[conv.contactId].monetaryValue!) 
+                                    : undefined}
                                 >
                                   {getStatusLabel(opportunitiesMap[conv.contactId])}
+                                  {opportunitiesMap[conv.contactId].monetaryValue ? (
+                                    <span className="ml-1 font-semibold">
+                                      {formatCurrency(opportunitiesMap[conv.contactId].monetaryValue!)}
+                                    </span>
+                                  ) : null}
                                 </span>
                               )}
                             </div>
@@ -833,9 +954,16 @@ export function GhlConversationsTab() {
                     <User className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">
-                      {contactInfo?.name || selectedConversation.contactName}
-                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">
+                        {contactInfo?.name || selectedConversation.contactName}
+                      </CardTitle>
+                      {opportunitiesMap[selectedConversation.contactId]?.monetaryValue ? (
+                        <Badge variant="secondary" className="font-semibold">
+                          {formatCurrency(opportunitiesMap[selectedConversation.contactId].monetaryValue!)}
+                        </Badge>
+                      ) : null}
+                    </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       {getChannelIcon(activeLeadChannel)}
                       <span>{activeLeadChannel}</span>
@@ -848,7 +976,44 @@ export function GhlConversationsTab() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  {/* Star/Unstar button */}
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toggleStarredMutation.mutate({ 
+                      conversationId: selectedConversation.id, 
+                      contactId: selectedConversation.contactId,
+                      isStarred: isStarred(selectedConversation.id) 
+                    })}
+                    disabled={toggleStarredMutation.isPending}
+                    title={isStarred(selectedConversation.id) ? "Remover dos favoritos" : "Marcar como importante"}
+                  >
+                    {isStarred(selectedConversation.id) ? (
+                      <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                    ) : (
+                      <StarOff className="h-5 w-5" />
+                    )}
+                  </Button>
+                  
+                  {/* Mark as read button */}
+                  {selectedConversation.unreadCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => markAsReadMutation.mutate(selectedConversation.id)}
+                      disabled={markAsReadMutation.isPending}
+                      title="Marcar como lido"
+                    >
+                      {markAsReadMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <CheckCheck className="h-4 w-4 mr-2" />
+                      )}
+                      Marcar lido
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -858,14 +1023,14 @@ export function GhlConversationsTab() {
                     <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
                     Atualizar
                   </Button>
-                  {lastMessagesUpdate && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-pimpo-green" />
-                      Atualizado {formatDistanceToNow(lastMessagesUpdate, { addSuffix: true, locale: ptBR })}
-                    </span>
-                  )}
                 </div>
               </div>
+              {lastMessagesUpdate && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+                  <CheckCircle2 className="h-3 w-3 text-pimpo-green" />
+                  Atualizado {formatDistanceToNow(lastMessagesUpdate, { addSuffix: true, locale: ptBR })}
+                </span>
+              )}
             </CardHeader>
             
             <ScrollArea className="flex-1 p-4">
