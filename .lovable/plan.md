@@ -1,89 +1,90 @@
 
-# Webhook de Ponto Eletrônico Control iD
+# Correção: Visibilidade de Cardápios e Retenção de Dados
 
-## Resumo
-Criar uma nova Edge Function que recebe marcações de ponto em formato simplificado via POST, salva no banco de dados e atualiza o dashboard em tempo real.
+## Problema Identificado
 
-## Formato de Entrada Esperado
-```json
-{
-  "marcacoes": [
-    {
-      "cpf": "12345678900",
-      "hora": "08:00",
-      "tipo": "entrada",
-      "timestamp": "2026-02-03T08:00:00Z"
-    }
-  ]
-}
+Os pais atualmente veem **todos** os cardápios (berçário + maternal) ao invés de ver apenas o cardápio relevante para a turma do seu filho. A cozinheira já vê corretamente filtrado.
+
+## Correções Necessárias
+
+### 1. Corrigir WeeklyMenuTab para Pais
+
+**Arquivo**: `src/components/parent/WeeklyMenuTab.tsx`
+
+**Mudanças**:
+- Adicionar prop `childClassType` para receber a turma do filho
+- Mapear `class_type` para `menu_type`:
+  - `bercario` → busca menus de berçário (todos os tipos: 0-6m, 6-12m, 12-24m)
+  - `maternal` / `jardim` → busca menu `maternal`
+- Filtrar a query do Supabase por `menu_type`
+
+**Arquivo**: `src/pages/parent/ParentDashboard.tsx`
+
+**Mudanças**:
+- Passar `childClassType={selectedChild.class_type}` para o componente `WeeklyMenuTab`
+
+### 2. Política de Retenção de 5 Anos
+
+**Arquivo**: `src/hooks/useSystemSettings.ts` (já existe)
+
+Adicionar configuração `menu_retention_years` com valor padrão `5`.
+
+**Arquivo**: Nova seção de documentação/configuração no Admin
+
+Criar uma nota visível para administradores sobre a política de retenção de dados, indicando que os cardápios são mantidos por pelo menos 5 anos para conformidade regulatória.
+
+### 3. Índice para Performance de Consultas Históricas
+
+**Migration SQL**:
+```sql
+CREATE INDEX IF NOT EXISTS idx_weekly_menus_created_at 
+ON public.weekly_menus(created_at);
 ```
 
-## O Que Será Criado
-
-### 1. Nova Edge Function: `webhook-ponto`
-- **Endpoint**: `POST /functions/v1/webhook-ponto`
-- **Funcionalidades**:
-  - Receber array de marcações em lote
-  - Validar CPF e buscar funcionário
-  - Mapear tipo para clock_type do banco (entrada→entry, saida→exit, intervalo_inicio→break_start, intervalo_fim→break_end)
-  - Inserir registros na tabela `employee_time_clock`
-  - Retornar resumo de sucesso/erros
-
-### 2. Configuração
-- Adicionar `verify_jwt = false` no `supabase/config.toml` para permitir chamadas externas sem autenticação
-
-## Dashboard em Tempo Real
-O dashboard já está configurado para atualizar automaticamente. O componente `TimeClockStatusCard` já possui:
-- Subscription no Supabase Realtime para a tabela `employee_time_clock`
-- Atualização automática quando novos registros são inseridos
-
-## Mapeamento de Tipos
-
-| Valor Recebido | clock_type no Banco |
-|----------------|---------------------|
-| `entrada` / `entry` | `entry` |
-| `saida` / `exit` | `exit` |
-| `intervalo_inicio` / `break_start` | `break_start` |
-| `intervalo_fim` / `break_end` | `break_end` |
+Isso garante que consultas por data de criação (para auditorias de 5 anos) sejam rápidas.
 
 ---
 
 ## Detalhes Técnicos
 
-### Estrutura da Edge Function
-```text
-supabase/functions/webhook-ponto/index.ts
+### Mapeamento de Tipos
+
+| class_type (Criança) | menu_type (Cardápio) |
+|----------------------|----------------------|
+| `bercario` | `bercario_0_6`, `bercario_6_12`, `bercario_12_24` |
+| `maternal` | `maternal` |
+| `jardim` | `maternal` |
+
+### Lógica de Filtro no WeeklyMenuTab
+
+```typescript
+// Determinar menu_type baseado na turma
+const getMenuTypeFilter = (classType: string): string[] => {
+  if (classType === 'bercario') {
+    return ['bercario', 'bercario_0_6', 'bercario_6_12', 'bercario_12_24'];
+  }
+  return ['maternal'];
+};
+
+// Na query
+.in('menu_type', getMenuTypeFilter(childClassType))
 ```
 
-### Fluxo de Processamento
-```text
-1. Receber POST com JSON
-2. Validar estrutura do payload
-3. Para cada marcação:
-   a. Limpar CPF (remover pontuação)
-   b. Buscar funcionário por CPF
-   c. Mapear tipo para clock_type
-   d. Inserir em employee_time_clock
-4. Retornar resumo
-```
+### Políticas RLS (Já Configuradas Corretamente)
 
-### Resposta de Sucesso
-```json
-{
-  "success": true,
-  "processed": 5,
-  "failed": 0,
-  "results": [
-    { "cpf": "123...", "status": "ok", "employee": "João Silva" },
-    { "cpf": "456...", "status": "error", "error": "CPF não encontrado" }
-  ]
-}
-```
+- `SELECT`: Todos usuários autenticados podem ler
+- `INSERT/UPDATE/DELETE`: Apenas staff (nutricionista, admin)
 
-### Segurança (Opcional)
-- Suporte a header `x-webhook-secret` para validação
-- Usa secret configurado em `time_clock_config` (já existente)
+### Arquivos a Modificar
 
-### Arquivos a Criar/Modificar
-1. `supabase/functions/webhook-ponto/index.ts` - Nova função
-2. `supabase/config.toml` - Adicionar configuração da função
+1. `src/components/parent/WeeklyMenuTab.tsx` - Adicionar filtro por menu_type
+2. `src/pages/parent/ParentDashboard.tsx` - Passar class_type como prop
+3. Nova migration SQL - Adicionar índice para created_at
+
+### Verificação de Retenção
+
+Os dados de cardápio já são retidos indefinidamente (sem deleção automática). A tabela possui:
+- `created_at` timestamp para rastreamento
+- `updated_at` timestamp para auditoria de modificações
+
+Não há nenhum job ou trigger que delete cardápios antigos, garantindo a retenção mínima de 5 anos.
