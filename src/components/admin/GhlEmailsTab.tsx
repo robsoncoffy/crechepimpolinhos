@@ -66,20 +66,37 @@ export function GhlEmailsTab() {
 
   const fetchConversations = async () => {
     try {
-      // Request email conversations directly from GHL API using filterType
+      // Fetch all conversations - GHL doesn't properly separate email conversations
       const { data, error } = await supabase.functions.invoke("ghl-conversations", {
-        body: { action: "list", filterType: "Email", limit: "50" },
+        body: { action: "list", limit: "100" },
       });
 
       if (error) throw error;
       
-      // GHL should now return only email conversations
-      const emailConvs = data?.conversations || [];
-      setConversations(emailConvs);
+      // Filter for email-like conversations:
+      // 1. Type contains "email" 
+      // 2. OR contact has email but no phone (likely email-only contact)
+      // 3. OR type is TYPE_EMAIL
+      const allConvs = data?.conversations || [];
+      const emailConvs = allConvs.filter((conv: any) => {
+        const typeStr = (conv.type || "").toLowerCase();
+        const hasEmail = !!conv.email;
+        const hasPhone = !!conv.phone;
+        
+        // Include if explicitly email type
+        if (typeStr.includes("email") || typeStr === "type_email") {
+          return true;
+        }
+        
+        // Include if contact has email but no phone (email-only contact)
+        if (hasEmail && !hasPhone) {
+          return true;
+        }
+        
+        return false;
+      });
       
-      if (emailConvs.length === 0) {
-        console.log("No email conversations found. Make sure emails are configured in GHL.");
-      }
+      setConversations(emailConvs);
     } catch (error) {
       console.error("Error fetching email conversations:", error);
     } finally {
