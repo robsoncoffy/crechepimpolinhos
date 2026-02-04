@@ -133,6 +133,7 @@ serve(async (req) => {
         stageName: string;
         status: string;
         pipelineName: string;
+        monetaryValue: number;
       }> = {};
       
       if (opportunitiesResponse?.ok) {
@@ -146,6 +147,7 @@ serve(async (req) => {
                 stageName: stageInfo?.name || "Novo Lead",
                 status: opp.status || "open",
                 pipelineName: stageInfo?.pipelineName || "",
+                monetaryValue: opp.monetaryValue || 0,
               };
             }
           }
@@ -702,6 +704,31 @@ serve(async (req) => {
           messageId: result.id || result.messageId,
           conversationId: result.conversationId 
         }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mark conversation as read
+    if (action === "markAsRead" && conversationId) {
+      // GHL API endpoint to mark conversation as read
+      const response = await fetchWithTimeout(
+        `${baseUrl}/conversations/${conversationId}/messages/status`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({ status: "read" }),
+        },
+        8000
+      );
+
+      // Some GHL versions may not support this endpoint - fail gracefully
+      if (!response.ok) {
+        console.warn("GHL markAsRead may not be supported:", response.status);
+        // Return success anyway to not break the UX
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
