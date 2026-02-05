@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +60,48 @@ interface ContractPreviewDialogProps {
   onConfirmSend: (editedData: ContractData) => Promise<void>;
   loading?: boolean;
 }
+
+// ClauseEditor component - MOVED OUTSIDE to prevent re-creation on each render
+interface ClauseEditorProps {
+  clauseKey: keyof ContractData;
+  title: string;
+  clauseNumber: number;
+  value: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+}
+
+const ClauseEditor = memo(function ClauseEditor({ 
+  clauseKey, 
+  title, 
+  clauseNumber,
+  value,
+  isOpen,
+  onToggle,
+  onChange
+}: ClauseEditorProps) {
+  return (
+    <Collapsible open={isOpen} onOpenChange={onToggle}>
+      <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-card hover:bg-accent/50 rounded-lg border text-left transition-colors">
+        {isOpen ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        )}
+        <span className="font-medium">CLÁUSULA {clauseNumber} – {title}</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 pl-6">
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="min-h-[120px] text-sm"
+          placeholder={`Texto da cláusula ${clauseNumber}...`}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+});
 
 const COMPANY_DATA = {
   name: "ESCOLA DE ENSINO INFANTIL PIMPOLINHOS LTDA",
@@ -188,39 +230,6 @@ export function ContractPreviewDialog({
     } finally {
       setSending(false);
     }
-  };
-
-  const ClauseEditor = ({ 
-    clauseKey, 
-    title, 
-    clauseNumber 
-  }: { 
-    clauseKey: keyof ContractData; 
-    title: string; 
-    clauseNumber: number;
-  }) => {
-    const isOpen = openClauses[clauseKey] || false;
-    
-    return (
-      <Collapsible open={isOpen} onOpenChange={() => toggleClause(clauseKey)}>
-        <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-card hover:bg-accent/50 rounded-lg border text-left transition-colors">
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-          <span className="font-medium">CLÁUSULA {clauseNumber} – {title}</span>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="mt-2 pl-6">
-          <Textarea
-            value={editedData[clauseKey] as string || ''}
-            onChange={(e) => handleInputChange(clauseKey, e.target.value)}
-            className="min-h-[120px] text-sm"
-            placeholder={`Texto da cláusula ${clauseNumber}...`}
-          />
-        </CollapsibleContent>
-      </Collapsible>
-    );
   };
 
   return (
@@ -542,7 +551,6 @@ export function ContractPreviewDialog({
                   </div>
                 </div>
 
-                {/* Cláusulas Editáveis */}
                 <div className="space-y-4">
                   <h4 className="font-semibold text-lg border-b pb-2">Cláusulas do Contrato</h4>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -553,87 +561,155 @@ export function ContractPreviewDialog({
                     <ClauseEditor 
                       clauseKey="clauseObject" 
                       title="DO OBJETO DO CONTRATO" 
-                      clauseNumber={2} 
+                      clauseNumber={2}
+                      value={editedData.clauseObject || ''}
+                      isOpen={openClauses.clauseObject || false}
+                      onToggle={() => toggleClause('clauseObject')}
+                      onChange={(v) => handleInputChange('clauseObject', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseEnrollment" 
                       title="DA MATRÍCULA" 
-                      clauseNumber={3} 
+                      clauseNumber={3}
+                      value={editedData.clauseEnrollment || ''}
+                      isOpen={openClauses.clauseEnrollment || false}
+                      onToggle={() => toggleClause('clauseEnrollment')}
+                      onChange={(v) => handleInputChange('clauseEnrollment', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseMonthlyFee" 
                       title="DAS MENSALIDADES" 
-                      clauseNumber={4} 
+                      clauseNumber={4}
+                      value={editedData.clauseMonthlyFee || ''}
+                      isOpen={openClauses.clauseMonthlyFee || false}
+                      onToggle={() => toggleClause('clauseMonthlyFee')}
+                      onChange={(v) => handleInputChange('clauseMonthlyFee', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseHours" 
                       title="DO HORÁRIO DE FUNCIONAMENTO" 
-                      clauseNumber={5} 
+                      clauseNumber={5}
+                      value={editedData.clauseHours || ''}
+                      isOpen={openClauses.clauseHours || false}
+                      onToggle={() => toggleClause('clauseHours')}
+                      onChange={(v) => handleInputChange('clauseHours', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseFood" 
                       title="DA ALIMENTAÇÃO" 
-                      clauseNumber={6} 
+                      clauseNumber={6}
+                      value={editedData.clauseFood || ''}
+                      isOpen={openClauses.clauseFood || false}
+                      onToggle={() => toggleClause('clauseFood')}
+                      onChange={(v) => handleInputChange('clauseFood', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseMedication" 
                       title="DA ADMINISTRAÇÃO DE MEDICAMENTOS" 
-                      clauseNumber={7} 
+                      clauseNumber={7}
+                      value={editedData.clauseMedication || ''}
+                      isOpen={openClauses.clauseMedication || false}
+                      onToggle={() => toggleClause('clauseMedication')}
+                      onChange={(v) => handleInputChange('clauseMedication', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseHealth" 
                       title="DA SAÚDE E SEGURANÇA" 
-                      clauseNumber={8} 
+                      clauseNumber={8}
+                      value={editedData.clauseHealth || ''}
+                      isOpen={openClauses.clauseHealth || false}
+                      onToggle={() => toggleClause('clauseHealth')}
+                      onChange={(v) => handleInputChange('clauseHealth', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseUniform" 
                       title="DO UNIFORME E MATERIAIS" 
-                      clauseNumber={9} 
+                      clauseNumber={9}
+                      value={editedData.clauseUniform || ''}
+                      isOpen={openClauses.clauseUniform || false}
+                      onToggle={() => toggleClause('clauseUniform')}
+                      onChange={(v) => handleInputChange('clauseUniform', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseRegulations" 
                       title="DO REGULAMENTO INTERNO" 
-                      clauseNumber={10} 
+                      clauseNumber={10}
+                      value={editedData.clauseRegulations || ''}
+                      isOpen={openClauses.clauseRegulations || false}
+                      onToggle={() => toggleClause('clauseRegulations')}
+                      onChange={(v) => handleInputChange('clauseRegulations', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseImageRights" 
                       title="DO USO DE IMAGEM" 
-                      clauseNumber={11} 
+                      clauseNumber={11}
+                      value={editedData.clauseImageRights || ''}
+                      isOpen={openClauses.clauseImageRights || false}
+                      onToggle={() => toggleClause('clauseImageRights')}
+                      onChange={(v) => handleInputChange('clauseImageRights', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseTermination" 
                       title="DA RESCISÃO" 
-                      clauseNumber={12} 
+                      clauseNumber={12}
+                      value={editedData.clauseTermination || ''}
+                      isOpen={openClauses.clauseTermination || false}
+                      onToggle={() => toggleClause('clauseTermination')}
+                      onChange={(v) => handleInputChange('clauseTermination', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseLGPD" 
                       title="DA PROTEÇÃO DE DADOS (LGPD)" 
-                      clauseNumber={13} 
+                      clauseNumber={13}
+                      value={editedData.clauseLGPD || ''}
+                      isOpen={openClauses.clauseLGPD || false}
+                      onToggle={() => toggleClause('clauseLGPD')}
+                      onChange={(v) => handleInputChange('clauseLGPD', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseForum" 
                       title="DO FORO" 
-                      clauseNumber={14} 
+                      clauseNumber={14}
+                      value={editedData.clauseForum || ''}
+                      isOpen={openClauses.clauseForum || false}
+                      onToggle={() => toggleClause('clauseForum')}
+                      onChange={(v) => handleInputChange('clauseForum', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clausePenalty" 
                       title="DA MULTA POR RESCISÃO" 
-                      clauseNumber={15} 
+                      clauseNumber={15}
+                      value={editedData.clausePenalty || ''}
+                      isOpen={openClauses.clausePenalty || false}
+                      onToggle={() => toggleClause('clausePenalty')}
+                      onChange={(v) => handleInputChange('clausePenalty', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseSocialMedia" 
                       title="AUTORIZAÇÃO PARA REDES SOCIAIS" 
-                      clauseNumber={16} 
+                      clauseNumber={16}
+                      value={editedData.clauseSocialMedia || ''}
+                      isOpen={openClauses.clauseSocialMedia || false}
+                      onToggle={() => toggleClause('clauseSocialMedia')}
+                      onChange={(v) => handleInputChange('clauseSocialMedia', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseValidity" 
                       title="DA VALIDADE DO CONTRATO" 
-                      clauseNumber={17} 
+                      clauseNumber={17}
+                      value={editedData.clauseValidity || ''}
+                      isOpen={openClauses.clauseValidity || false}
+                      onToggle={() => toggleClause('clauseValidity')}
+                      onChange={(v) => handleInputChange('clauseValidity', v)}
                     />
                     <ClauseEditor 
                       clauseKey="clauseGeneral" 
                       title="DISPOSIÇÕES GERAIS" 
-                      clauseNumber={0} 
+                      clauseNumber={18}
+                      value={editedData.clauseGeneral || ''}
+                      isOpen={openClauses.clauseGeneral || false}
+                      onToggle={() => toggleClause('clauseGeneral')}
+                      onChange={(v) => handleInputChange('clauseGeneral', v)}
                     />
                   </div>
                 </div>
