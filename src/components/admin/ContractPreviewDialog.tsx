@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Loader2, FileText, Send, Pencil, Eye, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, FileText, Send, Pencil, Eye, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
 import { getPrice, formatCurrency, ClassType, PlanType, getClassDisplayName } from "@/lib/pricing";
 
@@ -185,6 +195,7 @@ export function ContractPreviewDialog({
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
   const [editedData, setEditedData] = useState<ContractData>(contractData);
   const [openClauses, setOpenClauses] = useState<Record<string, boolean>>({});
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Reset edited data when contract data changes
   useEffect(() => {
@@ -210,6 +221,7 @@ export function ContractPreviewDialog({
     });
     setActiveTab("preview");
     setOpenClauses({});
+    setConfirmDialogOpen(false);
   }, [contractData]);
 
   const currentDate = new Date().toLocaleDateString('pt-BR');
@@ -222,7 +234,14 @@ export function ContractPreviewDialog({
     setOpenClauses(prev => ({ ...prev, [clauseKey]: !prev[clauseKey] }));
   };
 
-  const handleSend = async () => {
+  // Opens the confirmation dialog - does NOT send the contract
+  const handleRequestSend = () => {
+    setConfirmDialogOpen(true);
+  };
+
+  // Actually sends the contract after user confirms
+  const handleConfirmedSend = async () => {
+    setConfirmDialogOpen(false);
     setSending(true);
     try {
       await onConfirmSend(editedData);
@@ -729,7 +748,7 @@ export function ContractPreviewDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
             Cancelar
           </Button>
-          <Button onClick={handleSend} disabled={sending || loading}>
+          <Button onClick={handleRequestSend} disabled={sending || loading}>
             {sending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -744,6 +763,46 @@ export function ContractPreviewDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation Dialog - prevents accidental approvals */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirmar Aprovação e Envio
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left space-y-2">
+              <p>
+                Você está prestes a <strong>APROVAR</strong> esta matrícula e enviar o contrato para assinatura.
+              </p>
+              <p className="text-amber-600 font-medium">
+                Esta ação não pode ser desfeita facilmente. A criança será registrada como aluna imediatamente.
+              </p>
+              <p>
+                Deseja realmente continuar?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmedSend} 
+              disabled={sending}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                "Sim, Aprovar e Enviar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
