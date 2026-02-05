@@ -42,10 +42,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
+import { getPrice, formatCurrency, getAvailablePlans, isHalfDayOnly, PLAN_NAMES, ClassType, PlanType } from "@/lib/pricing";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -113,6 +115,9 @@ export default function AdminApprovals() {
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedClassType, setSelectedClassType] = useState<"bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2">("bercario");
   const [selectedShiftType, setSelectedShiftType] = useState<"manha" | "tarde" | "integral">("integral");
+  const [selectedPlanType, setSelectedPlanType] = useState<"basico" | "intermediario" | "plus">("intermediario");
+  const [useCustomPrice, setUseCustomPrice] = useState(false);
+  const [customPrice, setCustomPrice] = useState<string>("");
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [contractData, setContractData] = useState<any>(null);
   const [pendingApprovalData, setPendingApprovalData] = useState<{
@@ -492,6 +497,13 @@ export default function AdminApprovals() {
       setSelectedClassType("jardim_2");
     }
     setSelectedShiftType("integral");
+    
+    // Initialize plan from registration or default
+    const planFromReg = registration.plan_type as "basico" | "intermediario" | "plus" | null;
+    setSelectedPlanType(planFromReg || "intermediario");
+    setUseCustomPrice(false);
+    setCustomPrice("");
+    
     setRegistrationDialogOpen(true);
   }
 
@@ -603,6 +615,12 @@ export default function AdminApprovals() {
         emergencyContact = `${pickupData.full_name} (${pickupData.relationship})`;
       }
 
+      // Calculate the final monthly value
+      const calculatedPrice = getPrice(selectedClassType as ClassType, selectedPlanType as PlanType);
+      const finalMonthlyValue = useCustomPrice && customPrice 
+        ? parseFloat(customPrice.replace(',', '.')) 
+        : calculatedPrice;
+
       // Prepare contract data for preview
       const contractPreviewData = {
         parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
@@ -617,8 +635,9 @@ export default function AdminApprovals() {
         birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
         classType: selectedClassType,
         shiftType: selectedShiftType,
-        planType: selectedRegistration.plan_type || undefined,
+        planType: selectedPlanType,
         emergencyContact: emergencyContact,
+        customMonthlyValue: useCustomPrice ? finalMonthlyValue : undefined,
       };
 
       // Store registration data for later approval and show contract preview
@@ -652,7 +671,7 @@ export default function AdminApprovals() {
           photo_url: registration.photo_url,
           allergies: registration.allergies,
           medical_info: registration.medications,
-          plan_type: registration.plan_type,
+          plan_type: selectedPlanType,
         })
         .select()
         .single();
@@ -702,7 +721,8 @@ export default function AdminApprovals() {
           birthDate: registration.birth_date,
           classType: selectedClassType,
           shiftType: selectedShiftType,
-          planType: registration.plan_type,
+          planType: selectedPlanType,
+          customMonthlyValue: editedData.customMonthlyValue,
           // Pass edited data to override profile data if changed
           overrideData: {
             parentName: editedData.parentName,
@@ -1566,13 +1586,24 @@ export default function AdminApprovals() {
                 </TabsContent>
               </Tabs>
 
-              {/* Turma e Turno - sempre visíveis */}
+              {/* Turma, Turno e Plano - sempre visíveis */}
               <div className="mt-6 pt-6 border-t space-y-4">
-                <h4 className="font-semibold">Definir Turma e Turno</h4>
+                <h4 className="font-semibold">Definir Turma, Turno e Plano</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Turma *</Label>
-                    <Select value={selectedClassType} onValueChange={(v) => setSelectedClassType(v as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2")}>
+                    <Select 
+                      value={selectedClassType} 
+                      onValueChange={(v) => {
+                        const newClass = v as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2";
+                        setSelectedClassType(newClass);
+                        // Auto-adjust plan if current plan not available for new class
+                        const availablePlans = getAvailablePlans(newClass as ClassType);
+                        if (!availablePlans.includes(selectedPlanType as PlanType)) {
+                          setSelectedPlanType(availablePlans[0] as "basico" | "intermediario" | "plus");
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -1600,21 +1631,95 @@ export default function AdminApprovals() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Relacionamento do Responsável</Label>
-                  <Select value={relationship} onValueChange={setRelationship}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mãe">Mãe</SelectItem>
-                      <SelectItem value="pai">Pai</SelectItem>
-                      <SelectItem value="avô">Avô</SelectItem>
-                      <SelectItem value="avó">Avó</SelectItem>
-                      <SelectItem value="responsável">Responsável</SelectItem>
-                      <SelectItem value="outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Plano *</Label>
+                    <Select 
+                      value={selectedPlanType} 
+                      onValueChange={(v) => setSelectedPlanType(v as "basico" | "intermediario" | "plus")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailablePlans(selectedClassType as ClassType).map((plan) => (
+                          <SelectItem key={plan} value={plan}>
+                            {PLAN_NAMES[plan]} - {formatCurrency(getPrice(selectedClassType as ClassType, plan))}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isHalfDayOnly(selectedClassType as ClassType) && (
+                      <p className="text-xs text-muted-foreground">
+                        Jardim só possui meio turno (sala única)
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Relacionamento</Label>
+                    <Select value={relationship} onValueChange={setRelationship}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mãe">Mãe</SelectItem>
+                        <SelectItem value="pai">Pai</SelectItem>
+                        <SelectItem value="avô">Avô</SelectItem>
+                        <SelectItem value="avó">Avó</SelectItem>
+                        <SelectItem value="responsável">Responsável</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Pricing section */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-primary" />
+                      <Label className="font-semibold">Valor da Mensalidade</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="custom-price-toggle" className="text-sm text-muted-foreground">
+                        Valor personalizado
+                      </Label>
+                      <Switch 
+                        id="custom-price-toggle"
+                        checked={useCustomPrice}
+                        onCheckedChange={setUseCustomPrice}
+                      />
+                    </div>
+                  </div>
+                  
+                  {useCustomPrice ? (
+                    <div className="space-y-2">
+                      <Input
+                        type="text"
+                        placeholder="Ex: 999,90"
+                        value={customPrice}
+                        onChange={(e) => setCustomPrice(e.target.value)}
+                        className="font-mono"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Informe o valor em reais (ex: 1299,90). Este valor será usado no contrato e na cobrança do Asaas.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-3 bg-background rounded border">
+                      <span className="text-sm text-muted-foreground">Valor calculado:</span>
+                      <span className="text-lg font-bold text-primary">
+                        {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedRegistration?.plan_type && selectedRegistration.plan_type !== selectedPlanType && (
+                    <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-700">
+                      <strong>Atenção:</strong> O responsável escolheu o plano <strong>{PLAN_NAMES[selectedRegistration.plan_type as PlanType] || selectedRegistration.plan_type}</strong> no cadastro. 
+                      Você está alterando para <strong>{PLAN_NAMES[selectedPlanType as PlanType]}</strong>.
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
