@@ -702,6 +702,13 @@ export default function AdminApprovals() {
     }
   }
 
+  // Save contract changes without sending (just updates local state)
+  async function saveContractChanges(editedData: ContractData) {
+    // Update the contract data state with the edited values
+    setContractData(editedData);
+    toast.success("Alterações salvas com sucesso!");
+  }
+
   async function sendContractAfterPreview(editedData: ContractData) {
     if (!pendingApprovalData) return;
 
@@ -1828,6 +1835,7 @@ export default function AdminApprovals() {
           onOpenChange={setContractPreviewOpen}
           contractData={contractData}
           onConfirmSend={sendContractAfterPreview}
+          onSaveChanges={saveContractChanges}
           viewOnly={contractViewOnly}
         />
       )}

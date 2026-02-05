@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Loader2, FileText, Send, Pencil, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { Loader2, FileText, Send, Pencil, ChevronDown, ChevronRight, AlertTriangle, Save } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
 import { getPrice, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
 
@@ -68,6 +68,7 @@ interface ContractPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   contractData: ContractData;
   onConfirmSend: (editedData: ContractData) => Promise<void>;
+  onSaveChanges?: (editedData: ContractData) => Promise<void>;
   loading?: boolean;
   viewOnly?: boolean;
 }
@@ -143,18 +144,112 @@ const DEFAULT_CLAUSES = {
   clauseValidity: `O presente contrato somente terá validade e eficácia após a confirmação do pagamento da primeira mensalidade. Sem a comprovação deste pagamento, a vaga não será garantida e o contrato será considerado nulo de pleno direito.`,
 };
 
+// ==================== COMPONENTS DEFINED OUTSIDE ====================
+
+interface EditableFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
+  maxLength?: number;
+}
+
+const EditableField = memo(function EditableField({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder,
+  type = "text",
+  maxLength
+}: EditableFieldProps) {
+  return (
+    <div className="flex items-center gap-2 group">
+      <span className="font-semibold whitespace-nowrap">{label}</span>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="h-7 text-sm flex-1 bg-background/50 border-dashed focus:border-solid"
+      />
+    </div>
+  );
+});
+
+interface EditableClauseSectionProps {
+  title: string;
+  clauseNumber: number;
+  clauseKey: string;
+  value: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+  children?: React.ReactNode;
+}
+
+const EditableClauseSection = memo(function EditableClauseSection({
+  title,
+  clauseNumber,
+  clauseKey,
+  value,
+  isOpen,
+  onToggle,
+  onChange,
+  children,
+}: EditableClauseSectionProps) {
+  const displayValue = value || DEFAULT_CLAUSES[clauseKey as keyof typeof DEFAULT_CLAUSES] || '';
+  
+  return (
+    <div className="bg-card p-4 rounded-lg border mb-4">
+      <Collapsible open={isOpen} onOpenChange={onToggle}>
+        <CollapsibleTrigger className="flex items-center gap-2 w-full text-left group">
+          <h4 className="font-semibold flex-1">CLÁUSULA {clauseNumber} – {title}</h4>
+          <Pencil className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </CollapsibleTrigger>
+        
+        {children && <div className="mt-2">{children}</div>}
+        
+        {!isOpen && (
+          <p className="mt-2 text-sm">{displayValue}</p>
+        )}
+        
+        <CollapsibleContent className="mt-2">
+          <Textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="min-h-[100px] text-sm"
+            placeholder={`Texto da cláusula ${clauseNumber}...`}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+});
+
+// ==================== MAIN COMPONENT ====================
+
 export function ContractPreviewDialog({
   open,
   onOpenChange,
   contractData,
   onConfirmSend,
+  onSaveChanges,
   loading = false,
   viewOnly = false,
 }: ContractPreviewDialogProps) {
   const [sending, setSending] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editedData, setEditedData] = useState<ContractData>(contractData);
   const [openClauses, setOpenClauses] = useState<Record<string, boolean>>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Reset edited data when contract data changes
   useEffect(() => {
@@ -178,19 +273,32 @@ export function ContractPreviewDialog({
       clauseSocialMedia: contractData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia,
       clauseValidity: contractData.clauseValidity || DEFAULT_CLAUSES.clauseValidity,
     });
-    // Reset clauses state
     setOpenClauses({});
     setConfirmDialogOpen(false);
+    setHasUnsavedChanges(false);
   }, [contractData]);
 
   const currentDate = new Date().toLocaleDateString('pt-BR');
 
-  const handleInputChange = (field: keyof ContractData, value: string) => {
+  const handleInputChange = useCallback((field: keyof ContractData, value: string) => {
     setEditedData(prev => ({ ...prev, [field]: value }));
-  };
+    setHasUnsavedChanges(true);
+  }, []);
 
-  const toggleClause = (clauseKey: string) => {
+  const toggleClause = useCallback((clauseKey: string) => {
     setOpenClauses(prev => ({ ...prev, [clauseKey]: !prev[clauseKey] }));
+  }, []);
+
+  // Save changes without sending contract
+  const handleSaveChanges = async () => {
+    if (!onSaveChanges) return;
+    setSaving(true);
+    try {
+      await onSaveChanges(editedData);
+      setHasUnsavedChanges(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Opens the confirmation dialog - does NOT send the contract
@@ -210,82 +318,6 @@ export function ContractPreviewDialog({
     }
   };
 
-  // Helper component for inline editable fields
-  const EditableField = ({ 
-    label, 
-    value, 
-    onChange, 
-    placeholder,
-    type = "text",
-    maxLength
-  }: { 
-    label: string; 
-    value: string; 
-    onChange: (v: string) => void;
-    placeholder?: string;
-    type?: string;
-    maxLength?: number;
-  }) => (
-    <div className="flex items-center gap-2 group">
-      <span className="font-semibold whitespace-nowrap">{label}</span>
-      <Input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        className="h-7 text-sm flex-1 bg-background/50 border-dashed focus:border-solid"
-      />
-    </div>
-  );
-
-  // Helper for editable clause sections
-  const EditableClauseSection = ({
-    title,
-    clauseNumber,
-    clauseKey,
-    children,
-  }: {
-    title: string;
-    clauseNumber: number;
-    clauseKey: keyof ContractData;
-    children?: React.ReactNode;
-  }) => {
-    const isOpen = openClauses[clauseKey] || false;
-    const value = (editedData[clauseKey] as string) || '';
-    
-    return (
-      <div className="bg-card p-4 rounded-lg border mb-4">
-        <Collapsible open={isOpen} onOpenChange={() => toggleClause(clauseKey)}>
-          <CollapsibleTrigger className="flex items-center gap-2 w-full text-left group">
-            <h4 className="font-semibold flex-1">CLÁUSULA {clauseNumber} – {title}</h4>
-            <Pencil className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-          </CollapsibleTrigger>
-          
-          {children && <div className="mt-2">{children}</div>}
-          
-          {!isOpen && (
-            <p className="mt-2 text-sm">{value || DEFAULT_CLAUSES[clauseKey as keyof typeof DEFAULT_CLAUSES]}</p>
-          )}
-          
-          <CollapsibleContent className="mt-2">
-            <Textarea
-              value={value}
-              onChange={(e) => handleInputChange(clauseKey, e.target.value)}
-              className="min-h-[100px] text-sm"
-              placeholder={`Texto da cláusula ${clauseNumber}...`}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-    );
-  };
-
   // Calculate monthly value for display
   const classKey = editedData.classType as ClassType;
   const planKey = editedData.planType as PlanType;
@@ -302,6 +334,9 @@ export function ContractPreviewDialog({
           </DialogTitle>
           <DialogDescription>
             Clique nos campos ou cláusulas para editar diretamente
+            {hasUnsavedChanges && (
+              <span className="ml-2 text-amber-600 font-medium">• Alterações não salvas</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -393,10 +428,26 @@ export function ContractPreviewDialog({
             </div>
 
             {/* Cláusula 2 - Objeto */}
-            <EditableClauseSection title="DO OBJETO DO CONTRATO" clauseNumber={2} clauseKey="clauseObject" />
+            <EditableClauseSection 
+              title="DO OBJETO DO CONTRATO" 
+              clauseNumber={2} 
+              clauseKey="clauseObject"
+              value={editedData.clauseObject || ''}
+              isOpen={openClauses.clauseObject || false}
+              onToggle={() => toggleClause('clauseObject')}
+              onChange={(v) => handleInputChange('clauseObject', v)}
+            />
 
             {/* Cláusula 3 - Matrícula */}
-            <EditableClauseSection title="DA MATRÍCULA" clauseNumber={3} clauseKey="clauseEnrollment">
+            <EditableClauseSection 
+              title="DA MATRÍCULA" 
+              clauseNumber={3} 
+              clauseKey="clauseEnrollment"
+              value={editedData.clauseEnrollment || ''}
+              isOpen={openClauses.clauseEnrollment || false}
+              onToggle={() => toggleClause('clauseEnrollment')}
+              onChange={(v) => handleInputChange('clauseEnrollment', v)}
+            >
               <div className="text-sm space-y-1 mb-2">
                 <p><strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}</p>
                 <p><strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} ({shiftHours[editedData.shiftType] || 'conforme contratado'})</p>
@@ -404,7 +455,15 @@ export function ContractPreviewDialog({
             </EditableClauseSection>
 
             {/* Cláusula 4 - Mensalidades */}
-            <EditableClauseSection title="DAS MENSALIDADES" clauseNumber={4} clauseKey="clauseMonthlyFee">
+            <EditableClauseSection 
+              title="DAS MENSALIDADES" 
+              clauseNumber={4} 
+              clauseKey="clauseMonthlyFee"
+              value={editedData.clauseMonthlyFee || ''}
+              isOpen={openClauses.clauseMonthlyFee || false}
+              onToggle={() => toggleClause('clauseMonthlyFee')}
+              onChange={(v) => handleInputChange('clauseMonthlyFee', v)}
+            >
               <div className="text-sm space-y-1 mb-2">
                 <p><strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}</p>
                 {monthlyValue && <p><strong>Valor Mensal:</strong> {monthlyValue}</p>}
@@ -412,16 +471,48 @@ export function ContractPreviewDialog({
             </EditableClauseSection>
 
             {/* Cláusula 5 - Horário */}
-            <EditableClauseSection title="DO HORÁRIO DE FUNCIONAMENTO" clauseNumber={5} clauseKey="clauseHours" />
+            <EditableClauseSection 
+              title="DO HORÁRIO DE FUNCIONAMENTO" 
+              clauseNumber={5} 
+              clauseKey="clauseHours"
+              value={editedData.clauseHours || ''}
+              isOpen={openClauses.clauseHours || false}
+              onToggle={() => toggleClause('clauseHours')}
+              onChange={(v) => handleInputChange('clauseHours', v)}
+            />
 
             {/* Cláusula 6 - Alimentação */}
-            <EditableClauseSection title="DA ALIMENTAÇÃO" clauseNumber={6} clauseKey="clauseFood" />
+            <EditableClauseSection 
+              title="DA ALIMENTAÇÃO" 
+              clauseNumber={6} 
+              clauseKey="clauseFood"
+              value={editedData.clauseFood || ''}
+              isOpen={openClauses.clauseFood || false}
+              onToggle={() => toggleClause('clauseFood')}
+              onChange={(v) => handleInputChange('clauseFood', v)}
+            />
 
             {/* Cláusula 7 - Medicamentos */}
-            <EditableClauseSection title="DA ADMINISTRAÇÃO DE MEDICAMENTOS" clauseNumber={7} clauseKey="clauseMedication" />
+            <EditableClauseSection 
+              title="DA ADMINISTRAÇÃO DE MEDICAMENTOS" 
+              clauseNumber={7} 
+              clauseKey="clauseMedication"
+              value={editedData.clauseMedication || ''}
+              isOpen={openClauses.clauseMedication || false}
+              onToggle={() => toggleClause('clauseMedication')}
+              onChange={(v) => handleInputChange('clauseMedication', v)}
+            />
 
             {/* Cláusula 8 - Saúde */}
-            <EditableClauseSection title="DA SAÚDE E SEGURANÇA" clauseNumber={8} clauseKey="clauseHealth">
+            <EditableClauseSection 
+              title="DA SAÚDE E SEGURANÇA" 
+              clauseNumber={8} 
+              clauseKey="clauseHealth"
+              value={editedData.clauseHealth || ''}
+              isOpen={openClauses.clauseHealth || false}
+              onToggle={() => toggleClause('clauseHealth')}
+              onChange={(v) => handleInputChange('clauseHealth', v)}
+            >
               <div className="bg-muted/50 p-2 rounded mb-2">
                 <EditableField 
                   label="Contato de Emergência:" 
@@ -433,34 +524,114 @@ export function ContractPreviewDialog({
             </EditableClauseSection>
 
             {/* Cláusula 9 - Uniforme */}
-            <EditableClauseSection title="DO UNIFORME E MATERIAIS" clauseNumber={9} clauseKey="clauseUniform" />
+            <EditableClauseSection 
+              title="DO UNIFORME E MATERIAIS" 
+              clauseNumber={9} 
+              clauseKey="clauseUniform"
+              value={editedData.clauseUniform || ''}
+              isOpen={openClauses.clauseUniform || false}
+              onToggle={() => toggleClause('clauseUniform')}
+              onChange={(v) => handleInputChange('clauseUniform', v)}
+            />
 
             {/* Cláusula 10 - Regulamento */}
-            <EditableClauseSection title="DO REGULAMENTO INTERNO" clauseNumber={10} clauseKey="clauseRegulations" />
+            <EditableClauseSection 
+              title="DO REGULAMENTO INTERNO" 
+              clauseNumber={10} 
+              clauseKey="clauseRegulations"
+              value={editedData.clauseRegulations || ''}
+              isOpen={openClauses.clauseRegulations || false}
+              onToggle={() => toggleClause('clauseRegulations')}
+              onChange={(v) => handleInputChange('clauseRegulations', v)}
+            />
 
             {/* Cláusula 11 - Imagem */}
-            <EditableClauseSection title="DO USO DE IMAGEM" clauseNumber={11} clauseKey="clauseImageRights" />
+            <EditableClauseSection 
+              title="DO USO DE IMAGEM" 
+              clauseNumber={11} 
+              clauseKey="clauseImageRights"
+              value={editedData.clauseImageRights || ''}
+              isOpen={openClauses.clauseImageRights || false}
+              onToggle={() => toggleClause('clauseImageRights')}
+              onChange={(v) => handleInputChange('clauseImageRights', v)}
+            />
 
             {/* Cláusula 12 - Rescisão */}
-            <EditableClauseSection title="DA RESCISÃO" clauseNumber={12} clauseKey="clauseTermination" />
+            <EditableClauseSection 
+              title="DA RESCISÃO" 
+              clauseNumber={12} 
+              clauseKey="clauseTermination"
+              value={editedData.clauseTermination || ''}
+              isOpen={openClauses.clauseTermination || false}
+              onToggle={() => toggleClause('clauseTermination')}
+              onChange={(v) => handleInputChange('clauseTermination', v)}
+            />
 
             {/* Cláusula 13 - LGPD */}
-            <EditableClauseSection title="DA PROTEÇÃO DE DADOS (LGPD)" clauseNumber={13} clauseKey="clauseLGPD" />
+            <EditableClauseSection 
+              title="DA PROTEÇÃO DE DADOS (LGPD)" 
+              clauseNumber={13} 
+              clauseKey="clauseLGPD"
+              value={editedData.clauseLGPD || ''}
+              isOpen={openClauses.clauseLGPD || false}
+              onToggle={() => toggleClause('clauseLGPD')}
+              onChange={(v) => handleInputChange('clauseLGPD', v)}
+            />
 
             {/* Cláusula 14 - Foro */}
-            <EditableClauseSection title="DO FORO" clauseNumber={14} clauseKey="clauseForum" />
+            <EditableClauseSection 
+              title="DO FORO" 
+              clauseNumber={14} 
+              clauseKey="clauseForum"
+              value={editedData.clauseForum || ''}
+              isOpen={openClauses.clauseForum || false}
+              onToggle={() => toggleClause('clauseForum')}
+              onChange={(v) => handleInputChange('clauseForum', v)}
+            />
 
             {/* Cláusula 15 - Multa */}
-            <EditableClauseSection title="DA MULTA POR RESCISÃO" clauseNumber={15} clauseKey="clausePenalty" />
+            <EditableClauseSection 
+              title="DA MULTA POR RESCISÃO" 
+              clauseNumber={15} 
+              clauseKey="clausePenalty"
+              value={editedData.clausePenalty || ''}
+              isOpen={openClauses.clausePenalty || false}
+              onToggle={() => toggleClause('clausePenalty')}
+              onChange={(v) => handleInputChange('clausePenalty', v)}
+            />
 
             {/* Cláusula 16 - Redes Sociais */}
-            <EditableClauseSection title="AUTORIZAÇÃO PARA REDES SOCIAIS" clauseNumber={16} clauseKey="clauseSocialMedia" />
+            <EditableClauseSection 
+              title="AUTORIZAÇÃO PARA REDES SOCIAIS" 
+              clauseNumber={16} 
+              clauseKey="clauseSocialMedia"
+              value={editedData.clauseSocialMedia || ''}
+              isOpen={openClauses.clauseSocialMedia || false}
+              onToggle={() => toggleClause('clauseSocialMedia')}
+              onChange={(v) => handleInputChange('clauseSocialMedia', v)}
+            />
 
             {/* Cláusula 17 - Validade */}
-            <EditableClauseSection title="DA VALIDADE DO CONTRATO" clauseNumber={17} clauseKey="clauseValidity" />
+            <EditableClauseSection 
+              title="DA VALIDADE DO CONTRATO" 
+              clauseNumber={17} 
+              clauseKey="clauseValidity"
+              value={editedData.clauseValidity || ''}
+              isOpen={openClauses.clauseValidity || false}
+              onToggle={() => toggleClause('clauseValidity')}
+              onChange={(v) => handleInputChange('clauseValidity', v)}
+            />
 
             {/* Disposições Gerais */}
-            <EditableClauseSection title="DISPOSIÇÕES GERAIS" clauseNumber={18} clauseKey="clauseGeneral" />
+            <EditableClauseSection 
+              title="DISPOSIÇÕES GERAIS" 
+              clauseNumber={18} 
+              clauseKey="clauseGeneral"
+              value={editedData.clauseGeneral || ''}
+              isOpen={openClauses.clauseGeneral || false}
+              onToggle={() => toggleClause('clauseGeneral')}
+              onChange={(v) => handleInputChange('clauseGeneral', v)}
+            />
 
             <div className="mt-6 pt-4 border-t">
               <p className="text-center text-sm text-muted-foreground">
@@ -471,11 +642,30 @@ export function ContractPreviewDialog({
         </ScrollArea>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending || saving}>
             {viewOnly ? "Fechar" : "Cancelar"}
           </Button>
+          {onSaveChanges && (
+            <Button 
+              variant="secondary" 
+              onClick={handleSaveChanges} 
+              disabled={saving || sending || !hasUnsavedChanges}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </Button>
+          )}
           {!viewOnly && (
-            <Button onClick={handleRequestSend} disabled={sending || loading}>
+            <Button onClick={handleRequestSend} disabled={sending || loading || saving}>
               {sending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
