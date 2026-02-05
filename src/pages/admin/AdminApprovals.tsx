@@ -43,7 +43,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
@@ -477,27 +477,44 @@ export default function AdminApprovals() {
       planType: registration.plan_type,
     });
     
-    // Auto-suggest class based on birth date (5-class structure)
-    // Berçário: 0-2 anos (0-23 meses)
-    // Maternal I: 2-3 anos (24-35 meses)
-    // Maternal II: 3-4 anos (36-47 meses)
-    // Jardim I: 4-5 anos (48-59 meses)
-    // Jardim II: 5-6 anos (60+ meses)
-    const birthDate = new Date(registration.birth_date);
-    const today = new Date();
-    const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
-    if (ageInMonths < 24) {
-      setSelectedClassType("bercario");
-    } else if (ageInMonths < 36) {
-      setSelectedClassType("maternal_1");
-    } else if (ageInMonths < 48) {
-      setSelectedClassType("maternal_2");
-    } else if (ageInMonths < 60) {
-      setSelectedClassType("jardim_1");
+    // Check if class_type and shift_type are already saved in the registration
+    const savedClassType = (registration as any).class_type as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2" | null;
+    const savedShiftType = (registration as any).shift_type as "manha" | "tarde" | "integral" | null;
+    
+    if (savedClassType) {
+      // Use saved values
+      setSelectedClassType(savedClassType);
     } else {
-      setSelectedClassType("jardim_2");
+      // Auto-suggest class based on birth date (5-class structure)
+      // Berçário: 0-2 anos (0-23 meses)
+      // Maternal I: 2-3 anos (24-35 meses)
+      // Maternal II: 3-4 anos (36-47 meses)
+      // Jardim I: 4-5 anos (48-59 meses)
+      // Jardim II: 5-6 anos (60+ meses)
+      const birthDate = new Date(registration.birth_date);
+      const today = new Date();
+      const ageInMonths = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+      if (ageInMonths < 24) {
+        setSelectedClassType("bercario");
+      } else if (ageInMonths < 36) {
+        setSelectedClassType("maternal_1");
+      } else if (ageInMonths < 48) {
+        setSelectedClassType("maternal_2");
+      } else if (ageInMonths < 60) {
+        setSelectedClassType("jardim_1");
+      } else {
+        setSelectedClassType("jardim_2");
+      }
     }
-    setSelectedShiftType("integral");
+    
+    // Use saved shift or default based on desired_shift_type or integral
+    if (savedShiftType) {
+      setSelectedShiftType(savedShiftType);
+    } else if ((registration as any).desired_shift_type) {
+      setSelectedShiftType((registration as any).desired_shift_type as "manha" | "tarde" | "integral");
+    } else {
+      setSelectedShiftType("integral");
+    }
     
     // Initialize plan from registration or default
     const planFromReg = registration.plan_type as "basico" | "intermediario" | "plus" | null;
@@ -515,6 +532,7 @@ export default function AdminApprovals() {
       [field]: value,
     });
   }
+
 
   async function saveEditedData() {
     if (!selectedRegistration || !editableData) return;
@@ -538,7 +556,9 @@ export default function AdminApprovals() {
           private_doctors: editableData.privateDoctors || null,
           enrollment_type: editableData.enrollmentType,
           plan_type: editableData.planType as any,
-        })
+          class_type: selectedClassType,
+          shift_type: selectedShiftType,
+        } as any)
         .eq("id", selectedRegistration.id);
 
       if (error) throw error;
@@ -569,6 +589,33 @@ export default function AdminApprovals() {
     } catch (error) {
       console.error("Error saving data:", error);
       toast.error("Erro ao salvar dados");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // Save class/shift/plan selection to database
+  async function saveClassShiftPlan() {
+    if (!selectedRegistration) return;
+
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("child_registrations")
+        .update({
+          class_type: selectedClassType,
+          shift_type: selectedShiftType,
+          plan_type: selectedPlanType,
+        } as any)
+        .eq("id", selectedRegistration.id);
+
+      if (error) throw error;
+
+      toast.success("Turma, turno e plano salvos!");
+      fetchData();
+    } catch (error) {
+      console.error("Error saving class/shift/plan:", error);
+      toast.error("Erro ao salvar");
     } finally {
       setActionLoading(false);
     }
@@ -1532,6 +1579,17 @@ export default function AdminApprovals() {
                         </div>
                       )}
                     </div>
+
+                    {/* Save button for class/shift/plan */}
+                    <Button 
+                      variant="outline" 
+                      onClick={saveClassShiftPlan}
+                      disabled={actionLoading}
+                      className="w-full"
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                      Salvar Turma, Turno e Plano
+                    </Button>
 
                     <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
                       <p className="text-muted-foreground">

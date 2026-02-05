@@ -421,6 +421,7 @@ export type Database = {
           birth_certificate_url: string | null
           birth_date: string
           city: string
+          class_type: string | null
           continuous_doctors: string | null
           cpf: string | null
           created_at: string
@@ -434,6 +435,7 @@ export type Database = {
           plan_type: Database["public"]["Enums"]["plan_type"] | null
           private_doctors: string | null
           rg: string | null
+          shift_type: string | null
           status: string
           sus_card: string | null
           updated_at: string
@@ -444,6 +446,7 @@ export type Database = {
           birth_certificate_url?: string | null
           birth_date: string
           city: string
+          class_type?: string | null
           continuous_doctors?: string | null
           cpf?: string | null
           created_at?: string
@@ -457,6 +460,7 @@ export type Database = {
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
           rg?: string | null
+          shift_type?: string | null
           status?: string
           sus_card?: string | null
           updated_at?: string
@@ -467,6 +471,7 @@ export type Database = {
           birth_certificate_url?: string | null
           birth_date?: string
           city?: string
+          class_type?: string | null
           continuous_doctors?: string | null
           cpf?: string | null
           created_at?: string
@@ -480,6 +485,7 @@ export type Database = {
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
           rg?: string | null
+          shift_type?: string | null
           status?: string
           sus_card?: string | null
           updated_at?: string
