@@ -71,6 +71,7 @@ interface ContractPreviewDialogProps {
   contractData: ContractData;
   onConfirmSend: (editedData: ContractData) => Promise<void>;
   loading?: boolean;
+  viewOnly?: boolean;
 }
 
 // ClauseEditor component - MOVED OUTSIDE to prevent re-creation on each render
@@ -192,6 +193,7 @@ export function ContractPreviewDialog({
   contractData,
   onConfirmSend,
   loading = false,
+  viewOnly = false,
 }: ContractPreviewDialogProps) {
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
@@ -748,21 +750,23 @@ export function ContractPreviewDialog({
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
-            Cancelar
+            {viewOnly ? "Fechar" : "Cancelar"}
           </Button>
-          <Button onClick={handleRequestSend} disabled={sending || loading}>
-            {sending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Aprovar e Enviar Contrato
-              </>
-            )}
-          </Button>
+          {!viewOnly && (
+            <Button onClick={handleRequestSend} disabled={sending || loading}>
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Aprovar e Enviar Contrato
+                </>
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
 
