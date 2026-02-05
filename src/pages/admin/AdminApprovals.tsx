@@ -119,6 +119,7 @@ export default function AdminApprovals() {
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
+  const [contractViewOnly, setContractViewOnly] = useState(false);
   const [contractData, setContractData] = useState<any>(null);
   const [pendingApprovalData, setPendingApprovalData] = useState<{
     registration: PendingChildRegistration;
@@ -1747,10 +1748,14 @@ export default function AdminApprovals() {
                 <Button variant="outline" onClick={() => setRegistrationDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handlePreviewContract} disabled={actionLoading}>
+                <Button variant="outline" onClick={() => { setContractViewOnly(true); handlePreviewContract(); }} disabled={actionLoading}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Visualizar Contrato
+                </Button>
+                <Button onClick={() => { setContractViewOnly(false); handlePreviewContract(); }} disabled={actionLoading}>
                   {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <FileText className="w-4 h-4 mr-2" />
-                  Visualizar e Enviar Contrato
+                  Aprovar e Enviar
                 </Button>
               </>
             )}
@@ -1765,6 +1770,7 @@ export default function AdminApprovals() {
           onOpenChange={setContractPreviewOpen}
           contractData={contractData}
           onConfirmSend={sendContractAfterPreview}
+          viewOnly={contractViewOnly}
         />
       )}
 
