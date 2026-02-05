@@ -1395,6 +1395,149 @@ export default function AdminApprovals() {
                       </>
                     )}
                   </div>
+
+                  {/* Turma, Turno e Plano - apenas na aba Criança */}
+                  <div className="mt-4 pt-4 border-t space-y-4">
+                    <h4 className="font-semibold">Definir Turma, Turno e Plano</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Turma *</Label>
+                        <Select 
+                          value={selectedClassType} 
+                          onValueChange={(v) => {
+                            const newClass = v as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2";
+                            setSelectedClassType(newClass);
+                            // Auto-adjust plan if current plan not available for new class
+                            const availablePlans = getAvailablePlans(newClass as ClassType);
+                            if (!availablePlans.includes(selectedPlanType as PlanType)) {
+                              setSelectedPlanType(availablePlans[0] as "basico" | "intermediario" | "plus");
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bercario">Berçário (0-2 anos)</SelectItem>
+                            <SelectItem value="maternal_1">Maternal I (2-3 anos)</SelectItem>
+                            <SelectItem value="maternal_2">Maternal II (3-4 anos)</SelectItem>
+                            <SelectItem value="jardim_1">Jardim I (4-5 anos)</SelectItem>
+                            <SelectItem value="jardim_2">Jardim II (5-6 anos)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Turno *</Label>
+                        <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manha">Manhã (7h às 12h)</SelectItem>
+                            <SelectItem value="tarde">Tarde (13h às 18h)</SelectItem>
+                            <SelectItem value="integral">Integral (9 horas)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Plano *</Label>
+                        <Select 
+                          value={selectedPlanType} 
+                          onValueChange={(v) => setSelectedPlanType(v as "basico" | "intermediario" | "plus")}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAvailablePlans(selectedClassType as ClassType).map((plan) => (
+                              <SelectItem key={plan} value={plan}>
+                                {PLAN_NAMES[plan]} - {formatCurrency(getPrice(selectedClassType as ClassType, plan))}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {isHalfDayOnly(selectedClassType as ClassType) && (
+                          <p className="text-xs text-muted-foreground">
+                            Jardim só possui meio turno (sala única)
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Relacionamento</Label>
+                        <Select value={relationship} onValueChange={setRelationship}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mãe">Mãe</SelectItem>
+                            <SelectItem value="pai">Pai</SelectItem>
+                            <SelectItem value="avô">Avô</SelectItem>
+                            <SelectItem value="avó">Avó</SelectItem>
+                            <SelectItem value="responsável">Responsável</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Pricing section */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-primary" />
+                          <Label className="font-semibold">Valor da Mensalidade</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="custom-price-toggle" className="text-sm text-muted-foreground">
+                            Valor personalizado
+                          </Label>
+                          <Switch 
+                            id="custom-price-toggle"
+                            checked={useCustomPrice}
+                            onCheckedChange={setUseCustomPrice}
+                          />
+                        </div>
+                      </div>
+                      
+                      {useCustomPrice ? (
+                        <div className="space-y-2">
+                          <Input
+                            type="text"
+                            placeholder="Ex: 999,90"
+                            value={customPrice}
+                            onChange={(e) => setCustomPrice(e.target.value)}
+                            className="font-mono"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Informe o valor em reais (ex: 1299,90). Este valor será usado no contrato e na cobrança do Asaas.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-background rounded border">
+                          <span className="text-sm text-muted-foreground">Valor calculado:</span>
+                          <span className="text-lg font-bold text-primary">
+                            {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                          </span>
+                        </div>
+                      )}
+
+                      {selectedRegistration?.plan_type && selectedRegistration.plan_type !== selectedPlanType && (
+                        <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-700">
+                          <strong>Atenção:</strong> O responsável escolheu o plano <strong>{PLAN_NAMES[selectedRegistration.plan_type as PlanType] || selectedRegistration.plan_type}</strong> no cadastro. 
+                          Você está alterando para <strong>{PLAN_NAMES[selectedPlanType as PlanType]}</strong>.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+                      <p className="text-muted-foreground">
+                        <strong>Nota:</strong> Ao aprovar, a criança será vinculada ao responsável <strong>{selectedRegistration.parent_name}</strong>. A edição das cláusulas do contrato pode ser feita na próxima etapa, na aba "Editar Dados".
+                      </p>
+                    </div>
+                  </div>
                 </TabsContent>
 
                 {/* Tab: Documentos */}
@@ -1585,149 +1728,6 @@ export default function AdminApprovals() {
                   )}
                 </TabsContent>
               </Tabs>
-
-              {/* Turma, Turno e Plano - sempre visíveis */}
-              <div className="mt-6 pt-6 border-t space-y-4">
-                <h4 className="font-semibold">Definir Turma, Turno e Plano</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Turma *</Label>
-                    <Select 
-                      value={selectedClassType} 
-                      onValueChange={(v) => {
-                        const newClass = v as "bercario" | "maternal" | "maternal_1" | "maternal_2" | "jardim" | "jardim_1" | "jardim_2";
-                        setSelectedClassType(newClass);
-                        // Auto-adjust plan if current plan not available for new class
-                        const availablePlans = getAvailablePlans(newClass as ClassType);
-                        if (!availablePlans.includes(selectedPlanType as PlanType)) {
-                          setSelectedPlanType(availablePlans[0] as "basico" | "intermediario" | "plus");
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bercario">Berçário (0-2 anos)</SelectItem>
-                        <SelectItem value="maternal_1">Maternal I (2-3 anos)</SelectItem>
-                        <SelectItem value="maternal_2">Maternal II (3-4 anos)</SelectItem>
-                        <SelectItem value="jardim_1">Jardim I (4-5 anos)</SelectItem>
-                        <SelectItem value="jardim_2">Jardim II (5-6 anos)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Turno *</Label>
-                    <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manha">Manhã (7h às 12h)</SelectItem>
-                        <SelectItem value="tarde">Tarde (13h às 18h)</SelectItem>
-                        <SelectItem value="integral">Integral (9 horas)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Plano *</Label>
-                    <Select 
-                      value={selectedPlanType} 
-                      onValueChange={(v) => setSelectedPlanType(v as "basico" | "intermediario" | "plus")}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailablePlans(selectedClassType as ClassType).map((plan) => (
-                          <SelectItem key={plan} value={plan}>
-                            {PLAN_NAMES[plan]} - {formatCurrency(getPrice(selectedClassType as ClassType, plan))}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {isHalfDayOnly(selectedClassType as ClassType) && (
-                      <p className="text-xs text-muted-foreground">
-                        Jardim só possui meio turno (sala única)
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Relacionamento</Label>
-                    <Select value={relationship} onValueChange={setRelationship}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mãe">Mãe</SelectItem>
-                        <SelectItem value="pai">Pai</SelectItem>
-                        <SelectItem value="avô">Avô</SelectItem>
-                        <SelectItem value="avó">Avó</SelectItem>
-                        <SelectItem value="responsável">Responsável</SelectItem>
-                        <SelectItem value="outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Pricing section */}
-                <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-primary" />
-                      <Label className="font-semibold">Valor da Mensalidade</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="custom-price-toggle" className="text-sm text-muted-foreground">
-                        Valor personalizado
-                      </Label>
-                      <Switch 
-                        id="custom-price-toggle"
-                        checked={useCustomPrice}
-                        onCheckedChange={setUseCustomPrice}
-                      />
-                    </div>
-                  </div>
-                  
-                  {useCustomPrice ? (
-                    <div className="space-y-2">
-                      <Input
-                        type="text"
-                        placeholder="Ex: 999,90"
-                        value={customPrice}
-                        onChange={(e) => setCustomPrice(e.target.value)}
-                        className="font-mono"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Informe o valor em reais (ex: 1299,90). Este valor será usado no contrato e na cobrança do Asaas.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-3 bg-background rounded border">
-                      <span className="text-sm text-muted-foreground">Valor calculado:</span>
-                      <span className="text-lg font-bold text-primary">
-                        {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
-                      </span>
-                    </div>
-                  )}
-
-                  {selectedRegistration?.plan_type && selectedRegistration.plan_type !== selectedPlanType && (
-                    <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-700">
-                      <strong>Atenção:</strong> O responsável escolheu o plano <strong>{PLAN_NAMES[selectedRegistration.plan_type as PlanType] || selectedRegistration.plan_type}</strong> no cadastro. 
-                      Você está alterando para <strong>{PLAN_NAMES[selectedPlanType as PlanType]}</strong>.
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
-                  <p className="text-muted-foreground">
-                    <strong>Nota:</strong> Ao aprovar, a criança será automaticamente vinculada ao responsável <strong>{selectedRegistration.parent_name}</strong> com o relacionamento selecionado acima.
-                  </p>
-                </div>
-              </div>
             </ScrollArea>
           )}
 
