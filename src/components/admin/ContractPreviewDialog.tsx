@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,14 +19,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Loader2, FileText, Send, Pencil, Eye, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { Loader2, FileText, Send, Pencil, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
-import { getPrice, formatCurrency, ClassType, PlanType, getClassDisplayName } from "@/lib/pricing";
+import { getPrice, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
 
 export interface ContractData {
   parentName: string;
@@ -73,48 +71,6 @@ interface ContractPreviewDialogProps {
   loading?: boolean;
   viewOnly?: boolean;
 }
-
-// ClauseEditor component - MOVED OUTSIDE to prevent re-creation on each render
-interface ClauseEditorProps {
-  clauseKey: keyof ContractData;
-  title: string;
-  clauseNumber: number;
-  value: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  onChange: (value: string) => void;
-}
-
-const ClauseEditor = memo(function ClauseEditor({ 
-  clauseKey, 
-  title, 
-  clauseNumber,
-  value,
-  isOpen,
-  onToggle,
-  onChange
-}: ClauseEditorProps) {
-  return (
-    <Collapsible open={isOpen} onOpenChange={onToggle}>
-      <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 bg-card hover:bg-accent/50 rounded-lg border text-left transition-colors">
-        {isOpen ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        )}
-        <span className="font-medium">CLÁUSULA {clauseNumber} – {title}</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 pl-6">
-        <Textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="min-h-[120px] text-sm"
-          placeholder={`Texto da cláusula ${clauseNumber}...`}
-        />
-      </CollapsibleContent>
-    </Collapsible>
-  );
-});
 
 const COMPANY_DATA = {
   name: "ESCOLA DE ENSINO INFANTIL PIMPOLINHOS LTDA",
@@ -196,7 +152,6 @@ export function ContractPreviewDialog({
   viewOnly = false,
 }: ContractPreviewDialogProps) {
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
   const [editedData, setEditedData] = useState<ContractData>(contractData);
   const [openClauses, setOpenClauses] = useState<Record<string, boolean>>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -223,7 +178,7 @@ export function ContractPreviewDialog({
       clauseSocialMedia: contractData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia,
       clauseValidity: contractData.clauseValidity || DEFAULT_CLAUSES.clauseValidity,
     });
-    setActiveTab("preview");
+    // Reset clauses state
     setOpenClauses({});
     setConfirmDialogOpen(false);
   }, [contractData]);
@@ -255,6 +210,88 @@ export function ContractPreviewDialog({
     }
   };
 
+  // Helper component for inline editable fields
+  const EditableField = ({ 
+    label, 
+    value, 
+    onChange, 
+    placeholder,
+    type = "text",
+    maxLength
+  }: { 
+    label: string; 
+    value: string; 
+    onChange: (v: string) => void;
+    placeholder?: string;
+    type?: string;
+    maxLength?: number;
+  }) => (
+    <div className="flex items-center gap-2 group">
+      <span className="font-semibold whitespace-nowrap">{label}</span>
+      <Input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="h-7 text-sm flex-1 bg-background/50 border-dashed focus:border-solid"
+      />
+    </div>
+  );
+
+  // Helper for editable clause sections
+  const EditableClauseSection = ({
+    title,
+    clauseNumber,
+    clauseKey,
+    children,
+  }: {
+    title: string;
+    clauseNumber: number;
+    clauseKey: keyof ContractData;
+    children?: React.ReactNode;
+  }) => {
+    const isOpen = openClauses[clauseKey] || false;
+    const value = (editedData[clauseKey] as string) || '';
+    
+    return (
+      <div className="bg-card p-4 rounded-lg border mb-4">
+        <Collapsible open={isOpen} onOpenChange={() => toggleClause(clauseKey)}>
+          <CollapsibleTrigger className="flex items-center gap-2 w-full text-left group">
+            <h4 className="font-semibold flex-1">CLÁUSULA {clauseNumber} – {title}</h4>
+            <Pencil className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CollapsibleTrigger>
+          
+          {children && <div className="mt-2">{children}</div>}
+          
+          {!isOpen && (
+            <p className="mt-2 text-sm">{value || DEFAULT_CLAUSES[clauseKey as keyof typeof DEFAULT_CLAUSES]}</p>
+          )}
+          
+          <CollapsibleContent className="mt-2">
+            <Textarea
+              value={value}
+              onChange={(e) => handleInputChange(clauseKey, e.target.value)}
+              className="min-h-[100px] text-sm"
+              placeholder={`Texto da cláusula ${clauseNumber}...`}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    );
+  };
+
+  // Calculate monthly value for display
+  const classKey = editedData.classType as ClassType;
+  const planKey = editedData.planType as PlanType;
+  const priceValue = editedData.customMonthlyValue || (classKey && planKey ? getPrice(classKey, planKey) : 0);
+  const monthlyValue = priceValue > 0 ? formatCurrency(priceValue) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -264,489 +301,174 @@ export function ContractPreviewDialog({
             Prévia do Contrato de Matrícula
           </DialogTitle>
           <DialogDescription>
-            Revise os dados e edite se necessário antes de enviar para assinatura
+            Clique nos campos ou cláusulas para editar diretamente
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "edit")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="preview" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Visualizar Contrato
-            </TabsTrigger>
-            <TabsTrigger value="edit" className="flex items-center gap-2">
-              <Pencil className="h-4 w-4" />
-              Editar Dados
-            </TabsTrigger>
-          </TabsList>
+        <ScrollArea className="h-[60vh] border rounded-lg p-6 bg-muted/30">
+          <div className="prose prose-sm max-w-none">
+            <h2 className="text-center font-bold text-lg mb-4">
+              CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS E CUIDADOS INFANTIS
+            </h2>
+            <h3 className="text-center text-base mb-6">{COMPANY_DATA.name}</h3>
 
-          <TabsContent value="preview" className="mt-4">
-            <ScrollArea className="h-[55vh] border rounded-lg p-6 bg-muted/30">
-              <div className="prose prose-sm max-w-none">
-                <h2 className="text-center font-bold text-lg mb-4">
-                  CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS E CUIDADOS INFANTIS
-                </h2>
-                <h3 className="text-center text-base mb-6">{COMPANY_DATA.name}</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Pelo presente instrumento particular de Contrato de Prestação de Serviços 
+              Educacionais e Cuidados Infantis, de um lado:
+            </p>
 
-                <p className="text-sm text-muted-foreground mb-4">
-                  Pelo presente instrumento particular de Contrato de Prestação de Serviços 
-                  Educacionais e Cuidados Infantis, de um lado:
+            {/* Cláusula 1 - Partes (Editável) */}
+            <div className="bg-card p-4 rounded-lg border mb-4 space-y-3">
+              <h4 className="font-semibold mb-2">CLÁUSULA 1 – DAS PARTES CONTRATANTES</h4>
+              
+              <p className="text-sm">
+                <strong>CONTRATADA:</strong> {COMPANY_DATA.name}, pessoa jurídica de direito privado, 
+                inscrita no CNPJ sob nº {COMPANY_DATA.cnpj}, com sede na {COMPANY_DATA.address}.
+              </p>
+              
+              <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                <p className="text-xs text-muted-foreground font-medium mb-2">
+                  <Pencil className="h-3 w-3 inline mr-1" />
+                  Dados do Responsável (editáveis)
                 </p>
-
-                {/* Cláusula 1 - Partes */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 1 – DAS PARTES CONTRATANTES</h4>
-                  
-                  <p className="mb-2">
-                    <strong>CONTRATADA:</strong> {COMPANY_DATA.name}, pessoa jurídica de direito privado, 
-                    inscrita no CNPJ sob nº {COMPANY_DATA.cnpj}, com sede na {COMPANY_DATA.address}.
-                  </p>
-                  
-                  <p className="mb-2">
-                    <strong>CONTRATANTE ({editedData.parentRelationship || 'Responsável'}):</strong> {editedData.parentName || '[Nome não informado]'}, 
-                    inscrito(a) no CPF sob nº {editedData.parentCpf ? formatCPF(editedData.parentCpf) : '[CPF não informado]'}
-                    {editedData.parentRg ? `, RG nº ${editedData.parentRg}` : ''}, 
-                    residente e domiciliado(a) em {editedData.address || 'Canoas/RS'}, 
-                    telefone: {editedData.parentPhone ? formatPhone(editedData.parentPhone) : '[Telefone não informado]'}, 
-                    e-mail: {editedData.parentEmail || '[Email não informado]'}.
-                  </p>
-                  
-                  <p>
-                    <strong>ALUNO(A):</strong> {editedData.childName}
-                    {editedData.childCpf ? `, inscrito(a) no CPF sob nº ${formatCPF(editedData.childCpf)}` : ''}
-                    , nascido(a) em {editedData.birthDate}.
-                  </p>
-                </div>
-
-                {/* Cláusula 2 - Objeto */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 2 – DO OBJETO DO CONTRATO</h4>
-                  <p>{editedData.clauseObject || DEFAULT_CLAUSES.clauseObject}</p>
-                </div>
-
-                {/* Cláusula 3 - Matrícula */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 3 – DA MATRÍCULA</h4>
-                  <p className="mb-2">
-                    <strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}
-                  </p>
-                  <p className="mb-2">
-                    <strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} 
-                    ({shiftHours[editedData.shiftType] || 'conforme contratado'})
-                  </p>
-                  <p>{editedData.clauseEnrollment || DEFAULT_CLAUSES.clauseEnrollment}</p>
-                </div>
-
-                {/* Cláusula 4 - Mensalidades */}
-                {(() => {
-                  const classKey = editedData.classType as ClassType;
-                  const planKey = editedData.planType as PlanType;
-                  // Use getPrice which handles Maternal I pricing (same as Berçário)
-                  const priceValue = classKey && planKey ? getPrice(classKey, planKey) : 0;
-                  const monthlyValue = priceValue > 0 ? formatCurrency(priceValue) : null;
-                  
-                  return (
-                    <div className="bg-card p-4 rounded-lg border mb-4">
-                      <h4 className="font-semibold mb-2">CLÁUSULA 4 – DAS MENSALIDADES</h4>
-                      <p className="mb-2">
-                        <strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}
-                      </p>
-                      {monthlyValue && (
-                        <p className="mb-2">
-                          <strong>Valor Mensal:</strong> {monthlyValue}
-                        </p>
-                      )}
-                      <p>{editedData.clauseMonthlyFee || DEFAULT_CLAUSES.clauseMonthlyFee}</p>
-                    </div>
-                  );
-                })()}
-
-                {/* Cláusula 5 - Horário */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO</h4>
-                  <p>{editedData.clauseHours || DEFAULT_CLAUSES.clauseHours}</p>
-                </div>
-
-                {/* Cláusula 6 - Alimentação */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 6 – DA ALIMENTAÇÃO</h4>
-                  <p>{editedData.clauseFood || DEFAULT_CLAUSES.clauseFood}</p>
-                </div>
-
-                {/* Cláusula 7 - Medicamentos */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 7 – DA ADMINISTRAÇÃO DE MEDICAMENTOS</h4>
-                  <p>{editedData.clauseMedication || DEFAULT_CLAUSES.clauseMedication}</p>
-                </div>
-
-                {/* Cláusula 8 - Saúde e Segurança */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 8 – DA SAÚDE E SEGURANÇA</h4>
-                  {editedData.emergencyContact && (
-                    <p className="mb-2">
-                      <strong>Contato de Emergência:</strong> {editedData.emergencyContact}
-                    </p>
-                  )}
-                  <p>{editedData.clauseHealth || DEFAULT_CLAUSES.clauseHealth}</p>
-                </div>
-
-                {/* Cláusula 9 - Uniforme */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 9 – DO UNIFORME E MATERIAIS</h4>
-                  <p>{editedData.clauseUniform || DEFAULT_CLAUSES.clauseUniform}</p>
-                </div>
-
-                {/* Cláusula 10 - Regulamento */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 10 – DO REGULAMENTO INTERNO</h4>
-                  <p>{editedData.clauseRegulations || DEFAULT_CLAUSES.clauseRegulations}</p>
-                </div>
-
-                {/* Cláusula 11 - Imagem */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 11 – DO USO DE IMAGEM</h4>
-                  <p>{editedData.clauseImageRights || DEFAULT_CLAUSES.clauseImageRights}</p>
-                </div>
-
-                {/* Cláusula 12 - Rescisão */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 12 – DA RESCISÃO</h4>
-                  <p>{editedData.clauseTermination || DEFAULT_CLAUSES.clauseTermination}</p>
-                </div>
-
-                {/* Cláusula 13 - LGPD */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 13 – DA PROTEÇÃO DE DADOS (LGPD)</h4>
-                  <p>{editedData.clauseLGPD || DEFAULT_CLAUSES.clauseLGPD}</p>
-                </div>
-
-                {/* Cláusula 14 - Foro */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 14 – DO FORO</h4>
-                  <p>{editedData.clauseForum || DEFAULT_CLAUSES.clauseForum}</p>
-                </div>
-
-                {/* Cláusula 15 - Multa */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 15 – DA MULTA POR RESCISÃO</h4>
-                  <p>{editedData.clausePenalty || DEFAULT_CLAUSES.clausePenalty}</p>
-                </div>
-
-                {/* Cláusula 16 - Redes Sociais */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 16 – AUTORIZAÇÃO PARA REDES SOCIAIS</h4>
-                  <p>{editedData.clauseSocialMedia || DEFAULT_CLAUSES.clauseSocialMedia}</p>
-                </div>
-
-                {/* Cláusula 17 - Validade */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">CLÁUSULA 17 – DA VALIDADE DO CONTRATO</h4>
-                  <p>{editedData.clauseValidity || DEFAULT_CLAUSES.clauseValidity}</p>
-                </div>
-
-                {/* Disposições Gerais */}
-                <div className="bg-card p-4 rounded-lg border mb-4">
-                  <h4 className="font-semibold mb-2">DISPOSIÇÕES GERAIS</h4>
-                  <p>{editedData.clauseGeneral || DEFAULT_CLAUSES.clauseGeneral}</p>
-                </div>
-
-                <div className="mt-6 pt-4 border-t">
-                  <p className="text-center text-sm text-muted-foreground">
-                    Canoas/RS, {currentDate}
-                  </p>
-                </div>
+                <EditableField 
+                  label="Nome:" 
+                  value={editedData.parentName} 
+                  onChange={(v) => handleInputChange('parentName', v)}
+                  placeholder="Nome do responsável"
+                />
+                <EditableField 
+                  label="CPF:" 
+                  value={formatCPF(editedData.parentCpf)} 
+                  onChange={(v) => handleInputChange('parentCpf', v.replace(/\D/g, ''))}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
+                <EditableField 
+                  label="RG:" 
+                  value={editedData.parentRg || ''} 
+                  onChange={(v) => handleInputChange('parentRg', v)}
+                  placeholder="RG (opcional)"
+                />
+                <EditableField 
+                  label="Endereço:" 
+                  value={editedData.address} 
+                  onChange={(v) => handleInputChange('address', v)}
+                  placeholder="Rua, número, bairro, cidade/UF"
+                />
+                <EditableField 
+                  label="Telefone:" 
+                  value={formatPhone(editedData.parentPhone)} 
+                  onChange={(v) => handleInputChange('parentPhone', v.replace(/\D/g, ''))}
+                  placeholder="(00) 00000-0000"
+                  maxLength={15}
+                />
+                <EditableField 
+                  label="E-mail:" 
+                  value={editedData.parentEmail} 
+                  onChange={(v) => handleInputChange('parentEmail', v)}
+                  placeholder="email@exemplo.com"
+                  type="email"
+                />
               </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="edit" className="mt-4">
-            <ScrollArea className="h-[55vh] border rounded-lg p-6 bg-muted/30">
-              <div className="space-y-6">
-                {/* Dados do Responsável */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg border-b pb-2">Dados do Responsável (Cláusula 1)</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="parentName">Nome Completo *</Label>
-                      <Input
-                        id="parentName"
-                        value={editedData.parentName}
-                        onChange={(e) => handleInputChange('parentName', e.target.value)}
-                        placeholder="Nome do responsável"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="parentEmail">E-mail *</Label>
-                      <Input
-                        id="parentEmail"
-                        type="email"
-                        value={editedData.parentEmail}
-                        onChange={(e) => handleInputChange('parentEmail', e.target.value)}
-                        placeholder="email@exemplo.com"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="parentCpf">CPF *</Label>
-                      <Input
-                        id="parentCpf"
-                        value={formatCPF(editedData.parentCpf)}
-                        onChange={(e) => handleInputChange('parentCpf', e.target.value.replace(/\D/g, ''))}
-                        placeholder="000.000.000-00"
-                        maxLength={14}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="parentRg">RG</Label>
-                      <Input
-                        id="parentRg"
-                        value={editedData.parentRg || ''}
-                        onChange={(e) => handleInputChange('parentRg', e.target.value)}
-                        placeholder="RG do responsável"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="parentPhone">Telefone *</Label>
-                      <Input
-                        id="parentPhone"
-                        value={formatPhone(editedData.parentPhone)}
-                        onChange={(e) => handleInputChange('parentPhone', e.target.value.replace(/\D/g, ''))}
-                        placeholder="(00) 00000-0000"
-                        maxLength={15}
-                      />
-                    </div>
-                    
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="address">Endereço Completo *</Label>
-                      <Input
-                        id="address"
-                        value={editedData.address}
-                        onChange={(e) => handleInputChange('address', e.target.value)}
-                        placeholder="Rua, número, bairro, cidade/UF"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dados da Criança */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg border-b pb-2">Dados da Criança (Cláusula 1)</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="childName">Nome da Criança *</Label>
-                      <Input
-                        id="childName"
-                        value={editedData.childName}
-                        onChange={(e) => handleInputChange('childName', e.target.value)}
-                        placeholder="Nome completo"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="birthDate">Data de Nascimento</Label>
-                      <Input
-                        id="birthDate"
-                        value={editedData.birthDate}
-                        onChange={(e) => handleInputChange('birthDate', e.target.value)}
-                        placeholder="DD/MM/AAAA"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contato de Emergência */}
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg border-b pb-2">Contato de Emergência (Cláusula 8)</h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="emergencyContact">Contato de Emergência</Label>
-                    <Input
-                      id="emergencyContact"
-                      value={editedData.emergencyContact || ''}
-                      onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
-                      placeholder="Nome (parentesco) - Telefone"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-lg border-b pb-2">Cláusulas do Contrato</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Clique em cada cláusula para expandir e editar o texto. As cláusulas possuem textos padrão que podem ser personalizados conforme necessário.
-                  </p>
-                  
-                  <div className="space-y-2">
-                    <ClauseEditor 
-                      clauseKey="clauseObject" 
-                      title="DO OBJETO DO CONTRATO" 
-                      clauseNumber={2}
-                      value={editedData.clauseObject || ''}
-                      isOpen={openClauses.clauseObject || false}
-                      onToggle={() => toggleClause('clauseObject')}
-                      onChange={(v) => handleInputChange('clauseObject', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseEnrollment" 
-                      title="DA MATRÍCULA" 
-                      clauseNumber={3}
-                      value={editedData.clauseEnrollment || ''}
-                      isOpen={openClauses.clauseEnrollment || false}
-                      onToggle={() => toggleClause('clauseEnrollment')}
-                      onChange={(v) => handleInputChange('clauseEnrollment', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseMonthlyFee" 
-                      title="DAS MENSALIDADES" 
-                      clauseNumber={4}
-                      value={editedData.clauseMonthlyFee || ''}
-                      isOpen={openClauses.clauseMonthlyFee || false}
-                      onToggle={() => toggleClause('clauseMonthlyFee')}
-                      onChange={(v) => handleInputChange('clauseMonthlyFee', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseHours" 
-                      title="DO HORÁRIO DE FUNCIONAMENTO" 
-                      clauseNumber={5}
-                      value={editedData.clauseHours || ''}
-                      isOpen={openClauses.clauseHours || false}
-                      onToggle={() => toggleClause('clauseHours')}
-                      onChange={(v) => handleInputChange('clauseHours', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseFood" 
-                      title="DA ALIMENTAÇÃO" 
-                      clauseNumber={6}
-                      value={editedData.clauseFood || ''}
-                      isOpen={openClauses.clauseFood || false}
-                      onToggle={() => toggleClause('clauseFood')}
-                      onChange={(v) => handleInputChange('clauseFood', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseMedication" 
-                      title="DA ADMINISTRAÇÃO DE MEDICAMENTOS" 
-                      clauseNumber={7}
-                      value={editedData.clauseMedication || ''}
-                      isOpen={openClauses.clauseMedication || false}
-                      onToggle={() => toggleClause('clauseMedication')}
-                      onChange={(v) => handleInputChange('clauseMedication', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseHealth" 
-                      title="DA SAÚDE E SEGURANÇA" 
-                      clauseNumber={8}
-                      value={editedData.clauseHealth || ''}
-                      isOpen={openClauses.clauseHealth || false}
-                      onToggle={() => toggleClause('clauseHealth')}
-                      onChange={(v) => handleInputChange('clauseHealth', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseUniform" 
-                      title="DO UNIFORME E MATERIAIS" 
-                      clauseNumber={9}
-                      value={editedData.clauseUniform || ''}
-                      isOpen={openClauses.clauseUniform || false}
-                      onToggle={() => toggleClause('clauseUniform')}
-                      onChange={(v) => handleInputChange('clauseUniform', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseRegulations" 
-                      title="DO REGULAMENTO INTERNO" 
-                      clauseNumber={10}
-                      value={editedData.clauseRegulations || ''}
-                      isOpen={openClauses.clauseRegulations || false}
-                      onToggle={() => toggleClause('clauseRegulations')}
-                      onChange={(v) => handleInputChange('clauseRegulations', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseImageRights" 
-                      title="DO USO DE IMAGEM" 
-                      clauseNumber={11}
-                      value={editedData.clauseImageRights || ''}
-                      isOpen={openClauses.clauseImageRights || false}
-                      onToggle={() => toggleClause('clauseImageRights')}
-                      onChange={(v) => handleInputChange('clauseImageRights', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseTermination" 
-                      title="DA RESCISÃO" 
-                      clauseNumber={12}
-                      value={editedData.clauseTermination || ''}
-                      isOpen={openClauses.clauseTermination || false}
-                      onToggle={() => toggleClause('clauseTermination')}
-                      onChange={(v) => handleInputChange('clauseTermination', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseLGPD" 
-                      title="DA PROTEÇÃO DE DADOS (LGPD)" 
-                      clauseNumber={13}
-                      value={editedData.clauseLGPD || ''}
-                      isOpen={openClauses.clauseLGPD || false}
-                      onToggle={() => toggleClause('clauseLGPD')}
-                      onChange={(v) => handleInputChange('clauseLGPD', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseForum" 
-                      title="DO FORO" 
-                      clauseNumber={14}
-                      value={editedData.clauseForum || ''}
-                      isOpen={openClauses.clauseForum || false}
-                      onToggle={() => toggleClause('clauseForum')}
-                      onChange={(v) => handleInputChange('clauseForum', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clausePenalty" 
-                      title="DA MULTA POR RESCISÃO" 
-                      clauseNumber={15}
-                      value={editedData.clausePenalty || ''}
-                      isOpen={openClauses.clausePenalty || false}
-                      onToggle={() => toggleClause('clausePenalty')}
-                      onChange={(v) => handleInputChange('clausePenalty', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseSocialMedia" 
-                      title="AUTORIZAÇÃO PARA REDES SOCIAIS" 
-                      clauseNumber={16}
-                      value={editedData.clauseSocialMedia || ''}
-                      isOpen={openClauses.clauseSocialMedia || false}
-                      onToggle={() => toggleClause('clauseSocialMedia')}
-                      onChange={(v) => handleInputChange('clauseSocialMedia', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseValidity" 
-                      title="DA VALIDADE DO CONTRATO" 
-                      clauseNumber={17}
-                      value={editedData.clauseValidity || ''}
-                      isOpen={openClauses.clauseValidity || false}
-                      onToggle={() => toggleClause('clauseValidity')}
-                      onChange={(v) => handleInputChange('clauseValidity', v)}
-                    />
-                    <ClauseEditor 
-                      clauseKey="clauseGeneral" 
-                      title="DISPOSIÇÕES GERAIS" 
-                      clauseNumber={18}
-                      value={editedData.clauseGeneral || ''}
-                      isOpen={openClauses.clauseGeneral || false}
-                      onToggle={() => toggleClause('clauseGeneral')}
-                      onChange={(v) => handleInputChange('clauseGeneral', v)}
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Nota:</strong> Os campos de Turma, Turno e Plano são definidos na aprovação 
-                    e não podem ser alterados aqui. Se precisar alterar, cancele e refaça a aprovação.
-                  </p>
-                </div>
+              
+              <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                <p className="text-xs text-muted-foreground font-medium mb-2">
+                  <Pencil className="h-3 w-3 inline mr-1" />
+                  Dados do Aluno (editáveis)
+                </p>
+                <EditableField 
+                  label="Nome:" 
+                  value={editedData.childName} 
+                  onChange={(v) => handleInputChange('childName', v)}
+                  placeholder="Nome da criança"
+                />
+                <EditableField 
+                  label="Nascimento:" 
+                  value={editedData.birthDate} 
+                  onChange={(v) => handleInputChange('birthDate', v)}
+                  placeholder="DD/MM/AAAA"
+                />
               </div>
-            </ScrollArea>
-          </TabsContent>
-        </Tabs>
+            </div>
+
+            {/* Cláusula 2 - Objeto */}
+            <EditableClauseSection title="DO OBJETO DO CONTRATO" clauseNumber={2} clauseKey="clauseObject" />
+
+            {/* Cláusula 3 - Matrícula */}
+            <EditableClauseSection title="DA MATRÍCULA" clauseNumber={3} clauseKey="clauseEnrollment">
+              <div className="text-sm space-y-1 mb-2">
+                <p><strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}</p>
+                <p><strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} ({shiftHours[editedData.shiftType] || 'conforme contratado'})</p>
+              </div>
+            </EditableClauseSection>
+
+            {/* Cláusula 4 - Mensalidades */}
+            <EditableClauseSection title="DAS MENSALIDADES" clauseNumber={4} clauseKey="clauseMonthlyFee">
+              <div className="text-sm space-y-1 mb-2">
+                <p><strong>Plano Contratado:</strong> {editedData.planType ? planTypeLabels[editedData.planType] || editedData.planType : 'Conforme acordado'}</p>
+                {monthlyValue && <p><strong>Valor Mensal:</strong> {monthlyValue}</p>}
+              </div>
+            </EditableClauseSection>
+
+            {/* Cláusula 5 - Horário */}
+            <EditableClauseSection title="DO HORÁRIO DE FUNCIONAMENTO" clauseNumber={5} clauseKey="clauseHours" />
+
+            {/* Cláusula 6 - Alimentação */}
+            <EditableClauseSection title="DA ALIMENTAÇÃO" clauseNumber={6} clauseKey="clauseFood" />
+
+            {/* Cláusula 7 - Medicamentos */}
+            <EditableClauseSection title="DA ADMINISTRAÇÃO DE MEDICAMENTOS" clauseNumber={7} clauseKey="clauseMedication" />
+
+            {/* Cláusula 8 - Saúde */}
+            <EditableClauseSection title="DA SAÚDE E SEGURANÇA" clauseNumber={8} clauseKey="clauseHealth">
+              <div className="bg-muted/50 p-2 rounded mb-2">
+                <EditableField 
+                  label="Contato de Emergência:" 
+                  value={editedData.emergencyContact || ''} 
+                  onChange={(v) => handleInputChange('emergencyContact', v)}
+                  placeholder="Nome (parentesco) - Telefone"
+                />
+              </div>
+            </EditableClauseSection>
+
+            {/* Cláusula 9 - Uniforme */}
+            <EditableClauseSection title="DO UNIFORME E MATERIAIS" clauseNumber={9} clauseKey="clauseUniform" />
+
+            {/* Cláusula 10 - Regulamento */}
+            <EditableClauseSection title="DO REGULAMENTO INTERNO" clauseNumber={10} clauseKey="clauseRegulations" />
+
+            {/* Cláusula 11 - Imagem */}
+            <EditableClauseSection title="DO USO DE IMAGEM" clauseNumber={11} clauseKey="clauseImageRights" />
+
+            {/* Cláusula 12 - Rescisão */}
+            <EditableClauseSection title="DA RESCISÃO" clauseNumber={12} clauseKey="clauseTermination" />
+
+            {/* Cláusula 13 - LGPD */}
+            <EditableClauseSection title="DA PROTEÇÃO DE DADOS (LGPD)" clauseNumber={13} clauseKey="clauseLGPD" />
+
+            {/* Cláusula 14 - Foro */}
+            <EditableClauseSection title="DO FORO" clauseNumber={14} clauseKey="clauseForum" />
+
+            {/* Cláusula 15 - Multa */}
+            <EditableClauseSection title="DA MULTA POR RESCISÃO" clauseNumber={15} clauseKey="clausePenalty" />
+
+            {/* Cláusula 16 - Redes Sociais */}
+            <EditableClauseSection title="AUTORIZAÇÃO PARA REDES SOCIAIS" clauseNumber={16} clauseKey="clauseSocialMedia" />
+
+            {/* Cláusula 17 - Validade */}
+            <EditableClauseSection title="DA VALIDADE DO CONTRATO" clauseNumber={17} clauseKey="clauseValidity" />
+
+            {/* Disposições Gerais */}
+            <EditableClauseSection title="DISPOSIÇÕES GERAIS" clauseNumber={18} clauseKey="clauseGeneral" />
+
+            <div className="mt-6 pt-4 border-t">
+              <p className="text-center text-sm text-muted-foreground">
+                Canoas/RS, {currentDate}
+              </p>
+            </div>
+          </div>
+        </ScrollArea>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
