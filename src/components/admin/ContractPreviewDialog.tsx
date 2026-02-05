@@ -43,6 +43,8 @@ export interface ContractData {
   shiftType: string;
   planType?: string;
   emergencyContact?: string;
+  // Custom pricing override
+  customMonthlyValue?: number;
   // Clause customizations
   clauseObject?: string;
   clauseEnrollment?: string;

@@ -26,6 +26,7 @@ interface ContractRequest {
   classType: string;
   shiftType: string;
   planType?: string;
+  customMonthlyValue?: number;
   // Optional override data from admin editing
   overrideData?: {
     parentName?: string;
@@ -107,6 +108,7 @@ serve(async (req) => {
       classType,
       shiftType,
       planType,
+      customMonthlyValue,
       overrideData,
     } = body;
 
@@ -470,6 +472,7 @@ CNPJ: ${COMPANY_DATA.cnpj}
         class_type: classType,
         shift_type: shiftType,
         plan_type: planType || null,
+        monthly_value: customMonthlyValue || null,
       })
       .select()
       .single();

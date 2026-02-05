@@ -1296,6 +1296,7 @@ export type Database = {
           class_type: string | null
           created_at: string | null
           id: string
+          monthly_value: number | null
           parent_id: string
           plan_type: string | null
           registration_id: string | null
@@ -1314,6 +1315,7 @@ export type Database = {
           class_type?: string | null
           created_at?: string | null
           id?: string
+          monthly_value?: number | null
           parent_id: string
           plan_type?: string | null
           registration_id?: string | null
@@ -1332,6 +1334,7 @@ export type Database = {
           class_type?: string | null
           created_at?: string | null
           id?: string
+          monthly_value?: number | null
           parent_id?: string
           plan_type?: string | null
           registration_id?: string | null
