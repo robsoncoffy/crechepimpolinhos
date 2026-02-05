@@ -766,7 +766,7 @@ export default function AdminApprovals() {
         console.error("Error sending approval email:", emailError);
       }
 
-      // Send contract via ZapSign
+      // Send contract via ZapSign with all customizations
       const contractResponse = await supabase.functions.invoke("zapsign-send-contract", {
         body: {
           childId: newChild.id,
@@ -787,6 +787,26 @@ export default function AdminApprovals() {
             parentEmail: editedData.parentEmail,
             address: editedData.address,
             emergencyContact: editedData.emergencyContact,
+          },
+          // Pass customized clause texts
+          clauseCustomizations: {
+            clauseObject: editedData.clauseObject,
+            clauseEnrollment: editedData.clauseEnrollment,
+            clauseMonthlyFee: editedData.clauseMonthlyFee,
+            clauseHours: editedData.clauseHours,
+            clauseFood: editedData.clauseFood,
+            clauseMedication: editedData.clauseMedication,
+            clauseUniform: editedData.clauseUniform,
+            clauseHealth: editedData.clauseHealth,
+            clauseRegulations: editedData.clauseRegulations,
+            clauseImageRights: editedData.clauseImageRights,
+            clauseTermination: editedData.clauseTermination,
+            clauseLGPD: editedData.clauseLGPD,
+            clauseGeneral: editedData.clauseGeneral,
+            clauseForum: editedData.clauseForum,
+            clausePenalty: editedData.clausePenalty,
+            clauseSocialMedia: editedData.clauseSocialMedia,
+            clauseValidity: editedData.clauseValidity,
           },
         },
       });

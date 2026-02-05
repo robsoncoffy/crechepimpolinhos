@@ -38,6 +38,26 @@ interface ContractRequest {
     emergencyContact?: string;
     childCpf?: string;
   };
+  // Customized clause texts from admin editing
+  clauseCustomizations?: {
+    clauseObject?: string;
+    clauseEnrollment?: string;
+    clauseMonthlyFee?: string;
+    clauseHours?: string;
+    clauseFood?: string;
+    clauseMedication?: string;
+    clauseUniform?: string;
+    clauseHealth?: string;
+    clauseRegulations?: string;
+    clauseImageRights?: string;
+    clauseTermination?: string;
+    clauseLGPD?: string;
+    clauseGeneral?: string;
+    clauseForum?: string;
+    clausePenalty?: string;
+    clauseSocialMedia?: string;
+    clauseValidity?: string;
+  };
 }
 
 // Dados fixos da empresa
@@ -110,7 +130,39 @@ serve(async (req) => {
       planType,
       customMonthlyValue,
       overrideData,
+      clauseCustomizations,
     } = body;
+
+    // Format currency helper
+    const formatCurrency = (value: number) => {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    // Default clause texts
+    const DEFAULT_CLAUSES = {
+      clauseObject: `O presente contrato tem por objeto a prestação de serviços educacionais e cuidados infantis, compreendendo atividades pedagógicas, recreativas, alimentação e acompanhamento do desenvolvimento da criança durante o período contratado.`,
+      clauseEnrollment: `O presente contrato terá vigência a partir da data de sua assinatura até o dia 31 de dezembro de ${new Date().getFullYear()}. A matrícula será efetivada mediante assinatura deste contrato e pagamento da primeira mensalidade. A vaga é pessoal e intransferível. A renovação para o ano seguinte deverá ser solicitada até 30 de novembro.`,
+      clauseMonthlyFee: `O valor das mensalidades será conforme tabela de preços vigente, com vencimento sempre no mesmo dia da assinatura deste contrato, a cada mês subsequente. O atraso no pagamento acarretará multa de 2% e juros de 1% ao mês.`,
+      clauseHours: `A CONTRATADA funciona de segunda a sexta-feira, das 07h00min às 19h00min. O horário de permanência deve respeitar o turno contratado (Integral: 9 horas; Meio Turno Manhã: 7h às 12h; Meio Turno Tarde: 13h às 18h). Há tolerância de 15 minutos para entrada e saída.`,
+      clauseFood: `A alimentação será fornecida conforme cardápio elaborado por nutricionista, adequado à faixa etária da criança. Alergias e restrições alimentares devem ser informadas por escrito.`,
+      clauseMedication: `A administração de medicamentos somente será realizada mediante prescrição médica, com autorização por escrito do responsável, contendo nome do medicamento, dosagem e horários.`,
+      clauseUniform: `O uso do uniforme escolar é facultativo, sendo recomendado para melhor identificação dos alunos. Os materiais escolares devem ser entregues conforme lista fornecida no ato da matrícula.`,
+      clauseHealth: `Em caso de febre, vômitos, diarreia ou doenças contagiosas, a criança não poderá permanecer na escola. Os pais serão comunicados imediatamente para buscar a criança.`,
+      clauseRegulations: `O CONTRATANTE declara conhecer e aceitar o Regulamento Interno da escola, que é parte integrante deste contrato.`,
+      clauseImageRights: `O CONTRATANTE autoriza o uso de imagem da criança para fins pedagógicos, institucionais e de divulgação da escola em redes sociais e materiais promocionais, sem fins comerciais diretos.`,
+      clauseTermination: `A rescisão deste contrato pode ser solicitada por qualquer das partes, mediante aviso prévio de 30 dias por escrito. A desistência sem aviso prévio implica no pagamento de multa equivalente a uma mensalidade.`,
+      clauseLGPD: `A CONTRATADA se compromete a tratar os dados pessoais em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018), utilizando-os exclusivamente para as finalidades descritas neste contrato.`,
+      clauseGeneral: `Os casos omissos serão resolvidos de comum acordo entre as partes, prevalecendo sempre o melhor interesse da criança.`,
+      clauseForum: `Fica eleito o Foro da Comarca de Canoas/RS para dirimir quaisquer questões oriundas do presente contrato.`,
+      clausePenalty: `Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.`,
+      clauseSocialMedia: `O CONTRATANTE autoriza expressamente a CONTRATADA a capturar, utilizar e divulgar imagens (fotos e vídeos) da criança matriculada para fins de publicação em redes sociais oficiais da creche (Instagram, Facebook, WhatsApp e demais plataformas), com objetivo exclusivamente institucional, pedagógico e promocional, sem qualquer remuneração ou compensação. A autorização poderá ser revogada a qualquer momento mediante solicitação por escrito.`,
+      clauseValidity: `O presente contrato somente terá validade e eficácia após a confirmação do pagamento da primeira mensalidade. Sem a comprovação deste pagamento, a vaga não será garantida e o contrato será considerado nulo de pleno direito.`,
+    };
+
+    // Get clause text (custom or default)
+    const getClause = (key: keyof typeof DEFAULT_CLAUSES): string => {
+      return clauseCustomizations?.[key] || DEFAULT_CLAUSES[key];
+    };
 
     // Validate required fields
     if (!childId || !parentId || !childName) {
@@ -207,7 +259,12 @@ serve(async (req) => {
       integral: "07h00min às 16h00min (9 horas)",
     };
 
-    // Create document content with the complete 14-clause contract
+    // Calculate monthly value text
+    const monthlyValueText = customMonthlyValue 
+      ? `${formatCurrency(customMonthlyValue)} (valor negociado)` 
+      : (planType ? `conforme plano ${planTypeLabels[planType] || planType}` : 'conforme tabela de preços vigente');
+
+    // Create document content using customizable clauses
     const contractContent = `
 CONTRATO DE PRESTAÇÃO DE SERVIÇOS EDUCACIONAIS E CUIDADOS INFANTIS
 
@@ -228,132 +285,96 @@ As partes acima qualificadas firmam o presente contrato, que se regerá pelas cl
 
 CLÁUSULA 2 – DO OBJETO
 
-2.1. O presente contrato tem por objeto a prestação de serviços educacionais e de cuidados infantis pela CONTRATADA ao aluno acima identificado, em conformidade com as diretrizes do Ministério da Educação e legislação aplicável à educação infantil.
-
-2.2. A CONTRATADA se compromete a oferecer ao aluno:
-a) Atividades pedagógicas adequadas à faixa etária;
-b) Alimentação balanceada, conforme cardápio elaborado por nutricionista;
-c) Cuidados com higiene pessoal;
-d) Ambiente seguro e estimulante para o desenvolvimento infantil;
-e) Acompanhamento do desenvolvimento da criança;
-f) Comunicação regular com os responsáveis sobre o dia a dia do aluno.
+${getClause('clauseObject')}
 
 
 CLÁUSULA 3 – DA MATRÍCULA E VIGÊNCIA
 
-3.1. O presente contrato terá vigência a partir da data de sua assinatura até o dia 31 de dezembro de ${new Date().getFullYear()}, podendo ser renovado para o período seguinte mediante manifestação de interesse do CONTRATANTE e disponibilidade de vaga.
+Turma: ${classTypeLabels[classType] || classType}
+Turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'})
 
-3.2. A efetivação da matrícula está condicionada à:
-a) Apresentação de toda documentação exigida;
-b) Assinatura do presente contrato;
-c) Pagamento da primeira mensalidade ou taxa de matrícula, quando aplicável.
-
-3.3. A renovação do contrato para o ano letivo seguinte deverá ser solicitada pelo CONTRATANTE até o dia 30 de novembro do ano vigente.
+${getClause('clauseEnrollment')}
 
 
 CLÁUSULA 4 – DAS MENSALIDADES E FORMA DE PAGAMENTO
 
-4.1. O CONTRATANTE obriga-se a pagar à CONTRATADA o valor mensal correspondente ao plano contratado (${planType ? planTypeLabels[planType] || planType : 'conforme acordado'}), conforme tabela de preços vigente no ato da matrícula.
+Plano Contratado: ${planType ? planTypeLabels[planType] || planType : 'Conforme acordado'}
+Valor Mensal: ${monthlyValueText}
 
-4.2. As mensalidades vencem no dia 10 (dez) de cada mês e deverão ser pagas por meio de boleto bancário, PIX ou outra forma disponibilizada pela CONTRATADA.
-
-4.3. O atraso no pagamento implicará:
-a) Multa de 2% (dois por cento) sobre o valor devido;
-b) Juros de mora de 1% (um por cento) ao mês;
-c) Correção monetária pelo índice oficial (INPC ou equivalente);
-d) Após 60 (sessenta) dias de inadimplência, poderá haver cancelamento da matrícula.
-
-4.4. A ausência do aluno às aulas não exime o CONTRATANTE do pagamento integral da mensalidade.
+${getClause('clauseMonthlyFee')}
 
 
 CLÁUSULA 5 – DO HORÁRIO DE FUNCIONAMENTO
 
-5.1. A CONTRATADA funcionará de segunda a sexta-feira, das 07h00min às 19h00min. O horário de permanência deve respeitar o turno contratado (Integral: 9 horas; Meio Turno Manhã: 7h às 12h; Meio Turno Tarde: 13h às 18h).
-
-5.2. O aluno está matriculado no turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'}).
-
-5.3. Turma: ${classTypeLabels[classType] || classType}.
-
-5.4. A tolerância para entrada e saída é de 15 (quinze) minutos. Atrasos frequentes poderão ser comunicados ao Conselho Tutelar, conforme legislação vigente.
-
-5.5. A criança somente será entregue aos pais ou responsáveis devidamente autorizados e cadastrados no sistema.
+${getClause('clauseHours')}
 
 
-CLÁUSULA 6 – DA ALIMENTAÇÃO E MEDICAMENTOS
+CLÁUSULA 6 – DA ALIMENTAÇÃO
 
-6.1. A alimentação será fornecida conforme cardápio elaborado por nutricionista, respeitando as necessidades nutricionais da faixa etária.
-
-6.2. Alergias, intolerâncias alimentares ou restrições dietéticas deverão ser informadas por escrito no ato da matrícula e sempre que houver alteração.
-
-6.3. A CONTRATADA não administrará medicamentos, salvo mediante apresentação de receita médica atualizada e autorização expressa por escrito do CONTRATANTE.
+${getClause('clauseFood')}
 
 
-CLÁUSULA 7 – DO UNIFORME E MATERIAIS
+CLÁUSULA 7 – DA ADMINISTRAÇÃO DE MEDICAMENTOS
 
-7.1. O uso do uniforme é obrigatório para identificação e segurança das crianças.
-
-7.2. Materiais pedagógicos e de higiene poderão ser solicitados periodicamente, conforme lista fornecida pela CONTRATADA.
+${getClause('clauseMedication')}
 
 
 CLÁUSULA 8 – DA SAÚDE E SEGURANÇA
 
-8.1. Em caso de enfermidade ou acidente, o CONTRATANTE será imediatamente comunicado para providências.
+Contato de emergência: ${emergencyContact || 'A ser informado pelo responsável'}
 
-8.2. Casos de doenças infectocontagiosas deverão ser comunicados à CONTRATADA, ficando o aluno afastado até liberação médica.
-
-8.3. Contato de emergência: ${emergencyContact || 'A ser informado pelo responsável'}.
-
-8.4. A CONTRATADA não se responsabiliza por objetos de valor trazidos pelo aluno.
+${getClause('clauseHealth')}
 
 
-CLÁUSULA 9 – DO REGULAMENTO INTERNO
+CLÁUSULA 9 – DO UNIFORME E MATERIAIS
 
-9.1. O CONTRATANTE declara ter conhecimento e concorda em cumprir o Regulamento Interno da CONTRATADA, que integra o presente contrato.
-
-
-CLÁUSULA 10 – DO USO DE IMAGEM
-
-10.1. O CONTRATANTE autoriza expressamente o uso da imagem do aluno para fins pedagógicos, institucionais e de divulgação das atividades da CONTRATADA em redes sociais, site, materiais impressos e outros meios de comunicação, sem qualquer ônus.
-
-10.2. Caso não concorde com esta autorização, o CONTRATANTE deverá manifestar-se por escrito no ato da matrícula.
+${getClause('clauseUniform')}
 
 
-CLÁUSULA 11 – DA RESCISÃO
+CLÁUSULA 10 – DO REGULAMENTO INTERNO
 
-11.1. O presente contrato poderá ser rescindido:
-a) Por iniciativa do CONTRATANTE, mediante aviso prévio de 30 (trinta) dias, por escrito;
-b) Por iniciativa da CONTRATADA, em caso de inadimplência superior a 60 dias ou descumprimento das normas internas;
-c) Por mútuo acordo entre as partes.
-
-11.2. Em caso de rescisão, ficam devidas as mensalidades vencidas até a data efetiva do desligamento.
+${getClause('clauseRegulations')}
 
 
-CLÁUSULA 12 – DA PROTEÇÃO DE DADOS
+CLÁUSULA 11 – DO USO DE IMAGEM
 
-12.1. A CONTRATADA compromete-se a tratar os dados pessoais do aluno e do CONTRATANTE em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 – LGPD).
-
-12.2. Os dados coletados serão utilizados exclusivamente para fins educacionais, administrativos e de comunicação com a família.
+${getClause('clauseImageRights')}
 
 
-CLÁUSULA 13 – DO FORO
+CLÁUSULA 12 – DA RESCISÃO
 
-13.1. Fica eleito o Foro da Comarca de Canoas/RS para dirimir quaisquer dúvidas ou controvérsias oriundas do presente contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
-
-
-CLÁUSULA 14 – DISPOSIÇÕES GERAIS
-
-14.1. Este contrato passa a vigorar na data de sua assinatura.
-
-14.2. Eventuais comunicados e notificações poderão ser realizados por meio eletrônico (e-mail, WhatsApp ou aplicativo da escola), sendo considerados válidos para todos os efeitos legais.
-
-14.3. Alterações contratuais somente terão validade se formalizadas por escrito.
+${getClause('clauseTermination')}
 
 
-CLÁUSULA 15 – DA MULTA POR RESCISÃO ANTECIPADA
+CLÁUSULA 13 – DA PROTEÇÃO DE DADOS (LGPD)
 
-15.1. Em caso de rescisão antecipada do contrato por iniciativa do CONTRATANTE, sem cumprimento do aviso prévio de 30 (trinta) dias, ou por inadimplência, fica o CONTRATANTE obrigado ao pagamento de multa correspondente a 20% (vinte por cento) do valor total anual do contrato, calculado com base no plano contratado.
+${getClause('clauseLGPD')}
 
-15.2. A multa será calculada proporcionalmente ao período restante do contrato, quando aplicável.
+
+CLÁUSULA 14 – DO FORO
+
+${getClause('clauseForum')}
+
+
+CLÁUSULA 15 – DA MULTA POR RESCISÃO
+
+${getClause('clausePenalty')}
+
+
+CLÁUSULA 16 – AUTORIZAÇÃO PARA REDES SOCIAIS
+
+${getClause('clauseSocialMedia')}
+
+
+CLÁUSULA 17 – DA VALIDADE DO CONTRATO
+
+${getClause('clauseValidity')}
+
+
+CLÁUSULA 18 – DISPOSIÇÕES GERAIS
+
+${getClause('clauseGeneral')}
+
 
 E, por estarem assim justos e contratados, as partes assinam o presente instrumento digitalmente, produzindo os mesmos efeitos jurídicos de um documento físico assinado de próprio punho.
 
