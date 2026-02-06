@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Baby, BookOpen, Music, Users, Shield, Heart, CalendarDays, MessageCircle, ChevronRight, Star, Clock, MapPin, Phone, CheckCircle2, Sparkles, Award, Play } from "lucide-react";
-// Hero image is in public folder for LCP optimization (preloaded in index.html)
-const heroImage = "/images/hero-children.jpg";
+// Hero image paths (WebP with PNG fallback, preloaded in index.html)
+const heroImageWebp = "/images/hero-children.webp";
+const heroImagePng = "/images/hero-children.png";
 import teacherImage from "@/assets/teacher-reading.jpg";
 import playgroundImage from "@/assets/playground.jpg";
 import craftsImage from "@/assets/kids-crafts.jpg";
@@ -105,16 +106,20 @@ export default function Home() {
       <section className="relative min-h-[90vh] flex items-center">
         {/* Background Image */}
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
-            alt="Crianças felizes na Creche Pimpolinhos" 
-            className="w-full h-full object-cover object-[center_70%] md:object-center" 
-            fetchPriority="high"
-            width={1504}
-            height={846}
-            sizes="100vw"
-            decoding="async"
-          />
+          <picture>
+            <source srcSet={heroImageWebp} type="image/webp" />
+            <img 
+              src={heroImagePng} 
+              alt="Crianças felizes na Creche Pimpolinhos" 
+              className="w-full h-full object-cover object-[center_70%] md:object-center" 
+              // @ts-expect-error React doesn't recognize fetchpriority yet
+              fetchpriority="high"
+              width={1504}
+              height={846}
+              sizes="100vw"
+              decoding="async"
+            />
+          </picture>
           <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-transparent" />
         </div>
 
