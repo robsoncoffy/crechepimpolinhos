@@ -43,10 +43,11 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save, Building2 } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
+import { MunicipalContractPreviewDialog, MunicipalContractData } from "@/components/admin/MunicipalContractPreviewDialog";
 import { getPrice, formatCurrency, getAvailablePlans, isHalfDayOnly, PLAN_NAMES, ClassType, PlanType } from "@/lib/pricing";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -119,8 +120,10 @@ export default function AdminApprovals() {
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
+  const [municipalContractPreviewOpen, setMunicipalContractPreviewOpen] = useState(false);
   const [contractViewOnly, setContractViewOnly] = useState(false);
-  const [contractData, setContractData] = useState<any>(null);
+  const [contractData, setContractData] = useState<ContractData | null>(null);
+  const [municipalContractData, setMunicipalContractData] = useState<MunicipalContractData | null>(null);
   const [pendingApprovalData, setPendingApprovalData] = useState<{
     registration: PendingChildRegistration;
     newChild: Child;
@@ -663,36 +666,61 @@ export default function AdminApprovals() {
         emergencyContact = `${pickupData.full_name} (${pickupData.relationship})`;
       }
 
-      // Calculate the final monthly value
-      const calculatedPrice = getPrice(selectedClassType as ClassType, selectedPlanType as PlanType);
-      const finalMonthlyValue = useCustomPrice && customPrice 
-        ? parseFloat(customPrice.replace(',', '.')) 
-        : calculatedPrice;
-
-      // Prepare contract data for preview
-      const contractPreviewData = {
-        parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
-        parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
-        parentRg: parentProfile?.rg || selectedRegistration.parent_rg || '',
-        parentPhone: parentPhone,
-        parentEmail: parentEmail,
-        parentRelationship: parentRelationship,
-        address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
-        childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
-        childCpf: selectedRegistration.cpf || '',
-        birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
-        classType: selectedClassType,
-        shiftType: selectedShiftType,
-        planType: selectedPlanType,
-        emergencyContact: emergencyContact,
-        customMonthlyValue: useCustomPrice ? finalMonthlyValue : undefined,
-      };
-
-      // Store registration data for later approval and show contract preview
+      // Store registration data for later approval
       setPendingApprovalData({ registration: selectedRegistration, newChild: null as any });
-      setContractData(contractPreviewData);
       setRegistrationDialogOpen(false);
-      setContractPreviewOpen(true);
+
+      // Check if municipal or private enrollment
+      const isMunicipal = editableData?.enrollmentType === "municipal" || selectedRegistration.enrollment_type === "municipal";
+
+      if (isMunicipal) {
+        // Prepare MUNICIPAL contract data for preview
+        const municipalContractPreviewData: MunicipalContractData = {
+          parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
+          parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
+          parentRg: parentProfile?.rg || selectedRegistration.parent_rg || '',
+          parentPhone: parentPhone,
+          parentEmail: parentEmail,
+          parentRelationship: parentRelationship,
+          address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
+          childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+          childCpf: selectedRegistration.cpf || '',
+          birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
+          classType: selectedClassType,
+          shiftType: selectedShiftType,
+          emergencyContact: emergencyContact,
+        };
+        
+        setMunicipalContractData(municipalContractPreviewData);
+        setMunicipalContractPreviewOpen(true);
+      } else {
+        // Prepare PRIVATE contract data for preview
+        const calculatedPrice = getPrice(selectedClassType as ClassType, selectedPlanType as PlanType);
+        const finalMonthlyValue = useCustomPrice && customPrice 
+          ? parseFloat(customPrice.replace(',', '.')) 
+          : calculatedPrice;
+
+        const contractPreviewData: ContractData = {
+          parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
+          parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
+          parentRg: parentProfile?.rg || selectedRegistration.parent_rg || '',
+          parentPhone: parentPhone,
+          parentEmail: parentEmail,
+          parentRelationship: parentRelationship,
+          address: selectedRegistration.address ? `${selectedRegistration.address}, ${selectedRegistration.city || 'Canoas/RS'}` : 'Canoas/RS',
+          childName: `${selectedRegistration.first_name} ${selectedRegistration.last_name}`,
+          childCpf: selectedRegistration.cpf || '',
+          birthDate: new Date(selectedRegistration.birth_date).toLocaleDateString('pt-BR'),
+          classType: selectedClassType,
+          shiftType: selectedShiftType,
+          planType: selectedPlanType,
+          emergencyContact: emergencyContact,
+          customMonthlyValue: useCustomPrice ? finalMonthlyValue : undefined,
+        };
+
+        setContractData(contractPreviewData);
+        setContractPreviewOpen(true);
+      }
       
     } catch (error) {
       console.error("Error preparing contract preview:", error);
@@ -825,6 +853,127 @@ export default function AdminApprovals() {
     setPendingApprovalData(null);
     setSelectedRegistration(null);
     setContractData(null);
+    fetchData();
+  }
+
+  // Save MUNICIPAL contract changes without sending (just updates local state)
+  async function saveMunicipalContractChanges(editedData: MunicipalContractData) {
+    setMunicipalContractData(editedData);
+    toast.success("Alterações salvas com sucesso!");
+  }
+
+  // Send MUNICIPAL contract after preview
+  async function sendMunicipalContractAfterPreview(editedData: MunicipalContractData) {
+    if (!pendingApprovalData) return;
+
+    const { registration } = pendingApprovalData;
+
+    try {
+      // Create the child in the children table (municipal = no plan_type)
+      const { data: newChild, error: childError } = await supabase
+        .from("children")
+        .insert({
+          full_name: `${registration.first_name} ${registration.last_name}`,
+          birth_date: registration.birth_date,
+          class_type: selectedClassType,
+          shift_type: selectedShiftType,
+          photo_url: registration.photo_url,
+          allergies: registration.allergies,
+          medical_info: registration.medications,
+          enrollment_type: "municipal",
+        })
+        .select()
+        .single();
+
+      if (childError) throw childError;
+
+      // Link parent to child
+      const { error: linkError } = await supabase
+        .from("parent_children")
+        .insert({
+          parent_id: registration.parent_id,
+          child_id: newChild.id,
+          relationship: relationship,
+        });
+
+      if (linkError) throw linkError;
+
+      // Update registration status to approved
+      const { error: regError } = await supabase
+        .from("child_registrations")
+        .update({ status: "approved" })
+        .eq("id", registration.id);
+
+      if (regError) throw regError;
+
+      // Send approval email to parent
+      try {
+        await supabase.functions.invoke("send-approval-email", {
+          body: {
+            parentId: registration.parent_id,
+            parentName: registration.parent_name || "Responsável",
+            approvalType: "child",
+            childName: `${registration.first_name} ${registration.last_name}`,
+            enrollmentType: "municipal",
+          },
+        });
+      } catch (emailError) {
+        console.error("Error sending approval email:", emailError);
+      }
+
+      // Send MUNICIPAL contract via ZapSign
+      const contractResponse = await supabase.functions.invoke("zapsign-send-municipal-contract", {
+        body: {
+          childId: newChild.id,
+          registrationId: registration.id,
+          parentId: registration.parent_id,
+          childName: editedData.childName,
+          birthDate: registration.birth_date,
+          classType: selectedClassType,
+          shiftType: selectedShiftType,
+          overrideData: {
+            parentName: editedData.parentName,
+            parentCpf: editedData.parentCpf,
+            parentRg: editedData.parentRg,
+            parentPhone: editedData.parentPhone,
+            parentEmail: editedData.parentEmail,
+            address: editedData.address,
+            emergencyContact: editedData.emergencyContact,
+          },
+          clauseCustomizations: {
+            clauseObject: editedData.clauseObject,
+            clauseConvenio: editedData.clauseConvenio,
+            clauseEnrollment: editedData.clauseEnrollment,
+            clauseFrequency: editedData.clauseFrequency,
+            clauseHours: editedData.clauseHours,
+            clauseFood: editedData.clauseFood,
+            clauseMedication: editedData.clauseMedication,
+            clauseUniform: editedData.clauseUniform,
+            clauseHealth: editedData.clauseHealth,
+            clauseRegulations: editedData.clauseRegulations,
+            clauseImageRights: editedData.clauseImageRights,
+            clauseLGPD: editedData.clauseLGPD,
+            clauseTermination: editedData.clauseTermination,
+            clauseDigitalComm: editedData.clauseDigitalComm,
+            clauseForum: editedData.clauseForum,
+          },
+        },
+      });
+
+      if (contractResponse.error) {
+        console.error("Error sending municipal contract:", contractResponse.error);
+        toast.warning("Cadastro aprovado, mas houve erro ao enviar contrato municipal.");
+      } else {
+        toast.success(`Cadastro municipal de ${editedData.childName} aprovado! Contrato enviado.`);
+      }
+    } catch (error) {
+      console.error("Error approving municipal registration:", error);
+      toast.error("Erro ao aprovar cadastro municipal. Por favor, tente novamente.");
+    }
+
+    setPendingApprovalData(null);
+    setSelectedRegistration(null);
+    setMunicipalContractData(null);
     fetchData();
   }
 
@@ -986,10 +1135,11 @@ export default function AdminApprovals() {
                   </p>
                 </div>
               ) : (
-                <Table>
+              <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Criança</TableHead>
+                      <TableHead>Tipo</TableHead>
                       <TableHead>Responsável</TableHead>
                       <TableHead>Data de Nascimento</TableHead>
                       <TableHead>Data do Cadastro</TableHead>
@@ -1002,6 +1152,19 @@ export default function AdminApprovals() {
                       <TableRow key={registration.id}>
                         <TableCell className="font-medium">
                           {registration.first_name} {registration.last_name}
+                        </TableCell>
+                        <TableCell>
+                          {registration.enrollment_type === "municipal" ? (
+                            <Badge variant="outline" className="bg-sky-500/10 text-sky-600 border-sky-500/30">
+                              <Building2 className="w-3 h-3 mr-1" />
+                              Municipal
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              Particular
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>{registration.parent_name}</TableCell>
                         <TableCell>
@@ -1856,6 +2019,18 @@ export default function AdminApprovals() {
           contractData={contractData}
           onConfirmSend={sendContractAfterPreview}
           onSaveChanges={saveContractChanges}
+          viewOnly={contractViewOnly}
+        />
+      )}
+
+      {/* Municipal Contract Preview Dialog */}
+      {municipalContractData && (
+        <MunicipalContractPreviewDialog
+          open={municipalContractPreviewOpen}
+          onOpenChange={setMunicipalContractPreviewOpen}
+          contractData={municipalContractData}
+          onConfirmSend={sendMunicipalContractAfterPreview}
+          onSaveChanges={saveMunicipalContractChanges}
           viewOnly={contractViewOnly}
         />
       )}
