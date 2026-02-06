@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Database } from "@/integrations/supabase/types";
+import { logger } from "@/lib/logger";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
 type ClassType = Database["public"]["Enums"]["class_type"];
@@ -20,6 +22,7 @@ interface ParentChild {
   profile?: Profile;
 }
 
+// ✅ Função utilitária separada - mais fácil de testar
 export function getSuggestedClassType(birthDate: string): ClassType {
   const birth = new Date(birthDate);
   const today = new Date();
@@ -39,110 +42,195 @@ export function isClassMismatch(child: Child): boolean {
   return child.class_type !== suggested;
 }
 
-export function useChildren() {
-  const [children, setChildren] = useState<Child[]>([]);
-  const [parents, setParents] = useState<Profile[]>([]);
-  const [parentLinks, setParentLinks] = useState<ParentChild[]>([]);
-  const [loading, setLoading] = useState(true);
+// ✅ Hook separado para buscar crianças
+function useFetchChildren() {
+  return useQuery({
+    queryKey: ["children"],
+    queryFn: async () => {
+      logger.info("Buscando crianças");
+      const { data, error } = await supabase
+        .from("children")
+        .select("*")
+        .order("full_name");
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [childrenRes, parentsRes, linksRes, rolesRes] = await Promise.all([
-        supabase.from("children").select("*").order("full_name"),
-        supabase.from("profiles").select("id, user_id, full_name").eq("status", "approved"),
-        supabase.from("parent_children").select("*"),
+      if (error) {
+        logger.error("Erro ao buscar crianças:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ✅ Hook separado para atualização automática de turmas
+function useAutoClassUpdate(children: Child[]) {
+  const updateClasses = useCallback(async () => {
+    const childrenToUpdate = children.filter((child) => {
+      const suggestedClass = getSuggestedClassType(child.birth_date);
+      return child.class_type !== suggestedClass;
+    });
+
+    if (childrenToUpdate.length === 0) return;
+
+    logger.info(`Atualizando ${childrenToUpdate.length} crianças de turma`);
+
+    const updatePromises = childrenToUpdate.map((child) => {
+      const suggestedClass = getSuggestedClassType(child.birth_date);
+      return supabase
+        .from("children")
+        .update({ class_type: suggestedClass })
+        .eq("id", child.id);
+    });
+
+    await Promise.all(updatePromises);
+
+    toast.info(
+      `${childrenToUpdate.length} criança(s) teve(ram) a turma atualizada automaticamente`
+    );
+
+    return childrenToUpdate.length;
+  }, [children]);
+
+  return { updateClasses };
+}
+
+// ✅ Hook separado para buscar perfis de pais
+function useFetchParentProfiles() {
+  return useQuery({
+    queryKey: ["parent-profiles"],
+    queryFn: async () => {
+      logger.info("Buscando perfis de pais");
+      
+      const [profilesRes, rolesRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, user_id, full_name")
+          .eq("status", "approved"),
         supabase.from("user_roles").select("user_id, role"),
       ]);
 
-      // Auto-update children whose class doesn't match their age
-      if (childrenRes.data) {
-        const childrenToUpdate = childrenRes.data.filter((child) => {
-          const suggestedClass = getSuggestedClassType(child.birth_date);
-          return child.class_type !== suggestedClass;
-        });
-
-        if (childrenToUpdate.length > 0) {
-          const updatePromises = childrenToUpdate.map((child) => {
-            const suggestedClass = getSuggestedClassType(child.birth_date);
-            return supabase
-              .from("children")
-              .update({ class_type: suggestedClass })
-              .eq("id", child.id);
-          });
-
-          await Promise.all(updatePromises);
-
-          const { data: updatedChildren } = await supabase
-            .from("children")
-            .select("*")
-            .order("full_name");
-
-          if (updatedChildren) {
-            setChildren(updatedChildren);
-            toast.info(`${childrenToUpdate.length} criança(s) teve(ram) a turma atualizada automaticamente`);
-          }
-        } else {
-          setChildren(childrenRes.data);
-        }
+      if (profilesRes.error) {
+        logger.error("Erro ao buscar perfis:", profilesRes.error);
+        throw profilesRes.error;
       }
 
-      if (linksRes.data) setParentLinks(linksRes.data);
+      if (rolesRes.error) {
+        logger.error("Erro ao buscar roles:", rolesRes.error);
+        throw rolesRes.error;
+      }
 
-      // Filter parents: only include users who have the 'parent' role and NO staff roles
-      if (parentsRes.data && rolesRes.data) {
-        const staffRoles = ['admin', 'teacher', 'cook', 'nutritionist', 'pedagogue', 'auxiliar'];
-        
-        const userRolesMap = new Map<string, string[]>();
-        rolesRes.data.forEach((r) => {
-          const existing = userRolesMap.get(r.user_id) || [];
-          existing.push(r.role);
-          userRolesMap.set(r.user_id, existing);
-        });
+      // Filtrar apenas pais (sem staff)
+      const staffRoles = [
+        "admin",
+        "diretor",
+        "teacher",
+        "cook",
+        "nutritionist",
+        "pedagogue",
+        "auxiliar",
+        "contador",
+      ];
 
-        const filteredParents = parentsRes.data.filter((p) => {
+      const userRolesMap = new Map<string, string[]>();
+      rolesRes.data?.forEach((r) => {
+        const existing = userRolesMap.get(r.user_id) || [];
+        existing.push(r.role);
+        userRolesMap.set(r.user_id, existing);
+      });
+
+      const filteredParents =
+        profilesRes.data?.filter((p) => {
           const roles = userRolesMap.get(p.user_id) || [];
-          const hasParentRole = roles.includes('parent');
+          const hasParentRole = roles.includes("parent");
           const hasStaffRole = roles.some((r) => staffRoles.includes(r));
           return hasParentRole && !hasStaffRole;
-        });
+        }) || [];
 
-        setParents(filteredParents);
-      } else if (parentsRes.data) {
-        setParents(parentsRes.data);
+      logger.info(`${filteredParents.length} pais carregados`);
+      return filteredParents;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ✅ Hook separado para buscar relações pais-filhos
+function useFetchParentLinks() {
+  return useQuery({
+    queryKey: ["parent-children-links"],
+    queryFn: async () => {
+      logger.info("Buscando relações pais-filhos");
+      const { data, error } = await supabase
+        .from("parent_children")
+        .select("*");
+
+      if (error) {
+        logger.error("Erro ao buscar relações:", error);
+        throw error;
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error("Erro ao carregar dados");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
 
-  const getChildParents = useCallback((childId: string) => {
-    const links = parentLinks.filter((l) => l.child_id === childId);
-    return links.map((link) => {
-      const parent = parents.find((p) => p.user_id === link.parent_id);
-      return { ...link, profile: parent };
-    });
-  }, [parentLinks, parents]);
+// ✅ Hook principal refatorado - agora muito mais limpo!
+export function useChildren() {
+  const childrenLogger = logger.withContext("useChildren");
 
-  const getAvailableParentsForChild = useCallback((childId: string) => {
-    const linkedParentIds = parentLinks
-      .filter((l) => l.child_id === childId)
-      .map((l) => l.parent_id);
-    return parents.filter((p) => !linkedParentIds.includes(p.user_id));
-  }, [parentLinks, parents]);
+  const {
+    data: children = [],
+    isLoading: childrenLoading,
+    refetch: refetchChildren,
+  } = useFetchChildren();
+
+  const { data: parents = [], isLoading: parentsLoading } =
+    useFetchParentProfiles();
+
+  const { data: parentLinks = [], isLoading: linksLoading } =
+    useFetchParentLinks();
+
+  const { updateClasses } = useAutoClassUpdate(children);
+
+  const loading = childrenLoading || parentsLoading || linksLoading;
+
+  // ⚡ OTIMIZAÇÃO: Memoizar funções que criam arrays/objetos
+  const getChildParents = useCallback(
+    (childId: string) => {
+      const links = parentLinks.filter((l) => l.child_id === childId);
+      return links.map((link) => {
+        const parent = parents.find((p) => p.user_id === link.parent_id);
+        return { ...link, profile: parent };
+      });
+    },
+    [parentLinks, parents]
+  );
+
+  const getAvailableParentsForChild = useCallback(
+    (childId: string) => {
+      const linkedParentIds = parentLinks
+        .filter((l) => l.child_id === childId)
+        .map((l) => l.parent_id);
+      return parents.filter((p) => !linkedParentIds.includes(p.user_id));
+    },
+    [parentLinks, parents]
+  );
+
+  // Refetch combinado
+  const refetch = useCallback(async () => {
+    childrenLogger.info("Refazendo fetch de todos os dados");
+    await Promise.all([refetchChildren()]);
+  }, [refetchChildren, childrenLogger]);
 
   return {
     children,
     parents,
     parentLinks,
     loading,
-    refetch: fetchData,
+    refetch,
+    updateClasses,
     getChildParents,
     getAvailableParentsForChild,
   };
