@@ -16,8 +16,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
     
-    <!-- Preload LCP hero image for faster paint -->
-    <link rel="preload" as="image" href="/images/hero-children.jpg" fetchpriority="high" />
+    <!-- Preload LCP hero image for faster paint (WebP with PNG fallback) -->
+    <link rel="preload" as="image" href="/images/hero-children.webp" type="image/webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/images/hero-children.png" fetchpriority="low" />
     
     <!-- Preconnect to Google Fonts for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
