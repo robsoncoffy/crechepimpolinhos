@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import { logger } from "@/lib/logger";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 type ApprovalStatus = Database["public"]["Enums"]["approval_status"];
@@ -84,13 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isMounted) return false;
 
         if (profileResult.error) {
-          console.error("Error fetching profile:", profileResult.error);
+          logger.error("Error fetching profile:", profileResult.error);
         } else if (profileResult.data) {
           setProfile(profileResult.data);
         }
 
         if (rolesResult.error) {
-          console.error("Error fetching roles:", rolesResult.error);
+          logger.error("Error fetching roles:", rolesResult.error);
         } else if (rolesResult.data) {
           setRoles(rolesResult.data.map((r) => r.role));
         }
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dataFetched = true;
         return true;
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        logger.error("Error fetching user data:", error);
         return false;
       }
     };
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Safety timeout to prevent infinite loading
     const safetyTimeout = setTimeout(() => {
       if (isMounted && loading) {
-        console.warn("Auth loading timeout - forcing completion");
+        logger.warn("Auth loading timeout - forcing completion");
         setLoading(false);
       }
     }, 10000);
