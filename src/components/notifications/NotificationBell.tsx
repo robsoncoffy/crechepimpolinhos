@@ -1,0 +1,304 @@
+import { useState, useEffect } from "react";
+import { Bell, Calendar, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Info, Car, GraduationCap, LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  link: string | null;
+  created_at: string;
+}
+
+interface NotificationTypeConfig {
+  icon: LucideIcon;
+  bgColor: string;
+  borderColor: string;
+  iconColor: string;
+}
+
+const notificationTypeConfig: Record<string, NotificationTypeConfig> = {
+  agenda: {
+    icon: ClipboardList,
+    bgColor: "bg-pimpo-blue/10",
+    borderColor: "border-l-pimpo-blue",
+    iconColor: "text-pimpo-blue",
+  },
+  message: {
+    icon: MessageSquare,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
+  },
+  success: {
+    icon: CheckCircle,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
+  },
+  warning: {
+    icon: AlertTriangle,
+    bgColor: "bg-pimpo-yellow/10",
+    borderColor: "border-l-pimpo-yellow",
+    iconColor: "text-pimpo-yellow",
+  },
+  error: {
+    icon: AlertTriangle,
+    bgColor: "bg-pimpo-red/10",
+    borderColor: "border-l-pimpo-red",
+    iconColor: "text-pimpo-red",
+  },
+  event: {
+    icon: Calendar,
+    bgColor: "bg-pimpo-purple/10",
+    borderColor: "border-l-pimpo-purple",
+    iconColor: "text-pimpo-purple",
+  },
+  pickup: {
+    icon: Car,
+    bgColor: "bg-pimpo-green/10",
+    borderColor: "border-l-pimpo-green",
+    iconColor: "text-pimpo-green",
+  },
+  evaluation: {
+    icon: GraduationCap,
+    bgColor: "bg-pimpo-purple/10",
+    borderColor: "border-l-pimpo-purple",
+    iconColor: "text-pimpo-purple",
+  },
+  info: {
+    icon: Info,
+    bgColor: "bg-pimpo-blue/10",
+    borderColor: "border-l-pimpo-blue",
+    iconColor: "text-pimpo-blue",
+  },
+};
+
+export function NotificationBell() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    getUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (!error && data) {
+        setNotifications(data);
+        setUnreadCount(data.filter((n) => !n.is_read).length);
+      }
+    };
+
+    fetchNotifications();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          setNotifications((prev) => [newNotification, ...prev].slice(0, 20));
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  const markAsRead = async (notificationId: string) => {
+    await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("id", notificationId);
+
+    setNotifications((prev) =>
+      prev.map((n) =>
+        n.id === notificationId ? { ...n, is_read: true } : n
+      )
+    );
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = async () => {
+    if (!userId) {
+      toast.error("Não foi possível identificar o usuário.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      // is_read pode ser NULL no banco, e o app considera NULL como não lida
+      .or("is_read.eq.false,is_read.is.null");
+
+    if (error) {
+      console.error("markAllAsRead error:", error);
+      toast.error("Não foi possível marcar todas como lidas.");
+      return;
+    }
+
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.is_read) {
+      await markAsRead(notification.id);
+    }
+    
+    // Determine the correct link
+    let targetLink = notification.link;
+    
+    // Fallback for old message notifications that have generic /painel link
+    if (notification.type === "message" && (!targetLink || targetLink === "/painel")) {
+      targetLink = "/painel/mensagens";
+    }
+    
+    if (targetLink) {
+      navigate(targetLink);
+      setOpen(false);
+    }
+  };
+
+  const getTypeConfig = (type: string): NotificationTypeConfig => {
+    return notificationTypeConfig[type] || notificationTypeConfig.info;
+  };
+
+  // When the popover opens, automatically mark all as read
+  const handleOpenChange = async (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen && unreadCount > 0) {
+      await markAllAsRead();
+    }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs animate-pulse"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h4 className="font-semibold">Notificações</h4>
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                void markAllAsRead();
+              }}
+              className="text-xs text-pimpo-blue hover:text-pimpo-blue/80"
+            >
+              Marcar todas como lidas
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="h-80">
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <Bell className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Nenhuma notificação</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {notifications.map((notification) => {
+                const config = getTypeConfig(notification.type);
+                const IconComponent = config.icon;
+                
+                return (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`w-full text-left p-4 hover:bg-muted/50 transition-colors border-l-4 ${config.bgColor} ${config.borderColor} ${!notification.is_read ? "bg-muted/30" : ""}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`flex-shrink-0 mt-0.5 ${config.iconColor}`}>
+                        <IconComponent className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-medium truncate ${
+                            !notification.is_read ? "text-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </p>
+                      </div>
+                      {!notification.is_read && (
+                        <div className="w-2 h-2 bg-pimpo-blue rounded-full mt-1.5 flex-shrink-0 animate-pulse" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}

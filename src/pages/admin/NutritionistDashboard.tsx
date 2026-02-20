@@ -1,0 +1,1211 @@
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { format, startOfWeek, addWeeks, subWeeks, addDays, getDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Loader2,
+  UtensilsCrossed,
+  Coffee,
+  Soup,
+  Cookie,
+  Moon,
+  Check,
+  Baby,
+  Users,
+  Copy,
+  Milk,
+  Apple,
+  AlertTriangle,
+  Calendar,
+  MessageSquare,
+  DollarSign,
+  Sparkles,
+  Wand2,
+  CalendarDays,
+  Settings,
+} from "lucide-react";
+import { toast } from "sonner";
+import { MenuPdfExport } from "@/components/admin/MenuPdfExport";
+import { MiniCalendar } from "@/components/calendar/MiniCalendar";
+import { QuickPostCreator } from "@/components/feed/QuickPostCreator";
+import { StaffChatWindow } from "@/components/staff/StaffChatWindow";
+import { MyReportsTab } from "@/components/employee/MyReportsTab";
+import { EmployeeSettingsTab } from "@/components/employee/EmployeeSettingsTab";
+import { TeacherParentChat } from "@/components/teacher/TeacherParentChat";
+import { MealField, dayNames, emptyMenuItem } from "@/components/admin/MealField";
+import { IngredientWithNutrition, NutritionTotals, MealNutritionState, MenuType, MenuItem, MealIngredientsState, ChildAllergy } from "@/types/nutrition";
+import { TodayOverviewWidget } from "@/components/admin/nutritionist/TodayOverviewWidget";
+import { SimplifiedNutritionPdf } from "@/components/admin/nutritionist/SimplifiedNutritionPdf";
+import { AdvancedNutritionPdfExport } from "@/components/admin/nutritionist/AdvancedNutritionPdfExport";
+import { AllergyCheckBadge } from "@/components/admin/nutritionist/AllergyCheckBadge";
+import { MenuEditor } from "@/components/admin/nutritionist/MenuEditor";
+import { WeeklyNutritionSummary } from "@/components/admin/nutritionist/WeeklyNutritionSummary";
+import { calculateDayTotals } from "@/lib/utils/nutrition";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+export default function NutritionistDashboard() {
+  const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState("cardapio");
+  const [weekStart, setWeekStart] = useState(() =>
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
+  const [activeMenuTab, setActiveMenuTab] = useState<MenuType>('bercario_0_6');
+  const [activeDayTab, setActiveDayTab] = useState<number>(1); // 1 = Segunda, 5 = Sexta
+  const [menuItemsByMenuType, setMenuItemsByMenuType] = useState<Record<MenuType, MenuItem[]>>({
+    bercario_0_6: [],
+    bercario_6_12: [],
+    bercario_12_24: [],
+    maternal: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [generatingDay, setGeneratingDay] = useState<number | null>(null);
+  const [generatingWeek, setGeneratingWeek] = useState(false);
+  const [generatingFullDay, setGeneratingFullDay] = useState(false);
+
+  // Nutrition tracking state
+  const [nutritionByMeal, setNutritionByMeal] = useState<Record<MenuType, MealNutritionState>>({
+    bercario_0_6: {},
+    bercario_6_12: {},
+    bercario_12_24: {},
+    maternal: {},
+  });
+
+  // Ingredients tracking state for PDF export
+  const [ingredientsByMeal, setIngredientsByMeal] = useState<Record<MenuType, MealIngredientsState>>({
+    bercario_0_6: {},
+    bercario_6_12: {},
+    bercario_12_24: {},
+    maternal: {},
+  });
+
+  // Children with allergies
+  const [childrenWithAllergies, setChildrenWithAllergies] = useState<ChildAllergy[]>([]);
+
+  const [stats, setStats] = useState({
+    childrenWithAllergies: 0,
+    menuDaysConfigured: 0,
+  });
+
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+  // Get today's day of week (1-5 for Mon-Fri, 0 otherwise)
+  const todayDayOfWeek = (() => {
+    const day = getDay(new Date());
+    return day >= 1 && day <= 5 ? day : 1; // Default to Monday if weekend
+  })();
+
+  // Fetch stats and children with allergies
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [allergiesRes, menuRes, childrenRes] = await Promise.all([
+          supabase.from("children").select("id", { count: "exact", head: true }).not("allergies", "is", null),
+          supabase.from("weekly_menus").select("id", { count: "exact", head: true }),
+          supabase.from("children").select("full_name, allergies").not("allergies", "is", null),
+        ]);
+
+        setStats({
+          childrenWithAllergies: allergiesRes.count || 0,
+          menuDaysConfigured: menuRes.count || 0,
+        });
+
+        if (childrenRes.data) {
+          setChildrenWithAllergies(
+            childrenRes.data.map(c => ({
+              childName: c.full_name,
+              allergies: c.allergies || ''
+            }))
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
+  // Fetch menu - maps old database types to new UI types
+  useEffect(() => {
+    const fetchMenu = async () => {
+      setLoading(true);
+
+      try {
+        const { data, error } = await supabase
+          .from('weekly_menus')
+          .select('*')
+          .eq('week_start', weekStartStr)
+          .order('day_of_week');
+
+        if (error) {
+          console.error('Error fetching menu:', error);
+          toast.error('Erro ao carregar cardápio');
+          setLoading(false);
+          return;
+        }
+
+        // Create menu items for all 5 days for each type
+        // Also load saved nutrition data and ingredients
+        const newNutritionState: Record<MenuType, MealNutritionState> = {
+          bercario_0_6: {},
+          bercario_6_12: {},
+          bercario_12_24: {},
+          maternal: {},
+        };
+
+        const newIngredientsState: Record<MenuType, MealIngredientsState> = {
+          bercario_0_6: {},
+          bercario_6_12: {},
+          bercario_12_24: {},
+          maternal: {},
+        };
+
+        const createMenuItems = (
+          menuType: MenuType,
+          dbMenuType: string,
+          defaultBreakfastTime: string,
+          defaultLunchTime: string,
+          defaultSnackTime: string,
+          defaultDinnerTime: string
+        ): MenuItem[] => {
+          return [1, 2, 3, 4, 5].map(dayOfWeek => {
+            const existing = data?.find(item =>
+              item.day_of_week === dayOfWeek && item.menu_type === dbMenuType
+            );
+            if (existing) {
+              const existingAny = existing as any;
+
+              // Load saved nutrition data and ingredients if available
+              if (existingAny.nutrition_data) {
+                const savedNutrition = existingAny.nutrition_data;
+                const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+                mealFields.forEach(field => {
+                  const key = `${dayOfWeek}-${field}`;
+                  // Load nutrition totals
+                  if (savedNutrition[field]) {
+                    newNutritionState[menuType][key] = savedNutrition[field];
+                  }
+                  // Load ingredients if saved (stored as field_ingredients)
+                  if (savedNutrition[`${field}_ingredients`]) {
+                    newIngredientsState[menuType][key] = savedNutrition[`${field}_ingredients`];
+                  }
+                });
+              }
+
+              return {
+                id: existing.id,
+                week_start: existing.week_start,
+                day_of_week: existing.day_of_week,
+                breakfast: existing.breakfast || '',
+                breakfast_time: existing.breakfast_time || defaultBreakfastTime,
+                breakfast_qty: existingAny.breakfast_qty || '',
+                morning_snack: existing.morning_snack || '',
+                morning_snack_time: existing.morning_snack_time || '09:30',
+                morning_snack_qty: existingAny.morning_snack_qty || '',
+                lunch: existing.lunch || '',
+                lunch_time: existing.lunch_time || defaultLunchTime,
+                lunch_qty: existingAny.lunch_qty || '',
+                bottle: existing.bottle || '',
+                bottle_time: existing.bottle_time || '13:00',
+                bottle_qty: existingAny.bottle_qty || '',
+                snack: existing.snack || '',
+                snack_time: existing.snack_time || defaultSnackTime,
+                snack_qty: existingAny.snack_qty || '',
+                pre_dinner: existing.pre_dinner || '',
+                pre_dinner_time: existing.pre_dinner_time || '16:30',
+                pre_dinner_qty: existingAny.pre_dinner_qty || '',
+                dinner: existing.dinner || '',
+                dinner_time: existing.dinner_time || defaultDinnerTime,
+                dinner_qty: existingAny.dinner_qty || '',
+                notes: existing.notes || '',
+                menu_type: menuType
+              };
+            }
+            return emptyMenuItem(weekStartStr, dayOfWeek, menuType);
+          });
+        };
+
+        setMenuItemsByMenuType({
+          bercario_0_6: createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'),
+          bercario_6_12: createMenuItems('bercario_6_12', 'bercario_6_12', '07:30', '11:00', '15:00', '17:30'),
+          bercario_12_24: createMenuItems('bercario_12_24', 'bercario_12_24', '07:30', '11:00', '15:00', '17:30'),
+          maternal: createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'),
+        });
+
+        // Set the loaded nutrition state with proper immutability
+        // Force new object references so React detects the change
+        setNutritionByMeal({
+          bercario_0_6: { ...newNutritionState.bercario_0_6 },
+          bercario_6_12: { ...newNutritionState.bercario_6_12 },
+          bercario_12_24: { ...newNutritionState.bercario_12_24 },
+          maternal: { ...newNutritionState.maternal },
+        });
+
+        // Set the loaded ingredients state
+        setIngredientsByMeal({
+          bercario_0_6: { ...newIngredientsState.bercario_0_6 },
+          bercario_6_12: { ...newIngredientsState.bercario_6_12 },
+          bercario_12_24: { ...newIngredientsState.bercario_12_24 },
+          maternal: { ...newIngredientsState.maternal },
+        });
+
+        // Auto-calculate nutrition for meals that have text but no saved nutrition_data
+        // This ensures the charts load immediately without requiring user interaction
+        const autoCalculateMissingNutrition = async () => {
+          const allMenus: Array<{ items: MenuItem[], menuType: MenuType, dbMenuType: string }> = [
+            { items: createMenuItems('bercario_0_6', 'bercario', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_0_6', dbMenuType: 'bercario' },
+            { items: createMenuItems('bercario_6_12', 'bercario_6_12', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_6_12', dbMenuType: 'bercario_6_12' },
+            { items: createMenuItems('bercario_12_24', 'bercario_12_24', '07:30', '11:00', '15:00', '17:30'), menuType: 'bercario_12_24', dbMenuType: 'bercario_12_24' },
+            { items: createMenuItems('maternal', 'maternal', '08:00', '11:30', '15:30', '18:00'), menuType: 'maternal', dbMenuType: 'maternal' }
+          ];
+
+          for (const { items, menuType } of allMenus) {
+            for (const item of items) {
+              const mealFields: Array<{ field: string, value: string, qty: string }> = [
+                { field: 'breakfast', value: item.breakfast, qty: item.breakfast_qty },
+                { field: 'morning_snack', value: item.morning_snack, qty: item.morning_snack_qty },
+                { field: 'lunch', value: item.lunch, qty: item.lunch_qty },
+                { field: 'bottle', value: item.bottle, qty: item.bottle_qty },
+                { field: 'snack', value: item.snack, qty: item.snack_qty },
+                { field: 'pre_dinner', value: item.pre_dinner, qty: item.pre_dinner_qty },
+                { field: 'dinner', value: item.dinner, qty: item.dinner_qty },
+              ];
+
+              for (const { field, value, qty } of mealFields) {
+                const key = `${item.day_of_week}-${field}`;
+                // Only calculate if there's text AND no saved nutrition data
+                if (value && value.trim() && !newNutritionState[menuType][key]) {
+                  try {
+                    const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-meal-nutrition', {
+                      body: {
+                        mealDescription: value,
+                        quantityHint: qty,
+                        mealType: field,
+                        menuType: menuType
+                      }
+                    });
+
+                    if (!parseError && parseData?.success && parseData.nutrition) {
+                      // Update the nutrition state with calculated values
+                      setNutritionByMeal(prev => ({
+                        ...prev,
+                        [menuType]: {
+                          ...prev[menuType],
+                          [key]: parseData.nutrition,
+                        }
+                      }));
+
+                      if (parseData.ingredients) {
+                        setIngredientsByMeal(prev => ({
+                          ...prev,
+                          [menuType]: {
+                            ...prev[menuType],
+                            [key]: parseData.ingredients,
+                          }
+                        }));
+                      }
+                    }
+                  } catch (err) {
+                    console.error(`Error auto-calculating nutrition for ${menuType} day ${item.day_of_week} ${field}:`, err);
+                  }
+                }
+              }
+            }
+          }
+        };
+
+        // Run auto-calculation in background
+        autoCalculateMissingNutrition();
+      } catch (err) {
+        console.error('Unexpected error fetching menu:', err);
+        toast.error('Erro inesperado ao carregar cardápio');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMenu();
+  }, [weekStartStr]);
+
+  const goToPreviousWeek = () => setWeekStart(subWeeks(weekStart, 1));
+  const goToNextWeek = () => setWeekStart(addWeeks(weekStart, 1));
+
+  const updateMenuItem = useCallback((menuType: MenuType, dayOfWeek: number, field: keyof MenuItem, value: string) => {
+    setMenuItemsByMenuType(prev => ({
+      ...prev,
+      [menuType]: prev[menuType].map(item =>
+        item.day_of_week === dayOfWeek
+          ? { ...item, [field]: value }
+          : item
+      )
+    }));
+  }, []);
+
+  // Handle nutrition calculation callback with ingredients
+  const handleNutritionCalculated = useCallback((
+    menuType: MenuType,
+    dayOfWeek: number,
+    field: string,
+    totals: NutritionTotals | null,
+    ingredients?: IngredientWithNutrition[]
+  ) => {
+    setNutritionByMeal(prev => ({
+      ...prev,
+      [menuType]: {
+        ...prev[menuType],
+        [`${dayOfWeek}-${field}`]: totals,
+      }
+    }));
+
+    // Store ingredients for PDF export
+    if (ingredients) {
+      setIngredientsByMeal(prev => ({
+        ...prev,
+        [menuType]: {
+          ...prev[menuType],
+          [`${dayOfWeek}-${field}`]: ingredients,
+        }
+      }));
+    }
+  }, []);
+
+  // Get consolidated nutrition for all menu types for today
+  const consolidatedNutrition = useMemo(() => {
+    const calculateTotals = (menuType: MenuType): NutritionTotals | null => {
+      const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+      const dayMeals = nutritionByMeal[menuType];
+      let hasAnyData = false;
+      const totals: NutritionTotals = {
+        energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+        calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+        phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+        vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+        riboflavin: 0, pyridoxine: 0, niacin: 0,
+        cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
+      };
+      mealFields.forEach(field => {
+        const mealNutrition = dayMeals[`${todayDayOfWeek}-${field}`];
+        if (mealNutrition) {
+          hasAnyData = true;
+          (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+            totals[key] += (mealNutrition as any)[key] || 0;
+          });
+        }
+      });
+      return hasAnyData ? totals : null;
+    };
+
+    return {
+      bercario_0_6: calculateTotals('bercario_0_6'),
+      bercario_6_12: calculateTotals('bercario_6_12'),
+      bercario_12_24: calculateTotals('bercario_12_24'),
+      maternal: calculateTotals('maternal'),
+    };
+  }, [nutritionByMeal, todayDayOfWeek]);
+
+  // Get weekly nutrition data for the active menu type
+  const weeklyNutritionData = useMemo(() => {
+    const calculateDayTotals = (dayOfWeek: number): NutritionTotals | null => {
+      const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+      const dayMeals = nutritionByMeal[activeMenuTab];
+      let hasAnyData = false;
+      const totals: NutritionTotals = {
+        energy: 0, protein: 0, lipid: 0, carbohydrate: 0, fiber: 0,
+        calcium: 0, iron: 0, sodium: 0, potassium: 0, magnesium: 0,
+        phosphorus: 0, zinc: 0, copper: 0, manganese: 0,
+        vitamin_c: 0, vitamin_a: 0, retinol: 0, thiamine: 0,
+        riboflavin: 0, pyridoxine: 0, niacin: 0,
+        cholesterol: 0, saturated: 0, monounsaturated: 0, polyunsaturated: 0
+      };
+      mealFields.forEach(field => {
+        const mealNutrition = dayMeals[`${dayOfWeek}-${field}`];
+        if (mealNutrition) {
+          hasAnyData = true;
+          (Object.keys(totals) as (keyof NutritionTotals)[]).forEach(key => {
+            totals[key] += (mealNutrition as any)[key] || 0;
+          });
+        }
+      });
+      return hasAnyData ? totals : null;
+    };
+
+    return [1, 2, 3, 4, 5].map(day => ({
+      dayOfWeek: day,
+      dayName: dayNames[day - 1],
+      totals: calculateDayTotals(day),
+    }));
+  }, [nutritionByMeal, activeMenuTab]);
+
+  // Prepare data for PDF export - include per-meal nutrition data and ingredients
+  const pdfNutritionData = weeklyNutritionData.map((day, idx) => {
+    const dayMeals = nutritionByMeal[activeMenuTab];
+    const dayIngredients = ingredientsByMeal[activeMenuTab];
+    const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+    const meals: Record<string, NutritionTotals | null> = {};
+    const ingredients: Record<string, IngredientWithNutrition[]> = {};
+
+    mealFields.forEach(field => {
+      meals[field] = dayMeals[`${day.dayOfWeek}-${field}`] || null;
+      ingredients[field] = dayIngredients[`${day.dayOfWeek}-${field}`] || [];
+    });
+
+    return {
+      dayOfWeek: day.dayOfWeek,
+      dayName: day.dayName,
+      date: format(addDays(weekStart, idx), 'd/MM'),
+      totals: day.totals,
+      meals,
+      ingredients,
+    };
+  });
+
+  const copyFromPreviousWeek = async () => {
+    setCopying(true);
+    const previousWeekStart = format(subWeeks(weekStart, 1), 'yyyy-MM-dd');
+
+    try {
+      const { data, error } = await supabase
+        .from('weekly_menus')
+        .select('*')
+        .eq('week_start', previousWeekStart)
+        .order('day_of_week');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        toast.error('Não há cardápio na semana anterior para copiar');
+        setCopying(false);
+        return;
+      }
+
+      const copyMenuItems = (currentItems: MenuItem[], dbMenuType: string, menuType: MenuType): MenuItem[] => {
+        const filteredData = data.filter(item => item.menu_type === dbMenuType);
+        return [1, 2, 3, 4, 5].map(dayOfWeek => {
+          const existing = filteredData.find(item => item.day_of_week === dayOfWeek);
+          const currentItem = currentItems.find(b => b.day_of_week === dayOfWeek);
+          if (existing) {
+            const existingAny = existing as any;
+            return {
+              id: currentItem?.id,
+              week_start: weekStartStr,
+              day_of_week: dayOfWeek,
+              breakfast: existing.breakfast || '',
+              breakfast_time: existing.breakfast_time || '07:30',
+              breakfast_qty: existingAny.breakfast_qty || '',
+              morning_snack: existing.morning_snack || '',
+              morning_snack_time: existing.morning_snack_time || '09:30',
+              morning_snack_qty: existingAny.morning_snack_qty || '',
+              lunch: existing.lunch || '',
+              lunch_time: existing.lunch_time || '11:00',
+              lunch_qty: existingAny.lunch_qty || '',
+              bottle: existing.bottle || '',
+              bottle_time: existing.bottle_time || '13:00',
+              bottle_qty: existingAny.bottle_qty || '',
+              snack: existing.snack || '',
+              snack_time: existing.snack_time || '15:00',
+              snack_qty: existingAny.snack_qty || '',
+              pre_dinner: existing.pre_dinner || '',
+              pre_dinner_time: existing.pre_dinner_time || '16:30',
+              pre_dinner_qty: existingAny.pre_dinner_qty || '',
+              dinner: existing.dinner || '',
+              dinner_time: existing.dinner_time || '17:30',
+              dinner_qty: existingAny.dinner_qty || '',
+              notes: existing.notes || '',
+              menu_type: menuType
+            };
+          }
+          return currentItem || emptyMenuItem(weekStartStr, dayOfWeek, menuType);
+        });
+      };
+
+      setMenuItemsByMenuType(prev => ({
+        bercario_0_6: copyMenuItems(prev.bercario_0_6, 'bercario', 'bercario_0_6'),
+        bercario_6_12: copyMenuItems(prev.bercario_6_12, 'bercario_6_12', 'bercario_6_12'),
+        bercario_12_24: copyMenuItems(prev.bercario_12_24, 'bercario_12_24', 'bercario_12_24'),
+        maternal: copyMenuItems(prev.maternal, 'maternal', 'maternal'),
+      }));
+
+      toast.success('Cardápio da semana anterior copiado! Não esqueça de salvar.');
+    } catch (error) {
+      console.error('Error copying menu:', error);
+      toast.error('Erro ao copiar cardápio');
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const allItems = [
+      ...menuItemsByMenuType.bercario_0_6,
+      ...menuItemsByMenuType.bercario_6_12,
+      ...menuItemsByMenuType.bercario_12_24,
+      ...menuItemsByMenuType.maternal
+    ];
+    let hasErrors = false;
+
+    try {
+      for (const item of allItems) {
+        const hasContent = item.breakfast || item.lunch || item.snack || item.dinner ||
+          item.morning_snack || item.bottle || item.pre_dinner || item.notes;
+
+        // Map UI menu type to database menu type
+        const dbMenuType = item.menu_type === 'bercario_0_6'
+          ? 'bercario'
+          : item.menu_type === 'bercario_6_12'
+            ? 'bercario_6_12'
+            : item.menu_type === 'bercario_12_24'
+              ? 'bercario_12_24'
+              : 'maternal';
+
+        // Skip items without content but DON'T delete existing records (preserve history)
+        if (!hasContent && !item.id) {
+          continue;
+        }
+
+        // Build nutrition_data object for this day from the nutritionByMeal and ingredientsByMeal state
+        const dayNutrition: Record<string, any> = {};
+        const mealFields = ['breakfast', 'morning_snack', 'lunch', 'bottle', 'snack', 'pre_dinner', 'dinner'];
+        mealFields.forEach(field => {
+          const key = `${item.day_of_week}-${field}`;
+          const nutritionData = nutritionByMeal[item.menu_type]?.[key];
+          const ingredientsData = ingredientsByMeal[item.menu_type]?.[key];
+          if (nutritionData) {
+            dayNutrition[field] = nutritionData;
+          }
+          // Also save ingredients for later PDF export
+          if (ingredientsData && ingredientsData.length > 0) {
+            dayNutrition[`${field}_ingredients`] = ingredientsData;
+          }
+        });
+
+        const menuData: any = {
+          week_start: weekStartStr,
+          day_of_week: item.day_of_week,
+          breakfast: item.breakfast || null,
+          breakfast_time: item.breakfast_time || null,
+          morning_snack: item.morning_snack || null,
+          morning_snack_time: item.morning_snack_time || null,
+          lunch: item.lunch || null,
+          lunch_time: item.lunch_time || null,
+          bottle: item.bottle || null,
+          bottle_time: item.bottle_time || null,
+          snack: item.snack || null,
+          snack_time: item.snack_time || null,
+          pre_dinner: item.pre_dinner || null,
+          pre_dinner_time: item.pre_dinner_time || null,
+          dinner: item.dinner || null,
+          dinner_time: item.dinner_time || null,
+          notes: item.notes || null,
+          menu_type: dbMenuType,
+          nutrition_data: Object.keys(dayNutrition).length > 0 ? dayNutrition : null
+        };
+
+        if (item.id) {
+          const { error } = await supabase
+            .from('weekly_menus')
+            .update(menuData)
+            .eq('id', item.id);
+
+          if (error) {
+            console.error('Error updating menu item:', error);
+            hasErrors = true;
+          }
+        } else {
+          const { data, error } = await supabase
+            .from('weekly_menus')
+            .insert(menuData)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Error inserting menu item:', error);
+            hasErrors = true;
+          } else if (data) {
+            setMenuItemsByMenuType(prev => ({
+              ...prev,
+              [item.menu_type]: prev[item.menu_type].map(prevItem =>
+                prevItem.day_of_week === item.day_of_week
+                  ? { ...prevItem, id: data.id }
+                  : prevItem
+              )
+            }));
+          }
+        }
+      }
+
+      if (hasErrors) {
+        toast.error('Alguns itens não foram salvos. Verifique suas permissões.');
+      } else {
+        toast.success('Cardápio salvo com sucesso!');
+      }
+    } catch (error) {
+      console.error('Error saving menu:', error);
+      toast.error('Erro ao salvar cardápio');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getCurrentMenuItems = () => menuItemsByMenuType[activeMenuTab] || [];
+
+  const currentMenuItems = getCurrentMenuItems();
+
+  const getMenuTypeLabel = (type: MenuType) => {
+    switch (type) {
+      case 'bercario_0_6':
+        return 'Berçário (0-6 meses)';
+      case 'bercario_6_12':
+        return 'Berçário (6m - 1 ano)';
+      case 'bercario_12_24':
+        return 'Berçário (1a - 2 anos)';
+      case 'maternal':
+        return 'Maternal / Jardim';
+    }
+  };
+
+  const getMenuTypeColor = (type: MenuType) => {
+    switch (type) {
+      case 'bercario_0_6':
+        return 'pimpo-blue';
+      case 'bercario_6_12':
+        return 'pimpo-yellow';
+      case 'bercario_12_24':
+        return 'pimpo-purple';
+      case 'maternal':
+        return 'pimpo-green';
+    }
+  };
+
+  // Generate AI menu suggestion for a specific day
+  const generateDayMenu = async (dayOfWeek: number, menuType: MenuType) => {
+    setGeneratingDay(dayOfWeek);
+    try {
+      // Get previous menus for context
+      const currentItems = menuItemsByMenuType[menuType];
+
+      const previousMenus = currentItems
+        .filter(item => item.day_of_week !== dayOfWeek && (item.breakfast || item.lunch))
+        .map(item => ({
+          day: dayNames[item.day_of_week - 1],
+          breakfast: item.breakfast,
+          lunch: item.lunch,
+          snack: item.snack,
+        }));
+
+      const { data, error } = await supabase.functions.invoke('suggest-daily-menu', {
+        body: { menuType, dayOfWeek, previousMenus }
+      });
+
+      if (error) throw error;
+
+      if (data?.suggestion) {
+        const suggestion = data.suggestion;
+
+        // Update each field from the suggestion (including qty fields)
+        if (suggestion.breakfast) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast', suggestion.breakfast);
+        }
+        if (suggestion.breakfast_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast_qty', suggestion.breakfast_qty);
+        }
+        if (suggestion.breakfast_time) {
+          updateMenuItem(menuType, dayOfWeek, 'breakfast_time', suggestion.breakfast_time);
+        }
+        if (suggestion.morning_snack) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack', suggestion.morning_snack);
+        }
+        if (suggestion.morning_snack_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack_qty', suggestion.morning_snack_qty);
+        }
+        if (suggestion.morning_snack_time) {
+          updateMenuItem(menuType, dayOfWeek, 'morning_snack_time', suggestion.morning_snack_time);
+        }
+        if (suggestion.lunch) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch', suggestion.lunch);
+        }
+        if (suggestion.lunch_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch_qty', suggestion.lunch_qty);
+        }
+        if (suggestion.lunch_time) {
+          updateMenuItem(menuType, dayOfWeek, 'lunch_time', suggestion.lunch_time);
+        }
+        if (suggestion.bottle) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle', suggestion.bottle);
+        }
+        if (suggestion.bottle_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle_qty', suggestion.bottle_qty);
+        }
+        if (suggestion.bottle_time) {
+          updateMenuItem(menuType, dayOfWeek, 'bottle_time', suggestion.bottle_time);
+        }
+        if (suggestion.snack) {
+          updateMenuItem(menuType, dayOfWeek, 'snack', suggestion.snack);
+        }
+        if (suggestion.snack_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'snack_qty', suggestion.snack_qty);
+        }
+        if (suggestion.snack_time) {
+          updateMenuItem(menuType, dayOfWeek, 'snack_time', suggestion.snack_time);
+        }
+        if (suggestion.pre_dinner) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner', suggestion.pre_dinner);
+        }
+        if (suggestion.pre_dinner_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner_qty', suggestion.pre_dinner_qty);
+        }
+        if (suggestion.pre_dinner_time) {
+          updateMenuItem(menuType, dayOfWeek, 'pre_dinner_time', suggestion.pre_dinner_time);
+        }
+        if (suggestion.dinner) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner', suggestion.dinner);
+        }
+        if (suggestion.dinner_qty) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner_qty', suggestion.dinner_qty);
+        }
+        if (suggestion.dinner_time) {
+          updateMenuItem(menuType, dayOfWeek, 'dinner_time', suggestion.dinner_time);
+        }
+
+        toast.success(`Cardápio de ${dayNames[dayOfWeek - 1]} gerado com sucesso!`);
+      }
+    } catch (error) {
+      console.error('Error generating menu:', error);
+      toast.error('Erro ao gerar sugestão. Tente novamente.');
+    } finally {
+      setGeneratingDay(null);
+    }
+  };
+
+  // Generate AI menu for all meals of the current day
+  const generateFullDayMenu = async () => {
+    setGeneratingFullDay(true);
+    try {
+      await generateDayMenu(activeDayTab, activeMenuTab);
+      toast.success(`Dia ${dayNames[activeDayTab - 1]} gerado com IA!`);
+    } catch (error) {
+      console.error('Error generating full day menu:', error);
+      toast.error('Erro ao gerar cardápio do dia.');
+    } finally {
+      setGeneratingFullDay(false);
+    }
+  };
+
+  // Generate AI menu for the entire week (all 5 days)
+  const generateWeekMenu = async () => {
+    setGeneratingWeek(true);
+    let successCount = 0;
+    try {
+      // Generate each day sequentially to avoid rate limits
+      for (let day = 1; day <= 5; day++) {
+        toast.info(`Gerando ${dayNames[day - 1]}... (${day}/5)`, { duration: 1500 });
+        try {
+          await generateDayMenu(day, activeMenuTab);
+          successCount++;
+        } catch (dayError) {
+          console.error(`Error generating day ${day}:`, dayError);
+          // Continue with next day even if one fails
+        }
+        // Small delay between requests to avoid rate limiting
+        if (day < 5) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+      if (successCount === 5) {
+        toast.success('Cardápio da semana gerado com sucesso!');
+      } else if (successCount > 0) {
+        toast.warning(`${successCount} de 5 dias gerados. Alguns dias falharam.`);
+      } else {
+        toast.error('Erro ao gerar cardápio da semana.');
+      }
+    } catch (error) {
+      console.error('Error generating week menu:', error);
+      toast.error('Erro ao gerar cardápio da semana.');
+    } finally {
+      setGeneratingWeek(false);
+      setGeneratingDay(null); // Reset individual day loading state too
+    }
+  };
+
+
+
+
+  return (
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
+      {/* Page Header */}
+      <div>
+        <h1 className="font-fredoka text-3xl lg:text-4xl font-bold text-foreground">
+          Olá, {profile?.full_name?.split(" ")[0]}! 👋
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Painel da Nutricionista
+        </p>
+      </div>
+
+      {/* Today Overview Widget - Consolidated */}
+      <TodayOverviewWidget
+        consolidatedNutrition={consolidatedNutrition}
+        childrenWithAllergies={stats.childrenWithAllergies}
+      />
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Alergias
+            </CardTitle>
+            <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-red/10">
+              <AlertTriangle className="w-4 h-4 text-pimpo-red" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-2xl sm:text-3xl font-fredoka font-bold">
+              {stats.childrenWithAllergies}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
+              Atenção especial no cardápio
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Cardápios
+            </CardTitle>
+            <div className="p-1.5 sm:p-2 rounded-lg bg-pimpo-green/10">
+              <Calendar className="w-4 h-4 text-pimpo-green" />
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-2xl sm:text-3xl font-fredoka font-bold">
+              {stats.menuDaysConfigured}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 hidden sm:block">
+              Refeições configuradas
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="overflow-x-auto scrollbar-hide">
+          <TabsList className="w-max min-w-full flex">
+            <TabsTrigger value="cardapio" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <UtensilsCrossed className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Cardápio</span>
+            </TabsTrigger>
+            <TabsTrigger value="pais" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <Users className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Pais</span>
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <MessageSquare className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Equipe</span>
+            </TabsTrigger>
+            <TabsTrigger value="relatorios" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <DollarSign className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Relatórios</span>
+            </TabsTrigger>
+            <TabsTrigger value="config" className="gap-1.5 px-3 md:px-4 whitespace-nowrap flex-shrink-0">
+              <Settings className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Config</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="pais" className="mt-4">
+          <TeacherParentChat />
+        </TabsContent>
+
+        <TabsContent value="chat" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chat da Equipe</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <StaffChatWindow />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="relatorios" className="mt-4">
+          <MyReportsTab />
+        </TabsContent>
+
+        <TabsContent value="config" className="mt-4">
+          <EmployeeSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="cardapio" className="mt-4 space-y-6">
+          {/* Actions Bar */}
+          <div className="flex flex-col gap-3">
+            {/* Save + Copy buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={saving || loading}
+                size="sm"
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary/90"
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                <span className="truncate">Salvar Cardápio</span>
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={copying || loading} className="flex-1 sm:flex-none">
+                    {copying ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Copy className="w-4 h-4 mr-2" />
+                    )}
+                    <span className="hidden sm:inline">Copiar da Semana Anterior</span>
+                    <span className="sm:hidden">Copiar Semana</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Copiar cardápio?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Isso irá substituir o cardápio atual pelos itens da semana anterior.
+                      Você ainda precisará salvar as alterações depois.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={copyFromPreviousWeek}>
+                      Copiar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {/* AI Generate Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={generatingWeek || generatingFullDay || loading}
+                    className="flex-1 sm:flex-none gap-2 bg-gradient-to-r from-violet-500/10 to-purple-500/10 border-violet-500/30 hover:border-violet-500/50"
+                  >
+                    {(generatingWeek || generatingFullDay) ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="w-4 h-4 text-violet-600" />
+                    )}
+                    <span className="hidden sm:inline">Gerar com IA</span>
+                    <span className="sm:hidden">IA</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onClick={generateFullDayMenu}
+                    disabled={generatingFullDay || generatingWeek}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <div className="flex flex-col">
+                      <span>Gerar {dayNames[activeDayTab - 1]}</span>
+                      <span className="text-xs text-muted-foreground">Todas as refeições do dia</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={generateWeekMenu}
+                    disabled={generatingWeek || generatingFullDay}
+                    className="gap-2 cursor-pointer"
+                  >
+                    <CalendarDays className="w-4 h-4 text-violet-500" />
+                    <div className="flex flex-col">
+                      <span>Gerar Semana Inteira</span>
+                      <span className="text-xs text-muted-foreground">Segunda a Sexta</span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* PDF Export buttons */}
+            <div className="flex flex-wrap gap-2">
+              <MenuPdfExport
+                menuItems={currentMenuItems as any}
+                weekStart={weekStart}
+                disabled={loading || currentMenuItems.every(item => !item.breakfast && !item.lunch && !item.snack && !item.dinner)}
+              />
+              <SimplifiedNutritionPdf
+                weekStart={weekStart}
+                nutritionData={pdfNutritionData}
+                menuType={activeMenuTab}
+                disabled={loading}
+              />
+              <AdvancedNutritionPdfExport
+                menuType={activeMenuTab}
+                currentWeekStart={weekStart}
+              />
+            </div>
+          </div>
+
+          {/* Week Navigation */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <div className="text-center">
+                  <p className="font-semibold">
+                    {format(weekStart, "d 'de' MMM", { locale: ptBR })} - {format(addDays(weekStart, 4), "d 'de' MMM", { locale: ptBR })}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(weekStart, 'yyyy')}
+                  </p>
+                </div>
+                <Button variant="outline" size="icon" onClick={goToNextWeek}>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Menu Type Tabs - Now with 4 tabs */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Tabs value={activeMenuTab} onValueChange={(v) => setActiveMenuTab(v as MenuType)}>
+              <div className="overflow-x-auto scrollbar-hide">
+                <TabsList className="w-max min-w-full grid grid-cols-4">
+                  <TabsTrigger value="bercario_0_6" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 0-6m</span>
+                    <span className="sm:hidden">0-6m</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="bercario_6_12" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 6m-1a</span>
+                    <span className="sm:hidden">6m-1a</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="bercario_12_24" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Baby className="w-4 h-4" />
+                    <span className="hidden sm:inline">Berçário 1a-2a</span>
+                    <span className="sm:hidden">1a-2a</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="maternal" className="gap-1 px-2 sm:px-4 text-xs sm:text-sm">
+                    <Users className="w-4 h-4" />
+                    <span className="hidden sm:inline">Maternal/Jardim</span>
+                    <span className="sm:hidden">Maternal</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Day sub-tabs */}
+              <div className="mt-4 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-1 p-1 bg-muted/50 rounded-lg w-max min-w-full">
+                  {[1, 2, 3, 4, 5].map((day) => {
+                    const dayDate = addDays(weekStart, day - 1);
+                    const currentItems = menuItemsByMenuType[activeMenuTab];
+                    const dayItem = currentItems.find(item => item.day_of_week === day);
+                    const hasContent = dayItem && (dayItem.breakfast || dayItem.lunch || dayItem.snack || dayItem.dinner ||
+                      dayItem.morning_snack || dayItem.bottle || dayItem.pre_dinner);
+
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => setActiveDayTab(day)}
+                        className={`flex-1 min-w-[60px] sm:min-w-[80px] px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all flex flex-col items-center gap-0.5 ${activeDayTab === day
+                          ? 'bg-background shadow-sm text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                          }`}
+                      >
+                        <span className="hidden sm:inline">{dayNames[day - 1]}</span>
+                        <span className="sm:hidden">{dayNames[day - 1].slice(0, 3)}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(dayDate, 'd/MM')}
+                        </span>
+                        {hasContent && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-6">
+                <MenuEditor
+                  menuType={activeMenuTab}
+                  items={menuItemsByMenuType[activeMenuTab]}
+                  activeDay={activeDayTab}
+                  weekStart={weekStart}
+                  nutritionState={nutritionByMeal[activeMenuTab]}
+                  childrenWithAllergies={childrenWithAllergies}
+                  generatingDay={generatingDay}
+                  onUpdateMenuItem={(day, field, value) => updateMenuItem(activeMenuTab, day, field, value)}
+                  onNutritionCalculated={(day, field, totals, ingredients) => handleNutritionCalculated(activeMenuTab, day, field, totals, ingredients)}
+                  onGenerateDay={(day) => generateDayMenu(day, activeMenuTab)}
+                />
+
+                {/* Weekly Summary */}
+                <WeeklyNutritionSummary
+                  menuType={activeMenuTab}
+                  weeklyData={
+                    [1, 2, 3, 4, 5].map(day => ({
+                      dayOfWeek: day,
+                      dayName: dayNames[day - 1],
+                      totals: calculateDayTotals(day, nutritionByMeal[activeMenuTab])
+                    }))
+                  }
+                />
+              </div>
+            </Tabs>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Mini Calendar + Quick Post Creator */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <MiniCalendar />
+        <QuickPostCreator />
+      </div>
+    </div>
+  );
+}

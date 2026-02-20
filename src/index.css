@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Creche Pimpolinhos Design System
+   Cores da marca: Azul, Vermelho, Amarelo, Verde
+   Estilo: Alegre, acolhedor, infantil
+*/
+
+@layer base {
+  :root {
+    /* Background e Foreground */
+    --background: 45 100% 98%;
+    --foreground: 220 30% 20%;
+
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 20%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 20%;
+
+    /* Primary - Azul Pimpolinhos */
+    --primary: 210 80% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Amarelo Pimpolinhos */
+    --secondary: 45 95% 55%;
+    --secondary-foreground: 220 30% 20%;
+
+    /* Muted */
+    --muted: 45 30% 94%;
+    --muted-foreground: 220 20% 38%;
+
+    /* Accent - Verde Pimpolinhos */
+    --accent: 145 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive - Vermelho Pimpolinhos */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Cores extras da marca */
+    --pimpo-blue: 210 80% 45%;
+    --pimpo-blue-light: 210 80% 92%;
+    --pimpo-red: 0 75% 55%;
+    --pimpo-red-light: 0 75% 92%;
+    --pimpo-yellow: 45 95% 55%;
+    --pimpo-yellow-light: 45 95% 92%;
+    --pimpo-green: 145 60% 40%;
+    --pimpo-green-light: 145 60% 92%;
+  --pimpo-purple: 270 60% 55%;
+  --pimpo-purple-light: 270 60% 92%;
+
+    /* Border, Input, Ring */
+    --border: 210 30% 85%;
+    --input: 210 30% 90%;
+    --ring: 210 80% 45%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 210 80% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 210 80% 45%;
+    --sidebar-accent: 210 80% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 80% 40%;
+    --sidebar-ring: 45 95% 55%;
+  }
+
+  .dark {
+    --background: 220 30% 10%;
+    --foreground: 45 30% 95%;
+
+    --card: 220 30% 15%;
+    --card-foreground: 45 30% 95%;
+
+    --popover: 220 30% 15%;
+    --popover-foreground: 45 30% 95%;
+
+    --primary: 210 80% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 45 95% 45%;
+    --secondary-foreground: 220 30% 10%;
+
+    --muted: 220 30% 20%;
+    --muted-foreground: 220 15% 60%;
+
+    --accent: 145 60% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --pimpo-blue: 210 80% 55%;
+    --pimpo-blue-light: 210 80% 20%;
+    --pimpo-red: 0 75% 45%;
+    --pimpo-red-light: 0 75% 20%;
+    --pimpo-yellow: 45 95% 45%;
+    --pimpo-yellow-light: 45 95% 20%;
+    --pimpo-green: 145 60% 50%;
+    --pimpo-green-light: 145 60% 20%;
+  --pimpo-purple: 270 60% 65%;
+  --pimpo-purple-light: 270 60% 25%;
+
+    --border: 220 30% 25%;
+    --input: 220 30% 25%;
+    --ring: 210 80% 55%;
+
+    --sidebar-background: 220 30% 12%;
+    --sidebar-foreground: 45 30% 95%;
+    --sidebar-primary: 210 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 30% 20%;
+    --sidebar-accent-foreground: 45 30% 95%;
+    --sidebar-border: 220 30% 20%;
+    --sidebar-ring: 45 95% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Nunito', 'Segoe UI', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fredoka', 'Nunito', sans-serif;
+  }
+}
+
+@layer components {
+  .pimpo-gradient {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--pimpo-blue)) 0%,
+      hsl(var(--pimpo-green)) 50%,
+      hsl(var(--pimpo-yellow)) 100%
+    );
+  }
+
+  .pimpo-card {
+    @apply bg-card rounded-2xl shadow-lg border-2 border-border/50 overflow-hidden;
+  }
+
+  .pimpo-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold;
+  }
+
+  .pimpo-badge-blue {
+    @apply bg-[hsl(var(--pimpo-blue-light))] text-[hsl(var(--pimpo-blue))];
+  }
+
+  .pimpo-badge-red {
+    @apply bg-[hsl(var(--pimpo-red-light))] text-[hsl(var(--pimpo-red))];
+  }
+
+  .pimpo-badge-yellow {
+    @apply bg-[hsl(var(--pimpo-yellow-light))] text-[hsl(var(--pimpo-yellow))];
+  }
+
+  .pimpo-badge-green {
+    @apply bg-[hsl(var(--pimpo-green-light))] text-[hsl(var(--pimpo-green))];
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+/* Google Fonts are now loaded via index.html for better performance */
+
+/* Respect user preferences for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

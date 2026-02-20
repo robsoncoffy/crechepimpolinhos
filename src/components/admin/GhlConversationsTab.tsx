@@ -1,0 +1,1325 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  MessageCircle, 
+  RefreshCw, 
+  ExternalLink,
+  Phone,
+  Mail,
+  User,
+  Send,
+  ArrowLeft,
+  Smartphone,
+  Loader2,
+  CheckCircle2,
+  Users,
+  Search,
+  MessageSquarePlus,
+  FileText,
+  Image as ImageIcon,
+  FileAudio,
+  FileVideo,
+  Download,
+  Paperclip,
+  Star,
+  StarOff,
+  Check,
+  CheckCheck
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface Conversation {
+  id: string;
+  contactId: string;
+  contactName: string;
+  email?: string;
+  phone?: string;
+  lastMessage: string;
+  lastMessageDate: string;
+  type: string;
+  unreadCount: number;
+}
+
+interface Attachment {
+  url: string;
+  contentType?: string;
+  fileName?: string;
+}
+
+interface Message {
+  id: string;
+  body: string;
+  dateAdded: string;
+  direction: "inbound" | "outbound";
+  type: string;
+  status?: string;
+  attachments?: Attachment[];
+}
+
+interface ContactInfo {
+  name: string;
+  email?: string;
+  phone?: string;
+}
+
+interface GhlContact {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  tags?: string[];
+  dateAdded?: string;
+}
+
+interface OpportunityInfo {
+  stageName: string;
+  status: "open" | "won" | "lost" | "abandoned";
+  pipelineName: string;
+  monetaryValue?: number;
+}
+
+type LeadChannel = "WhatsApp" | "SMS";
+
+export function GhlConversationsTab() {
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { playNotificationSound } = useNotificationSound();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [lastMessagesUpdate, setLastMessagesUpdate] = useState<Date | null>(null);
+  const [lastConversationsUpdate, setLastConversationsUpdate] = useState<Date | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const previousInboundCountRef = useRef<number>(0);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMobile = useIsMobile();
+  
+  // Contacts tab state
+  const [sidebarTab, setSidebarTab] = useState<"conversas" | "contatos">("conversas");
+  const [contacts, setContacts] = useState<GhlContact[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactsSearchTerm, setContactsSearchTerm] = useState("");
+  const [selectedContact, setSelectedContact] = useState<GhlContact | null>(null);
+  const [startingConversation, setStartingConversation] = useState(false);
+  const [newConversationMessage, setNewConversationMessage] = useState("");
+  
+  // Opportunities map for lead status badges
+  const [opportunitiesMap, setOpportunitiesMap] = useState<Record<string, OpportunityInfo>>({});
+
+  // Fetch starred conversations
+  const { data: starredConversations = [] } = useQuery({
+    queryKey: ["ghl-starred-conversations", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("ghl_starred_conversations")
+        .select("conversation_id")
+        .eq("starred_by", user.id);
+      if (error) throw error;
+      return data.map(s => s.conversation_id);
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Toggle starred mutation
+  const toggleStarredMutation = useMutation({
+    mutationFn: async ({ conversationId, contactId, isStarred }: { conversationId: string; contactId: string; isStarred: boolean }) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      if (isStarred) {
+        // Remove star
+        const { error } = await supabase
+          .from("ghl_starred_conversations")
+          .delete()
+          .eq("conversation_id", conversationId)
+          .eq("starred_by", user.id);
+        if (error) throw error;
+      } else {
+        // Add star
+        const { error } = await supabase
+          .from("ghl_starred_conversations")
+          .insert({ conversation_id: conversationId, contact_id: contactId, starred_by: user.id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ghl-starred-conversations"] });
+      toast({ title: "Atualizado", description: "Conversa atualizada com sucesso." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível atualizar.", variant: "destructive" });
+    },
+  });
+
+  // Mark as read mutation
+  const markAsReadMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      await supabase.functions.invoke("ghl-conversations", {
+        body: { action: "markAsRead", conversationId },
+      });
+    },
+    onSuccess: () => {
+      fetchConversations(false); // Refresh to update unread counts
+      toast({ title: "Marcado como lido", description: "A conversa foi marcada como lida." });
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível marcar como lido.", variant: "destructive" });
+    },
+  });
+
+  const isStarred = (conversationId: string) => starredConversations.includes(conversationId);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
+  const inferLeadChannel = (msgs: Message[], convType?: string): LeadChannel => {
+    // Prefer the most recent known message type
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const t: unknown = (msgs[i] as any)?.type;
+
+      // Some GHL accounts return numeric codes (e.g. 19/2)
+      if (typeof t === "number") {
+        if (t === 19) return "WhatsApp";
+        if (t === 2) return "SMS";
+      }
+
+      if (typeof t === "string") {
+        const normalized = t.toLowerCase();
+        if (normalized.includes("whatsapp")) return "WhatsApp";
+        if (normalized === "sms") return "SMS";
+      }
+    }
+
+    // Fallback to the conversation type if it is already explicit
+    if (convType) {
+      const normalized = convType.toLowerCase();
+      if (normalized.includes("whatsapp")) return "WhatsApp";
+      if (normalized === "sms") return "SMS";
+    }
+
+    // Last resort: SMS
+    return "SMS";
+  };
+
+  const activeLeadChannel: LeadChannel = inferLeadChannel(messages, selectedConversation?.type);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const fetchConversations = useCallback(async (showLoadingState = true) => {
+    if (showLoadingState && !refreshing) {
+      // Don't show loading skeleton on background refresh
+    }
+    
+    setLoadError(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: { action: "list" },
+      });
+
+      if (error) {
+        // Handle timeout/slow API gracefully
+        if (error.message?.includes("tempo limite") || error.message?.includes("timeout")) {
+          setLoadError("A API está lenta. Clique para tentar novamente.");
+          return;
+        }
+        throw error;
+      }
+      
+      // Filter to show only SMS/WhatsApp conversations (not emails)
+      const chatConvs = (data?.conversations || []).filter(
+        (conv: any) => conv.type?.toLowerCase() !== "email"
+      );
+      setConversations(chatConvs);
+      
+      // Store opportunities map for lead status badges
+      if (data?.opportunitiesMap) {
+        setOpportunitiesMap(data.opportunitiesMap);
+      }
+      
+      setLastConversationsUpdate(new Date());
+      setLoadError(null);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      if (conversations.length === 0) {
+        setLoadError("Não foi possível carregar conversas. Clique para tentar novamente.");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [refreshing, conversations.length]);
+
+  const fetchMessages = useCallback(async (conversationId: string, isPolling = false) => {
+    if (!isPolling) {
+      setLoadingMessages(true);
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: { action: "messages", conversationId },
+      });
+
+      if (error) throw error;
+      
+      const newMessages: Message[] = data?.messages || [];
+      
+      // Detect new inbound messages for notification
+      const newInboundCount = newMessages.filter(m => m.direction === "inbound").length;
+      if (isPolling && newInboundCount > previousInboundCountRef.current) {
+        playNotificationSound();
+      }
+      previousInboundCountRef.current = newInboundCount;
+      
+      setMessages(newMessages);
+      setContactInfo(data?.contact || null);
+      setLastMessagesUpdate(new Date());
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    } finally {
+      if (!isPolling) {
+        setLoadingMessages(false);
+      }
+    }
+  }, [playNotificationSound]);
+
+  useEffect(() => {
+    fetchConversations();
+    
+    // Refresh conversations every 30 seconds
+    const interval = setInterval(fetchConversations, 30000);
+    
+    // Also refresh when window/tab regains focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchConversations();
+      }
+    };
+    
+    const handleFocus = () => {
+      fetchConversations();
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchConversations]);
+
+  // Auto-refresh messages when a conversation is selected (every 10 seconds)
+  useEffect(() => {
+    if (!selectedConversation) {
+      previousInboundCountRef.current = 0;
+      return;
+    }
+
+    const interval = setInterval(() => {
+      fetchMessages(selectedConversation.id, true);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [selectedConversation?.id, fetchMessages]);
+
+  const handleSelectConversation = (conv: Conversation) => {
+    // Clear previous conversation state to avoid inferring the wrong channel
+    // while the new conversation messages are still loading.
+    setMessages([]);
+    setContactInfo(null);
+    setSelectedConversation(conv);
+    fetchMessages(conv.id);
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchConversations();
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id);
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedConversation(null);
+    setSelectedContact(null);
+    setMessages([]);
+    setContactInfo(null);
+    setNewMessage("");
+    setNewConversationMessage("");
+  };
+
+  // Fetch contacts from GHL
+  const fetchContacts = useCallback(async (searchQuery?: string) => {
+    setLoadingContacts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: { 
+          action: "contacts", 
+          limit: "50",
+          conversationId: searchQuery || "" // Using conversationId as search query
+        },
+      });
+
+      if (error) throw error;
+      setContacts(data?.contacts || []);
+    } catch (error) {
+      console.error("Error fetching contacts:", error);
+      toast({
+        title: "Erro ao buscar contatos",
+        description: "Não foi possível carregar os contatos.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingContacts(false);
+    }
+  }, [toast]);
+
+  // Load contacts when switching to contacts tab
+  useEffect(() => {
+    if (sidebarTab === "contatos" && contacts.length === 0) {
+      fetchContacts();
+    }
+  }, [sidebarTab, contacts.length, fetchContacts]);
+
+  // Handle contact selection to start a new conversation
+  const handleSelectContact = (contact: GhlContact) => {
+    setSelectedContact(contact);
+    setSelectedConversation(null);
+    setMessages([]);
+    setContactInfo({
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+    });
+  };
+
+  // Start a new conversation with a contact
+  const handleStartConversation = async () => {
+    if (!selectedContact || !newConversationMessage.trim() || startingConversation) return;
+
+    setStartingConversation(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: {
+          action: "startConversation",
+          contactId: selectedContact.id,
+          message: newConversationMessage.trim(),
+          type: "WhatsApp", // Default to WhatsApp for new conversations
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Conversa iniciada",
+        description: "Sua mensagem foi enviada com sucesso.",
+      });
+
+      setNewConversationMessage("");
+      setSelectedContact(null);
+      setSidebarTab("conversas");
+      
+      // Refresh conversations to show the new one
+      await fetchConversations();
+      
+    } catch (error) {
+      console.error("Error starting conversation:", error);
+      const details = error instanceof Error ? error.message : "";
+      toast({
+        title: "Erro ao iniciar conversa",
+        description: details || "Não foi possível enviar a mensagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setStartingConversation(false);
+    }
+  };
+
+  // Filter contacts by search term
+  const filteredContacts = contacts.filter((contact) =>
+    contact.name.toLowerCase().includes(contactsSearchTerm.toLowerCase()) ||
+    contact.email?.toLowerCase().includes(contactsSearchTerm.toLowerCase()) ||
+    contact.phone?.includes(contactsSearchTerm)
+  );
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation || sending) return;
+
+    setSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ghl-conversations", {
+        body: {
+          action: "send",
+          conversationId: selectedConversation.id,
+          contactId: selectedConversation.contactId,
+          message: newMessage.trim(),
+          // IMPORTANT: Many conversations come as TYPE_PHONE; infer the real channel (WhatsApp vs SMS)
+          // from the last messages to prevent sending SMS when the lead is on WhatsApp.
+          type: activeLeadChannel,
+        },
+      });
+
+      if (error) throw error;
+      
+      // Check if the response contains an error from the edge function
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data?.success) {
+        throw new Error("Falha ao enviar mensagem");
+      }
+
+      setNewMessage("");
+      // Refresh messages after sending
+      await fetchMessages(selectedConversation.id);
+      setTimeout(scrollToBottom, 100);
+      
+      toast({
+        title: "Mensagem enviada",
+        description: "Sua resposta foi enviada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      const details = error instanceof Error ? error.message : "";
+      toast({
+        title: "Erro ao enviar",
+        description: details
+          ? details
+          : "Não foi possível enviar a mensagem. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const getChannelIcon = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case "whatsapp":
+        return <Smartphone className="h-4 w-4 text-pimpo-green" />;
+      case "sms":
+        return <Phone className="h-4 w-4 text-primary" />;
+      case "email":
+        return <Mail className="h-4 w-4 text-pimpo-yellow" />;
+      default:
+        return <MessageCircle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const formatMessageDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return format(date, "HH:mm", { locale: ptBR });
+      } else if (diffDays < 7) {
+        return formatDistanceToNow(date, { addSuffix: true, locale: ptBR });
+      } else {
+        return format(date, "dd/MM/yyyy", { locale: ptBR });
+      }
+    } catch {
+      return "";
+    }
+  };
+
+  // Get badge styling based on opportunity status
+  const getOpportunityBadgeStyles = (status: string) => {
+    switch (status) {
+      case "won":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "lost":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      case "abandoned":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
+      case "open":
+      default:
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    }
+  };
+
+  // Get display label for status
+  const getStatusLabel = (info: OpportunityInfo) => {
+    if (info.status === "won") return "Ganho";
+    if (info.status === "lost") return "Perdido";
+    if (info.status === "abandoned") return "Abandonado";
+    return info.stageName;
+  };
+
+  // Mobile: Show either list or conversation
+  if (isMobile && selectedConversation) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={handleBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold">{contactInfo?.name || selectedConversation.contactName}</h2>
+              {opportunitiesMap[selectedConversation.contactId]?.monetaryValue ? (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {formatCurrency(opportunitiesMap[selectedConversation.contactId].monetaryValue!)}
+                </Badge>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              {getChannelIcon(activeLeadChannel)}
+              {activeLeadChannel}
+            </p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => toggleStarredMutation.mutate({ 
+              conversationId: selectedConversation.id, 
+              contactId: selectedConversation.contactId,
+              isStarred: isStarred(selectedConversation.id) 
+            })}
+            disabled={toggleStarredMutation.isPending}
+          >
+            {isStarred(selectedConversation.id) ? (
+              <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+            ) : (
+              <StarOff className="h-5 w-5" />
+            )}
+          </Button>
+          {selectedConversation.unreadCount > 0 && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => markAsReadMutation.mutate(selectedConversation.id)}
+              disabled={markAsReadMutation.isPending}
+            >
+              <CheckCheck className="h-5 w-5" />
+            </Button>
+          )}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          </Button>
+        </div>
+
+        <Card className="flex-1">
+          <ScrollArea className="h-[calc(100vh-300px)]">
+            <div className="p-4 space-y-3">
+              {loadingMessages ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-3/4" />
+                ))
+              ) : messages.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma mensagem encontrada
+                </p>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex",
+                      msg.direction === "outbound" ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[80%] rounded-lg px-3 py-2",
+                        msg.direction === "outbound"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      )}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                      <p className={cn(
+                        "text-xs mt-1",
+                        msg.direction === "outbound" 
+                          ? "text-primary-foreground/70" 
+                          : "text-muted-foreground"
+                      )}>
+                        {formatMessageDate(msg.dateAdded)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+          
+          <div className="p-4 border-t bg-muted/30">
+            <div className="flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Digite sua mensagem..."
+                onKeyDown={handleKeyDown}
+                disabled={sending || loadingMessages}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={sending || loadingMessages || !newMessage.trim()}
+                size="icon"
+              >
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[calc(100vh-16rem)] flex flex-col lg:flex-row gap-4">
+      {/* Sidebar with Conversations/Contacts Tabs */}
+      <Card className={cn(
+        "lg:w-80 shrink-0 flex flex-col",
+        isMobile && (selectedConversation || selectedContact) && "hidden"
+      )}>
+        <CardHeader className="pb-3 border-b">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-pimpo-green" />
+              Leads
+            </CardTitle>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => {
+                handleRefresh();
+                if (sidebarTab === "contatos") fetchContacts();
+              }}
+              disabled={refreshing || loadingContacts}
+            >
+              <RefreshCw className={cn("h-4 w-4", (refreshing || loadingContacts) && "animate-spin")} />
+            </Button>
+          </div>
+          
+          {/* Tabs for Conversations and Contacts */}
+          <Tabs value={sidebarTab} onValueChange={(v) => setSidebarTab(v as "conversas" | "contatos")} className="mt-3">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="conversas" className="flex items-center gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5" />
+                Conversas
+              </TabsTrigger>
+              <TabsTrigger value="contatos" className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Contatos
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        
+        <CardContent className="p-0 flex-1">
+          {sidebarTab === "conversas" ? (
+            <ScrollArea className="h-[calc(100vh-26rem)]">
+              {loading ? (
+                <div className="p-4 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-3 w-3/4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : loadError ? (
+                <button 
+                  onClick={() => {
+                    setLoading(true);
+                    fetchConversations();
+                  }}
+                  className="w-full p-8 text-center"
+                >
+                  <RefreshCw className="h-12 w-12 mx-auto mb-3 text-destructive opacity-50" />
+                  <p className="text-sm text-muted-foreground">{loadError}</p>
+                  <p className="text-xs text-primary mt-2">Clique para tentar novamente</p>
+                </button>
+              ) : conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Nenhuma conversa encontrada</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {conversations.map((conv) => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        setSelectedContact(null);
+                        handleSelectConversation(conv);
+                      }}
+                      className={cn(
+                        "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                        selectedConversation?.id === conv.id && "bg-muted"
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {isStarred(conv.id) && (
+                                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
+                              )}
+                              <span className="font-medium truncate">
+                                {conv.contactName}
+                              </span>
+                              {opportunitiesMap[conv.contactId] && (
+                                <span 
+                                  className={cn(
+                                    "text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0",
+                                    getOpportunityBadgeStyles(opportunitiesMap[conv.contactId].status)
+                                  )}
+                                  title={opportunitiesMap[conv.contactId].monetaryValue 
+                                    ? formatCurrency(opportunitiesMap[conv.contactId].monetaryValue!) 
+                                    : undefined}
+                                >
+                                  {getStatusLabel(opportunitiesMap[conv.contactId])}
+                                  {opportunitiesMap[conv.contactId].monetaryValue ? (
+                                    <span className="ml-1 font-semibold">
+                                      {formatCurrency(opportunitiesMap[conv.contactId].monetaryValue!)}
+                                    </span>
+                                  ) : null}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                              {formatMessageDate(conv.lastMessageDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getChannelIcon(conv.type)}
+                            <p className="text-sm text-muted-foreground truncate">
+                              {conv.lastMessage || "Sem mensagens"}
+                            </p>
+                          </div>
+                          {conv.unreadCount > 0 && (
+                            <Badge variant="destructive" className="mt-1">
+                              {conv.unreadCount} não lida{conv.unreadCount > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          ) : (
+            /* Contacts Tab */
+            <div className="flex flex-col h-[calc(100vh-26rem)]">
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar contato..."
+                    value={contactsSearchTerm}
+                    onChange={(e) => setContactsSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                {loadingContacts ? (
+                  <div className="p-4 space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-1/2" />
+                          <Skeleton className="h-3 w-3/4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredContacts.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>{contactsSearchTerm ? "Nenhum contato encontrado" : "Nenhum contato disponível"}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {filteredContacts.map((contact) => (
+                      <button
+                        key={contact.id}
+                        onClick={() => handleSelectContact(contact)}
+                        className={cn(
+                          "w-full p-4 text-left hover:bg-muted/50 transition-colors",
+                          selectedContact?.id === contact.id && "bg-muted"
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="h-10 w-10 rounded-full bg-pimpo-green/10 flex items-center justify-center flex-shrink-0">
+                            <User className="h-5 w-5 text-pimpo-green" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium truncate block">
+                              {contact.name}
+                            </span>
+                            {contact.phone && (
+                              <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {contact.phone}
+                              </p>
+                            )}
+                            {contact.email && (
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                <Mail className="h-3 w-3" />
+                                {contact.email}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Messages Area / New Conversation Panel */}
+      <Card className={cn(
+        "flex-1 flex flex-col",
+        isMobile && !selectedConversation && !selectedContact && "hidden"
+      )}>
+        {selectedConversation ? (
+          <>
+            <CardHeader className="pb-3 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {isMobile && (
+                    <Button variant="ghost" size="icon" onClick={handleBack}>
+                      <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                  )}
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">
+                        {contactInfo?.name || selectedConversation.contactName}
+                      </CardTitle>
+                      {opportunitiesMap[selectedConversation.contactId]?.monetaryValue ? (
+                        <Badge variant="secondary" className="font-semibold">
+                          {formatCurrency(opportunitiesMap[selectedConversation.contactId].monetaryValue!)}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {getChannelIcon(activeLeadChannel)}
+                      <span>{activeLeadChannel}</span>
+                      {contactInfo?.phone && (
+                        <>
+                          <span>•</span>
+                          <span>{contactInfo.phone}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Star/Unstar button */}
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => toggleStarredMutation.mutate({ 
+                      conversationId: selectedConversation.id, 
+                      contactId: selectedConversation.contactId,
+                      isStarred: isStarred(selectedConversation.id) 
+                    })}
+                    disabled={toggleStarredMutation.isPending}
+                    title={isStarred(selectedConversation.id) ? "Remover dos favoritos" : "Marcar como importante"}
+                  >
+                    {isStarred(selectedConversation.id) ? (
+                      <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                    ) : (
+                      <StarOff className="h-5 w-5" />
+                    )}
+                  </Button>
+                  
+                  {/* Mark as read button */}
+                  {selectedConversation.unreadCount > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => markAsReadMutation.mutate(selectedConversation.id)}
+                      disabled={markAsReadMutation.isPending}
+                      title="Marcar como lido"
+                    >
+                      {markAsReadMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <CheckCheck className="h-4 w-4 mr-2" />
+                      )}
+                      Marcar lido
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                  >
+                    <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                    Atualizar
+                  </Button>
+                </div>
+              </div>
+              {lastMessagesUpdate && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+                  <CheckCircle2 className="h-3 w-3 text-pimpo-green" />
+                  Atualizado {formatDistanceToNow(lastMessagesUpdate, { addSuffix: true, locale: ptBR })}
+                </span>
+              )}
+            </CardHeader>
+            
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-3">
+                {loadingMessages ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className={cn(
+                      "flex",
+                      i % 2 === 0 ? "justify-start" : "justify-end"
+                    )}>
+                      <Skeleton className="h-16 w-3/4" />
+                    </div>
+                  ))
+                ) : messages.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma mensagem encontrada
+                  </p>
+                ) : (
+                  messages.map((msg) => {
+                    // Helper to get attachment icon based on content type
+                    const getAttachmentIcon = (contentType?: string) => {
+                      if (!contentType) return <FileText className="h-4 w-4" />;
+                      if (contentType.startsWith("image/")) return <ImageIcon className="h-4 w-4" />;
+                      if (contentType.startsWith("audio/")) return <FileAudio className="h-4 w-4" />;
+                      if (contentType.startsWith("video/")) return <FileVideo className="h-4 w-4" />;
+                      return <FileText className="h-4 w-4" />;
+                    };
+
+                    // Helper to get file name from URL or use fileName
+                    const getFileName = (attachment: Attachment) => {
+                      if (attachment.fileName) return attachment.fileName;
+                      try {
+                        const url = new URL(attachment.url);
+                        const pathname = url.pathname;
+                        const segments = pathname.split("/");
+                        return segments[segments.length - 1] || "Anexo";
+                      } catch {
+                        return "Anexo";
+                      }
+                    };
+
+                    const hasAttachments = msg.attachments && msg.attachments.length > 0;
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "flex",
+                          msg.direction === "outbound" ? "justify-end" : "justify-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-lg px-4 py-2",
+                            msg.direction === "outbound"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          )}
+                        >
+                          {msg.body && (
+                            <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                          )}
+                          
+                          {/* Render attachments */}
+                          {hasAttachments && (
+                            <div className={cn(
+                              "space-y-2",
+                              msg.body && "mt-2 pt-2 border-t",
+                              msg.direction === "outbound" 
+                                ? "border-primary-foreground/20" 
+                                : "border-border"
+                            )}>
+                              {msg.attachments!.map((attachment, idx) => {
+                                const isImage = attachment.contentType?.startsWith("image/");
+                                const isAudio = attachment.contentType?.startsWith("audio/");
+                                const isVideo = attachment.contentType?.startsWith("video/");
+
+                                return (
+                                  <div key={idx} className="flex flex-col gap-1">
+                                    {/* Image preview */}
+                                    {isImage && (
+                                      <a 
+                                        href={attachment.url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="block"
+                                      >
+                                        <img 
+                                          src={attachment.url} 
+                                          alt={getFileName(attachment)}
+                                          className="max-w-full max-h-48 rounded-md object-cover hover:opacity-90 transition-opacity"
+                                          loading="lazy"
+                                        />
+                                      </a>
+                                    )}
+
+                                    {/* Audio player */}
+                                    {isAudio && (
+                                      <audio 
+                                        controls 
+                                        src={attachment.url}
+                                        className="max-w-full h-10"
+                                      >
+                                        Seu navegador não suporta áudio.
+                                      </audio>
+                                    )}
+
+                                    {/* Video player */}
+                                    {isVideo && (
+                                      <video 
+                                        controls 
+                                        src={attachment.url}
+                                        className="max-w-full max-h-48 rounded-md"
+                                      >
+                                        Seu navegador não suporta vídeo.
+                                      </video>
+                                    )}
+
+                                    {/* Download link for all attachments */}
+                                    <a
+                                      href={attachment.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={cn(
+                                        "inline-flex items-center gap-2 text-sm hover:underline",
+                                        msg.direction === "outbound"
+                                          ? "text-primary-foreground/90 hover:text-primary-foreground"
+                                          : "text-primary hover:text-primary/80"
+                                      )}
+                                    >
+                                      {getAttachmentIcon(attachment.contentType)}
+                                      <span className="truncate max-w-[200px]">
+                                        {getFileName(attachment)}
+                                      </span>
+                                      <Download className="h-3 w-3 flex-shrink-0" />
+                                    </a>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          <p className={cn(
+                            "text-xs mt-1",
+                            msg.direction === "outbound" 
+                              ? "text-primary-foreground/70" 
+                              : "text-muted-foreground"
+                          )}>
+                            {formatMessageDate(msg.dateAdded)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+            
+            <div className="p-4 border-t bg-muted/30">
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  onKeyDown={handleKeyDown}
+                  disabled={sending || loadingMessages}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={sending || loadingMessages || !newMessage.trim()}
+                  size="icon"
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : selectedContact ? (
+          /* New Conversation Panel */
+          <>
+            <CardHeader className="pb-3 border-b">
+              <div className="flex items-center gap-3">
+                {isMobile && (
+                  <Button variant="ghost" size="icon" onClick={handleBack}>
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <div className="h-10 w-10 rounded-full bg-pimpo-green/10 flex items-center justify-center">
+                  <MessageSquarePlus className="h-5 w-5 text-pimpo-green" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Nova Conversa</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Iniciar conversa com {selectedContact.name}
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <div className="flex-1 p-6">
+              <div className="max-w-md mx-auto space-y-6">
+                {/* Contact Info Card */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-pimpo-green/10 flex items-center justify-center">
+                      <User className="h-6 w-6 text-pimpo-green" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{selectedContact.name}</p>
+                      {selectedContact.phone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {selectedContact.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {selectedContact.email && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      {selectedContact.email}
+                    </p>
+                  )}
+                  {selectedContact.tags && selectedContact.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedContact.tags.slice(0, 3).map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Channel Info */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Smartphone className="h-4 w-4 text-pimpo-green" />
+                  <span>Mensagem será enviada via <strong>WhatsApp</strong></span>
+                </div>
+
+                {/* Message Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sua mensagem</label>
+                  <textarea
+                    value={newConversationMessage}
+                    onChange={(e) => setNewConversationMessage(e.target.value)}
+                    placeholder="Digite a mensagem que deseja enviar..."
+                    className="w-full min-h-[120px] p-3 rounded-md border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    disabled={startingConversation}
+                  />
+                </div>
+
+                {/* Send Button */}
+                <Button 
+                  onClick={handleStartConversation}
+                  disabled={startingConversation || !newConversationMessage.trim()}
+                  className="w-full"
+                  size="lg"
+                >
+                  {startingConversation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Iniciar Conversa
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <Smartphone className="h-16 w-16 mx-auto mb-4 opacity-30" />
+              <p className="font-medium">Selecione uma conversa ou contato</p>
+              <p className="text-sm">Escolha um lead para visualizar as mensagens ou inicie uma nova conversa</p>
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

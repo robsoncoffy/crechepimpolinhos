@@ -1,0 +1,109 @@
+import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Menu, X, Phone, Instagram, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import logo from "@/assets/logo-pimpolinhos.png";
+const navigation = [{
+  name: "Início",
+  href: "/"
+}, {
+  name: "Sobre Nós",
+  href: "/sobre"
+}, {
+  name: "Turmas",
+  href: "/turmas"
+}, {
+  name: "Estrutura",
+  href: "/estrutura"
+}, {
+  name: "Planos",
+  href: "/planos"
+}, {
+  name: "Pré-Matrícula",
+  href: "/pre-matricula"
+}, {
+  name: "Contato",
+  href: "/contato"
+}];
+export function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+  return <header className="bg-card shadow-md sticky top-0 z-50">
+      {/* Top bar */}
+      <div className="bg-primary text-primary-foreground py-2">
+        <div className="container flex justify-between items-center text-sm">
+          <div className="flex items-center gap-4">
+            <a href="tel:5198996-5423" className="flex items-center gap-1 hover:underline">
+              <Phone className="w-4 h-4" />
+              (51) 98996-5423
+            </a>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="https://instagram.com/crechepimpolinhos" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline">
+              <Instagram className="w-4 h-4" />
+              @crechepimpolinhos
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Main navigation */}
+      <nav className="container py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              alt="Creche Pimpolinhos" 
+              className="h-14 w-auto" 
+              src="/lovable-uploads/3a77367a-8045-45bb-a936-0f390d64d2fd.png" 
+              width={215} 
+              height={56}
+              fetchPriority="high"
+              decoding="async"
+            />
+          </Link>
+
+          {/* Desktop navigation */}
+          <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+            {navigation.map(item => <Link key={item.name} to={item.href} className={`text-foreground font-semibold hover:text-primary transition-colors text-sm xl:text-base whitespace-nowrap ${location.pathname === item.href ? "text-primary" : ""}`}>
+                {item.name}
+              </Link>)}
+          </div>
+
+          {/* Auth buttons */}
+          <div className="hidden lg:flex items-center gap-2 xl:gap-3 flex-shrink-0">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/instalar">
+                <Download className="w-4 h-4 xl:mr-2" />
+                <span className="hidden xl:inline">Instalar App</span>
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/auth">Entrar</Link>
+            </Button>
+          </div>
+
+          {/* Mobile menu button */}
+          <button type="button" className="lg:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && <div className="lg:hidden mt-4 pb-4 border-t border-border">
+            <div className="flex flex-col gap-2 pt-4">
+              {navigation.map(item => <Link key={item.name} to={item.href} className={`px-4 py-2 rounded-lg font-semibold ${location.pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`} onClick={() => setMobileMenuOpen(false)}>
+                  {item.name}
+                </Link>)}
+              <div className="flex flex-col gap-2 mt-4 px-4">
+                <Button variant="outline" asChild className="w-full">
+                  <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                    Entrar
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>}
+      </nav>
+    </header>;
+}
