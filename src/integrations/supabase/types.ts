@@ -2950,58 +2950,40 @@ export type Database = {
     Views: {
       employee_profiles_safe: {
         Row: {
-          birth_date: string | null
-          city: string | null
           created_at: string | null
           education_level: string | null
-          emergency_contact_name: string | null
-          emergency_contact_phone: string | null
           full_name: string | null
           hire_date: string | null
           id: string | null
           job_title: string | null
-          phone: string | null
           photo_url: string | null
           specialization: string | null
-          state: string | null
           updated_at: string | null
           user_id: string | null
           work_shift: string | null
         }
         Insert: {
-          birth_date?: string | null
-          city?: string | null
           created_at?: string | null
           education_level?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           full_name?: string | null
           hire_date?: string | null
           id?: string | null
           job_title?: string | null
-          phone?: string | null
           photo_url?: string | null
           specialization?: string | null
-          state?: string | null
           updated_at?: string | null
           user_id?: string | null
           work_shift?: string | null
         }
         Update: {
-          birth_date?: string | null
-          city?: string | null
           created_at?: string | null
           education_level?: string | null
-          emergency_contact_name?: string | null
-          emergency_contact_phone?: string | null
           full_name?: string | null
           hire_date?: string | null
           id?: string | null
           job_title?: string | null
-          phone?: string | null
           photo_url?: string | null
           specialization?: string | null
-          state?: string | null
           updated_at?: string | null
           user_id?: string | null
           work_shift?: string | null
@@ -3010,6 +2992,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_guardian_invitation: {
+        Args: { _invitation_id: string; _user_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -39,7 +39,8 @@ export function PushNotificationManager() {
     if (user && currentPermission === "granted") {
       try {
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subscription = await (registration as any).pushManager.getSubscription();
         
         if (subscription) {
           // Verify subscription exists in database
@@ -92,7 +93,8 @@ export function PushNotificationManager() {
     
     try {
       const registration = await navigator.serviceWorker.ready;
-      
+      const pushManager = (registration as any).pushManager;
+
       // Get VAPID public key from system settings
       const { data: vapidSetting } = await supabase
         .from("system_settings")
@@ -109,7 +111,7 @@ export function PushNotificationManager() {
       }
 
       // Subscribe to push
-      const subscription = await registration.pushManager.subscribe({
+      const subscription = await pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: vapidPublicKey,
       });
@@ -148,7 +150,7 @@ export function PushNotificationManager() {
     
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
       
       if (subscription) {
         await subscription.unsubscribe();

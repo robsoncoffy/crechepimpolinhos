@@ -34,7 +34,7 @@ export function useChildrenInfinite(search?: string, classFilter?: string | "all
             }
 
             if (classFilter && classFilter !== "all") {
-                query = query.eq("class_type", classFilter);
+                query = query.eq("class_type", classFilter as any);
             }
 
             const { data, error, count } = await query.range(from, to);

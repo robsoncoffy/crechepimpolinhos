@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Brain, Heart, Loader2, Target, Sparkles, MessageSquare, Palette, ArrowRight, Star, FileText, GraduationCap, ChevronLeft, ChevronRight } from "lucide-react";
+import { Brain, Heart, Loader2, Target, Sparkles, MessageSquare, Palette, ArrowRight, Star, FileText, GraduationCap, ChevronLeft, ChevronRight, Wand2, Save } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Child = Database["public"]["Tables"]["children"]["Row"];
@@ -185,13 +185,13 @@ export function EvaluationsTab({ plusChildren }: EvaluationsTabProps) {
                     .eq("id", existing.id);
                 if (error) throw error;
             } else {
-                const { error } = await supabase.from("quarterly_evaluations").insert({
+                const { error } = await supabase.from("quarterly_evaluations").insert([{
                     child_id: selectedEvalChild,
                     quarter: selectedQuarter,
                     year,
                     created_by: user.id,
                     ...evalData,
-                });
+                }] as any);
                 if (error) throw error;
             }
 

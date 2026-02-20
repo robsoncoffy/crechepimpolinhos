@@ -2,8 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { BarChart3, TrendingUp, AlertCircle } from "lucide-react";
-import { PNAE_TARGETS_BY_AGE, MenuType, NutritionTargets } from "@/lib/constants/nutrition";
-import { NutritionTotals } from "@/types/nutrition";
+import { PNAE_TARGETS_BY_AGE, NutritionTargets } from "@/lib/constants/nutrition";
+import { NutritionTotals, MenuType } from "@/types/nutrition";
 
 interface DayNutrition {
   dayOfWeek: number;

@@ -175,7 +175,7 @@ export function FeedPostsContent() {
         toast.success("Publicação criada!");
 
         // Trigger Push Notification for new post
-        let query = supabase.from("children").select("id").eq("status", "active");
+        let query = (supabase.from("children") as any).select("id").eq("status", "active");
         if (!allClasses && classTypeValue) {
           query = query.eq("class_type", classTypeValue);
         }
@@ -184,7 +184,7 @@ export function FeedPostsContent() {
 
         if (childrenInScoope && childrenInScoope.length > 0) {
           const childIds = childrenInScoope.map(c => c.id);
-          const { data: registrations } = await supabase
+          const { data: registrations } = await (supabase as any)
             .from("child_registrations")
             .select("parent_id")
             .in("child_id", childIds)
