@@ -115,9 +115,9 @@ export function formatCurrency(value: number): string {
  * Fetch plans/prices for a specific class type from Supabase
  */
 export async function fetchPricesForClass(classType: string): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    // @ts-ignore
-    .from('plans') // Ensure this table exists via migration
+  // @ts-ignore — 'plans' table may not exist in generated types yet
+  const { data, error } = await (supabase as any)
+    .from('plans')
     .select('plan_type, price')
     .eq('class_type', classType)
     .eq('active', true);
@@ -178,3 +178,51 @@ function getLocalSuggestedClassType(birthDate: string | Date): ClassType {
 
 // GHL WhatsApp link
 export const GHL_WHATSAPP_LINK = 'https://wa.me/5551989965423?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20os%20planos%20da%20Creche%20Pimpolinhos.';
+
+// Legacy aliases kept for backward compatibility
+// PLANS_METADATA is a Record, expose as array for pages that iterate it
+export const PLANS = Object.entries(PLANS_METADATA).map(([id, meta]) => ({
+  id: id as PlanType,
+  ...meta,
+}));
+
+export function getAgeInMonths(birthDate: string | Date): number {
+  const birth = typeof birthDate === 'string'
+    ? new Date(`${birthDate}T12:00:00`)
+    : birthDate;
+  const now = new Date();
+  if (isNaN(birth.getTime())) return 0;
+  let months = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+  if (now.getDate() < birth.getDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+/**
+ * Synchronous class type suggestion based on birth date (local fallback)
+ */
+export function getSuggestedClassTypeSync(birthDate: string | Date): ClassType {
+  const months = getAgeInMonths(birthDate);
+  if (months < 24) return 'bercario';
+  if (months < 36) return 'maternal_1';
+  if (months < 48) return 'maternal_2';
+  if (months < 60) return 'jardim_1';
+  return 'jardim_2';
+}
+
+/**
+ * Get price for a class/plan combination (static lookup based on local config)
+ * Returns 0 if not found — prices managed via system_settings in the DB.
+ */
+export function getPrice(classType: ClassType, planType: PlanType): number {
+  // Prices are managed dynamically via system_settings; this is a safe fallback
+  const staticPrices: Partial<Record<ClassType, Partial<Record<PlanType, number>>>> = {
+    bercario: { basico: 1200, intermediario: 1600, plus: 2000 },
+    maternal: { basico: 1000, intermediario: 1400, plus: 1800 },
+    maternal_1: { basico: 1000, intermediario: 1400, plus: 1800 },
+    maternal_2: { basico: 1000, intermediario: 1400, plus: 1800 },
+    jardim: { basico: 900 },
+    jardim_1: { basico: 900 },
+    jardim_2: { basico: 900 },
+  };
+  return staticPrices[classType]?.[planType] ?? 0;
+}

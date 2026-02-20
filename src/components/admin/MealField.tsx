@@ -5,6 +5,7 @@ import { Clock } from 'lucide-react';
 import { MealSuggestions } from './MealSuggestions';
 import { IngredientQuantityEditor } from './IngredientQuantityEditor';
 import { IngredientWithNutrition, NutritionTotals, MenuItem, MenuType } from '@/types/nutrition';
+import { IngredientNutritionTable } from '@/components/admin/nutritionist/IngredientNutritionTable';
 
 interface MealFieldProps {
   icon: React.ReactNode;

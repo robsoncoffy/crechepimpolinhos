@@ -14,7 +14,7 @@ import { CheckCircle2, Baby, FileText, Building2, Landmark, Users, Mail, Clock, 
 import { Link } from "react-router-dom";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { getAgeInMonths, getSuggestedClassType, getClassDisplayName, isHalfDayOnly, type ClassType } from "@/lib/pricing";
+import { getAgeInMonths, getSuggestedClassTypeSync, getClassDisplayName, isHalfDayOnly, type ClassType } from "@/lib/pricing";
 
 const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
 
@@ -68,7 +68,7 @@ export default function PreEnrollment() {
   // Calculate class type and check if integral is allowed
   const { suggestedClass, isJardim } = useMemo(() => {
     if (!childBirthDate) return { suggestedClass: null, isJardim: false };
-    const classType = getSuggestedClassType(childBirthDate);
+    const classType = getSuggestedClassTypeSync(childBirthDate);
     return {
       suggestedClass: classType,
       isJardim: isHalfDayOnly(classType),

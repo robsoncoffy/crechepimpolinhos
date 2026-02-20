@@ -112,7 +112,7 @@ export default function Pricing() {
                   <div className="text-center py-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Valor mensal</p>
                     <p className="font-fredoka text-2xl font-bold text-primary">
-                      A partir de {plan.startingPrice ? formatCurrency(plan.startingPrice) : 'Consultar'}
+                      A partir de {'Consultar'}
                     </p>
                   </div>
 

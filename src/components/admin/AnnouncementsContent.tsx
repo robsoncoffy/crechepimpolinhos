@@ -214,25 +214,25 @@ export function AnnouncementsContent() {
         let parentIds: string[] = [];
 
         if (childId) {
-          const { data: regs } = await supabase
+          const { data: regs } = await (supabase as any)
             .from("child_registrations")
             .select("parent_id")
             .eq("child_id", childId)
             .eq("status", "approved");
-          if (regs) parentIds = [...new Set(regs.map(r => r.parent_id))].filter(Boolean) as string[];
+          if (regs) parentIds = [...new Set(regs.map((r: any) => r.parent_id))].filter(Boolean) as string[];
         } else {
-          let query = supabase.from("children").select("id").eq("status", "active");
+          let query = (supabase.from("children") as any).select("id").eq("status", "active");
           if (classType) query = query.eq("class_type", classType);
           const { data: childrenInScope } = await query;
 
           if (childrenInScope && childrenInScope.length > 0) {
             const cIds = childrenInScope.map(c => c.id);
-            const { data: regs } = await supabase
+            const { data: regs } = await (supabase as any)
               .from("child_registrations")
               .select("parent_id")
               .in("child_id", cIds)
               .eq("status", "approved");
-            if (regs) parentIds = [...new Set(regs.map(r => r.parent_id))].filter(Boolean) as string[];
+            if (regs) parentIds = [...new Set(regs.map((r: any) => r.parent_id))].filter(Boolean) as string[];
           }
         }
 

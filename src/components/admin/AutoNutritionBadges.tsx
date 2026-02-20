@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, Loader2, Sparkles } from 'lucide-react';
-import type { NutritionTotals } from './IngredientQuantityEditor';
+import type { NutritionTotals } from '@/types/nutrition';
 
 type NutrientGroup = 'Minerais' | 'Vitaminas' | 'Lipídios';
 type NutrientDef = {
