@@ -91,7 +91,6 @@ const AcceptInviteWithAuth = () => (
 );
 
 const App = () => {
-  console.log("ANTIGRAVITY: App component rendering");
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

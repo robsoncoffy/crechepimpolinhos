@@ -100,7 +100,6 @@ const stats = [{
   label: "Avaliação dos Pais"
 }];
 export default function Home() {
-  console.log("ANTIGRAVITY: Home component rendering");
   return <PublicLayout>
     {/* Hero Section - Full Width with Overlay */}
     <section className="relative min-h-[90vh] flex items-center">
