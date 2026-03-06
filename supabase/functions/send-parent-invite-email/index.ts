@@ -203,9 +203,9 @@ async function sendEmailViaGHL(
             });
             
             // Update existing contact with tags
-            const nameParts = name.trim().split(" ");
-            const firstName = nameParts[0] || "Usuário";
-            const lastName = nameParts.slice(1).join(" ") || "";
+            const dupNameParts = name.trim().split(" ");
+            const dupFirstName = dupNameParts[0] || "Usuário";
+            const dupLastName = dupNameParts.slice(1).join(" ") || "";
             
             const updateResp = await fetch(
               `https://services.leadconnectorhq.com/contacts/${contactId}`,
@@ -217,8 +217,8 @@ async function sendEmailViaGHL(
                   Version: "2021-07-28",
                 },
                 body: JSON.stringify({
-                  firstName,
-                  lastName,
+                  firstName: dupFirstName,
+                  lastName: dupLastName,
                   email,
                   tags: ["convite-pais", "transacional"],
                 }),
@@ -230,7 +230,7 @@ async function sendEmailViaGHL(
               await updateResp.text();
               logger.warn("ghl_duplicate_contact_update_failed", { ghlContactId: contactId });
             }
-            // Continue with this contactId - don't return error
+            // Continue with this contactId - skip the normal create result parsing
           } else {
             logger.error("ghl_contact_create_failed", errorText, { 
               metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
@@ -243,15 +243,15 @@ async function sendEmailViaGHL(
           });
           return { success: false, error: `Failed to create contact: ${createResponse.status}` };
         }
+      } else {
+        const createResult = await createResponse.json();
+        contactId = createResult.contact.id;
+        wasCreated = true;
+        logger.info("ghl_contact_created", { 
+          ghlContactId: contactId,
+          metadata: { createDuration: Date.now() - createStart, hasPhone: !!normalizedPhone }
+        });
       }
-
-      const createResult = await createResponse.json();
-      contactId = createResult.contact.id;
-      wasCreated = true;
-      logger.info("ghl_contact_created", { 
-        ghlContactId: contactId,
-        metadata: { createDuration: Date.now() - createStart, hasPhone: !!normalizedPhone }
-      });
     }
   } else {
     const errorText = await searchResponse.text();
