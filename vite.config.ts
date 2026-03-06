@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      injectRegister: "script-defer",
+      injectRegister: false,
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
         name: "Creche Pimpolinhos",
@@ -99,7 +99,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        // Do NOT precache HTML - this prevents blank screen issues
+        globPatterns: ["**/*.{js,css,ico,png,svg,jpg,jpeg,webp,woff,woff2}"],
+        navigateFallback: null,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/ksguxhmqctmepbddbhdz\.supabase\.co\/.*/i,
