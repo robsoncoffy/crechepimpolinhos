@@ -191,10 +191,58 @@ async function sendEmailViaGHL(
 
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
-        logger.error("ghl_contact_create_failed", errorText, { 
-          metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
-        });
-        return { success: false, error: `Failed to create contact: ${createResponse.status}` };
+        
+        // Handle duplicate contact error - extract existing contactId and continue
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.meta?.contactId) {
+            contactId = errorData.meta.contactId;
+            logger.info("ghl_contact_duplicate_resolved", { 
+              ghlContactId: contactId,
+              metadata: { matchingField: errorData.meta.matchingField, createDuration: Date.now() - createStart }
+            });
+            
+            // Update existing contact with tags
+            const nameParts = name.trim().split(" ");
+            const firstName = nameParts[0] || "Usuário";
+            const lastName = nameParts.slice(1).join(" ") || "";
+            
+            const updateResp = await fetch(
+              `https://services.leadconnectorhq.com/contacts/${contactId}`,
+              {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  Version: "2021-07-28",
+                },
+                body: JSON.stringify({
+                  firstName,
+                  lastName,
+                  email,
+                  tags: ["convite-pais", "transacional"],
+                }),
+              }
+            );
+            if (updateResp.ok) {
+              logger.info("ghl_duplicate_contact_updated", { ghlContactId: contactId });
+            } else {
+              await updateResp.text();
+              logger.warn("ghl_duplicate_contact_update_failed", { ghlContactId: contactId });
+            }
+            // Continue with this contactId - don't return error
+          } else {
+            logger.error("ghl_contact_create_failed", errorText, { 
+              metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
+            });
+            return { success: false, error: `Failed to create contact: ${createResponse.status}` };
+          }
+        } catch {
+          logger.error("ghl_contact_create_failed", errorText, { 
+            metadata: { status: createResponse.status, createDuration: Date.now() - createStart }
+          });
+          return { success: false, error: `Failed to create contact: ${createResponse.status}` };
+        }
       }
 
       const createResult = await createResponse.json();
