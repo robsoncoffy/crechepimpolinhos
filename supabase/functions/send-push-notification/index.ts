@@ -78,7 +78,7 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = serviceClient;
 
     const payload: PushPayload = await req.json();
     const { user_id, user_ids, title, body, icon, url, tag } = payload;
