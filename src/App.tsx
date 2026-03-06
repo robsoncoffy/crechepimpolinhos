@@ -47,7 +47,7 @@ const Dashboard = lazy(async () => {
       sessionStorage.setItem(reloadedKey, "1");
       window.location.reload();
       // Keep React.lazy pending while the browser reloads.
-      return await new Promise<never>(() => {});
+      return await new Promise<never>(() => { });
     }
 
     throw err;
@@ -90,38 +90,41 @@ const AcceptInviteWithAuth = () => (
   </AuthProvider>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/redefinir-senha" element={<ResetPassword />} />
-            <Route path="/sobre" element={<About />} />
-            <Route path="/turmas" element={<Classes />} />
-            <Route path="/estrutura" element={<Structure />} />
-            <Route path="/contato" element={<Contact />} />
-            <Route path="/planos" element={<Pricing />} />
-            <Route path="/pre-matricula" element={<PreEnrollment />} />
-            <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
-            <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
-            <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
-            <Route path="/instalar" element={<Install />} />
-            <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
-            <Route path="/lgpd" element={<LGPD />} />
-            <Route path="/termos-uso" element={<TermsOfUse />} />
-            <Route path="/aguardando-aprovacao" element={<PendingApproval />} />
-            <Route path="/painel/*" element={<Dashboard />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  console.log("ANTIGRAVITY: App component rendering");
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
+              <Route path="/sobre" element={<About />} />
+              <Route path="/turmas" element={<Classes />} />
+              <Route path="/estrutura" element={<Structure />} />
+              <Route path="/contato" element={<Contact />} />
+              <Route path="/planos" element={<Pricing />} />
+              <Route path="/pre-matricula" element={<PreEnrollment />} />
+              <Route path="/cadastro-pimpolho" element={<ChildRegistrationWithAuth />} />
+              <Route path="/aceitar-convite" element={<AcceptInviteWithAuth />} />
+              <Route path="/cadastro-funcionario" element={<EmployeeRegistration />} />
+              <Route path="/instalar" element={<Install />} />
+              <Route path="/politica-privacidade" element={<PrivacyPolicy />} />
+              <Route path="/lgpd" element={<LGPD />} />
+              <Route path="/termos-uso" element={<TermsOfUse />} />
+              <Route path="/aguardando-aprovacao" element={<PendingApproval />} />
+              <Route path="/painel/*" element={<Dashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
