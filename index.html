@@ -60,6 +60,20 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <script>
+    (function () {
+      console.log("ANTIGRAVITY: DEBUG INIT");
+      window.onerror = function (msg, url, lineNo, columnNo, error) {
+        console.error("ANTIGRAVITY ERROR:", msg, "at", url, ":", lineNo, ":", columnNo);
+        alert("ERRO CAPTURADO: " + msg); // Aggressive alert for direct proof
+        return false;
+      };
+      window.onunhandledrejection = function (event) {
+        console.error("ANTIGRAVITY PROMISE REJECTION:", event.reason);
+        alert("PROMISE REJECTION: " + event.reason);
+      };
+      console.log("ANTIGRAVITY: Handlers installed");
+    })();
+
     console.log("ANTIGRAVITY: Global script execution start");
     (function () {
       console.log("ANTIGRAVITY: Iife running");
