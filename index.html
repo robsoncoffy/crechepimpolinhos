@@ -50,14 +50,13 @@
   <body>
     <div id="root"></div>
     <script>
-      // Force unregister corrupted service workers that serve empty cached HTML
+      // Register kill-switch service worker to clear ALL caches and unregister
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (var i = 0; i < registrations.length; i++) {
-            registrations[i].unregister();
-          }
-        });
-        // Clear all caches to remove stale assets
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+          reg.update();
+        }).catch(function(err) {});
+        
+        // Secondary cache cleanup fallback
         if ('caches' in window) {
           caches.keys().then(function(names) {
             for (var i = 0; i < names.length; i++) {
