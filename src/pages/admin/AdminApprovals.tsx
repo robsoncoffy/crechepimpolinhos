@@ -2181,6 +2181,7 @@ export default function AdminApprovals() {
                         .eq("id", selectedRegistration.id);
                       if (error) throw error;
                       toast.success("Configurações salvas com sucesso!");
+                      fetchData();
                     } catch (err: any) {
                       toast.error("Erro ao salvar: " + err.message);
                     } finally {
