@@ -1058,6 +1058,56 @@ export default function AdminProfiles() {
                   </>
                 )}
 
+                {/* Terminate/Reactivate Employee Button */}
+                {selectedProfile && selectedEmployee && selectedProfile.user_id !== user?.id && (
+                  <>
+                    <Separator className="my-4" />
+                    {(selectedProfile.status as string) === "terminated" ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("profiles")
+                            .update({ status: "approved" as any })
+                            .eq("user_id", selectedProfile.user_id);
+                          if (error) {
+                            toast.error("Erro ao reativar funcionário");
+                          } else {
+                            toast.success(`${selectedProfile.full_name} reativado(a)`);
+                            setSelectedProfile(null);
+                            fetchData();
+                          }
+                        }}
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Reativar Funcionário
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("profiles")
+                            .update({ status: "terminated" as any })
+                            .eq("user_id", selectedProfile.user_id);
+                          if (error) {
+                            toast.error("Erro ao desligar funcionário");
+                          } else {
+                            toast.success(`${selectedProfile.full_name} marcado(a) como desligado(a)`);
+                            setSelectedProfile(null);
+                            fetchData();
+                          }
+                        }}
+                      >
+                        <UserX className="w-4 h-4 mr-2" />
+                        Desligar Funcionário
+                      </Button>
+                    )}
+                  </>
+                )}
+
                 {/* Delete User Button */}
                 {selectedProfile && selectedProfile.user_id !== user?.id && (
                   <>
