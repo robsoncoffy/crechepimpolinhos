@@ -665,12 +665,18 @@ export default function AdminApprovals() {
 
     setActionLoading(true);
     try {
+      const customValue = useCustomPrice && customPrice 
+        ? parseFloat(customPrice.replace(',', '.')) 
+        : null;
       const { error } = await supabase
         .from("child_registrations")
         .update({
           class_type: selectedClassType,
           shift_type: selectedShiftType,
           plan_type: selectedPlanType,
+          custom_monthly_value: customValue,
+          billing_day: billingDay,
+          relationship: relationship,
         } as any)
         .eq("id", selectedRegistration.id);
 
