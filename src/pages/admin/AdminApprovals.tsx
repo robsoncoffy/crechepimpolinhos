@@ -722,9 +722,18 @@ export default function AdminApprovals() {
       } else {
         // Prepare PRIVATE contract data for preview
         const calculatedPrice = getPrice(selectedClassType as ClassType, selectedPlanType as PlanType);
+        let effectivePrice = calculatedPrice;
+        // Apply coupon discount if present and not using custom price
+        if (!useCustomPrice && registrationCoupon) {
+          if (registrationCoupon.discount_type === "percentage") {
+            effectivePrice = calculatedPrice - (calculatedPrice * registrationCoupon.discount_value / 100);
+          } else {
+            effectivePrice = Math.max(0, calculatedPrice - registrationCoupon.discount_value);
+          }
+        }
         const finalMonthlyValue = useCustomPrice && customPrice 
           ? parseFloat(customPrice.replace(',', '.')) 
-          : calculatedPrice;
+          : effectivePrice;
 
         const contractPreviewData: ContractData = {
           parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
