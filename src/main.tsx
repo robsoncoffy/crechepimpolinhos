@@ -4,7 +4,10 @@ import "./index.css";
 
 // --- START PWA KILL-SWITCH ---
 if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-    const PWA_CLEANUP_VERSION = "2026-03-06-v3";
+    const PWA_CLEANUP_VERSION = "2026-03-07-v1";
+    // Clear stale dynamic-import retry guards
+    sessionStorage.removeItem("dashboard_import_retried");
+    sessionStorage.removeItem("dashboard_import_reloaded");
     if (localStorage.getItem("pwa_cleanup_v") !== PWA_CLEANUP_VERSION) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
             for (const registration of registrations) {
