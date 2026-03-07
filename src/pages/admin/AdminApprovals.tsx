@@ -43,7 +43,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save, Building2 } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save, Building2, Tag } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
@@ -120,6 +120,11 @@ export default function AdminApprovals() {
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [billingDay, setBillingDay] = useState<number>(10);
+  const [registrationCoupon, setRegistrationCoupon] = useState<{
+    code: string;
+    discount_type: string;
+    discount_value: number;
+  } | null>(null);
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [municipalContractPreviewOpen, setMunicipalContractPreviewOpen] = useState(false);
   const [contractViewOnly, setContractViewOnly] = useState(false);
@@ -525,6 +530,26 @@ export default function AdminApprovals() {
     setSelectedPlanType(planFromReg || "intermediario");
     setUseCustomPrice(false);
     setCustomPrice("");
+    setRegistrationCoupon(null);
+    
+    // Fetch coupon data if registration has one
+    const regCouponCode = (registration as any).coupon_code as string | null;
+    if (regCouponCode) {
+      supabase
+        .from("discount_coupons")
+        .select("code, discount_type, discount_value")
+        .eq("code", regCouponCode)
+        .maybeSingle()
+        .then(({ data: couponData }) => {
+          if (couponData) {
+            setRegistrationCoupon({
+              code: couponData.code,
+              discount_type: couponData.discount_type,
+              discount_value: couponData.discount_value,
+            });
+          }
+        });
+    }
     
     setRegistrationDialogOpen(true);
   }
@@ -697,9 +722,18 @@ export default function AdminApprovals() {
       } else {
         // Prepare PRIVATE contract data for preview
         const calculatedPrice = getPrice(selectedClassType as ClassType, selectedPlanType as PlanType);
+        let effectivePrice = calculatedPrice;
+        // Apply coupon discount if present and not using custom price
+        if (!useCustomPrice && registrationCoupon) {
+          if (registrationCoupon.discount_type === "percentage") {
+            effectivePrice = calculatedPrice - (calculatedPrice * registrationCoupon.discount_value / 100);
+          } else {
+            effectivePrice = Math.max(0, calculatedPrice - registrationCoupon.discount_value);
+          }
+        }
         const finalMonthlyValue = useCustomPrice && customPrice 
           ? parseFloat(customPrice.replace(',', '.')) 
-          : calculatedPrice;
+          : effectivePrice;
 
         const contractPreviewData: ContractData = {
           parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
@@ -1756,11 +1790,36 @@ export default function AdminApprovals() {
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between p-3 bg-background rounded border">
-                          <span className="text-sm text-muted-foreground">Valor calculado:</span>
-                          <span className="text-lg font-bold text-primary">
-                            {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-background rounded border">
+                            <span className="text-sm text-muted-foreground">Valor calculado:</span>
+                            {registrationCoupon ? (
+                              <div className="text-right">
+                                <span className="text-sm text-muted-foreground line-through mr-2">
+                                  {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                                </span>
+                                <span className="text-lg font-bold text-primary">
+                                  {formatCurrency(
+                                    registrationCoupon.discount_type === "percentage"
+                                      ? getPrice(selectedClassType as ClassType, selectedPlanType as PlanType) * (1 - registrationCoupon.discount_value / 100)
+                                      : Math.max(0, getPrice(selectedClassType as ClassType, selectedPlanType as PlanType) - registrationCoupon.discount_value)
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-bold text-primary">
+                                {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                              </span>
+                            )}
+                          </div>
+                          {registrationCoupon && (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                              <Tag className="w-4 h-4 text-green-600" />
+                              <span className="text-sm text-green-700 dark:text-green-300">
+                                Cupom <strong className="font-mono">{registrationCoupon.code}</strong> aplicado — {registrationCoupon.discount_type === "percentage" ? `${registrationCoupon.discount_value}% de desconto` : `R$ ${registrationCoupon.discount_value.toFixed(2)} de desconto`}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
 

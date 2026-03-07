@@ -1,0 +1,1 @@
+ALTER TABLE public.child_registrations ADD COLUMN IF NOT EXISTS coupon_code text DEFAULT NULL;

@@ -423,6 +423,7 @@ export type Database = {
           city: string
           class_type: string | null
           continuous_doctors: string | null
+          coupon_code: string | null
           cpf: string | null
           created_at: string
           enrollment_type: string
@@ -448,6 +449,7 @@ export type Database = {
           city: string
           class_type?: string | null
           continuous_doctors?: string | null
+          coupon_code?: string | null
           cpf?: string | null
           created_at?: string
           enrollment_type: string
@@ -473,6 +475,7 @@ export type Database = {
           city?: string
           class_type?: string | null
           continuous_doctors?: string | null
+          coupon_code?: string | null
           cpf?: string | null
           created_at?: string
           enrollment_type?: string
