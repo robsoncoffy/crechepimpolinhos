@@ -464,7 +464,7 @@ export default function AdminApprovals() {
 
   function openRegistrationDialog(registration: PendingChildRegistration) {
     setSelectedRegistration(registration);
-    setRelationship("responsável");
+    // relationship is now restored from registration data below
     setIsEditing(false);
     setDialogTab("info");
     
