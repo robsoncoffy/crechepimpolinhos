@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   Trash2,
   Database,
-  Download
+  Download,
+  UserX
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
 import { Database as SupabaseDB } from "@/integrations/supabase/types";
@@ -378,7 +379,15 @@ export default function AdminProfiles() {
     const staffRoles = ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
     return profiles.filter(p => {
       const roles = getRolesForUser(p.user_id);
-      return roles.some(r => staffRoles.includes(r));
+      return roles.some(r => staffRoles.includes(r)) && p.status !== "rejected" && p.status !== "terminated";
+    });
+  };
+
+  const getTerminatedStaffProfiles = () => {
+    const staffRoles = ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
+    return profiles.filter(p => {
+      const roles = getRolesForUser(p.user_id);
+      return roles.some(r => staffRoles.includes(r)) && (p.status as string) === "terminated";
     });
   };
 
@@ -387,6 +396,10 @@ export default function AdminProfiles() {
   );
 
   const filteredStaff = getStaffProfiles().filter(p =>
+    p.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTerminated = getTerminatedStaffProfiles().filter(p =>
     p.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -484,6 +497,10 @@ export default function AdminProfiles() {
           <TabsTrigger value="staff" className="gap-2">
             <Briefcase className="w-4 h-4" />
             Funcionários ({filteredStaff.length})
+          </TabsTrigger>
+          <TabsTrigger value="terminated" className="gap-2">
+            <UserX className="w-4 h-4" />
+            Desligados ({filteredTerminated.length})
           </TabsTrigger>
         </TabsList>
 
@@ -592,6 +609,61 @@ export default function AdminProfiles() {
             {filteredStaff.length === 0 && (
               <div className="col-span-full text-center py-12 text-muted-foreground">
                 Nenhum funcionário encontrado
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="terminated">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredTerminated.map((profile) => {
+              const roles = getRolesForUser(profile.user_id);
+              const employeeData = employeeProfiles.find(e => e.user_id === profile.user_id);
+              return (
+                <Card 
+                  key={profile.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow opacity-70"
+                  onClick={() => handleViewEmployee(profile)}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-12 w-12 grayscale">
+                        <AvatarImage src={profile.avatar_url || employeeData?.photo_url || undefined} />
+                        <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
+                          {profile.full_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate flex items-center gap-1.5">
+                          {profile.full_name}
+                        </h3>
+                        {employeeData?.job_title && (
+                          <p className="text-sm text-muted-foreground">{employeeData.job_title}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">
+                            Desligado(a)
+                          </Badge>
+                          {roles.filter(r => r !== "parent").map((role) => (
+                            <Badge 
+                              key={role} 
+                              variant="secondary"
+                              className={`text-xs ${getRoleBadgeColor(role)}`}
+                            >
+                              {getRoleLabel(role)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {filteredTerminated.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <UserX className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                Nenhum funcionário desligado
               </div>
             )}
           </div>
@@ -983,6 +1055,56 @@ export default function AdminProfiles() {
                         </div>
                       </div>
                     </div>
+                  </>
+                )}
+
+                {/* Terminate/Reactivate Employee Button */}
+                {selectedProfile && selectedEmployee && selectedProfile.user_id !== user?.id && (
+                  <>
+                    <Separator className="my-4" />
+                    {(selectedProfile.status as string) === "terminated" ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("profiles")
+                            .update({ status: "approved" as any })
+                            .eq("user_id", selectedProfile.user_id);
+                          if (error) {
+                            toast.error("Erro ao reativar funcionário");
+                          } else {
+                            toast.success(`${selectedProfile.full_name} reativado(a)`);
+                            setSelectedProfile(null);
+                            fetchData();
+                          }
+                        }}
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Reativar Funcionário
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={async () => {
+                          const { error } = await supabase
+                            .from("profiles")
+                            .update({ status: "terminated" as any })
+                            .eq("user_id", selectedProfile.user_id);
+                          if (error) {
+                            toast.error("Erro ao desligar funcionário");
+                          } else {
+                            toast.success(`${selectedProfile.full_name} marcado(a) como desligado(a)`);
+                            setSelectedProfile(null);
+                            fetchData();
+                          }
+                        }}
+                      >
+                        <UserX className="w-4 h-4 mr-2" />
+                        Desligar Funcionário
+                      </Button>
+                    )}
                   </>
                 )}
 
