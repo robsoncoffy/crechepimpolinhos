@@ -498,6 +498,10 @@ export default function AdminProfiles() {
             <Briefcase className="w-4 h-4" />
             Funcionários ({filteredStaff.length})
           </TabsTrigger>
+          <TabsTrigger value="terminated" className="gap-2">
+            <UserX className="w-4 h-4" />
+            Desligados ({filteredTerminated.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="parents">
