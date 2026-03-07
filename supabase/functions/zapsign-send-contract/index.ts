@@ -293,7 +293,7 @@ ${getClause('clauseObject')}
 CLÁUSULA 3 – DA MATRÍCULA E VIGÊNCIA
 
 Turma: ${classTypeLabels[classType] || classType}
-Turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'})
+Turno: ${shiftTypeLabels[shiftType] || shiftType} (${customShiftHours || shiftHours[shiftType] || 'conforme contratado'})
 
 ${getClause('clauseEnrollment')}
 
