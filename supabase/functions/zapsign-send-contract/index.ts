@@ -412,6 +412,7 @@ CNPJ: ${COMPANY_DATA.cnpj}
       name: `Contrato de Matrícula - ${childName}`,
       markdown_text: contractContent,
       lang: "pt-br",
+      sandbox: true,
       disable_signer_emails: false,
       signed_file_only_finished: true,
       brand_primary_color: "#3B82F6",
@@ -427,7 +428,6 @@ CNPJ: ${COMPANY_DATA.cnpj}
           lock_email: true,
           qualification: "Responsável Legal",
           external_id: parentId,
-          // Verificação com selfie obrigatória (apenas rosto, sem documento)
           require_selfie_photo: true,
           selfie_validation_type: "liveness-only",
         },
