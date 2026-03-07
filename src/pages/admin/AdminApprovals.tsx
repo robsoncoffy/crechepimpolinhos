@@ -777,6 +777,9 @@ export default function AdminApprovals() {
           ? parseFloat(customPrice.replace(',', '.')) 
           : effectivePrice;
 
+        // Restore saved clause overrides from DB
+        const savedOverrides = (selectedRegistration as any).contract_clause_overrides || {};
+
         const contractPreviewData: ContractData = {
           parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
           parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
@@ -793,6 +796,24 @@ export default function AdminApprovals() {
           planType: selectedPlanType,
           emergencyContact: emergencyContact,
           customMonthlyValue: useCustomPrice ? finalMonthlyValue : undefined,
+          customShiftHours: savedOverrides.customShiftHours || undefined,
+          clauseObject: savedOverrides.clauseObject || undefined,
+          clauseEnrollment: savedOverrides.clauseEnrollment || undefined,
+          clauseMonthlyFee: savedOverrides.clauseMonthlyFee || undefined,
+          clauseHours: savedOverrides.clauseHours || undefined,
+          clauseFood: savedOverrides.clauseFood || undefined,
+          clauseMedication: savedOverrides.clauseMedication || undefined,
+          clauseUniform: savedOverrides.clauseUniform || undefined,
+          clauseHealth: savedOverrides.clauseHealth || undefined,
+          clauseRegulations: savedOverrides.clauseRegulations || undefined,
+          clauseImageRights: savedOverrides.clauseImageRights || undefined,
+          clauseTermination: savedOverrides.clauseTermination || undefined,
+          clauseLGPD: savedOverrides.clauseLGPD || undefined,
+          clauseGeneral: savedOverrides.clauseGeneral || undefined,
+          clauseForum: savedOverrides.clauseForum || undefined,
+          clausePenalty: savedOverrides.clausePenalty || undefined,
+          clauseSocialMedia: savedOverrides.clauseSocialMedia || undefined,
+          clauseValidity: savedOverrides.clauseValidity || undefined,
         };
 
         setContractData(contractPreviewData);
