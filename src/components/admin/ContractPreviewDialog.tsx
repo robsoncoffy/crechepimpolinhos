@@ -301,6 +301,7 @@ export function ContractPreviewDialog({
     if (!onSaveChanges) return;
     setSaving(true);
     try {
+      skipResetRef.current = true;
       await onSaveChanges(editedData);
       setHasUnsavedChanges(false);
     } finally {
