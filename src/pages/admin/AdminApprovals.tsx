@@ -781,6 +781,10 @@ export default function AdminApprovals() {
   async function saveContractChanges(editedData: ContractData) {
     // Update the contract data state with the edited values
     setContractData(editedData);
+    // Sync back to approval dialog state so changes persist when reopening
+    if (editedData.classType) setSelectedClassType(editedData.classType);
+    if (editedData.shiftType) setSelectedShiftType(editedData.shiftType);
+    if (editedData.planType) setSelectedPlanType(editedData.planType);
     toast.success("Alterações salvas com sucesso!");
   }
 
