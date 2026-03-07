@@ -527,7 +527,19 @@ export default function AdminApprovals() {
     
     // Initialize plan from registration or default
     const planFromReg = registration.plan_type as "basico" | "intermediario" | "plus" | null;
-    setSelectedPlanType(planFromReg || "intermediario");
+    const effectivePlan = planFromReg || "intermediario";
+    setSelectedPlanType(effectivePlan);
+    
+    // Auto-sync shift with plan
+    if (effectivePlan === "basico") {
+      // Meio turno: if shift is integral, default to manhã
+      if (!savedShiftType || savedShiftType === "integral") {
+        setSelectedShiftType("manha");
+      }
+    } else {
+      // Integral/Plus: force integral
+      setSelectedShiftType("integral");
+    }
     setUseCustomPrice(false);
     setCustomPrice("");
     setRegistrationCoupon(null);
