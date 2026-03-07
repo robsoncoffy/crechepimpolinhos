@@ -530,6 +530,26 @@ export default function AdminApprovals() {
     setSelectedPlanType(planFromReg || "intermediario");
     setUseCustomPrice(false);
     setCustomPrice("");
+    setRegistrationCoupon(null);
+    
+    // Fetch coupon data if registration has one
+    const regCouponCode = (registration as any).coupon_code as string | null;
+    if (regCouponCode) {
+      supabase
+        .from("discount_coupons")
+        .select("code, discount_type, discount_value")
+        .eq("code", regCouponCode)
+        .maybeSingle()
+        .then(({ data: couponData }) => {
+          if (couponData) {
+            setRegistrationCoupon({
+              code: couponData.code,
+              discount_type: couponData.discount_type,
+              discount_value: couponData.discount_value,
+            });
+          }
+        });
+    }
     
     setRegistrationDialogOpen(true);
   }
