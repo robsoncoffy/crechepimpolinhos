@@ -1702,14 +1702,22 @@ export default function AdminApprovals() {
                       </div>
                       <div className="space-y-2">
                         <Label>Turno *</Label>
-                        <Select value={selectedShiftType} onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}>
+                        <Select 
+                          value={selectedShiftType} 
+                          onValueChange={(v) => setSelectedShiftType(v as "manha" | "tarde" | "integral")}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="manha">Manhã (7h às 12h)</SelectItem>
-                            <SelectItem value="tarde">Tarde (13h às 18h)</SelectItem>
-                            <SelectItem value="integral">Integral (9 horas)</SelectItem>
+                            {selectedPlanType === "basico" ? (
+                              <>
+                                <SelectItem value="manha">Manhã (7h às 12h)</SelectItem>
+                                <SelectItem value="tarde">Tarde (13h às 18h)</SelectItem>
+                              </>
+                            ) : (
+                              <SelectItem value="integral">Integral (9 horas)</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1720,7 +1728,20 @@ export default function AdminApprovals() {
                         <Label>Plano *</Label>
                         <Select 
                           value={selectedPlanType} 
-                          onValueChange={(v) => setSelectedPlanType(v as "basico" | "intermediario" | "plus")}
+                          onValueChange={(v) => {
+                            const newPlan = v as "basico" | "intermediario" | "plus";
+                            setSelectedPlanType(newPlan);
+                            // Auto-adjust shift based on plan
+                            if (newPlan === "basico") {
+                              // Meio turno: force manhã or tarde
+                              if (selectedShiftType === "integral") {
+                                setSelectedShiftType("manha");
+                              }
+                            } else {
+                              // Integral/Plus: force integral
+                              setSelectedShiftType("integral");
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -1754,6 +1775,9 @@ export default function AdminApprovals() {
                             <SelectItem value="outro">Outro</SelectItem>
                           </SelectContent>
                         </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Relação do responsável com a criança
+                        </p>
                       </div>
                     </div>
 
