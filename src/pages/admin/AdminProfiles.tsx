@@ -613,6 +613,61 @@ export default function AdminProfiles() {
             )}
           </div>
         </TabsContent>
+
+        <TabsContent value="terminated">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredTerminated.map((profile) => {
+              const roles = getRolesForUser(profile.user_id);
+              const employeeData = employeeProfiles.find(e => e.user_id === profile.user_id);
+              return (
+                <Card 
+                  key={profile.id} 
+                  className="cursor-pointer hover:shadow-md transition-shadow opacity-70"
+                  onClick={() => handleViewEmployee(profile)}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <Avatar className="h-12 w-12 grayscale">
+                        <AvatarImage src={profile.avatar_url || employeeData?.photo_url || undefined} />
+                        <AvatarFallback className="bg-muted text-muted-foreground font-semibold">
+                          {profile.full_name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate flex items-center gap-1.5">
+                          {profile.full_name}
+                        </h3>
+                        {employeeData?.job_title && (
+                          <p className="text-sm text-muted-foreground">{employeeData.job_title}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          <Badge variant="secondary" className="text-xs bg-red-100 text-red-800">
+                            Desligado(a)
+                          </Badge>
+                          {roles.filter(r => r !== "parent").map((role) => (
+                            <Badge 
+                              key={role} 
+                              variant="secondary"
+                              className={`text-xs ${getRoleBadgeColor(role)}`}
+                            >
+                              {getRoleLabel(role)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {filteredTerminated.length === 0 && (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                <UserX className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                Nenhum funcionário desligado
+              </div>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Profile Detail Dialog */}
