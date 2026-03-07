@@ -418,6 +418,7 @@ export type Database = {
         Row: {
           address: string
           allergies: string | null
+          billing_day: number | null
           birth_certificate_url: string | null
           birth_date: string
           city: string
@@ -426,6 +427,7 @@ export type Database = {
           coupon_code: string | null
           cpf: string | null
           created_at: string
+          custom_monthly_value: number | null
           enrollment_type: string
           first_name: string
           id: string
@@ -435,6 +437,7 @@ export type Database = {
           photo_url: string | null
           plan_type: Database["public"]["Enums"]["plan_type"] | null
           private_doctors: string | null
+          relationship: string | null
           rg: string | null
           shift_type: string | null
           status: string
@@ -444,6 +447,7 @@ export type Database = {
         Insert: {
           address: string
           allergies?: string | null
+          billing_day?: number | null
           birth_certificate_url?: string | null
           birth_date: string
           city: string
@@ -452,6 +456,7 @@ export type Database = {
           coupon_code?: string | null
           cpf?: string | null
           created_at?: string
+          custom_monthly_value?: number | null
           enrollment_type: string
           first_name: string
           id?: string
@@ -461,6 +466,7 @@ export type Database = {
           photo_url?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
+          relationship?: string | null
           rg?: string | null
           shift_type?: string | null
           status?: string
@@ -470,6 +476,7 @@ export type Database = {
         Update: {
           address?: string
           allergies?: string | null
+          billing_day?: number | null
           birth_certificate_url?: string | null
           birth_date?: string
           city?: string
@@ -478,6 +485,7 @@ export type Database = {
           coupon_code?: string | null
           cpf?: string | null
           created_at?: string
+          custom_monthly_value?: number | null
           enrollment_type?: string
           first_name?: string
           id?: string
@@ -487,6 +495,7 @@ export type Database = {
           photo_url?: string | null
           plan_type?: Database["public"]["Enums"]["plan_type"] | null
           private_doctors?: string | null
+          relationship?: string | null
           rg?: string | null
           shift_type?: string | null
           status?: string
