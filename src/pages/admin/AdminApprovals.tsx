@@ -1790,11 +1790,36 @@ export default function AdminApprovals() {
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between p-3 bg-background rounded border">
-                          <span className="text-sm text-muted-foreground">Valor calculado:</span>
-                          <span className="text-lg font-bold text-primary">
-                            {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
-                          </span>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between p-3 bg-background rounded border">
+                            <span className="text-sm text-muted-foreground">Valor calculado:</span>
+                            {registrationCoupon ? (
+                              <div className="text-right">
+                                <span className="text-sm text-muted-foreground line-through mr-2">
+                                  {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                                </span>
+                                <span className="text-lg font-bold text-primary">
+                                  {formatCurrency(
+                                    registrationCoupon.discount_type === "percentage"
+                                      ? getPrice(selectedClassType as ClassType, selectedPlanType as PlanType) * (1 - registrationCoupon.discount_value / 100)
+                                      : Math.max(0, getPrice(selectedClassType as ClassType, selectedPlanType as PlanType) - registrationCoupon.discount_value)
+                                  )}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-bold text-primary">
+                                {formatCurrency(getPrice(selectedClassType as ClassType, selectedPlanType as PlanType))}
+                              </span>
+                            )}
+                          </div>
+                          {registrationCoupon && (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                              <Tag className="w-4 h-4 text-green-600" />
+                              <span className="text-sm text-green-700 dark:text-green-300">
+                                Cupom <strong className="font-mono">{registrationCoupon.code}</strong> aplicado — {registrationCoupon.discount_type === "percentage" ? `${registrationCoupon.discount_value}% de desconto` : `R$ ${registrationCoupon.discount_value.toFixed(2)} de desconto`}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
 
