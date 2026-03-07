@@ -807,6 +807,7 @@ export default function AdminApprovals() {
           shiftType: selectedShiftType,
           planType: selectedPlanType,
           customMonthlyValue: editedData.customMonthlyValue,
+          billingDay: billingDay,
           // Pass edited data to override profile data if changed
           overrideData: {
             parentName: editedData.parentName,
