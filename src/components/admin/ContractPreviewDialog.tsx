@@ -252,7 +252,7 @@ export function ContractPreviewDialog({
   const [openClauses, setOpenClauses] = useState<Record<string, boolean>>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const skipResetRef = React.useRef(false);
+  const skipResetRef = useRef(false);
 
   // Reset edited data when contract data changes (but skip after save)
   useEffect(() => {
