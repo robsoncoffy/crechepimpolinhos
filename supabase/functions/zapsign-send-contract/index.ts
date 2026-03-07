@@ -412,7 +412,7 @@ CNPJ: ${COMPANY_DATA.cnpj}
       name: `Contrato de Matrícula - ${childName}`,
       markdown_text: contractContent,
       lang: "pt-br",
-      sandbox: true,
+      sandbox: false,
       disable_signer_emails: false,
       signed_file_only_finished: true,
       brand_primary_color: "#3B82F6",
