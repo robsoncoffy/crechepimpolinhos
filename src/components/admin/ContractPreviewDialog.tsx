@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FileText, Send, Pencil, ChevronDown, ChevronRight, AlertTriangle, Save } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
 import { getPrice, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
@@ -448,9 +449,33 @@ export function ContractPreviewDialog({
               onToggle={() => toggleClause('clauseEnrollment')}
               onChange={(v) => handleInputChange('clauseEnrollment', v)}
             >
-              <div className="text-sm space-y-1 mb-2">
-                <p><strong>Turma:</strong> {classTypeLabels[editedData.classType] || editedData.classType}</p>
-                <p><strong>Turno:</strong> {shiftTypeLabels[editedData.shiftType] || editedData.shiftType} ({shiftHours[editedData.shiftType] || 'conforme contratado'})</p>
+              <div className="bg-muted/50 p-3 rounded-lg space-y-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold whitespace-nowrap text-sm">Turma:</span>
+                  <Select value={editedData.classType} onValueChange={(v) => handleInputChange('classType', v)}>
+                    <SelectTrigger className="h-7 text-sm flex-1 bg-background/50 border-dashed">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(classTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold whitespace-nowrap text-sm">Turno:</span>
+                  <Select value={editedData.shiftType} onValueChange={(v) => handleInputChange('shiftType', v)}>
+                    <SelectTrigger className="h-7 text-sm flex-1 bg-background/50 border-dashed">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(shiftTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label} ({shiftHours[key] || ''})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </EditableClauseSection>
 
