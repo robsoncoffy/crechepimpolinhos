@@ -27,6 +27,7 @@ interface ContractRequest {
   shiftType: string;
   planType?: string;
   customMonthlyValue?: number;
+  customShiftHours?: string;
   // Optional override data from admin editing
   overrideData?: {
     parentName?: string;
@@ -129,6 +130,7 @@ serve(async (req) => {
       shiftType,
       planType,
       customMonthlyValue,
+      customShiftHours,
       overrideData,
       clauseCustomizations,
     } = body;
@@ -291,7 +293,7 @@ ${getClause('clauseObject')}
 CLÁUSULA 3 – DA MATRÍCULA E VIGÊNCIA
 
 Turma: ${classTypeLabels[classType] || classType}
-Turno: ${shiftTypeLabels[shiftType] || shiftType} (${shiftHours[shiftType] || 'conforme contratado'})
+Turno: ${shiftTypeLabels[shiftType] || shiftType} (${customShiftHours || shiftHours[shiftType] || 'conforme contratado'})
 
 ${getClause('clauseEnrollment')}
 

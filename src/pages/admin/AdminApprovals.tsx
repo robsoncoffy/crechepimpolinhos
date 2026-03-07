@@ -856,6 +856,7 @@ export default function AdminApprovals() {
           classType: selectedClassType,
           shiftType: selectedShiftType,
           planType: selectedPlanType,
+          customShiftHours: editedData.customShiftHours,
           customMonthlyValue: editedData.customMonthlyValue,
           billingDay: billingDay,
           // Pass edited data to override profile data if changed

@@ -42,6 +42,7 @@ export interface ContractData {
   shiftType: string;
   planType?: string;
   emergencyContact?: string;
+  customShiftHours?: string;
   // Custom pricing override
   customMonthlyValue?: number;
   // Clause customizations
@@ -465,16 +466,28 @@ export function ContractPreviewDialog({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold whitespace-nowrap text-sm">Turno:</span>
-                  <Select value={editedData.shiftType} onValueChange={(v) => handleInputChange('shiftType', v)}>
+                  <Select value={editedData.shiftType} onValueChange={(v) => {
+                    handleInputChange('shiftType', v);
+                    handleInputChange('customShiftHours', shiftHours[v] || '');
+                  }}>
                     <SelectTrigger className="h-7 text-sm flex-1 bg-background/50 border-dashed">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(shiftTypeLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label} ({shiftHours[key] || ''})</SelectItem>
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold whitespace-nowrap text-sm">Horário:</span>
+                  <Input
+                    value={editedData.customShiftHours || shiftHours[editedData.shiftType] || ''}
+                    onChange={(e) => handleInputChange('customShiftHours', e.target.value)}
+                    className="h-7 text-sm flex-1 bg-background/50 border-dashed focus:border-solid"
+                    placeholder="Ex: 13h00min às 18h30min"
+                  />
                 </div>
               </div>
             </EditableClauseSection>
