@@ -2128,6 +2128,34 @@ export default function AdminApprovals() {
                   <Eye className="w-4 h-4 mr-2" />
                   Visualizar Contrato
                 </Button>
+                <Button 
+                  variant="secondary"
+                  onClick={async () => {
+                    if (!selectedRegistration) return;
+                    setActionLoading(true);
+                    try {
+                      const { error } = await supabase
+                        .from("child_registrations")
+                        .update({
+                          class_type: selectedClassType,
+                          shift_type: selectedShiftType,
+                          plan_type: selectedPlanType,
+                        })
+                        .eq("id", selectedRegistration.id);
+                      if (error) throw error;
+                      toast.success("Configurações salvas com sucesso!");
+                    } catch (err: any) {
+                      toast.error("Erro ao salvar: " + err.message);
+                    } finally {
+                      setActionLoading(false);
+                    }
+                  }} 
+                  disabled={actionLoading}
+                >
+                  {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
                 <Button onClick={() => { setContractViewOnly(false); handlePreviewContract(); }} disabled={actionLoading}>
                   {actionLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <FileText className="w-4 h-4 mr-2" />
