@@ -807,7 +807,7 @@ export default function AdminApprovals() {
     }
   }
 
-  // Save contract changes without sending (just updates local state)
+  // Save contract changes and persist clause overrides to DB
   async function saveContractChanges(editedData: ContractData) {
     // Update the contract data state with the edited values
     setContractData(editedData);
@@ -815,7 +815,32 @@ export default function AdminApprovals() {
     if (editedData.classType) setSelectedClassType(editedData.classType as typeof selectedClassType);
     if (editedData.shiftType) setSelectedShiftType(editedData.shiftType as typeof selectedShiftType);
     if (editedData.planType) setSelectedPlanType(editedData.planType as typeof selectedPlanType);
-    toast.success("Alterações salvas com sucesso!");
+
+    // Persist clause overrides and custom shift hours to DB
+    if (selectedRegistration) {
+      const clauseOverrides: Record<string, string> = {};
+      const clauseKeys = [
+        'clauseObject', 'clauseEnrollment', 'clauseMonthlyFee', 'clauseHours',
+        'clauseFood', 'clauseMedication', 'clauseUniform', 'clauseHealth',
+        'clauseRegulations', 'clauseImageRights', 'clauseTermination', 'clauseLGPD',
+        'clauseGeneral', 'clauseForum', 'clausePenalty', 'clauseSocialMedia', 'clauseValidity',
+      ] as const;
+      for (const key of clauseKeys) {
+        if (editedData[key]) {
+          clauseOverrides[key] = editedData[key] as string;
+        }
+      }
+      if (editedData.customShiftHours) {
+        clauseOverrides.customShiftHours = editedData.customShiftHours;
+      }
+
+      await supabase
+        .from("child_registrations")
+        .update({ contract_clause_overrides: clauseOverrides } as any)
+        .eq("id", selectedRegistration.id);
+    }
+
+    toast.success("Alterações do contrato salvas com sucesso!");
   }
 
   async function sendContractAfterPreview(editedData: ContractData) {
