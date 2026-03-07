@@ -42,6 +42,7 @@ export interface ContractData {
   shiftType: string;
   planType?: string;
   emergencyContact?: string;
+  customShiftHours?: string;
   // Custom pricing override
   customMonthlyValue?: number;
   // Clause customizations
