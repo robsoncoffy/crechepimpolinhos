@@ -540,8 +540,32 @@ export default function AdminApprovals() {
       // Integral/Plus: force integral
       setSelectedShiftType("integral");
     }
-    setUseCustomPrice(false);
-    setCustomPrice("");
+    // Restore custom price if saved
+    const savedCustomValue = (registration as any).custom_monthly_value as number | null;
+    if (savedCustomValue) {
+      setUseCustomPrice(true);
+      setCustomPrice(savedCustomValue.toFixed(2).replace('.', ','));
+    } else {
+      setUseCustomPrice(false);
+      setCustomPrice("");
+    }
+    
+    // Restore billing day
+    const savedBillingDay = (registration as any).billing_day as number | null;
+    if (savedBillingDay) {
+      setBillingDay(savedBillingDay);
+    } else {
+      setBillingDay(10);
+    }
+    
+    // Restore relationship
+    const savedRelationship = (registration as any).relationship as string | null;
+    if (savedRelationship) {
+      setRelationship(savedRelationship);
+    } else {
+      setRelationship("responsável");
+    }
+    
     setRegistrationCoupon(null);
     
     // Fetch coupon data if registration has one
