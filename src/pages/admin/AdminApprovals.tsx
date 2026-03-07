@@ -777,6 +777,9 @@ export default function AdminApprovals() {
           ? parseFloat(customPrice.replace(',', '.')) 
           : effectivePrice;
 
+        // Restore saved clause overrides from DB
+        const savedOverrides = (selectedRegistration as any).contract_clause_overrides || {};
+
         const contractPreviewData: ContractData = {
           parentName: parentProfile?.full_name || selectedRegistration.parent_name || '',
           parentCpf: parentProfile?.cpf || selectedRegistration.parent_cpf || '',
@@ -793,6 +796,24 @@ export default function AdminApprovals() {
           planType: selectedPlanType,
           emergencyContact: emergencyContact,
           customMonthlyValue: useCustomPrice ? finalMonthlyValue : undefined,
+          customShiftHours: savedOverrides.customShiftHours || undefined,
+          clauseObject: savedOverrides.clauseObject || undefined,
+          clauseEnrollment: savedOverrides.clauseEnrollment || undefined,
+          clauseMonthlyFee: savedOverrides.clauseMonthlyFee || undefined,
+          clauseHours: savedOverrides.clauseHours || undefined,
+          clauseFood: savedOverrides.clauseFood || undefined,
+          clauseMedication: savedOverrides.clauseMedication || undefined,
+          clauseUniform: savedOverrides.clauseUniform || undefined,
+          clauseHealth: savedOverrides.clauseHealth || undefined,
+          clauseRegulations: savedOverrides.clauseRegulations || undefined,
+          clauseImageRights: savedOverrides.clauseImageRights || undefined,
+          clauseTermination: savedOverrides.clauseTermination || undefined,
+          clauseLGPD: savedOverrides.clauseLGPD || undefined,
+          clauseGeneral: savedOverrides.clauseGeneral || undefined,
+          clauseForum: savedOverrides.clauseForum || undefined,
+          clausePenalty: savedOverrides.clausePenalty || undefined,
+          clauseSocialMedia: savedOverrides.clauseSocialMedia || undefined,
+          clauseValidity: savedOverrides.clauseValidity || undefined,
         };
 
         setContractData(contractPreviewData);
@@ -807,7 +828,7 @@ export default function AdminApprovals() {
     }
   }
 
-  // Save contract changes without sending (just updates local state)
+  // Save contract changes and persist clause overrides to DB
   async function saveContractChanges(editedData: ContractData) {
     // Update the contract data state with the edited values
     setContractData(editedData);
@@ -815,7 +836,32 @@ export default function AdminApprovals() {
     if (editedData.classType) setSelectedClassType(editedData.classType as typeof selectedClassType);
     if (editedData.shiftType) setSelectedShiftType(editedData.shiftType as typeof selectedShiftType);
     if (editedData.planType) setSelectedPlanType(editedData.planType as typeof selectedPlanType);
-    toast.success("Alterações salvas com sucesso!");
+
+    // Persist clause overrides and custom shift hours to DB
+    if (selectedRegistration) {
+      const clauseOverrides: Record<string, string> = {};
+      const clauseKeys = [
+        'clauseObject', 'clauseEnrollment', 'clauseMonthlyFee', 'clauseHours',
+        'clauseFood', 'clauseMedication', 'clauseUniform', 'clauseHealth',
+        'clauseRegulations', 'clauseImageRights', 'clauseTermination', 'clauseLGPD',
+        'clauseGeneral', 'clauseForum', 'clausePenalty', 'clauseSocialMedia', 'clauseValidity',
+      ] as const;
+      for (const key of clauseKeys) {
+        if (editedData[key]) {
+          clauseOverrides[key] = editedData[key] as string;
+        }
+      }
+      if (editedData.customShiftHours) {
+        clauseOverrides.customShiftHours = editedData.customShiftHours;
+      }
+
+      await supabase
+        .from("child_registrations")
+        .update({ contract_clause_overrides: clauseOverrides } as any)
+        .eq("id", selectedRegistration.id);
+    }
+
+    toast.success("Alterações do contrato salvas com sucesso!");
   }
 
   async function sendContractAfterPreview(editedData: ContractData) {

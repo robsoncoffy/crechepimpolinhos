@@ -1,0 +1,1 @@
+ALTER TABLE public.child_registrations ADD COLUMN contract_clause_overrides jsonb DEFAULT NULL;
