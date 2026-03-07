@@ -719,7 +719,7 @@ export default function AdminApprovals() {
       }
       
       const parentPhone = parentProfile?.phone || selectedRegistration.parent_phone || '';
-      const parentRelationship = parentProfile?.relationship || '';
+      const parentRelationship = relationship || parentProfile?.relationship || 'responsável';
 
       // Fetch emergency contact
       let emergencyContact = '';
