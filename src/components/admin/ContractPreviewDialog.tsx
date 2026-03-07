@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, FileText, Send, Pencil, ChevronDown, ChevronRight, AlertTriangle, Save } from "lucide-react";
 import { formatCPF, formatPhone } from "@/lib/formatters";
 import { getPrice, formatCurrency, ClassType, PlanType } from "@/lib/pricing";
