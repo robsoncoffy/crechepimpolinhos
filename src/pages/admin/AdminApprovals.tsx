@@ -682,7 +682,7 @@ export default function AdminApprovals() {
 
       if (error) throw error;
 
-      toast.success("Turma, turno e plano salvos!");
+      toast.success("Configurações salvas com sucesso!");
       fetchData();
     } catch (error) {
       console.error("Error saving class/shift/plan:", error);
