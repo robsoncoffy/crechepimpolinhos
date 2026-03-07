@@ -1782,6 +1782,8 @@ export default function AdminApprovals() {
                           Este será o dia de vencimento mensal das cobranças no Asaas.
                         </p>
                       </div>
+
+                      {selectedRegistration?.plan_type && selectedRegistration.plan_type !== selectedPlanType && (
                         <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-700">
                           <strong>Atenção:</strong> O responsável escolheu o plano <strong>{PLAN_NAMES[selectedRegistration.plan_type as PlanType] || selectedRegistration.plan_type}</strong> no cadastro. 
                           Você está alterando para <strong>{PLAN_NAMES[selectedPlanType as PlanType]}</strong>.
