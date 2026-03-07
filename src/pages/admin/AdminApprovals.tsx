@@ -119,6 +119,7 @@ export default function AdminApprovals() {
   const [selectedPlanType, setSelectedPlanType] = useState<"basico" | "intermediario" | "plus">("intermediario");
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
+  const [billingDay, setBillingDay] = useState<number>(10);
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [municipalContractPreviewOpen, setMunicipalContractPreviewOpen] = useState(false);
   const [contractViewOnly, setContractViewOnly] = useState(false);
