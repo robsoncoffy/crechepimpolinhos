@@ -43,7 +43,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save, Building2 } from "lucide-react";
+import { UserCheck, UserX, Clock, Baby, Loader2, AlertCircle, Eye, FileText, Pencil, Heart, FileCheck, Users, MapPin, ClipboardPen, Briefcase, DollarSign, Save, Building2, Tag } from "lucide-react";
 import { PreEnrollmentsContent } from "@/components/admin/PreEnrollmentsContent";
 import { Database } from "@/integrations/supabase/types";
 import { ContractPreviewDialog, ContractData } from "@/components/admin/ContractPreviewDialog";
