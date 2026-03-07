@@ -119,6 +119,7 @@ export default function AdminApprovals() {
   const [selectedPlanType, setSelectedPlanType] = useState<"basico" | "intermediario" | "plus">("intermediario");
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
+  const [billingDay, setBillingDay] = useState<number>(10);
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [municipalContractPreviewOpen, setMunicipalContractPreviewOpen] = useState(false);
   const [contractViewOnly, setContractViewOnly] = useState(false);
@@ -806,6 +807,7 @@ export default function AdminApprovals() {
           shiftType: selectedShiftType,
           planType: selectedPlanType,
           customMonthlyValue: editedData.customMonthlyValue,
+          billingDay: billingDay,
           // Pass edited data to override profile data if changed
           overrideData: {
             parentName: editedData.parentName,
@@ -1761,6 +1763,26 @@ export default function AdminApprovals() {
                           </span>
                         </div>
                       )}
+
+                      {/* Billing day selector */}
+                      <div className="space-y-2">
+                        <Label className="font-semibold">Dia de Vencimento da Mensalidade</Label>
+                        <Select value={String(billingDay)} onValueChange={(v) => setBillingDay(Number(v))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1,5,10,15,20,25].map((day) => (
+                              <SelectItem key={day} value={String(day)}>
+                                Dia {day}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Este será o dia de vencimento mensal das cobranças no Asaas.
+                        </p>
+                      </div>
 
                       {selectedRegistration?.plan_type && selectedRegistration.plan_type !== selectedPlanType && (
                         <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded text-sm text-amber-700">
