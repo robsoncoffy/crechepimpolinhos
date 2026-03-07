@@ -424,6 +424,7 @@ export type Database = {
           city: string
           class_type: string | null
           continuous_doctors: string | null
+          contract_clause_overrides: Json | null
           coupon_code: string | null
           cpf: string | null
           created_at: string
@@ -453,6 +454,7 @@ export type Database = {
           city: string
           class_type?: string | null
           continuous_doctors?: string | null
+          contract_clause_overrides?: Json | null
           coupon_code?: string | null
           cpf?: string | null
           created_at?: string
@@ -482,6 +484,7 @@ export type Database = {
           city?: string
           class_type?: string | null
           continuous_doctors?: string | null
+          contract_clause_overrides?: Json | null
           coupon_code?: string | null
           cpf?: string | null
           created_at?: string
