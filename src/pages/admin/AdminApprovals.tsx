@@ -782,9 +782,9 @@ export default function AdminApprovals() {
     // Update the contract data state with the edited values
     setContractData(editedData);
     // Sync back to approval dialog state so changes persist when reopening
-    if (editedData.classType) setSelectedClassType(editedData.classType);
-    if (editedData.shiftType) setSelectedShiftType(editedData.shiftType);
-    if (editedData.planType) setSelectedPlanType(editedData.planType);
+    if (editedData.classType) setSelectedClassType(editedData.classType as typeof selectedClassType);
+    if (editedData.shiftType) setSelectedShiftType(editedData.shiftType as typeof selectedShiftType);
+    if (editedData.planType) setSelectedPlanType(editedData.planType as typeof selectedPlanType);
     toast.success("Alterações salvas com sucesso!");
   }
 
