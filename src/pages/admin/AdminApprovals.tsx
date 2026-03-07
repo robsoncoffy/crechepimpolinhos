@@ -120,6 +120,11 @@ export default function AdminApprovals() {
   const [useCustomPrice, setUseCustomPrice] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [billingDay, setBillingDay] = useState<number>(10);
+  const [registrationCoupon, setRegistrationCoupon] = useState<{
+    code: string;
+    discount_type: string;
+    discount_value: number;
+  } | null>(null);
   const [contractPreviewOpen, setContractPreviewOpen] = useState(false);
   const [municipalContractPreviewOpen, setMunicipalContractPreviewOpen] = useState(false);
   const [contractViewOnly, setContractViewOnly] = useState(false);
