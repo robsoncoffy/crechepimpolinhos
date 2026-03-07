@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -252,9 +252,14 @@ export function ContractPreviewDialog({
   const [openClauses, setOpenClauses] = useState<Record<string, boolean>>({});
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const skipResetRef = useRef(false);
 
-  // Reset edited data when contract data changes
+  // Reset edited data when contract data changes (but skip after save)
   useEffect(() => {
+    if (skipResetRef.current) {
+      skipResetRef.current = false;
+      return;
+    }
     setEditedData({
       ...contractData,
       clauseObject: contractData.clauseObject || DEFAULT_CLAUSES.clauseObject,
@@ -296,6 +301,7 @@ export function ContractPreviewDialog({
     if (!onSaveChanges) return;
     setSaving(true);
     try {
+      skipResetRef.current = true;
       await onSaveChanges(editedData);
       setHasUnsavedChanges(false);
     } finally {
