@@ -216,13 +216,13 @@ export function getSuggestedClassTypeSync(birthDate: string | Date): ClassType {
 export function getPrice(classType: ClassType, planType: PlanType): number {
   // Prices are managed dynamically via system_settings; this is a safe fallback
   const staticPrices: Partial<Record<ClassType, Partial<Record<PlanType, number>>>> = {
-    bercario: { basico: 1200, intermediario: 1600, plus: 2000 },
-    maternal: { basico: 1000, intermediario: 1400, plus: 1800 },
-    maternal_1: { basico: 1000, intermediario: 1400, plus: 1800 },
-    maternal_2: { basico: 1000, intermediario: 1400, plus: 1800 },
-    jardim: { basico: 900 },
-    jardim_1: { basico: 900 },
-    jardim_2: { basico: 900 },
+    bercario: { basico: 799.90, intermediario: 1299.90, plus: 1699.90 },
+    maternal: { basico: 799.90, intermediario: 1299.90, plus: 1699.90 },
+    maternal_1: { basico: 799.90, intermediario: 1299.90, plus: 1699.90 },
+    maternal_2: { basico: 749.90, intermediario: 1099.90, plus: 1699.90 },
+    jardim: { basico: 649.90 },
+    jardim_1: { basico: 649.90 },
+    jardim_2: { basico: 649.90 },
   };
   return staticPrices[classType]?.[planType] ?? 0;
 }
