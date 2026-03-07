@@ -130,6 +130,7 @@ serve(async (req) => {
       shiftType,
       planType,
       customMonthlyValue,
+      customShiftHours,
       overrideData,
       clauseCustomizations,
     } = body;
