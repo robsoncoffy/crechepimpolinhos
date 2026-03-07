@@ -464,7 +464,7 @@ export default function AdminApprovals() {
 
   function openRegistrationDialog(registration: PendingChildRegistration) {
     setSelectedRegistration(registration);
-    setRelationship("responsável");
+    // relationship is now restored from registration data below
     setIsEditing(false);
     setDialogTab("info");
     
@@ -540,8 +540,32 @@ export default function AdminApprovals() {
       // Integral/Plus: force integral
       setSelectedShiftType("integral");
     }
-    setUseCustomPrice(false);
-    setCustomPrice("");
+    // Restore custom price if saved
+    const savedCustomValue = (registration as any).custom_monthly_value as number | null;
+    if (savedCustomValue) {
+      setUseCustomPrice(true);
+      setCustomPrice(savedCustomValue.toFixed(2).replace('.', ','));
+    } else {
+      setUseCustomPrice(false);
+      setCustomPrice("");
+    }
+    
+    // Restore billing day
+    const savedBillingDay = (registration as any).billing_day as number | null;
+    if (savedBillingDay) {
+      setBillingDay(savedBillingDay);
+    } else {
+      setBillingDay(10);
+    }
+    
+    // Restore relationship
+    const savedRelationship = (registration as any).relationship as string | null;
+    if (savedRelationship) {
+      setRelationship(savedRelationship);
+    } else {
+      setRelationship("responsável");
+    }
+    
     setRegistrationCoupon(null);
     
     // Fetch coupon data if registration has one
@@ -641,18 +665,24 @@ export default function AdminApprovals() {
 
     setActionLoading(true);
     try {
+      const customValue = useCustomPrice && customPrice 
+        ? parseFloat(customPrice.replace(',', '.')) 
+        : null;
       const { error } = await supabase
         .from("child_registrations")
         .update({
           class_type: selectedClassType,
           shift_type: selectedShiftType,
           plan_type: selectedPlanType,
+          custom_monthly_value: customValue,
+          billing_day: billingDay,
+          relationship: relationship,
         } as any)
         .eq("id", selectedRegistration.id);
 
       if (error) throw error;
 
-      toast.success("Turma, turno e plano salvos!");
+      toast.success("Configurações salvas com sucesso!");
       fetchData();
     } catch (error) {
       console.error("Error saving class/shift/plan:", error);
@@ -689,7 +719,7 @@ export default function AdminApprovals() {
       }
       
       const parentPhone = parentProfile?.phone || selectedRegistration.parent_phone || '';
-      const parentRelationship = parentProfile?.relationship || '';
+      const parentRelationship = relationship || parentProfile?.relationship || 'responsável';
 
       // Fetch emergency contact
       let emergencyContact = '';
@@ -2135,12 +2165,18 @@ export default function AdminApprovals() {
                     if (!selectedRegistration) return;
                     setActionLoading(true);
                     try {
+                      const customValue = useCustomPrice && customPrice 
+                        ? parseFloat(customPrice.replace(',', '.')) 
+                        : null;
                       const { error } = await supabase
                         .from("child_registrations")
                         .update({
                           class_type: selectedClassType,
                           shift_type: selectedShiftType,
                           plan_type: selectedPlanType,
+                          custom_monthly_value: customValue,
+                          billing_day: billingDay,
+                          relationship: relationship,
                         })
                         .eq("id", selectedRegistration.id);
                       if (error) throw error;
