@@ -455,10 +455,37 @@ export default function AdminApprovals() {
   }
 
 
-  function openApproveDialog(parent: PendingParent) {
+  async function openApproveDialog(parent: PendingParent) {
     setSelectedParent(parent);
     setSelectedChildId("");
     setRelationship("responsável");
+
+    // Try to find child_registrations for this parent to pre-fill child and relationship
+    try {
+      const { data: regs } = await supabase
+        .from('child_registrations')
+        .select('first_name, last_name, relationship, class_type')
+        .eq('parent_id', parent.user_id);
+
+      if (regs && regs.length > 0) {
+        const reg = regs[0];
+        // Pre-fill relationship from registration
+        if (reg.relationship) {
+          setRelationship(reg.relationship);
+        }
+        // Try to match a child by name
+        const regFullName = `${reg.first_name} ${reg.last_name}`.trim().toLowerCase();
+        const matchedChild = children.find(c => 
+          c.full_name.trim().toLowerCase() === regFullName
+        );
+        if (matchedChild) {
+          setSelectedChildId(matchedChild.id);
+        }
+      }
+    } catch (err) {
+      console.error("Error pre-filling approve dialog:", err);
+    }
+
     setDialogOpen(true);
   }
 
