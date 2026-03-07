@@ -418,9 +418,10 @@ CNPJ: ${COMPANY_DATA.cnpj}
       name: `Contrato Municipal - ${childName}`,
       markdown_text: contractContent,
       lang: "pt-br",
+      sandbox: true,
       disable_signer_emails: false,
       signed_file_only_finished: true,
-      brand_primary_color: "#2563EB", // Blue for municipal
+      brand_primary_color: "#2563EB",
       external_id: `municipal-${registrationId || childId}`,
       signers: [
         {
