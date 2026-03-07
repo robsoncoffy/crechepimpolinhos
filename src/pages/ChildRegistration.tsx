@@ -433,6 +433,7 @@ const ChildRegistration = () => {
           enrollment_type: data.enrollmentType,
           plan_type: data.enrollmentType === 'private' ? data.planType : null,
           photo_url: photoUrl,
+          coupon_code: coupon?.code || null,
         } as any)
         .select()
         .single();
