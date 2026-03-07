@@ -1696,7 +1696,14 @@ export default function AdminApprovals() {
                             // Auto-adjust plan if current plan not available for new class
                             const availablePlans = getAvailablePlans(newClass as ClassType);
                             if (!availablePlans.includes(selectedPlanType as PlanType)) {
-                              setSelectedPlanType(availablePlans[0] as "basico" | "intermediario" | "plus");
+                              const newPlan = availablePlans[0] as "basico" | "intermediario" | "plus";
+                              setSelectedPlanType(newPlan);
+                              // Sync shift with new plan
+                              if (newPlan === "basico" && selectedShiftType === "integral") {
+                                setSelectedShiftType("manha");
+                              } else if (newPlan !== "basico") {
+                                setSelectedShiftType("integral");
+                              }
                             }
                           }}
                         >
