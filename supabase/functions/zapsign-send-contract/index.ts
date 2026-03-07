@@ -27,6 +27,7 @@ interface ContractRequest {
   shiftType: string;
   planType?: string;
   customMonthlyValue?: number;
+  customShiftHours?: string;
   // Optional override data from admin editing
   overrideData?: {
     parentName?: string;
