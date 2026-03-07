@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   Trash2,
   Database,
-  Download
+  Download,
+  UserX
 } from "lucide-react";
 import { roleLabels, roleBadgeColors, classTypeLabels } from "@/lib/constants";
 import { Database as SupabaseDB } from "@/integrations/supabase/types";
@@ -378,7 +379,15 @@ export default function AdminProfiles() {
     const staffRoles = ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
     return profiles.filter(p => {
       const roles = getRolesForUser(p.user_id);
-      return roles.some(r => staffRoles.includes(r));
+      return roles.some(r => staffRoles.includes(r)) && p.status !== "rejected" && p.status !== "terminated";
+    });
+  };
+
+  const getTerminatedStaffProfiles = () => {
+    const staffRoles = ["admin", "diretor", "teacher", "cook", "nutritionist", "pedagogue", "auxiliar"];
+    return profiles.filter(p => {
+      const roles = getRolesForUser(p.user_id);
+      return roles.some(r => staffRoles.includes(r)) && (p.status as string) === "terminated";
     });
   };
 
@@ -387,6 +396,10 @@ export default function AdminProfiles() {
   );
 
   const filteredStaff = getStaffProfiles().filter(p =>
+    p.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTerminated = getTerminatedStaffProfiles().filter(p =>
     p.full_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
