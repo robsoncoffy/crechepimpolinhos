@@ -1833,6 +1833,13 @@ export type Database = {
             referencedRelation: "children"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "parent_children_parent_id_profiles_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       parent_invites: {
