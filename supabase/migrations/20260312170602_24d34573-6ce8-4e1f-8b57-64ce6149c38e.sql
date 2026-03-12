@@ -1,0 +1,1 @@
+ALTER TABLE public.parent_children ADD CONSTRAINT parent_children_parent_id_profiles_fkey FOREIGN KEY (parent_id) REFERENCES public.profiles(user_id) ON DELETE CASCADE;
